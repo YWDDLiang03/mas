@@ -1,0 +1,107 @@
+    canonical = json.dumps(facts, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    input_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    system = (
+        "You are the bounded post-run methodology reflector for an auditable materials workflow. "
+        "The ranking is already final: your answer MUST NOT alter this run. Decide whether the typed "
+        "facts demonstrate one genuinely reusable REVIEW METHOD for future runs. A skill is a process "
+        "such as checking measurement scope, separating feasibility from evidence strength, or auditing "
+        "one-sided target ranges. The demonstrated_process_signals list is mechanically derived from "
+        "events that actually occurred in this run. When it is non-empty, normally operationalize its "
+        "strongest item as one generic review procedure; do not copy the chemistry or outcome. NEVER "
+        "save a dopant combination, candidate score/threshold, claim of "
+        "performance, paper conclusion, or model opinion as scientific fact. If no non-obvious reusable "
+        "method is demonstrated, honestly skip. Respond ONLY JSON: "
+        '{"decision":"save_skill|skip","reason":<str>,'
+        '"skill":{"name":<kebab-case>,"when":<str>,"procedure":<str>,"why_useful":<str>}|null}. '
+        "A saved skill is PROVISIONAL, same-group reviewer methodology and is available only to future "
+        "runs; it is not evidence."
+    )
+    try:
+        output = L.chat_json(
+            role,
+            [{"role": "system", "content": system},
+             {"role": "user", "content": "AUDITED RUN FACTS:\n" + canonical}],
+            max_tokens=1200,
+            override=override,
+        )
+    except Exception as exc:  # the ranking remains successful; the reflection failure is auditable
+        return {
+            "status": "error", "decision": "skip",
+            "reason": f"{type(exc).__name__}: {_clip(exc, 240)}",
+            "saved_skill_uid": None, "role": role.value, "input_sha256": input_sha256,
+        }
+
+    decision = str(output.get("decision") or "skip").strip().lower()
+    reason = _clip(output.get("reason"), 600)
+    if decision != "save_skill":
+        return {
+            "status": "skipped", "decision": "skip", "reason": reason or "model_chose_skip",
+            "saved_skill_uid": None, "role": role.value, "input_sha256": input_sha256,
+        }
+
+    raw_skill = output.get("skill") if isinstance(output.get("skill"), dict) else {}
+    name = _skill_name(raw_skill.get("name"))
+    when = _clip(raw_skill.get("when"), 300)
+    procedure = _clip(raw_skill.get("procedure"), 1600)
+    why = _clip(raw_skill.get("why_useful") or reason, 600)
+    if not name or not when or not procedure:
+        return {
+            "status": "invalid", "decision": "skip", "reason": "incomplete_skill_fields",
+            "saved_skill_uid": None, "role": role.value, "input_sha256": input_sha256,
+        }
+
+    from agentic_doping.harness.skill_policy import validate_methodology_skill
+
+    validation = validate_methodology_skill(
+        name=name,
+        when=when,
+        procedure=procedure,
+        why=why,
+        rationale=reason,
+        candidate_ids=[row.get("candidate_id") for row in (all_candidates or [])],
+        dopants=[dopant for row in (all_candidates or []) for dopant in (row.get("dopants") or [])],
+        materials=[row.get("parent") for row in (all_candidates or [])],
+    )
+    if not validation["ok"]:
+        return {
+            "status": "invalid", "decision": "skip",
+            "reason": validation["reason"], "policy_violations": validation["violations"],
+            "saved_skill_uid": None, "role": role.value, "input_sha256": input_sha256,
+        }
+
+    from agentic_doping.harness.memory import MemoryStore
+
+    memory = MemoryStore("reviewer", group_id=group_id, run_id=run_id)
+    existing_uids = {row.get("uid") for row in memory.skills()}
+    saved = memory.add_skill(
+        name,
+        when,
+        procedure,
+        created_by="reviewer",
+        source="agent",
+        why=why,
+        tags=["agent-authored", "post-run-reflection", site or "*"],
+        review_state="provisional",
+        evidence_kind="llm_opinion",
+    )
+    if not saved:
+        return {
+            "status": "invalid", "decision": "skip", "reason": "memory_rejected_skill",
+            "saved_skill_uid": None, "role": role.value, "input_sha256": input_sha256,
+        }
+    created = saved.get("uid") not in existing_uids
+    return {
+        "status": "saved" if created else "duplicate_existing",
+        "decision": "save_skill",
+        "reason": reason or why,
+        "saved_skill_uid": saved.get("uid"),
+        "saved_skill_name": saved.get("name"),
+        "created_new": created,
+        "scope": "reviewer",
+        "group_id": group_id,
+        "run_id": saved.get("run_id"),
+        "review_state": saved.get("review_state"),
+        "evidence_kind": saved.get("evidence_kind"),
+        "role": role.value,
+        "input_sha256": input_sha256,
+    }

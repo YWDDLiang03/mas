@@ -1,0 +1,22 @@
+def distillable_literature_claims(
+    papers: list[dict], new_keys: set[str], *, role: str = "goal_analyzer",
+) -> list[dict]:
+    """Return only current, ACL-visible, single-source claims for durable knowledge.
+
+    Both goal analysis and gap discovery write group knowledge.  Keeping their admission policy in
+    this shared boundary prevents either path from laundering aggregate, denied, mock, or legacy
+    extraction data into an approved cross-run fact.
+    """
+    from agentic_doping.literature import cache as LC
+    from agentic_doping.literature.visibility import _single_source_claims
+
+    out: list[dict] = []
+    for index, paper in enumerate(papers or []):
+        if paper.get("key") not in new_keys:
+            continue
+        if not LC.visible_to(paper, role, default=(paper.get("useful") is not False)):
+            continue
+        if not current_read_provenance(paper)["valid"]:
+            continue
+        for claim in _single_source_claims(paper.get("claims") or []):
+            out.append({**claim, "refs": [index]})

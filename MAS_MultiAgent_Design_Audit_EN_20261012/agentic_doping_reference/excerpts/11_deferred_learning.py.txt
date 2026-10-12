@@ -1,0 +1,61 @@
+"""P9 — data flywheel v0 (ledger-gated, read-only aggregation).
+
+The candidate evidence ledger is the source of truth; the flywheel is a *view* over
+it: failure memory (so we don't repeat dead ends), success patterns (which
+parent/dopant combos progress), and a ledger-gated training buffer (only E4 enters).
+
+Active-learning acquisition (Ax/BoTorch qEHVI) and model retraining are NOT wired
+here — they need the torch-based doping-mlip env. See workplan/PLACEHOLDERS.md.
+"""
+from __future__ import annotations
+
+from agentic_doping.evidence_ledger import leaderboard as LB
+from agentic_doping.orchestration import run_dir
+
+_SCREENED = {"t0_screened", "mlip_screened", "dft_done", "experiment_done"}
+
+
+def failure_memory() -> dict:
+    rows = LB.leaderboard_all()
+    fails = [r for r in rows if r.get("status") == "failed"]
+    by_reason: dict[str, int] = {}
+    by_combo: dict[str, list[str]] = {}
+    for r in fails:
+        reason = r.get("failure_reason") or "unknown"
+        by_reason[reason] = by_reason.get(reason, 0) + 1
+        combo = f"{r.get('parent')}|{r.get('dopant')}|{r.get('site_type')}"
+        by_combo.setdefault(combo, []).append(reason)
+    return {"n_failed": len(fails), "by_reason": by_reason, "by_combo": by_combo,
+            "candidates": [{"candidate_id": r["candidate_id"], "parent": r.get("parent"),
+                            "dopant": r.get("dopant"), "reason": r.get("failure_reason")} for r in fails]}
+
+
+def success_patterns() -> dict:
+    rows = LB.leaderboard_all()
+    e4 = [r for r in rows if r.get("evidence_level") == "E4"]
+    screened = [r for r in rows if r.get("status") in _SCREENED]
+    parent_dopant: dict[str, dict[str, int]] = {}
+    for r in screened:
+        parent_dopant.setdefault(r.get("parent") or "?", {})
+        d = r.get("dopant") or "?"
+        parent_dopant[r.get("parent") or "?"][d] = parent_dopant[r.get("parent") or "?"].get(d, 0) + 1
+    return {"n_e4_validated": len(e4), "n_screened": len(screened), "parent_dopant_counts": parent_dopant}
+
+
+def training_buffer(min_evidence: str = "E4") -> dict:
+    rows = LB.leaderboard_all()
+    buf = [r for r in rows if r.get("evidence_level") == min_evidence]
+    return {"gate": f"evidence_level == {min_evidence}", "n": len(buf),
+            "candidates": [r["candidate_id"] for r in buf],
+            "note": "ledger-gated buffer; only E4 (DFT/experiment) enters. Model training deferred (PLACEHOLDERS.md)."}
+
+
+def select_next(k: int = 5) -> dict:
+    """Active-learning placeholder. V0 relies on the ledger gate + failure memory."""
+    return {
+        "status": "placeholder",
+        "method": "Ax/BoTorch multi-objective (qEHVI/qNEHVI) — deferred",
+        "blocker": "needs torch (doping-mlip env, not built)",
+        "note": "Until wired, next candidates are chosen by the human (HITL) informed by failure memory + chemistry score.",
+        "suggested": [],
+    }

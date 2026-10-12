@@ -1,0 +1,50 @@
+def _validate_targets(data: dict, goal_text: str = "") -> dict:
+    targets = []
+    noted = []
+    seen_targets: set[str] = set()
+    for t in data.get("target_properties", []):
+        normalized = canonicalize_target(t)
+        prop = str(normalized.get("property", "")).strip()
+        if prop in NOTED_PROPERTIES:             # size proxies (radius/goldschmidt) + DFT-only -> noted, never scored
+            noted.append({"property": prop, "why": NOTED_PROPERTIES[prop]})
+            continue
+        if prop not in PROPERTY_VOCAB:           # drop anything outside the scoring menu
+            continue
+        if prop in seen_targets:
+            continue
+        seen_targets.add(prop)
+        raw_rng = (normalized.get("target_range") if normalized.get("target_range") is not None
+                   else normalized.get("target_range_eV"))
+        rng = _normalize_target_range(raw_rng)
+        target = {
+            "property": prop,
+            "goal_role": _normalize_goal_role(normalized.get("goal_role")),
+            "desired_trend": str(normalized.get("desired_trend", "")),
+            "target_range_eV": rng,
+            "weight": float(normalized.get("weight", 0.0) or 0.0),
+            "rationale": str(normalized.get("rationale", "")),
+            "scoring_logic": str(normalized.get("scoring_logic", "")),
+            "computed_by": COMPUTABLE_PROPERTIES[prop],
+            "literature_justification": str(normalized.get("literature_justification", "")),
+            "evidence_level": "E0",
+            "property_semantics": normalized.get("property_semantics"),
+        }
+        # The scorer implementation, not free-form model prose, is authoritative about the numeric
+        # mapping.  This also prevents stale "sigmoid/logistic" descriptions after the scorer moved
+        # to a linear ramp for directional properties.
+        target["scoring_logic"] = _scoring_logic_for(target)
+        for audit_key in (
+            "legacy_property_id", "semantics_migration", "original_desired_trend",
+            "semantics_corrected_by_registry", "semantics_corrected_by_guardrail",
+            "goal_role_inferred_from_weight", "weight_promoted_by_goal_role",
+        ):
+            if normalized.get(audit_key) is not None:
+                target[audit_key] = normalized[audit_key]
+        if normalized.get("semantics_corrected_by_guardrail"):
+            target["semantics_corrected_by_guardrail"] = True
+        targets.append(target)
+    # carry through any explicitly-noted uncomputable properties (deduped)
+    for n in (data.get("noted_uncomputable") or []):
+        p = str((n or {}).get("property", "")).strip()
+        if p and p not in {x["property"] for x in noted}:
+            noted.append({"property": p, "why": str(n.get("why", "")) or NOTED_PROPERTIES.get(p, "deferred")})

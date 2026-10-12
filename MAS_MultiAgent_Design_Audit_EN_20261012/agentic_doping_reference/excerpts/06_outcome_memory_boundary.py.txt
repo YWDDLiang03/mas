@@ -1,0 +1,9 @@
+    def record_outcome(self, parent: str, host: str, site: str, dopants: list, verdict: str,
+                       reason: Optional[str] = None, score: Optional[float] = None,
+                       source: str = "dual_agent") -> dict:
+        """Convenience used by the dual-agent loop: turn a proposal outcome into a lesson."""
+        if source == "dual_agent":
+            # Every proposal/review result already lives in versioned run artifacts.  Neither a model
+            # acceptance nor rejection is durable scientific evidence, and deterministic rules remain
+            # executable code rather than being paraphrased into potentially broader memory.
+            return {}

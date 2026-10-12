@@ -1,0 +1,138 @@
+{
+  "prepared_on": "2026-10-12",
+  "purpose": "English MAS concept and source-material package; not a medical experiment result",
+  "source_archive": {
+    "original_path": "C:\\Users\\admin\\Desktop\\ai4med\\2lyw.rar",
+    "bytes": 159566087,
+    "sha256": "80e07e757b1c584576d652506298f3680b548c903c4a34920671388abd707cf2"
+  },
+  "original_manuscript_sha256": "52bb911590edc7cd543d09e05b35537800380e6a61d5bed7be9099b77d3ed088",
+  "artifacts": [
+    {
+      "packaged_path": "references/Sun_2025_AI_Drug_Discovery_PROTAC.pdf",
+      "origin": "2lyw.rar",
+      "archive_member": "2lyw\\\u53c2\u8003\u6587\u732e\\2025ScienceAdvanceAD\u836f\u7269AI\u53d1\u6398.pdf",
+      "bytes": 7489558,
+      "sha256": "a89122c4544d276a3deed366c7a00c83f189dd4eb608f17d5acb76037c2e452a",
+      "transformation": "none; byte-for-byte extraction; destination filename may differ"
+    },
+    {
+      "packaged_path": "references/State_2025_Supplied_Preprint.pdf",
+      "origin": "2lyw.rar",
+      "archive_member": "2lyw\\\u53c2\u8003\u6587\u732e\\AI\u865a\u62df\u7ec6\u80de\u6a21\u578bSTATE.pdf",
+      "bytes": 13777645,
+      "sha256": "6df042f00cbba4de6185410e004af10f386b9977415db62f839ece587449c52c",
+      "transformation": "none; byte-for-byte extraction; destination filename may differ"
+    },
+    {
+      "packaged_path": "references/Osorio_2022_scTenifoldKnk.pdf",
+      "origin": "2lyw.rar",
+      "archive_member": "2lyw\\\u53c2\u8003\u6587\u732e\\PIIS2666389922000010.pdf",
+      "bytes": 6494720,
+      "sha256": "e11791709c83fc33384e284cba9727b5ed167b05193b4eb90f3bad30b8b23f36",
+      "transformation": "none; byte-for-byte extraction; destination filename may differ"
+    },
+    {
+      "packaged_path": "references/Kamimoto_2023_CellOracle.pdf",
+      "origin": "2lyw.rar",
+      "archive_member": "2lyw\\\u53c2\u8003\u6587\u732e\\s41586-022-05688-9.pdf",
+      "bytes": 23145407,
+      "sha256": "8a518a2d178130d9e515ae3aa9e89fa6ca85d7f074a91310ab28b291999e4985",
+      "transformation": "none; byte-for-byte extraction; destination filename may differ"
+    },
+    {
+      "packaged_path": "supporting_data/P07post/barcodes.tsv.gz",
+      "origin": "2lyw.rar",
+      "archive_member": "2lyw\\\u6570\u636e\\P07post\\barcodes.tsv.gz",
+      "bytes": 71369,
+      "sha256": "b45ec2ada9682629aee30bc5129238e7aa799dd5877ec003d0063b79a07e07b7",
+      "transformation": "none; byte-for-byte extraction; destination filename may differ"
+    },
+    {
+      "packaged_path": "supporting_data/P07post/features.tsv.gz",
+      "origin": "2lyw.rar",
+      "archive_member": "2lyw\\\u6570\u636e\\P07post\\features.tsv.gz",
+      "bytes": 345265,
+      "sha256": "f4ab28e865a7b59e669f31d7a4d2944216fc998d90525b910b58bbb9ba67764f",
+      "transformation": "none; byte-for-byte extraction; destination filename may differ"
+    },
+    {
+      "packaged_path": "supporting_data/P07post/matrix.mtx.gz",
+      "origin": "2lyw.rar",
+      "archive_member": "2lyw\\\u6570\u636e\\P07post\\matrix.mtx.gz",
+      "bytes": 78865579,
+      "sha256": "7e16d1a36177ef652a5d6bdc31b473b9320d503cd9634d50b30ded4eb72d9596",
+      "transformation": "none; byte-for-byte extraction; destination filename may differ"
+    },
+    {
+      "packaged_path": "supporting_data/sanger-dose-response.csv",
+      "origin": "2lyw.rar",
+      "archive_member": "2lyw\\\u6570\u636e\\sanger-dose-response.csv",
+      "bytes": 95480474,
+      "sha256": "d25599c0653c58f14bf683a811dfffccebb199bca3074d8c602dfc72e8ad9996",
+      "transformation": "none; byte-for-byte extraction; destination filename may differ"
+    },
+    {
+      "packaged_path": "references/Manuscript_TME_TLS_Ovarian_Cancer.pdf",
+      "origin": "C:\\Users\\admin\\Desktop\\ai4med\\CELL-\u6b63\u6587.pdf",
+      "bytes": 10318842,
+      "sha256": "52bb911590edc7cd543d09e05b35537800380e6a61d5bed7be9099b77d3ed088",
+      "transformation": "none; byte-for-byte copy with an English filename"
+    }
+  ],
+  "read_only_data_inspection": {
+    "matrix_format": "%%MatrixMarket matrix coordinate integer general",
+    "matrix_metadata_lines": [
+      "%metadata_json: {\"software_version\": \"cellranger-8.0.0\", \"format_version\": 2}"
+    ],
+    "matrix_dimensions_and_stored_entries": [
+      38349,
+      14440,
+      21037146
+    ],
+    "feature_rows": 38349,
+    "barcode_rows": 14440,
+    "csv_rows": 387626,
+    "csv_columns": [
+      "DATASET",
+      "COSMIC_ID",
+      "DRUG_ID",
+      "MIN_CONC",
+      "MAX_CONC",
+      "RMSE_PUBLISHED",
+      "Z_SCORE_PUBLISHED",
+      "IC50_PUBLISHED",
+      "AUC_PUBLISHED",
+      "ARXSPAN_ID",
+      "DRUG_NAME",
+      "BROAD_ID",
+      "upper_limit",
+      "ec50",
+      "slope",
+      "lower_limit",
+      "auc",
+      "log2.ic50",
+      "mse",
+      "R2"
+    ],
+    "csv_dataset_rows": {
+      "GDSC1": 268718,
+      "GDSC2": 118908
+    },
+    "distinct_nonmissing_drug_name_strings": 397,
+    "distinct_nonmissing_cosmic_ids": 989,
+    "surufatinib_alias_regex": "surufatinib|sulfatinib|HMPL.?012",
+    "surufatinib_alias_matches": [],
+    "missing_fractions": {
+      "IC50_PUBLISHED": 0.0,
+      "AUC_PUBLISHED": 0.0,
+      "ec50": 0.155526,
+      "auc": 0.155526,
+      "log2.ic50": 0.742535,
+      "R2": 0.155526
+    },
+    "scientific_models_run": false
+  },
+  "package_revision": "Agent-first detailed architecture only; rebuttal completion and evidence-supported surufatinib priority are the concrete v1 purpose; core/adapter/case separation; no implementation code; live progress/history; translated original doping prompt; flexible inputs and leaderboard; current agent/RSI research; CDES optional",
+  "provenance_encoding": "JSON Unicode escapes preserve original source identifiers; packaged paths and explanatory text are English."
+}
