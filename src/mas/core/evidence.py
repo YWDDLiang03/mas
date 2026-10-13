@@ -85,12 +85,14 @@ class LiteratureCache:
     def __init__(self):
         self.searches: dict[str, list[dict[str, Any]]] = {}
         self.documents: dict[str, dict[str, Any] | None] = {}
+        self.extractions: dict[tuple[str, str], list[dict[str, Any]]] = {}  # (candidate, paper) → claims for every attribute
 
 
 def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, Any], identity: dict[str, Any],
            attribute: dict[str, Any], objective_text: str, cutoff_date: str | None, budget: Any = None,
            ids: dict | None = None, cache: LiteratureCache | None = None, max_documents: int = 2,
-           case_sources: list[dict[str, Any]] | None = None) -> tuple[list[dict], str | None, list[str]]:
+           case_sources: list[dict[str, Any]] | None = None,
+           reading_attributes: list[dict[str, Any]] | None = None) -> tuple[list[dict], str | None, list[str]]:
     """Gather claims for one cell. Returns (claims, tool_error_ref, source kinds searched)."""
     request = attribute["evidence_request"]
     attr_ref = f"{attribute['attribute_id']}@v{attribute['version']}"
@@ -141,12 +143,25 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
         document = cache.documents[key]
         if document is None:
             continue
-        question = {"purpose": "candidate_attribute", "objective_text": objective_text,
-                    "attribute": {"name": attribute["name"], "definition": attribute["definition"],
-                                  "unit": attribute.get("unit"), "ref": attr_ref},
-                    "candidate": {"candidate_id": candidate["candidate_id"], "labels": labels}}
+        candidate_spec = {"candidate_id": candidate["candidate_id"], "labels": labels}
+        if reading_attributes:
+            # one read of this paper for this candidate serves every literature attribute of the rule set
+            question = {"purpose": "candidate_attribute", "objective_text": objective_text, "attribute": None,
+                        "attributes": reading_attributes, "candidate": candidate_spec}
+        else:
+            question = {"purpose": "candidate_attribute", "objective_text": objective_text,
+                        "attribute": {"name": attribute["name"], "definition": attribute["definition"],
+                                      "unit": attribute.get("unit"), "ref": attr_ref},
+                        "candidate": candidate_spec}
         try:
-            claims.extend(reading.extract_claims(core, roster, stream_id, document, question, ids=ids, budget=budget))
+            if reading_attributes:
+                extraction_key = (candidate["candidate_id"], key)
+                if extraction_key not in cache.extractions:
+                    cache.extractions[extraction_key] = reading.extract_claims(core, roster, stream_id, document, question,
+                                                                               ids=ids, budget=budget)
+                claims.extend(c for c in cache.extractions[extraction_key] if c.get("attribute_ref") == attr_ref)
+            else:
+                claims.extend(reading.extract_claims(core, roster, stream_id, document, question, ids=ids, budget=budget))
         except ModelError as error:
             if error.error_class == "quota_exhausted":
                 raise BudgetBlocked() from None

@@ -14,6 +14,7 @@ fail a check are quarantined with the reason, never silently dropped.
 
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from typing import Any
@@ -314,6 +315,10 @@ def _question_text(question: dict[str, Any]) -> str:
     lines = [f"Objective: {question.get('objective_text', '')}"]
     attribute = question.get("attribute")
     candidate = question.get("candidate")
+    if question.get("attributes"):
+        lines.append("Attributes (tag each claim with the attribute_name it reports on):")
+        for item in question["attributes"]:
+            lines.append(f"- {item['name']}: {item['definition']}" + (f" (unit: {item['unit']})" if item.get("unit") else ""))
     if question.get("purpose") == "criterion_discovery":
         lines.append("Question: which measurable properties or criteria does this document indicate matter for the "
                      "objective, and what values or thresholds does it report for them? Put the property name in "
@@ -326,7 +331,8 @@ def _question_text(question: dict[str, Any]) -> str:
                      + (f" (unit: {attribute['unit']})" if attribute.get("unit") else ""))
     if candidate:
         lines.append(f"Candidate: {candidate['labels'][0]} (also known as: {', '.join(candidate['labels'][1:]) or 'no aliases'})")
-        lines.append("Extract only claims about this candidate" + (" and this attribute." if attribute else "."))
+        lines.append("Extract only claims about this candidate" + (" and this attribute." if attribute else
+                                                                    " and these attributes." if question.get("attributes") else "."))
     return "\n".join(lines)
 
 
@@ -343,9 +349,18 @@ def extract_claims(core: Core, roster: ModelRoster, stream_id: str, document: di
         terms += [question["attribute"]["name"], question["attribute"].get("definition", "")]
     if question.get("candidate"):
         terms += question["candidate"]["labels"]
+    attribute_refs: dict[str, str] = {}
+    schema = CLAIM_SCHEMA
+    if question.get("attributes"):
+        attribute_refs = {a["name"]: a["ref"] for a in question["attributes"]}
+        terms += [t for a in question["attributes"] for t in (a["name"], a.get("definition", ""))]
+        schema = json.loads(json.dumps(CLAIM_SCHEMA))
+        item_schema = schema["properties"]["claims"]["items"]
+        item_schema["required"] = item_schema["required"] + ["attribute_name"]
+        item_schema["properties"]["attribute_name"] = {"type": "string", "enum": sorted(attribute_refs)}
     passages = select_passages(document, terms)
     response = call_role(core, roster, stream_id, ModelRequest(
-        role="reader", system=READER_SYSTEM, response_schema=CLAIM_SCHEMA, max_tokens=4000,
+        role="reader", system=READER_SYSTEM, response_schema=schema, max_tokens=6000,
         messages=[{"role": "user", "content": f"{_question_text(question)}\n\nDocument: {document.get('title')}\n\n{_render(passages)}"}],
         metadata={"question": f"extract claims from {document.get('source_id')}"}), ids=ids, budget=budget)
     by_id = {p["passage_id"]: p for p in document["passages"]}
@@ -393,7 +408,8 @@ def extract_claims(core: Core, roster: ModelRoster, stream_id: str, document: di
             "scope_match": "direct" if candidate else "unknown", "reading_depth": document["reading_depth"],
             "verification_status": "unverified", "extraction_confidence": None,
             "candidate_ref": candidate["candidate_id"] if candidate else None,
-            "attribute_ref": attribute.get("ref") if attribute else None,
+            "attribute_ref": attribute_refs.get(item.get("attribute_name")) if attribute_refs
+            else attribute.get("ref") if attribute else None,
             "question_purpose": question.get("purpose"),
         }
         state = "admitted" if admit and not problems else "quarantined"

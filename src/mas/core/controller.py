@@ -289,7 +289,11 @@ class RunController:
                 self.core, self.broker, self.roster, st.run_id, candidate=candidate, identity=record, attribute=attribute,
                 objective_text=st.task_context["objective_text"], cutoff_date=st.binding["evidence_cutoff"],
                 budget=pass_budget, ids=ids, cache=cache,
-                case_sources=st.task_context.get("case_source_documents", []))
+                case_sources=st.task_context.get("case_source_documents", []),
+                reading_attributes=[{"name": r["attribute"]["name"], "definition": r["attribute"]["definition"],
+                                     "unit": r["attribute"].get("unit"),
+                                     "ref": f"{r['attribute']['attribute_id']}@v{r['attribute']['version']}"}
+                                    for r in st.rules if r["attribute"]["evidence_request"]["capability"] == "literature_retrieval"])
         except evidence.BudgetBlocked:
             return out_of_budget
         return assessor.assess_cell(candidate=candidate, attribute=attribute, rule=rule,

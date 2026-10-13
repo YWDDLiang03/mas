@@ -70,8 +70,11 @@ def reader_script(request):
     text = request.messages[0]["content"]
     name = next(n for n in BIOAVAILABILITY if f"Candidate: {n}" in text)
     quote = f"{name} had an oral bioavailability of {BIOAVAILABILITY[name]}%"
-    return {"claims": [{"passage_id": "sec1.p1", "quoted_span": quote, "statement": quote, "determination_basis": "measured",
-                        "polarity": "supports", "value": BIOAVAILABILITY[name], "unit": "%"}]}
+    claim = {"passage_id": "sec1.p1", "quoted_span": quote, "statement": quote, "determination_basis": "measured",
+             "polarity": "supports", "value": BIOAVAILABILITY[name], "unit": "%"}
+    if "attribute_name" in request.response_schema["properties"]["claims"]["items"]["properties"]:
+        claim["attribute_name"] = "Oral bioavailability"     # one read serves every literature attribute
+    return {"claims": [claim]}
 
 
 class Crash(BaseException):
