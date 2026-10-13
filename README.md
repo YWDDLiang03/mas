@@ -167,6 +167,17 @@ record-field cells, and `leaderboard_score` reproduces the weighted-percentile s
 confirmed preference values. Nothing new is fetched — the features are cells the sweep already
 assessed.
 
+**How missing evidence affects a score, which you need when reading any board.** A cell with no
+usable value leaves both the numerator and the denominator: it is never surrogate-filled, and it
+never counts as a failure. The score is therefore the mean desirability over the rules a
+candidate *was* evaluated on, and completeness is reported beside it as coverage rather than
+folded into it. The consequence is worth stating plainly: a compound measured only where it
+happens to look good can outrank a thoroughly characterised one, because the coverage floor is a
+gate, not a gradient. Compare ranks at similar coverage, and read `coverage` on every row. Where
+completeness itself should count, it belongs in a criterion that measures it -- "how many of the
+required receptors have a measured rather than a predicted value" is an attribute, and once
+confirmed it enters the score like any other.
+
 What the numbers are protected by, and why the default is still the percentile score:
 
 - the candidates are split three ways by hash (**train** fits, **select** compares generations,
