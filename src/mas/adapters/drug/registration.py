@@ -10,7 +10,7 @@ from mas.adapters.literature import tools as literature_tools
 
 from .chembl import ChEMBLBioactivity, ChEMBLMechanism, TargetCache
 from .gtopdb import GtoPdbAffinity, GtoPdbData
-from .pubchem import PubChemIdentity, PubChemProperty
+from .pubchem import PropertyCache, PubChemIdentity, PubChemProperty
 from .universe import UniverseIdentity, UniverseRecordField
 
 ADAPTER = {"adapter_id": "drug_prioritization", "adapter_version": "1", "primary_scheme": "inchikey"}
@@ -38,8 +38,9 @@ def register(broker, *, literature: bool = True, universe_file: str | None = Non
         broker.register(UniverseIdentity(universe_file))
         broker.register(UniverseRecordField(universe_file))
     targets = TargetCache() if universe_file else None
-    for provider in (PubChemIdentity(), PubChemProperty(), ChEMBLBioactivity(targets), ChEMBLMechanism(targets),
-                     GtoPdbAffinity(GtoPdbData(cache_dir))):
+    properties = PropertyCache() if universe_file else None   # a universe is swept rule by rule: one row per compound
+    for provider in (PubChemIdentity(), PubChemProperty(properties), ChEMBLBioactivity(targets),
+                     ChEMBLMechanism(targets), GtoPdbAffinity(GtoPdbData(cache_dir))):
         broker.register(provider)
     if literature:
         literature_tools.register(broker, cache_dir=cache_dir, upload_dir=upload_dir)

@@ -223,6 +223,38 @@ def test_an_activity_row_both_filters_return_stays_one_measurement(monkeypatch):
     assert all(v["unit"] == "pChEMBL" and v["value_kind"] == "curated" for v in values)
 
 
+def test_one_request_serves_every_descriptor_asked_of_a_compound(monkeypatch):
+    """PUG REST returns a whole comma-separated field list in one response, while a criterion asks
+    for one descriptor at a time. Without a per-compound row the screen pays a round trip per
+    (compound, descriptor) -- the slowest step of a universe sweep, and three times the requests."""
+    from mas.adapters.drug.pubchem import PROPERTIES, PropertyCache, PubChemProperty
+    urls = []
+
+    def fake_get(url, params=None, timeout_s=60, expect="json"):
+        urls.append(url)
+        return {"PropertyTable": {"Properties": [{"CID": 5291, "MolecularWeight": "493.6", "XLogP": "3.5",
+                                                  "HBondDonorCount": 2, "TPSA": "86.3", "HBondAcceptorCount": 7,
+                                                  "RotatableBondCount": 7, "HeavyAtomCount": 37,
+                                                  "Complexity": "706"}]}}
+
+    monkeypatch.setattr(chembl.http, "get", fake_get)
+    monkeypatch.setattr("mas.adapters.drug.pubchem.http.get", fake_get)
+    provider = PubChemProperty(PropertyCache())
+    asked = ("MolecularWeight", "XLogP", "HBondDonorCount")
+    values = [provider.invoke("computed_property", {"identifier": "KEY", "property": p}).values[0] for p in asked]
+    assert [v["name"] for v in values] == list(asked)
+    assert [v["value"] for v in values] == [493.6, 3.5, 2]      # cast per property, not all floats
+    assert all(v["value_kind"] == "derived" for v in values)    # computed descriptors are never measurements
+    assert len(urls) == 1, f"one row per compound, got {len(urls)} requests"
+    assert all(name in urls[0] for name in PROPERTIES), "the one request asks for the whole field list"
+
+    uncached = PubChemProperty()
+    urls.clear()
+    for p in asked:
+        uncached.invoke("computed_property", {"identifier": "KEY", "property": p})
+    assert len(urls) == 3        # without a cache each descriptor is still its own request
+
+
 def test_a_compound_with_more_rows_than_one_page_is_paged_on_the_no_cache_path(monkeypatch):
     """The per-compound path asked for one page of 1000 and never looked at `page_meta.next`.
     A well-studied compound exceeds that, and the rows beyond the first page would vanish

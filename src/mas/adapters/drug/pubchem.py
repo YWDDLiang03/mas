@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Any
 from urllib.parse import quote
 
@@ -59,6 +60,27 @@ class PubChemIdentity:
                                 upstream_refs=[f"pubchem:cid:{h['identifiers'][1]['value']}" for h in hits])
 
 
+class PropertyCache:
+    """One compound's whole descriptor row, fetched once and served to every property asked of it.
+
+    PUG REST returns any comma-separated field list in one response, while a criterion asks for
+    one descriptor at a time. Without this, a sweep over a universe pays a separate round trip per
+    (compound, descriptor) -- on the manuscript case three physicochemical criteria over 3,177
+    compounds, which is three times the requests and the slowest step of the screen. Keyed by
+    InChIKey, so a candidate reached by two rules is fetched once.
+    """
+
+    def __init__(self):
+        self._rows: dict[str, list[dict[str, Any]]] = {}
+        self._lock = threading.Lock()
+
+    def row(self, inchikey: str) -> list[dict[str, Any]]:
+        with self._lock:                      # the sweep may assess cells concurrently
+            if inchikey not in self._rows:
+                self._rows[inchikey] = _properties(f"inchikey/{inchikey}", ",".join(PROPERTIES))
+            return self._rows[inchikey]
+
+
 class PubChemProperty:
     contract = ToolContract(
         tool_id="tool_drug_pubchem_property", capability="property_estimate", capability_kind="attribute_estimate",
@@ -67,11 +89,15 @@ class PubChemProperty:
         evidence_kind_produced="database_entry", claim_strength_ceiling="curated", identity_inputs=("identifier",),
         required_inputs=("property",), license_id="PubChem data: public domain (NCBI policy)")
 
+    def __init__(self, cache: PropertyCache | None = None):
+        self.cache = cache
+
     def invoke(self, question_kind: str, inputs: dict[str, Any]) -> ProviderResponse:
         prop = inputs["property"]
         if prop not in PROPERTIES:
             raise ToolError("input_invalid", f"unsupported property {prop}", retryable=False)
-        records = _properties(f"inchikey/{inputs['identifier']}", prop)
+        records = self.cache.row(inputs["identifier"]) if self.cache is not None \
+            else _properties(f"inchikey/{inputs['identifier']}", prop)
         unit, cast = PROPERTIES[prop]
         values = [{"name": prop, "value": cast(r[prop]), "unit": unit, "value_kind": "derived",
                    "source_record_ref": f"pubchem_cid_{r['CID']}"} for r in records if r.get(prop) is not None][:1]
