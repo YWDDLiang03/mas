@@ -266,7 +266,8 @@ class RunController:
             claims, error_ref, searched = evidence.gather(
                 self.core, self.broker, self.roster, st.run_id, candidate=candidate, identity=record, attribute=attribute,
                 objective_text=st.task_context["objective_text"], cutoff_date=st.binding["evidence_cutoff"],
-                budget=pass_budget, ids=ids, cache=cache)
+                budget=pass_budget, ids=ids, cache=cache,
+                case_sources=st.task_context.get("case_source_documents", []))
         except evidence.BudgetBlocked:
             return out_of_budget
         return assessor.assess_cell(candidate=candidate, attribute=attribute, rule=rule,
@@ -303,7 +304,10 @@ class RunController:
         weights = (st.rule_set.get("ordering_method") or {}).get("weight_vector") or {}
         roll_ups = {c: assessor.roll_up(c, by_candidate[c], coverage_floor=st.rule_set.get("coverage_floor", 1.0),
                                         recommended_requires_hd=requires_hd) for c in candidates}
-        scores = {c: assessor.preference_score(by_candidate[c], weights) for c in candidates}
+        rules_info = {r["entry"]["rule_ref"]: {"rule_kind": r["rule"]["rule_kind"],
+                                               "predicate_form": r["rule"].get("predicate_form", "threshold"),
+                                               "direction": r["attribute"].get("direction")} for r in st.rules}
+        scores = assessor.preference_scores(by_candidate, rules_info, weights)
         claim_ids = sorted({r for cell in st.cells.values() for r in cell["value_source_claim_refs"]})
         snapshot_id = ledger.freeze_snapshot(self.core, run_id, task_id=task_id, claim_ids=claim_ids,
                                              cutoff_at=st.binding["evidence_cutoff"],

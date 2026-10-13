@@ -10,6 +10,7 @@ Two routes, chosen by the attribute's `evidence_request.capability`:
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from . import ledger, reading
@@ -70,6 +71,14 @@ def literature_query(attribute: dict[str, Any], labels: list[str]) -> str:
     return template.replace("{names}", names)
 
 
+_NAME_LIKE = re.compile(r"^[A-Za-z][A-Za-z0-9\- ]{2,30}$")
+
+
+def name_like(alias: str | None) -> bool:
+    """A usable search label: starts with a letter, short, at most three words (drops CAS numbers, IUPAC names)."""
+    return bool(alias) and bool(_NAME_LIKE.match(alias)) and len(alias.split()) <= 3 and any(c.isalpha() for c in alias[1:])
+
+
 class LiteratureCache:
     """Per-run memo of searches and documents, so one paper is read once per run."""
 
@@ -80,7 +89,8 @@ class LiteratureCache:
 
 def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, Any], identity: dict[str, Any],
            attribute: dict[str, Any], objective_text: str, cutoff_date: str | None, budget: Any = None,
-           ids: dict | None = None, cache: LiteratureCache | None = None, max_documents: int = 2) -> tuple[list[dict], str | None, list[str]]:
+           ids: dict | None = None, cache: LiteratureCache | None = None, max_documents: int = 2,
+           case_sources: list[dict[str, Any]] | None = None) -> tuple[list[dict], str | None, list[str]]:
     """Gather claims for one cell. Returns (claims, tool_error_ref, source kinds searched)."""
     request = attribute["evidence_request"]
     attr_ref = f"{attribute['attribute_id']}@v{attribute['version']}"
@@ -101,8 +111,8 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
                                          link_basis=identity["identity_link_basis"], ids=ids) if result.ok else []
         return claims, error_ref, [request["capability"]]
     cache = cache or LiteratureCache()
-    labels = [identity.get("preferred_label") or candidate.get("label")] + [a.get("alias") if isinstance(a, dict) else a
-                                                                             for a in identity.get("aliases", [])][:4]
+    aliases = [a.get("alias") if isinstance(a, dict) else a for a in identity.get("aliases", [])]
+    labels = [identity.get("preferred_label") or candidate.get("label")] + [a for a in aliases if name_like(a)][:4]
     labels = [l for l in dict.fromkeys(labels) if l]
     query = literature_query(attribute, labels)
     if query not in cache.searches:
@@ -121,7 +131,8 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
         return (not names_candidate, -term_hits, not hit.get("pmcid"), hit.get("best_rank", 0))
 
     hits = [h for h in sorted(cache.searches[query], key=relevance)
-            if reading.names_entity(labels, f"{h.get('title', '')} {h.get('abstract_html', '')}")]
+            if reading.names_entity(labels, f"{h.get('title', '')} {h.get('abstract_html', '')}")
+            and not reading.is_case_source(h, case_sources or [])]
     claims: list[dict[str, Any]] = []
     for hit in hits[:max_documents]:
         key = (hit.get("doi") or hit.get("pmid") or hit.get("title") or "").lower()

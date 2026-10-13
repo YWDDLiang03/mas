@@ -74,6 +74,31 @@ def names_entity(labels: list[str], *texts: str) -> bool:
                for label in labels if label)
 
 
+# --- case-source exclusion ------------------------------------------------------------
+
+def _tokens(text: str) -> set[str]:
+    return {t for t in re.findall(r"[a-z0-9]+", normalize_for_match(text)) if len(t) > 2}
+
+
+def is_case_source(hit: dict[str, Any], case_sources: list[dict[str, Any]], *, title_similarity: float = 0.85) -> bool:
+    """True when a hit is a registered case-source document: same identifier, or a near-identical title
+    (token overlap at or above `title_similarity`, which catches preprint and published versions)."""
+    keys = {(i["scheme"], str(i["value"]).lower()) for i in hit.get("identifiers", [])}
+    for scheme in ("doi", "pmid", "pmcid"):
+        if hit.get(scheme):
+            keys.add((scheme, str(hit[scheme]).lower()))
+    hit_tokens = _tokens(hit.get("title") or "")
+    for doc in case_sources:
+        if any((i["scheme"], str(i["value"]).lower()) in keys for i in doc.get("identifiers", [])):
+            return True
+        doc_tokens = _tokens(doc.get("title") or "")
+        if doc_tokens and hit_tokens:
+            overlap = len(doc_tokens & hit_tokens) / len(doc_tokens | hit_tokens)
+            if overlap >= title_similarity:
+                return True
+    return False
+
+
 # --- finding -------------------------------------------------------------------------
 
 QUERY_PLAN_SCHEMA = {

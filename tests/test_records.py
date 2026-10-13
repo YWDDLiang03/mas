@@ -108,3 +108,17 @@ def test_expert_decisions_need_a_person_and_interactive_entry(core):
     assert err.value.code == "rejected_not_permitted_in_state"
     with pytest.raises(criteria.InvariantViolation):
         criteria.confirm_rule_set(core, task_id, by=OPERATOR)
+
+
+def test_pending_expert_items_block_the_rule_set_unless_explicitly_allowed(core):
+    task_id, _ = task.record_version(core, TASK_SPEC, by=OPERATOR)
+    criteria.propose(core, task_id, ATTRIBUTE, RULE, by=AGENT)                       # hard exclusion: needs an expert
+    preference = dict(RULE, rule_kind="preference", cutoff_basis="source_stated_value")
+    criteria.propose(core, task_id, dict(ATTRIBUTE, name="Heavy atoms", unit="count"),
+                     dict(preference, cutoff={"comparator": "<=", "value": 40, "unit": "count"}), by=AGENT)
+    with pytest.raises(criteria.InvariantViolation):
+        criteria.confirm_rule_set(core, task_id, by=OPERATOR)
+    ref = criteria.confirm_rule_set(core, task_id, by=OPERATOR, allow_pending=True)
+    rules = criteria.rule_set(core, task_id, ref)
+    assert [e["rule_ref"] for e in rules["entries"]] == ["rule_heavy-atoms@v1"]
+    assert rules["pending"] == ["rule_molecular-weight@v1"] and rules["acceptance_label"] == "exploratory"

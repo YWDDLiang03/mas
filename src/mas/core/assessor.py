@@ -74,7 +74,12 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
         values = [float(c["value"]) for c in usable]
         aggregation = attribute.get("aggregation", "consensus")
         if cutoff is None:
-            verdict = "unknown_missing"
+            if rule.get("predicate_form") == "ordering" and rule["rule_kind"] == "preference":
+                prefer_high = attribute.get("direction") != "lower_better"
+                value = (max(values) if prefer_high else min(values)) if aggregation != "consensus" else values[0]
+                verdict = "pass"  # value-bearing; an ordering rule ranks, it never fails
+            else:
+                verdict = "unknown_missing"
         else:
             sides = {_compare(v, cutoff["comparator"], cutoff["value"]) for v in values}
             if aggregation == "consensus" and len(sides) > 1:
@@ -134,6 +139,8 @@ def _reason_text(attribute, rule, verdict, statement_value, cutoff, refs, dispos
         return f"{name}: unknown — {cause}; this is not a failure."
     if verdict == "unknown_conflicted":
         return f"{name}: unknown — {len(refs)} admitted claims fall on both sides of the cutoff; conflict open."
+    if not cutoff:
+        return f"{name} = {statement_value} ({len(refs)} claim(s)); recorded for ordering ({attribute.get('direction')}), no cutoff."
     rule_text = f"{cutoff.get('comparator')} {cutoff.get('value')} {cutoff.get('unit') or ''}".strip()
     extra = "; counter-evidence found and outweighed by the declared aggregation" if disposition == "found_and_outweighed" else ""
     return f"{name} = {statement_value} ({len(refs)} claim(s)); rule {rule_text} → {verdict}{extra}."
@@ -168,19 +175,48 @@ def roll_up(candidate_id: str, assessments: list[dict[str, Any]], *, coverage_fl
             "n_preferences": len(prefs), "blocking_unknowns": blocking}
 
 
-def preference_score(assessments: list[dict[str, Any]], weights: dict[str, float]) -> tuple[float | None, float]:
-    """Weighted share of evaluated preference rules that pass; missing rules are left out (never surrogate-filled).
+def preference_scores(cells_by_candidate: dict[str, list[dict[str, Any]]], rules: dict[str, dict[str, Any]],
+                      weights: dict[str, float]) -> dict[str, tuple[float | None, float]]:
+    """Preference score per candidate: weighted mean desirability over evaluated preference rules.
 
-    Returns (score or None when nothing was evaluated, preference coverage).
+    Threshold rules contribute 1 for pass and 0 for fail. Ordering rules contribute the
+    candidate's percentile among candidates with a value, in the attribute's direction.
+    Missing values are left out of both numerator and denominator (never surrogate-filled);
+    the second element is the weighted share of preference rules that were evaluated.
+    Returns {candidate: (score or None, preference coverage)}.
     """
-    prefs = [a for a in assessments if a["rule_kind"] == "preference" and a["verdict"] != "inapplicable"]
-    if not prefs:
-        return None, 0.0
-    total = sum(weights.get(a["rule_ref"], 1.0) for a in prefs)
-    evaluated = [a for a in prefs if a["verdict"] in ("pass", "fail")]
-    covered = sum(weights.get(a["rule_ref"], 1.0) for a in evaluated)
-    if not evaluated or covered == 0:
-        return None, 0.0
-    score = sum(weights.get(a["rule_ref"], 1.0) for a in evaluated if a["verdict"] == "pass") / covered
-    return score, covered / total if total else 0.0
-
+    percentiles: dict[str, dict[str, float]] = {}
+    for rule_ref, info in rules.items():
+        if info["rule_kind"] != "preference" or info.get("predicate_form") != "ordering":
+            continue
+        values = {c: cell["value"] for c, cells in cells_by_candidate.items() for cell in cells
+                  if cell["rule_ref"] == rule_ref and cell["verdict"] == "pass" and isinstance(cell["value"], (int, float))}
+        ordered = sorted(values.items(), key=lambda kv: kv[1], reverse=info.get("direction") == "lower_better")
+        n = len(ordered)
+        ranks: dict[str, float] = {}
+        index = 0
+        while index < n:
+            end = index
+            while end + 1 < n and ordered[end + 1][1] == ordered[index][1]:
+                end += 1
+            share = ((index + end) / 2) / (n - 1) if n > 1 else 1.0
+            for k in range(index, end + 1):
+                ranks[ordered[k][0]] = share
+            index = end + 1
+        percentiles[rule_ref] = ranks
+    out: dict[str, tuple[float | None, float]] = {}
+    for candidate, cells in cells_by_candidate.items():
+        prefs = [c for c in cells if c["rule_kind"] == "preference" and c["verdict"] != "inapplicable"]
+        total = sum(weights.get(c["rule_ref"], 1.0) for c in prefs)
+        numerator = denominator = 0.0
+        for cell in prefs:
+            weight = weights.get(cell["rule_ref"], 1.0)
+            if cell["rule_ref"] in percentiles:
+                if candidate in percentiles[cell["rule_ref"]]:
+                    numerator += weight * percentiles[cell["rule_ref"]][candidate]
+                    denominator += weight
+            elif cell["verdict"] in ("pass", "fail"):
+                numerator += weight * (1.0 if cell["verdict"] == "pass" else 0.0)
+                denominator += weight
+        out[candidate] = ((numerator / denominator) if denominator else None, (denominator / total) if total else 0.0)
+    return out

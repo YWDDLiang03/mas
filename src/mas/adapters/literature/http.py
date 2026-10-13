@@ -2,14 +2,34 @@
 
 from __future__ import annotations
 
+import threading
+import time
+from urllib.parse import urlparse
+
 import requests
 
 from mas.core.broker import ToolAbsent, ToolError
 
-USER_AGENT = "mas-literature/0.1 (evidence-driven candidate prioritization; research use)"
+USER_AGENT = "mas/0.1 (evidence-driven candidate prioritization; research use)"
+
+# Minimum seconds between requests to one host (polite use of public services).
+MIN_INTERVAL_S = {"pubchem.ncbi.nlm.nih.gov": 0.25, "eutils.ncbi.nlm.nih.gov": 0.4, "www.ebi.ac.uk": 0.1}
+_last_call: dict[str, float] = {}
+_lock = threading.Lock()
+
+
+def _throttle(url: str) -> None:
+    host = urlparse(url).netloc
+    interval = MIN_INTERVAL_S.get(host, 0.0)
+    with _lock:
+        wait = _last_call.get(host, 0.0) + interval - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        _last_call[host] = time.monotonic()
 
 
 def get(url: str, *, params: dict | None = None, timeout_s: float = 60, expect: str = "json"):
+    _throttle(url)
     try:
         reply = requests.get(url, params=params, timeout=timeout_s, headers={"User-Agent": USER_AGENT})
     except requests.Timeout:

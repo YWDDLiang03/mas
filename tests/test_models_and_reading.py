@@ -230,3 +230,12 @@ def test_summaries_drop_points_without_valid_citations(core):
     summary = reading.summarize(core, roster, "run_x", document, focus="potency")
     assert [p["point"] for p in summary["key_points"]] == ["IC50 12.5 nM"]
     assert summary["uncited_points_dropped"] == 1 and summary["is_evidence"] is False
+
+
+def test_case_source_matching_catches_identifiers_and_near_identical_titles():
+    sources = [{"identifiers": [{"scheme": "doi", "value": "10.1/MS"}],
+                "title": "Multi-target TME Reprogramming Awakens TLS-driven Immunity in Ovarian Cancer"}]
+    assert reading.is_case_source({"doi": "10.1/ms", "title": "anything"}, sources)
+    assert reading.is_case_source({"title": "Multi-target TME reprogramming awakens TLS-driven immunity in ovarian cancer."},
+                                  sources)
+    assert not reading.is_case_source({"title": "TLS biology in ovarian cancer: a review"}, sources)

@@ -54,6 +54,11 @@ def check_rule(rule: dict[str, Any], attr: dict[str, Any]) -> None:
         if rule.get(policy) == "exclude" and rule["rule_kind"] != "hard_exclusion":
             raise InvariantViolation("schema", f"{policy}: exclude is only for hard exclusions")
     cutoff = rule.get("cutoff")
+    if rule.get("predicate_form", "threshold") not in ("threshold", "ordering", "range_membership", "categorical_membership",
+                                                       "qualitative_judgment"):
+        raise InvariantViolation("schema", f"unknown predicate_form {rule.get('predicate_form')!r}")
+    if rule.get("predicate_form") == "ordering" and rule["rule_kind"] != "preference":
+        raise InvariantViolation("schema", "an ordering rule ranks candidates, so it must be a preference")
     if rule["cutoff_basis"] == "none_evidence_insufficient":
         if cutoff:
             raise InvariantViolation("arbitrary_cutoff", "none_evidence_insufficient with a cutoff value")
@@ -103,13 +108,20 @@ def propose(core: Core, task_id: str, attribute: dict[str, Any], rule: dict[str,
                             payload={"kind": kind, "id": base_id, "version": version, "artifact_id": artifact_id},
                             artifact_links=[{"kind": kind, "id": artifact_id, "version": version}],
                             summary=f"proposed {base_id}@v{version}")
-    why = "hard_exclusion entering confirmed" if rule_record["rule_kind"] == "hard_exclusion" else "rule confirmation"
-    if rule_record["cutoff_basis"] == "expert_set":
-        why += "; cutoff_basis expert_set"
-    review.request(core, task_id, subject={"kind": "rule_version", "id": rule_ref, "version": rule_version,
-                                           "attribute_ref": attr_ref},
-                   why_expert_required=why, requested_by=by)
+    if needs_expert(rule_record):
+        why = "hard_exclusion entering confirmed" if rule_record["rule_kind"] == "hard_exclusion" else "rule confirmation"
+        if rule_record["cutoff_basis"] == "expert_set":
+            why += "; cutoff_basis expert_set"
+        review.request(core, task_id, subject={"kind": "rule_version", "id": rule_ref, "version": rule_version,
+                                               "attribute_ref": attr_ref},
+                       why_expert_required=why, requested_by=by)
     return attr_ref, rule_ref
+
+
+def needs_expert(rule: dict[str, Any]) -> bool:
+    """Trigger table (design §12.1): hard exclusions and expert-set cutoffs need an `hd_`;
+    evidence-sourced preference rules proceed automatically, recorded and reversible."""
+    return rule["rule_kind"] == "hard_exclusion" or rule["cutoff_basis"] == "expert_set"
 
 
 def load(core: Core, ref: str, task_id: str) -> dict[str, Any]:
@@ -123,44 +135,61 @@ def load(core: Core, ref: str, task_id: str) -> dict[str, Any]:
 
 
 def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_method: dict[str, Any] | None = None,
-                     coverage_floor: float = 1.0, constants: list[dict[str, Any]] | None = None) -> str:
-    """Assemble `rules@v<n>` from every rule version approved by an expert decision.
+                     coverage_floor: float = 1.0, constants: list[dict[str, Any]] | None = None,
+                     allow_pending: bool = False) -> str:
+    """Assemble `rules@v<n>` from the rule proposals that may enter it.
 
-    A rule enters the set only with an `hd_` approving it; every proposed rule must be
-    decided first. Returns the rule-set reference.
+    A rule needing an expert enters only with an `hd_` approving it; a preference rule the
+    trigger table lets proceed automatically enters with `confirmed_by: auto:trigger_table`.
+    Proposals still awaiting a decision block the set unless `allow_pending` is given (for
+    exploratory runs); they are then listed in `pending[]`, never silently dropped.
     """
     queue = review.items(core, [task_id])
-    rule_items = [i for i in queue.values() if i["subject"]["kind"] == "rule_version" and i["state"] != "withdrawn"]
-    open_items = [i for i in rule_items if i["state"] != "decided"]
-    if open_items:
-        raise InvariantViolation("unconfirmed", f"{len(open_items)} rule proposals await an expert decision")
-    approved = [i for i in rule_items if i["decision"] in ("approve", "approve_with_edits")]
-    if not approved:
-        raise InvariantViolation("unconfirmed", "no rule version has been approved")
+    decided = {i["subject"]["id"]: i for i in queue.values()
+               if i["subject"]["kind"] == "rule_version" and i["state"] == "decided"}
+    open_refs = sorted(i["subject"]["id"] for i in queue.values()
+                       if i["subject"]["kind"] == "rule_version" and i["state"] in ("open", "in_review"))
+    if open_refs and not allow_pending:
+        raise InvariantViolation("unconfirmed", f"{len(open_refs)} rule proposals await an expert decision")
+    proposed = {}
+    for event in core.journal.replay(task_id):
+        if event.event_type == "criterion.version_proposed" and event.payload["kind"] == "rule":
+            proposed[event.payload["id"]] = f"{event.payload['id']}@v{event.payload['version']}"   # latest version wins
     entries = []
-    for item in sorted(approved, key=lambda i: i["subject"]["id"]):
-        rule = load(core, item["subject"]["id"], task_id)
+    for rule_ref in sorted(proposed.values()):
+        rule = load(core, rule_ref, task_id)
+        item = decided.get(rule_ref)
+        if item is not None:
+            if item["decision"] not in ("approve", "approve_with_edits"):
+                continue
+            confirmed_by = item["decision_id"]
+        elif not needs_expert(rule):
+            confirmed_by = "auto:trigger_table"
+        else:
+            continue
         attr = load(core, rule["attribute_ref"], task_id)
-        entries.append({"attribute_ref": rule["attribute_ref"], "rule_ref": item["subject"]["id"],
-                        "rule_kind": rule["rule_kind"], "confirmed_by": item["decision_id"],
-                        "acceptable_value_sources": attr["acceptable_value_sources"],
+        entries.append({"attribute_ref": rule["attribute_ref"], "rule_ref": rule_ref, "rule_kind": rule["rule_kind"],
+                        "confirmed_by": confirmed_by, "acceptable_value_sources": attr["acceptable_value_sources"],
                         "on_states": [rule["on_missing"], rule["on_inapplicable"], rule["on_conflict"]],
                         "cutoff_basis": rule["cutoff_basis"]})
+    if not entries:
+        raise InvariantViolation("unconfirmed", "no rule version may enter the set yet")
     existing = [e for e in core.journal.replay(task_id) if e.event_type == "criterion.version_approved"]
     version = len(existing) + 1
     admission_predicate = {"entries": [{k: e[k] for k in ("acceptable_value_sources", "on_states", "cutoff_basis")} for e in entries],
                            "coverage_floor": coverage_floor, "constants": constants or []}
     record = {"rule_set_ref": f"rules@v{version}", "task_id": task_id, "entries": entries,
-              "ordering_method": ordering_method or {"kind": "all_pass_set", "tie_break": "candidate_id"},
+              "ordering_method": ordering_method or {"kind": "weighted_preference", "weight_vector": {}, "tie_break": "candidate_id"},
               "coverage_floor": coverage_floor,
               "evidence_admission_predicate_hash": sha256_hex(admission_predicate),
-              "confirmed_by": [e["confirmed_by"] for e in entries], "preregistration_ref": None}
+              "confirmed_by": [e["confirmed_by"] for e in entries], "pending": open_refs,
+              "acceptance_label": "exploratory" if open_refs else "prespecified", "preregistration_ref": None}
     artifact_id = core.artifacts.put("rule_set", record)
     core.journal.append(task_id, "criterion.version_approved", actor=by, ids={"task_id": task_id},
                         payload={"rule_set_ref": record["rule_set_ref"], "artifact_id": artifact_id,
-                                 "hash": record["evidence_admission_predicate_hash"]},
+                                 "hash": record["evidence_admission_predicate_hash"], "pending": open_refs},
                         artifact_links=[{"kind": "rule_set", "id": artifact_id, "version": version}],
-                        summary=f"confirmed {record['rule_set_ref']} ({len(entries)} rules)")
+                        summary=f"confirmed {record['rule_set_ref']} ({len(entries)} rules, {len(open_refs)} pending)")
     return record["rule_set_ref"]
 
 
