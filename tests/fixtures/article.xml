@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article article-type="research-article">
+ <front><article-meta>
+  <article-id pub-id-type="pmcid">PMC0000001</article-id>
+  <article-id pub-id-type="doi">10.0000/test.1</article-id>
+  <title-group><article-title>Exampletinib inhibits kinase X in a synthetic study</article-title></title-group>
+  <pub-date><year>2025</year></pub-date>
+  <abstract><sec><title>Background</title><p>Kinase X drives growth in model systems.</p></sec>
+   <sec><title>Results</title><p>Exampletinib reduced kinase X activity with an IC50 of 12.5 nM in cell-free assays.</p></sec></abstract>
+  <permissions><license xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://creativecommons.org/licenses/by/4.0/"/></permissions>
+ </article-meta></front>
+ <body>
+  <sec><title>Methods</title><p>Assays used recombinant kinase X at 37 °C.</p></sec>
+  <sec><title>Results</title>
+   <sec><title>Potency</title><p>The oral bioavailability of exampletinib in rats was 45% after a single dose.</p>
+    <p>Comparatortinib showed no activity against kinase X at concentrations up to 10 µM.</p></sec>
+  </sec>
+  <table-wrap><label>Table 1</label><caption><p>Potency summary</p></caption>
+   <table><tr><th>Compound</th><th>IC50 (nM)</th></tr><tr><td>Exampletinib</td><td>12.5</td></tr></table></table-wrap>
+ </body>
+ <back><ref-list><ref><mixed-citation>Should not be read.</mixed-citation></ref></ref-list></back>
+</article>
