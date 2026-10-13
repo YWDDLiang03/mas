@@ -106,6 +106,15 @@ class Journal:
         if termination_reason is not None:
             vocab.require("termination_reason", termination_reason)
         payload = payload or {}
+        with self.store.write_lock:
+            return self._append_locked(stream_id, event_type, actor=actor, ids=ids, payload=payload, parent_seq=parent_seq,
+                                       cause_seq=cause_seq, state_from=state_from, state_to=state_to,
+                                       termination_reason=termination_reason, question=question, summary=summary,
+                                       progress=progress, budget=budget, artifact_links=artifact_links,
+                                       visibility=visibility, emitted_at=emitted_at)
+
+    def _append_locked(self, stream_id, event_type, *, actor, ids, payload, parent_seq, cause_seq, state_from, state_to,
+                       termination_reason, question, summary, progress, budget, artifact_links, visibility, emitted_at) -> Event:
         db = self.store.db
         db.execute("BEGIN IMMEDIATE")
         try:

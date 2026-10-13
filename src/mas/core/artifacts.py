@@ -25,6 +25,10 @@ class ArtifactStore:
         }
         digest = sha256_hex(envelope)
         artifact_id = f"art_{digest[:12]}"
+        with self.store.write_lock:
+            return self._put_locked(artifact_id, digest, kind, envelope)
+
+    def _put_locked(self, artifact_id: str, digest: str, kind: str, envelope: dict[str, Any]) -> str:
         db = self.store.db
         existing = db.execute("SELECT sha256 FROM artifacts WHERE artifact_id = ?", (artifact_id,)).fetchone()
         if existing:

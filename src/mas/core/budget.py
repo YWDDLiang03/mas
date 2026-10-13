@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Any
 
 
@@ -11,14 +12,16 @@ class Budget:
     def __init__(self, envelope: dict[str, Any] | None = None):
         self.caps = {k: v for k, v in (envelope or {}).items() if isinstance(v, (int, float)) and not isinstance(v, bool)}
         self.used: dict[str, float] = {}
+        self._lock = threading.Lock()
 
     def try_charge(self, kind: str, amount: float = 1) -> bool:
-        cap = self.caps.get(kind)
-        used = self.used.get(kind, 0)
-        if cap is not None and used + amount > cap:
-            return False
-        self.used[kind] = used + amount
-        return True
+        with self._lock:
+            cap = self.caps.get(kind)
+            used = self.used.get(kind, 0)
+            if cap is not None and used + amount > cap:
+                return False
+            self.used[kind] = used + amount
+            return True
 
     def remaining(self, kind: str) -> float | None:
         cap = self.caps.get(kind)

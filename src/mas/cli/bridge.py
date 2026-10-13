@@ -19,20 +19,42 @@ import time
 from pathlib import Path
 
 
+CLAIM_TIMEOUT_S = 1800
+
+
 def _pending(root: Path) -> list[Path]:
     answered = {p.stem for p in (root / "responses").glob("*.json")}
     requests = sorted((root / "requests").glob("*.json"), key=lambda p: p.stat().st_mtime)
     return [p for p in requests if p.stem not in answered]
 
 
-def cmd_next(root: Path, wait_s: float) -> int:
+def _claim(root: Path, request: Path, agent: str) -> bool:
+    """Claim a request atomically; a claim older than CLAIM_TIMEOUT_S may be taken over."""
+    claims = root / "claims"
+    claims.mkdir(exist_ok=True)
+    marker = claims / f"{request.stem}.claim"
+    try:
+        handle = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        if marker.read_text() == agent:
+            return True  # re-deliver to the agent that claimed it (for example after a failed answer)
+        if time.time() - marker.stat().st_mtime < CLAIM_TIMEOUT_S:
+            return False
+        marker.unlink(missing_ok=True)
+        return _claim(root, request, agent)
+    with os.fdopen(handle, "w") as out:
+        out.write(agent)
+    return True
+
+
+def cmd_next(root: Path, wait_s: float, agent: str = "agent") -> int:
     deadline = time.monotonic() + wait_s
     while True:
-        pending = _pending(root)
-        if pending:
-            print(pending[0].read_text(encoding="utf-8"))
-            return 0
-        if (root / "DONE").exists():
+        for request in _pending(root):
+            if _claim(root, request, agent):
+                print(request.read_text(encoding="utf-8"))
+                return 0
+        if (root / "DONE").exists() and not _pending(root):
             print(json.dumps({"status": "done"}))
             return 3
         if time.monotonic() > deadline:
@@ -82,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     (root / "requests").mkdir(parents=True, exist_ok=True)
     (root / "responses").mkdir(parents=True, exist_ok=True)
     if args.command == "next":
-        return cmd_next(root, args.wait)
+        return cmd_next(root, args.wait, args.answered_by)
     if args.command == "answer":
         if not args.request_id:
             parser.error("answer needs REQUEST_ID")

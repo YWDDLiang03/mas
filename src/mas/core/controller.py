@@ -11,6 +11,8 @@ before then makes it `unresolved`. A finished run is never re-entered.
 from __future__ import annotations
 
 import random
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -40,19 +42,21 @@ class _PassBudget:
 
     def __init__(self, run_budget: Budget, reservation: dict[str, float]):
         self.run_budget, self.reservation, self.used = run_budget, reservation, {}
+        self._lock = threading.Lock()
 
     def blocked(self) -> bool:
         return any(self.used.get(kind, 0) >= cap for kind, cap in self.reservation.items()) or \
             self.run_budget.exhausted("tool_calls")
 
     def try_charge(self, kind: str, amount: float = 1) -> bool:
-        cap = self.reservation.get(kind)
-        if cap is not None and self.used.get(kind, 0) + amount > cap:
-            return False
-        if not self.run_budget.try_charge(kind, amount):
-            return False
-        self.used[kind] = self.used.get(kind, 0) + amount
-        return True
+        with self._lock:
+            cap = self.reservation.get(kind)
+            if cap is not None and self.used.get(kind, 0) + amount > cap:
+                return False
+            if not self.run_budget.try_charge(kind, amount):
+                return False
+            self.used[kind] = self.used.get(kind, 0) + amount
+            return True
 
 
 @dataclass
@@ -72,9 +76,10 @@ class RunState:
 
 class RunController:
     def __init__(self, core: Core, broker, roster=None, *, adapter: dict[str, Any], host_platform: str = "linux",
-                 implementation: dict[str, Any] | None = None):
+                 implementation: dict[str, Any] | None = None, workers: int = 1):
         self.core, self.broker, self.roster = core, broker, roster
         self.implementation = implementation or {}
+        self.workers = max(1, workers)  # concurrent cells for literature rules (model calls dominate)
         self.adapter = adapter  # {"adapter_id", "adapter_version", "primary_scheme"}
         self.host_platform = host_platform
 
@@ -236,14 +241,21 @@ class RunController:
             step_ids = dict(ids, step_id=step_id)
             self._emit(run_id, "step.started", ids=step_ids, payload={"rule_ref": rule_ref, "candidates": len(order)},
                        question=f"apply {rule_ref} to every resolved candidate")
-            for candidate_id in order:
-                if (rule_ref, candidate_id) in st.cells:
-                    st.reused += 1
-                    continue
+            todo = [c for c in order if (rule_ref, c) not in st.cells]
+            st.reused += len(order) - len(todo)
+            literature = item["attribute"]["evidence_request"]["capability"] == "literature_retrieval"
+
+            def work(candidate_id: str) -> bool:
                 cell, reason = self._assess(st, item, candidate_id, pass_budget, step_ids, cache)
-                if cell["verdict"] == "not_assessed" and cell["not_assessed_reason"] == "budget_exhausted":
-                    budget_cut = True
                 self._record_cell(st, cell, reason, step_ids, planned_cells)
+                return cell["verdict"] == "not_assessed" and cell["not_assessed_reason"] == "budget_exhausted"
+
+            if literature and self.workers > 1:
+                with ThreadPoolExecutor(max_workers=self.workers) as pool:
+                    budget_cut = any(list(pool.map(work, todo))) or budget_cut
+            else:
+                for candidate_id in todo:
+                    budget_cut = work(candidate_id) or budget_cut
             self._emit(run_id, "step.completed", ids=step_ids, state_to="completed",
                        payload={"rule_ref": rule_ref, "budget_used": pass_budget.used})
             self._emit(run_id, "checkpoint.written", ids=dict(step_ids, checkpoint_id=f"ckpt_{run_id}_{index + 1}"),

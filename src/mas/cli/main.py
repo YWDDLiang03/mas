@@ -247,7 +247,7 @@ def cmd_run(args) -> None:
             task_id = created[0].payload["task_id"] if created else None
         context = task.get(core, task_id) if task_id else None
         controller = RunController(core, _broker(core, context), _roster(args, required=False), adapter=ADAPTER,
-                                   implementation=_implementation())
+                                   implementation=_implementation(), workers=getattr(args, "workers", 1) or 1)
         try:
             if args.action == "start":
                 envelope = {k: v for k, v in (("tool_calls", args.tool_calls), ("llm_turns", args.llm_turns)) if v}
@@ -367,6 +367,7 @@ def main(argv: list[str] | None = None) -> int:
     u.add_argument("--tool-calls", type=int)
     u.add_argument("--llm-turns", type=int)
     u.add_argument("--cutoff")
+    u.add_argument("--workers", type=int, default=1, help="concurrent literature cells (model calls)")
     u.set_defaults(func=cmd_run)
 
     b = sub.add_parser("board")

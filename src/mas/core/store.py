@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import sys
+import threading
 from pathlib import Path
 
 SCHEMA = """
@@ -142,6 +143,7 @@ class Store:
         self.root = root
         self.db = connection
         self._lock = lock
+        self.write_lock = threading.RLock()  # one writer at a time inside this host
 
     @classmethod
     def open(cls, root: str | os.PathLike, *, create: bool = True, allow_unsupported_root: bool = False) -> "Store":
