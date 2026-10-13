@@ -81,11 +81,41 @@ def _tokens(text: str) -> set[str]:
     return {t for t in re.findall(r"[a-z0-9]+", normalize_for_match(text)) if len(t) > 2}
 
 
-def is_case_source(hit: dict[str, Any], case_sources: list[dict[str, Any]], *, title_similarity: float = 0.85) -> bool:
-    """True when a hit is a registered case-source document: same identifier, or a near-identical title
-    (token overlap at or above `title_similarity`, which catches preprint and published versions)."""
+def is_case_source(hit: dict[str, Any], case_sources: list[dict[str, Any]], *, title_similarity: float = 0.85,
+                   title_containment: float = 0.90, containment_min_tokens: int = 6) -> bool:
+    """True when a hit is a registered case-source document. Three paths, strongest first.
+
+    1. Identifier. An exact match on a declared identifier — doi, pmid, pmcid, or an uploaded
+       file's `sha256` content digest. A content hash is the one identity a copy of the case
+       manuscript cannot shed by being renamed or retitled (an upload's title defaults to its
+       filename stem, which shares no tokens with the real title), so the digest is read from
+       the hit's identifier list and from a top-level `sha256` key alike.
+    2. Title Jaccard at or above `title_similarity`: the same title with different casing or
+       punctuation, or with a word swapped, as between a preprint and the published version.
+    3. Title containment at or above `title_containment` of the *shorter* title's tokens: the
+       same document with words added. Jaccard decays with every added word — the real case
+       title plus ": supplementary methods" is already 10/12 = 0.83, under the threshold — so
+       Jaccard alone lets the manuscript's own supplement, an "Author Correction:" of it, or a
+       "Supplementary material for: ..." copy walk straight in. Containment does not decay that
+       way, because the shared tokens are measured against the shorter title alone.
+
+       Containment is deliberately symmetric: the longer side may be the hit (a supplement) or
+       the declared case source (whose title may carry a subtitle the published version drops,
+       or face a hit whose title a search index truncated). Either way the two titles name one
+       document. The threshold is 0.90 rather than 1.00 so that, as on the Jaccard path, one
+       token out of ten may differ ("... Ovarian Carcinoma: supplementary methods").
+
+       `containment_min_tokens` guards the degenerate case. Containment of a *short* title is
+       easy to hit by accident, so without a floor a two- or three-word case-source title would
+       exclude every paper that happens to use those words: "TLS and Immunity" would swallow
+       "TLS and immunity in colorectal cancer: a prospective cohort study". Below six content
+       tokens, containment is not evidence of identity and only paths 1 and 2 apply (an exact
+       short title still matches on Jaccard). At six or more, a title whose every content token
+       reappears in another is not a coincidence, and a real manuscript title clears the floor
+       comfortably — the deployment's case source has ten.
+    """
     keys = {(i["scheme"], str(i["value"]).lower()) for i in hit.get("identifiers", [])}
-    for scheme in ("doi", "pmid", "pmcid"):
+    for scheme in ("doi", "pmid", "pmcid", "sha256"):
         if hit.get(scheme):
             keys.add((scheme, str(hit[scheme]).lower()))
     hit_tokens = _tokens(hit.get("title") or "")
@@ -94,8 +124,11 @@ def is_case_source(hit: dict[str, Any], case_sources: list[dict[str, Any]], *, t
             return True
         doc_tokens = _tokens(doc.get("title") or "")
         if doc_tokens and hit_tokens:
-            overlap = len(doc_tokens & hit_tokens) / len(doc_tokens | hit_tokens)
-            if overlap >= title_similarity:
+            shared = len(doc_tokens & hit_tokens)
+            if shared / len(doc_tokens | hit_tokens) >= title_similarity:
+                return True
+            shorter = min(len(doc_tokens), len(hit_tokens))
+            if shorter >= containment_min_tokens and shared / shorter >= title_containment:
                 return True
     return False
 

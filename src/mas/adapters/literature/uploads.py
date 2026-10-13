@@ -106,7 +106,13 @@ class UploadLibrary:
 
     def hit(self, entry: dict[str, Any], rank: int, lead: str) -> dict[str, Any]:
         digest = _sha(self.root / entry["file"])
-        return {"source": "uploads", "identifiers": [{"scheme": "sha256", "value": digest[:16]}], "upload_file": entry["file"],
+        # The identifier carries the whole 64-character digest, not a prefix: a case-source document is
+        # declared by its full sha256, and core.reading.is_case_source matches identifiers exactly. A
+        # content hash is the only identity that survives renaming the file or leaving its title out of
+        # the manifest (the title then falls back to the filename stem below), so it has to be able to
+        # match that declaration. `sha256` and `upload_file` are unchanged: UploadsReader checks
+        # hit["sha256"] against the bytes on disk, and that key has always held the full digest.
+        return {"source": "uploads", "identifiers": [{"scheme": "sha256", "value": digest}], "upload_file": entry["file"],
                 "sha256": digest, "title": entry.get("title") or Path(entry["file"]).stem, "authors": entry.get("authors", ""),
                 "journal": entry.get("container", "uploaded document"), "year": str(entry.get("year", "")),
                 "first_publication_date": entry.get("date"), "is_open_access": True, "in_epmc": False,
