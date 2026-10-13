@@ -221,10 +221,14 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
         else:
             continue
         attr = load(core, rule["attribute_ref"], task_id)
+        # WHY `disputed` is recorded on the entry: the trigger table admits a preference rule without an expert, and
+        # it does that whether or not a critic finding about that rule is still open. Such a rule scores candidates
+        # while also appearing in `pending[]`, which on its own reads as "did not enter the set". The entry says
+        # which it is, so a snapshot cannot present a disputed rule as a settled one.
         entries.append({"attribute_ref": rule["attribute_ref"], "rule_ref": rule_ref, "rule_kind": rule["rule_kind"],
                         "confirmed_by": confirmed_by, "acceptable_value_sources": attr["acceptable_value_sources"],
                         "on_states": [rule["on_missing"], rule["on_inapplicable"], rule["on_conflict"]],
-                        "cutoff_basis": rule["cutoff_basis"]})
+                        "cutoff_basis": rule["cutoff_basis"], "disputed": rule_ref in set(open_refs)})
     if not entries:
         raise InvariantViolation("unconfirmed", "no rule version may enter the set yet")
     existing = [e for e in core.journal.replay(task_id) if e.event_type == "criterion.version_approved"]
@@ -232,13 +236,17 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     admission_predicate = {"entries": [{k: e[k] for k in ("acceptable_value_sources", "on_states", "cutoff_basis")} for e in entries],
                            "coverage_floor": coverage_floor, "constants": constants or []}
     fitted_ordering = chosen_after_results(ordering_method) and not preregistration_ref
+    scoring_disputed = sorted(e["rule_ref"] for e in entries if e["disputed"])
     acceptance_reasons = ([f"{len(open_refs)} rule proposals await an expert decision"] if open_refs else []) + \
+                         ([f"{len(scoring_disputed)} of them score candidates while disputed: "
+                           f"{', '.join(scoring_disputed)}"] if scoring_disputed else []) + \
                          (["the ordering method was fitted on the results it ranks"] if fitted_ordering else [])
     record = {"rule_set_ref": f"rules@v{version}", "task_id": task_id, "entries": entries,
               "ordering_method": ordering_method or {"kind": "weighted_preference", "weight_vector": {}, "tie_break": "candidate_id"},
               "coverage_floor": coverage_floor,
               "evidence_admission_predicate_hash": sha256_hex(admission_predicate),
-              "confirmed_by": [e["confirmed_by"] for e in entries], "pending": open_refs, "deferred": deferred,
+              "confirmed_by": [e["confirmed_by"] for e in entries], "pending": open_refs,
+              "pending_but_scoring": scoring_disputed, "deferred": deferred,
               "acceptance_label": vocab.require("acceptance_label", "exploratory" if acceptance_reasons else "prespecified"),
               "acceptance_reasons": acceptance_reasons, "preregistration_ref": preregistration_ref}
     artifact_id = core.artifacts.put("rule_set", record)
@@ -246,8 +254,8 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                         payload={"rule_set_ref": record["rule_set_ref"], "artifact_id": artifact_id,
                                  "hash": record["evidence_admission_predicate_hash"], "pending": open_refs},
                         artifact_links=[{"kind": "rule_set", "id": artifact_id, "version": version}],
-                        summary=f"confirmed {record['rule_set_ref']} ({len(entries)} rules, {len(open_refs)} pending, "
-                                f"{len(deferred)} deferred)")
+                        summary=f"confirmed {record['rule_set_ref']} ({len(entries)} rules, {len(open_refs)} pending "
+                                f"of which {len(scoring_disputed)} score anyway, {len(deferred)} deferred)")
     return record["rule_set_ref"]
 
 

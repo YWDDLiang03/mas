@@ -160,6 +160,34 @@ def test_task_mandated_criteria_come_from_scope_and_constraints_without_duplicat
     assert [e["rule_ref"] for e in criteria.rule_set(core, task_id, ref)["entries"]] == ["rule_t1-curated-potency@v1"]
 
 
+def test_a_disputed_preference_scores_the_board_and_the_rule_set_says_so(core):
+    """The trigger table admits a preference rule without an expert, and it does so whether or not a
+    critic finding against that rule is still open. Such a rule both scores candidates and sits in
+    `pending[]` -- a list that on its own reads as "did not enter the set". The entry has to say which."""
+    task_id, _ = task.record_version(core, SPEC, by=OPERATOR)
+    attribute = {"name": "Affinity on an independent curation", "definition": "curated affinity at the required target",
+                 "measurement_kind": "quantitative", "unit": "pChEMBL", "direction": "higher_better",
+                 "acceptable_value_sources": ["curated_measurement"], "aggregation": "consensus",
+                 "evidence_request": {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity",
+                                      "parameters": {"target_chembl_id": "CHEMBL_T1"}}}
+    rule = {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": None,
+            "cutoff_basis": "none_evidence_insufficient"}
+    _, rule_ref = criteria.propose(core, task_id, attribute, rule, by=OPERATOR,
+                                   dispute={"finding": "the identifier mapping could not be checked"})
+    assert not criteria.needs_expert(dict(rule, rule_kind="preference"))      # the trigger table lets it through
+
+    with pytest.raises(criteria.InvariantViolation, match="unconfirmed"):
+        criteria.confirm_rule_set(core, task_id, by=OPERATOR)                 # blocked without allow_pending
+
+    ref = criteria.confirm_rule_set(core, task_id, by=OPERATOR, allow_pending=True)
+    record = criteria.rule_set(core, task_id, ref)
+    entry = next(e for e in record["entries"] if e["rule_ref"] == rule_ref)
+    assert entry["disputed"] is True and entry["confirmed_by"] == "auto:trigger_table"
+    assert rule_ref in record["pending"] and record["pending_but_scoring"] == [rule_ref]
+    assert record["acceptance_label"] == "exploratory"
+    assert any("score candidates while disputed" in r for r in record["acceptance_reasons"])
+
+
 def test_range_claims_straddling_a_cutoff_are_conflicts_not_passes():
     attribute = {"attribute_id": "attr_f", "version": 1, "name": "F", "definition": "d", "measurement_kind": "quantitative",
                  "unit": "%", "direction": "higher_better", "acceptable_value_sources": ["peer_reviewed"], "aggregation": "consensus",
