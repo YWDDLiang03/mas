@@ -193,3 +193,20 @@ def test_candidates_below_the_ranking_coverage_floor_get_no_position():
     assert entries["b"]["position"] == 1 and entries["a"]["position"] is None
     assert "too little preference evidence" in entries["a"]["rank_note"]
     assert snapshot["reporting_tuple"]["unranked_for_coverage"] == 1
+
+
+def test_shortlist_stage_copies_criteria_and_keeps_boundary_ties(core):
+    from mas.core import staging
+    task_id = setup_task(core)
+    make_controller(core).start(task_id, by=OPERATOR, sweep_seed=7)
+    (snapshot,) = leaderboard.snapshots(core, task_id)
+    assert [e["candidate_ref"] for e in staging.shortlist_members(snapshot, 1)] == ["cand_ik-ALPHA"]
+    new_task = staging.shortlist_task(core, task_id, top_k=1, by=OPERATOR)
+    context = task.get(core, new_task)
+    assert context["derived_from_task_id"] == task_id and context["candidate_universe"]["members"] == ["ALPHA"]
+    assert context["candidate_universe"]["shortlist_rule"]["source_snapshot_id"] == snapshot["snapshot_id"]
+    copied = criteria.load(core, "rule_molecular-weight@v1", new_task)
+    assert copied["copied_from"]["rule_ref"] == "rule_molecular-weight@v1"
+    open_items = [i for i in review.items(core, [new_task]).values() if i["state"] == "open"]
+    assert sorted(i["subject"]["id"] for i in open_items) == [                      # expert-set cutoffs raised again
+        "rule_molecular-weight@v1", "rule_oral-bioavailability@v1"]

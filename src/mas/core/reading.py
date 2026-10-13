@@ -288,7 +288,8 @@ CLAIM_SCHEMA = {
             "passage_id": {"type": "string"}, "quoted_span": {"type": "string"}, "statement": {"type": "string"},
             "determination_basis": {"type": "string", "enum": ["measured", "predicted", "asserted", "derived"]},
             "polarity": {"type": "string", "enum": ["supports", "conflicts", "inconclusive"]},
-            "value": {"type": ["number", "null"]}, "unit": {"type": ["string", "null"]},
+            "value": {"type": ["number", "null"]}, "value_low": {"type": ["number", "null"]},
+            "value_high": {"type": ["number", "null"]}, "unit": {"type": ["string", "null"]},
             "entities": {"type": "array", "items": {"type": "string"}},
             "system_or_population": {"type": ["string", "null"]},
             "attribute_hint": {"type": ["string", "null"]},
@@ -299,7 +300,8 @@ READER_SYSTEM = (
     "You extract claims from the passages of one scientific document for an evidence ledger. "
     "Rules: (1) Use only the passages given. (2) Every claim quotes exactly one passage: quoted_span "
     "must be copied character for character from that passage, at least one full clause, and must "
-    "contain the claim's number if the claim has one. (3) statement restates the quote plainly, "
+    "contain the claim's number if the claim has one; a stated range goes in value_low and value_high (both inside the "
+    "quote) with value null. (3) statement restates the quote plainly, "
     "without adding anything. (4) determination_basis: measured for experimental or clinical "
     "measurements, predicted for model or computational predictions, asserted for statements without "
     "data, derived for values computed from others. (5) polarity is relative to the question asked: "
@@ -316,6 +318,9 @@ def _question_text(question: dict[str, Any]) -> str:
         lines.append("Question: which measurable properties or criteria does this document indicate matter for the "
                      "objective, and what values or thresholds does it report for them? Put the property name in "
                      "attribute_hint.")
+        if question.get("dimensions"):
+            lines.append("Cover every one of these assessment dimensions: "
+                         + "; ".join(f"{d['dimension']} ({d['focus']})" for d in question["dimensions"]) + ".")
     if attribute:
         lines.append(f"Attribute: {attribute['name']} — {attribute['definition']}"
                      + (f" (unit: {attribute['unit']})" if attribute.get("unit") else ""))
@@ -358,8 +363,9 @@ def extract_claims(core: Core, roster: ModelRoster, stream_id: str, document: di
             problems.append("quote_not_found_in_passage")
         else:
             reasons.append("quote_verified")
-        if item.get("value") is not None:
-            if value_in_quote(float(item["value"]), item["quoted_span"]):
+        numbers = [item.get(k) for k in ("value", "value_low", "value_high") if item.get(k) is not None]
+        if numbers:
+            if all(value_in_quote(float(n), item["quoted_span"]) for n in numbers):
                 reasons.append("value_in_quote")
             else:
                 problems.append("value_not_in_quote")
@@ -381,7 +387,8 @@ def extract_claims(core: Core, roster: ModelRoster, stream_id: str, document: di
             "claim_type": "literature_extracted", "entities": item.get("entities", []),
             "scope": {"population_or_system": item.get("system_or_population"), "marker": "stated"},
             "evidence_kind": source_status, "determination_basis": item["determination_basis"],
-            "value": item.get("value"), "unit": item.get("unit"), "unit_as_reported": item.get("unit"),
+            "value": item.get("value"), "value_low": item.get("value_low"), "value_high": item.get("value_high"),
+            "unit": item.get("unit"), "unit_as_reported": item.get("unit"),
             "polarity": item["polarity"], "attribute_hint": item.get("attribute_hint"),
             "scope_match": "direct" if candidate else "unknown", "reading_depth": document["reading_depth"],
             "verification_status": "unverified", "extraction_confidence": None,

@@ -64,7 +64,8 @@ def usable_claims(claims: list[dict[str, Any]], attribute: dict[str, Any]) -> tu
             if claim.get("value") is None or isinstance(claim.get("value"), (dict, list)):
                 reason = "no_categorical_value"
         elif attribute["measurement_kind"] == "quantitative":
-            if not isinstance(claim.get("value"), (int, float)) or isinstance(claim.get("value"), bool):
+            if (not isinstance(claim.get("value"), (int, float)) or isinstance(claim.get("value"), bool)) and \
+                    not (isinstance(claim.get("value_low"), (int, float)) and isinstance(claim.get("value_high"), (int, float))):
                 reason = "no_numeric_value"
             elif canonical_unit(claim.get("unit")) != unit:
                 reason = "unit_unresolved"
@@ -90,7 +91,14 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
     else:
         cutoff = rule.get("cutoff")
         categorical = attribute["measurement_kind"] == "categorical"
-        values = [c["value"] if categorical else float(c["value"]) for c in usable]
+        values = []
+        for c in usable:
+            if categorical:
+                values.append(c["value"])
+            elif c.get("value") is not None:
+                values.append(float(c["value"]))
+            else:   # a reported range contributes both ends: a range straddling a cutoff is a conflict, not a pass
+                values.extend([float(c["value_low"]), float(c["value_high"])])
         aggregation = "consensus" if categorical else attribute.get("aggregation", "consensus")
         if cutoff is None:
             if rule.get("predicate_form") == "ordering" and rule["rule_kind"] == "preference":
@@ -111,8 +119,8 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
                 verdict = "pass" if _compare(value, cutoff["comparator"], cutoff["value"]) else "fail"
             if len(sides) > 1 and aggregation != "consensus":
                 disposition = "found_and_outweighed"
-                conflicting = [c["claim_id"] for c in usable
-                               if _compare(c["value"] if categorical else float(c["value"]), cutoff["comparator"], cutoff["value"])
+                conflicting = [c["claim_id"] for c in usable if c.get("value") is not None
+                               and _compare(c["value"] if categorical else float(c["value"]), cutoff["comparator"], cutoff["value"])
                                != (verdict == "pass")]
         explicit_conflicts = [c["claim_id"] for c in usable if c.get("polarity") == "conflicts"]
         conflicting = sorted(set(conflicting) | set(explicit_conflicts))

@@ -107,7 +107,9 @@ def _excluded(hit: dict[str, Any], case_sources: list[dict[str, Any]]) -> bool:
 
 def enumerate_dimension(core: Core, broker, roster: ModelRoster, stream_id: str, *, task_context: dict[str, Any],
                         dimension: dict[str, str], cutoff_date: str | None, saturation_k: int = 3,
-                        max_documents: int = 8, ids: dict | None = None, budget: Any = None) -> dict[str, Any]:
+                        max_documents: int = 8, ids: dict | None = None, budget: Any = None,
+                        all_dimensions: list[dict[str, str]] | None = None,
+                        read_cache: dict[str, list[dict[str, Any]]] | None = None) -> dict[str, Any]:
     """Recall-first enumeration for one dimension; returns hints, claims, and a visibility manifest."""
     objective = task_context["objective_text"]
     scope = ", ".join(e.get("label") or e.get("identifier", "") for e in task_context.get("scope_entities", []))
@@ -127,13 +129,19 @@ def enumerate_dimension(core: Core, broker, roster: ModelRoster, stream_id: str,
     for hit in included:
         if read_count >= max_documents or stale >= saturation_k:
             break
-        document = reading.read(core, broker, stream_id, hit, ids=ids, budget=budget)
-        if document is None:
-            continue
+        key = reading._key(hit)
+        if read_cache is not None and key in read_cache:
+            found = read_cache[key]          # read once across dimensions; its claims cover every dimension
+        else:
+            document = reading.read(core, broker, stream_id, hit, ids=ids, budget=budget)
+            if document is None:
+                continue
+            found = reading.extract_claims(core, roster, stream_id, document, {
+                "purpose": "criterion_discovery", "objective_text": objective + (f" Scope: {scope}." if scope else ""),
+                "dimensions": all_dimensions or [dimension], "attribute": None, "candidate": None}, ids=ids, budget=budget)
+            if read_cache is not None:
+                read_cache[key] = found
         read_count += 1
-        found = reading.extract_claims(core, roster, stream_id, document, {
-            "purpose": "criterion_discovery", "objective_text": objective + (f" Scope: {scope}." if scope else ""),
-            "attribute": None, "candidate": None}, ids=ids, budget=budget)
         new = 0
         for claim in found:
             if claim["admission_state"] != "admitted":
@@ -158,7 +166,10 @@ def _claims_block(claims: list[dict[str, Any]]) -> str:
     lines = []
     for claim in claims:
         lines.append(json.dumps({"claim_id": claim["claim_id"], "attribute_hint": claim.get("attribute_hint"),
-                                 "quote": claim["location"]["quoted_span"], "value": claim.get("value"), "unit": claim.get("unit"),
+                                 "quote": claim["location"]["quoted_span"], "value": claim.get("value"),
+                                 "range": [claim.get("value_low"), claim.get("value_high")]
+                                 if claim.get("value_low") is not None or claim.get("value_high") is not None else None,
+                                 "unit": claim.get("unit"),
                                  "source": claim["source_ref"], "basis": claim["determination_basis"]}, ensure_ascii=False))
     return "\n".join(lines)
 
@@ -180,7 +191,8 @@ def validate_proposal(proposal: dict[str, Any], *, claims_by_id: dict[str, dict[
     if missing:
         problems.append(f"evidence_support: cited claims not in the ledger {missing}")
     if rule.get("cutoff_basis") == "source_stated_value":
-        values = [claims_by_id[c] for c in cited if c in claims_by_id and claims_by_id[c].get("value") is not None]
+        values = [claims_by_id[c] for c in cited if c in claims_by_id
+                  and any(claims_by_id[c].get(k) is not None for k in ("value", "value_low", "value_high"))]
         if not values:
             problems.append("arbitrary_cutoff: source_stated_value cutoff without a cited claim carrying a value")
     request = attribute.get("evidence_request") or {}
@@ -243,10 +255,12 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
     context = task_mod.get(core, task_id)
     stream_id = stream_id or task_id
     ids = {"task_id": task_id}
+    read_cache: dict[str, list[dict[str, Any]]] = {}
     enumerations = [enumerate_dimension(core, broker, roster, stream_id, task_context=context, dimension=d,
                                         cutoff_date=cutoff_date, saturation_k=saturation_k, max_documents=max_documents,
-                                        ids=ids, budget=budget) for d in dimensions]
-    claims = [c for e in enumerations for c in e["claims"]]
+                                        ids=ids, budget=budget, all_dimensions=dimensions, read_cache=read_cache)
+                    for d in dimensions]
+    claims = list({c["claim_id"]: c for e in enumerations for c in e["claims"]}.values())
     claims_by_id = {c["claim_id"]: c for c in claims}
     reference_labels = [label for seed in context.get("seed_candidates", []) if seed.get("is_reference_outcome")
                         for label in [seed["candidate_ref"], *seed.get("aliases", [])]]

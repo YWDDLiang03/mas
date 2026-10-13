@@ -162,6 +162,12 @@ def cmd_task(args) -> None:
             spec = _expand_universe(json.loads(Path(args.file).read_text(encoding="utf-8")))
             task_id, version = task.record_version(core, spec, by=_person("operator"))
             print(f"{task_id}@v{version}")
+        elif args.action == "shortlist":
+            from mas.core import staging
+            new_task = staging.shortlist_task(core, args.task, top_k=args.top, by=_person("operator"))
+            context = task.get(core, new_task)
+            print(f"{new_task}@v1  {context['candidate_universe']['size_if_known']} candidates "
+                  f"({context['candidate_universe']['source']})")
         elif args.action == "list":
             for context in task.list_tasks(core):
                 print(f"{context['task_context_id']}@v{context['version']}  {context['group_id']}  {context['objective_text'][:80]}")
@@ -326,9 +332,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("init").set_defaults(func=cmd_init)
 
     t = sub.add_parser("task")
-    t.add_argument("action", choices=("new", "list", "show"))
+    t.add_argument("action", choices=("new", "list", "show", "shortlist"))
     t.add_argument("task", nargs="?")
     t.add_argument("--from", dest="file")
+    t.add_argument("--top", type=int, default=20, help="shortlist: top K positions (ties at the boundary included)")
     t.set_defaults(func=cmd_task)
 
     c = sub.add_parser("criteria")

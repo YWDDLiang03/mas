@@ -158,3 +158,19 @@ def test_task_mandated_criteria_come_from_scope_and_constraints_without_duplicat
     assert item["subject"]["id"].startswith("rule_approved-oral-route-on-record")
     ref = criteria.confirm_rule_set(core, task_id, by=OPERATOR, allow_pending=True)
     assert [e["rule_ref"] for e in criteria.rule_set(core, task_id, ref)["entries"]] == ["rule_t1-curated-potency@v1"]
+
+
+def test_range_claims_straddling_a_cutoff_are_conflicts_not_passes():
+    attribute = {"attribute_id": "attr_f", "version": 1, "name": "F", "definition": "d", "measurement_kind": "quantitative",
+                 "unit": "%", "direction": "higher_better", "acceptable_value_sources": ["peer_reviewed"], "aggregation": "consensus",
+                 "evidence_request": {"capability": "literature_retrieval", "question_kind": "search"}}
+    rule = {"rule_id": "rule_f", "version": 1, "rule_kind": "preference", "cutoff": {"comparator": ">=", "value": 30, "unit": "%"},
+            "cutoff_basis": "source_stated_value"}
+    def claim(low, high):
+        return {"claim_id": f"c{low}", "admission_state": "admitted", "evidence_kind": "peer_reviewed",
+                "determination_basis": "measured", "value": None, "value_low": low, "value_high": high, "unit": "%"}
+    straddling, _ = assessor.assess_cell(candidate={"candidate_id": "x"}, attribute=attribute, rule=rule, rule_set_ref="rules@v1",
+                                         claims=[claim(20, 40)], resolved=True)
+    above, _ = assessor.assess_cell(candidate={"candidate_id": "x"}, attribute=attribute, rule=rule, rule_set_ref="rules@v1",
+                                    claims=[claim(35, 45)], resolved=True)
+    assert straddling["verdict"] == "unknown_conflicted" and above["verdict"] == "pass"
