@@ -11,7 +11,10 @@ from .runtime import Core
 
 ADMISSION_STATES = ("pending", "admitted", "quarantined", "rejected", "superseded")
 SOURCE_STATUSES = ("peer_reviewed_paper", "preprint", "database_entry", "technical_report", "curated_measurement",
-                   "model_prediction_record", "experiment_record", "expert_statement")
+                   "model_prediction_record", "experiment_record", "expert_statement",
+                   "reference_text",          # edited textbook or reference-work chapter
+                   "tertiary_reference",      # encyclopedia or wiki article, revision-pinned
+                   "user_supplied_document")  # uploaded by the user with a rights declaration
 ACCESS_STATES = ("full_text_available", "abstract_only", "metadata_only", "paywalled", "fetch_failed")
 READING_DEPTHS = ("title_only", "title_abstract", "full_text", "supplementary", "not_read")
 

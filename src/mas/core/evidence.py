@@ -32,8 +32,10 @@ def claims_from_tool_result(core: Core, stream_id: str, result, *, candidate: di
     who = make_actor("tool", result.invocation["tool_id"] or "broker", "evidence_source")
     out = []
     for value in result.values:
-        if value.get("value") is None:
+        low, high = value.get("value_low"), value.get("value_high")
+        if value.get("value") is None and low is None and high is None:
             continue
+        shown = value["value"] if value.get("value") is not None else f"{low}-{high}"
         record_ref = value.get("source_record_ref") or (result.provenance.get("upstream_ref") or ["unknown"])[0]
         source_id = ledger.put_source(core, {
             "source_id": f"src_db_{result.invocation['tool_id']}_{record_ref}",
@@ -49,11 +51,12 @@ def claims_from_tool_result(core: Core, stream_id: str, result, *, candidate: di
         claim = {
             "source_ref": source_id, "candidate_ref": candidate["candidate_id"], "attribute_ref": attribute_ref,
             "location": {"location_kind": "record_field", "locator_value": f"{record_ref}#{value.get('name')}",
-                         "quoted_span": str(value["value"]), "span_checked_against_source": True},
-            "claim_text": f"{value.get('name')} = {value['value']} {value.get('unit') or ''}".strip(),
-            "claim_text_marker": "verbatim", "normalized_statement": f"{value.get('name')} = {value['value']} {value.get('unit') or ''}".strip(),
+                         "quoted_span": str(shown), "span_checked_against_source": True},
+            "claim_text": f"{value.get('name')} = {shown} {value.get('unit') or ''}".strip(),
+            "claim_text_marker": "verbatim", "normalized_statement": f"{value.get('name')} = {shown} {value.get('unit') or ''}".strip(),
             "claim_type": "data_derived", "entities": [candidate["candidate_id"]], "evidence_kind": evidence_kind,
-            "determination_basis": DB_BASIS.get(value.get("value_kind"), "measured"), "value": value["value"],
+            "determination_basis": DB_BASIS.get(value.get("value_kind"), "measured"), "value": value.get("value"),
+            "value_low": low, "value_high": high,
             "unit": value.get("unit"), "unit_as_reported": value.get("unit"), "polarity": "supports",
             "scope_match": "direct", "reading_depth": "not_read", "verification_status": "unverified",
             "tool_result_ref": result.result_id, "conditions": value.get("conditions"),
@@ -92,7 +95,8 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
            attribute: dict[str, Any], objective_text: str, cutoff_date: str | None, budget: Any = None,
            ids: dict | None = None, cache: LiteratureCache | None = None, max_documents: int = 2,
            case_sources: list[dict[str, Any]] | None = None,
-           reading_attributes: list[dict[str, Any]] | None = None) -> tuple[list[dict], str | None, list[str]]:
+           reading_attributes: list[dict[str, Any]] | None = None,
+           sources: list[str] | None = None, limit_per_query: int | None = None) -> tuple[list[dict], str | None, list[str]]:
     """Gather claims for one cell. Returns (claims, tool_error_ref, source kinds searched)."""
     request = attribute["evidence_request"]
     attr_ref = f"{attribute['attribute_id']}@v{attribute['version']}"
@@ -119,8 +123,8 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
     query = literature_query(attribute, labels)
     if query not in cache.searches:
         hits, coverage_id = reading.search(core, broker, stream_id, [query], cutoff_date=cutoff_date,
-                                           limit_per_query=request.get("parameters", {}).get("search_limit", 10),
-                                           ids=ids, budget=budget)
+                                           limit_per_query=limit_per_query or request.get("parameters", {}).get("search_limit", 10),
+                                           ids=ids, budget=budget, sources=sources)
         if any(f["reason"] == "budget_exceeded" for f in core.artifacts.payload(coverage_id)["retrieval_failures"]):
             raise BudgetBlocked()
         cache.searches[query] = hits
@@ -139,7 +143,7 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
     for hit in hits[:max_documents]:
         key = (hit.get("doi") or hit.get("pmid") or hit.get("title") or "").lower()
         if key not in cache.documents:
-            cache.documents[key] = reading.read(core, broker, stream_id, hit, ids=ids, budget=budget)
+            cache.documents[key] = reading.read(core, broker, stream_id, hit, ids=ids, budget=budget, cutoff_date=cutoff_date)
         document = cache.documents[key]
         if document is None:
             continue

@@ -119,10 +119,19 @@ RETRIEVER_SYSTEM = (
 
 def plan_queries(core: Core, roster: ModelRoster, stream_id: str, *, objective_text: str, focus: str,
                  entity_labels: list[str] | None = None, max_queries: int = 6, ids: dict | None = None,
-                 budget: Any = None) -> list[dict[str, str]]:
+                 budget: Any = None, searched: list[str] | None = None,
+                 learned: list[str] | None = None) -> list[dict[str, str]]:
+    """Plan search queries. With `searched` and `learned` (a follow-up round), the queries must reach
+    evidence the earlier rounds did not: gaps, alternative mechanisms, counter-evidence."""
     prompt = (f"Objective: {objective_text}\nFocus of this search: {focus}\n"
-              + (f"Entity names and aliases: {', '.join(entity_labels)}\n" if entity_labels else "")
-              + f"Write up to {max_queries} queries.")
+              + (f"Entity names and aliases: {', '.join(entity_labels)}\n" if entity_labels else ""))
+    if searched:
+        prompt += ("This is a follow-up round. Queries already run:\n" + "\n".join(f"- {q}" for q in searched) + "\n"
+                   + ("Topics already supported by evidence:\n" + "\n".join(f"- {h}" for h in (learned or [])[:40]) + "\n"
+                      if learned else "")
+                   + "Write queries for what is still missing: topics not yet covered, alternative explanations, "
+                     "measurements behind the topics found, and counter-evidence. Do not repeat earlier queries.\n")
+    prompt += f"Write up to {max_queries} queries."
     response = call_role(core, roster, stream_id, ModelRequest(
         role="retriever", system=RETRIEVER_SYSTEM, messages=[{"role": "user", "content": prompt}],
         response_schema=QUERY_PLAN_SCHEMA, max_tokens=1500, metadata={"question": f"plan queries: {focus}"}),
@@ -135,35 +144,56 @@ def _key(hit: dict[str, Any]) -> str:
     for scheme in ("doi", "pmid", "pmcid"):
         if hit.get(scheme):
             return f"{scheme}:{str(hit[scheme]).lower()}"
+    for identifier in hit.get("identifiers") or []:
+        if identifier.get("scheme") not in ("epmc", "title"):
+            return f"{identifier['scheme']}:{str(identifier['value']).lower()}"
     return f"title:{normalize_for_match(hit.get('title', ''))}"
 
 
 def search(core: Core, broker, stream_id: str, queries: list[str], *, cutoff_date: str | None,
            limit_per_query: int = 25, open_access_only: bool = False, ids: dict | None = None,
-           budget: Any = None, requested_minimum: int = 1) -> tuple[list[dict[str, Any]], str]:
+           budget: Any = None, requested_minimum: int = 1,
+           sources: list[str] | tuple[str, ...] | None = None) -> tuple[list[dict[str, Any]], str]:
     """Run queries, de-duplicate hits by identifier, and record a search coverage record.
 
+    Without `sources`, each query goes to the first search tool that answers. With `sources`
+    (registry ids, see adapters/literature/registry.py), each query goes to every permitted
+    source in turn; a source that is not set up is recorded as unavailable, not as a failure.
     Returns (hits, coverage_record_artifact_id). Each hit lists the queries that found it.
     """
+    from mas.adapters.literature import registry
     who = make_actor("agent", "finder", "retriever")
     merged: dict[str, dict[str, Any]] = {}
-    counts, failures = [], []
+    counts, failures, unavailable = [], [], {}
+    routes = [(s.source_id, [s.search_tool]) for s in registry.resolve(sources)] if sources else [(None, None)]
     for query in queries:
-        result = broker.call(stream_id, "literature_retrieval", "search",
-                             {"query": query, "limit": limit_per_query, "cutoff_date": cutoff_date,
-                              "open_access_only": open_access_only},
-                             requesting_actor=who, ids=ids, budget=budget)
-        if result.outcome in ("failed", "not_attempted", "unknown_outcome"):
-            failures.append({"query": query, "outcome": result.outcome,
-                             "reason": (result.error or {}).get("class") or result.absence_reason})
-        hits = [v["value"] for v in result.values if v.get("name") == "search_hit"]
-        counts.append({"query": query, "returned": len(hits), "tool_id": result.invocation["tool_id"]})
-        for rank, hit in enumerate(hits):
-            key = _key(hit)
-            entry = merged.setdefault(key, dict(hit, found_by=[], best_rank=rank))
-            entry["found_by"].append(query)
-            entry["best_rank"] = min(entry["best_rank"], rank)
+        for source_id, tool_ids in routes:
+            if source_id in unavailable:
+                continue
+            result = broker.call(stream_id, "literature_retrieval", "search",
+                                 {"query": query, "limit": limit_per_query, "cutoff_date": cutoff_date,
+                                  "open_access_only": open_access_only},
+                                 requesting_actor=who, ids=ids, budget=budget, tool_ids=tool_ids)
+            if (source_id and result.outcome == "not_attempted"
+                    and result.absence_reason in ("not_configured", "not_installed", "unauthorized")):
+                unavailable[source_id] = result.absence_reason
+                continue
+            if result.outcome in ("failed", "not_attempted", "unknown_outcome"):
+                failures.append({"query": query, "source": source_id, "outcome": result.outcome,
+                                 "reason": (result.error or {}).get("class") or result.absence_reason})
+            hits = [v["value"] for v in result.values if v.get("name") == "search_hit"]
+            counts.append({"query": query, "source": source_id, "returned": len(hits), "tool_id": result.invocation["tool_id"]})
+            for rank, hit in enumerate(hits):
+                if source_id and not hit.get("source"):
+                    hit = dict(hit, source=source_id)
+                key = _key(hit)
+                entry = merged.setdefault(key, dict(hit, found_by=[], best_rank=rank))
+                entry["found_by"].append(query)
+                entry["best_rank"] = min(entry["best_rank"], rank)
     coverage = {"queries": queries, "source_families": sorted({c["tool_id"] for c in counts if c["tool_id"]}),
+                "sources_requested": list(sources or []), "sources_unavailable": unavailable,
+                "hits_by_source": {s: sum(1 for h in merged.values() if (h.get("source") or "unnamed") == s)
+                                   for s in sorted({h.get("source") or "unnamed" for h in merged.values()})},
                 "date_range": {"to": cutoff_date}, "result_counts": counts, "retrieval_failures": failures,
                 "unique_hits": len(merged), "requested_minimum_met": len(merged) >= requested_minimum,
                 "shortfall_note": None if len(merged) >= requested_minimum else "fewer unique hits than requested",
@@ -176,18 +206,27 @@ def search(core: Core, broker, stream_id: str, queries: list[str], *, cutoff_dat
 # --- reading --------------------------------------------------------------------------
 
 def _source_status(hit: dict[str, Any]) -> str:
-    return "preprint" if hit.get("is_preprint") else "peer_reviewed_paper"
+    from mas.adapters.literature import registry
+    if hit.get("is_preprint"):
+        return "preprint"
+    return registry.for_hit(hit).source_status
 
 
 def read(core: Core, broker, stream_id: str, hit: dict[str, Any], *, ids: dict | None = None,
-         budget: Any = None) -> dict[str, Any] | None:
-    """Read one hit; store the source record and the document. Returns the document or None."""
+         budget: Any = None, cutoff_date: str | None = None) -> dict[str, Any] | None:
+    """Read one hit with its source's reader; store the source record and the document. Returns the document or None."""
+    from mas.adapters.literature import registry
     who = make_actor("agent", "reader-tool", "reader")
-    result = broker.call(stream_id, "document_reading", "read", {"pmcid": hit.get("pmcid"), "pmid": hit.get("pmid"), "hit": hit},
-                         requesting_actor=who, ids=ids, budget=budget)
+    tool_ids = [registry.for_hit(hit).reader_tool] if hit.get("source") else None
+    result = broker.call(stream_id, "document_reading", "read",
+                         {"pmcid": hit.get("pmcid"), "pmid": hit.get("pmid"), "hit": hit, "cutoff_date": cutoff_date},
+                         requesting_actor=who, ids=ids, budget=budget, tool_ids=tool_ids)
     documents = [v["value"] for v in result.values if v.get("name") == "document"]
     identifiers = hit.get("identifiers") or [{"scheme": "title", "value": normalize_for_match(hit.get("title", ""))[:80]}]
     preferred = next((i for i in identifiers if i["scheme"] in ("doi", "pmid", "pmcid")), identifiers[0])
+    if documents and documents[0].get("identifiers", {}).get("revid"):
+        # a wiki page is cited by the revision that was read
+        preferred = {"scheme": f"{preferred['scheme']}_rev", "value": documents[0]["identifiers"]["revid"]}
     source_id = f"src_{preferred['scheme']}_{preferred['value']}"
     access_state = documents[0]["access_state"] if documents else "fetch_failed"
     ledger.put_source(core, {

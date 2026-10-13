@@ -58,6 +58,20 @@ class _PassBudget:
             self.used[kind] = self.used.get(kind, 0) + amount
             return True
 
+    # provider spend is accounted on the run budget; a rule pass does not reserve it
+    @property
+    def root(self) -> Budget:
+        return self.run_budget
+
+    def allows(self, kind: str) -> bool:
+        return self.run_budget.allows(kind)
+
+    def record(self, kind: str, amount: float) -> list[str]:
+        return self.run_budget.record(kind, amount)
+
+    def exhausted(self, kind: str) -> bool:
+        return self.run_budget.exhausted(kind)
+
 
 @dataclass
 class RunState:
@@ -72,6 +86,7 @@ class RunState:
     cells: dict[tuple[str, str], dict[str, Any]] = field(default_factory=dict)
     rules: list[dict[str, Any]] = field(default_factory=list)
     reused: int = 0
+    settings: dict[str, Any] = field(default_factory=dict)   # resolved setting values bound at start
 
 
 class RunController:
@@ -166,8 +181,12 @@ class RunController:
         policy = binding.get("budget_policy") or {}
         budget = Budget(binding["budget_envelope"], soft_kinds=tuple(policy.get("soft_kinds", ())),
                         warn_at=policy.get("warn_at"))
+        settings_values = {}
+        if (binding.get("settings") or {}).get("layers_artifact_id"):
+            layers = self.core.artifacts.payload(binding["settings"]["layers_artifact_id"])
+            settings_values = {row["key"]: row["value"] for row in layers["settings"]}
         state = RunState(run_id, binding, context, rule_set, budget,
-                         attempt_id=f"att_{run_id}_1", round_id=f"round_{run_id}_1")
+                         attempt_id=f"att_{run_id}_1", round_id=f"round_{run_id}_1", settings=settings_values)
         for entry in rule_set["entries"]:
             rule = criteria.load(self.core, entry["rule_ref"], task_id)
             attr = criteria.load(self.core, entry["attribute_ref"], task_id)
@@ -309,6 +328,9 @@ class RunController:
                 objective_text=st.task_context["objective_text"], cutoff_date=st.binding["evidence_cutoff"],
                 budget=pass_budget, ids=ids, cache=cache,
                 case_sources=st.task_context.get("case_source_documents", []),
+                sources=st.settings.get("search.sources"),
+                max_documents=st.settings.get("read.max_papers_per_candidate", 2),
+                limit_per_query=st.settings.get("search.results_per_query", 10),
                 reading_attributes=[{"name": r["attribute"]["name"], "definition": r["attribute"]["definition"],
                                      "unit": r["attribute"].get("unit"),
                                      "ref": f"{r['attribute']['attribute_id']}@v{r['attribute']['version']}"}

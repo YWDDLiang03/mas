@@ -71,6 +71,35 @@ Each run binds the hash of its resolved settings and a record of where every val
 from; verdict-affecting values are registered as run constants. `mas run resume` refuses
 if the settings changed since the run was bound, unless `--allow-config-drift` is given.
 
+### Evidence sources
+
+Literature is searched across every source in `search.sources`, and each query goes to
+each source. A source is used only if its licence permits a language model to read its
+text; that rule is checked for every task, so a refused source (OpenStax, whose books
+forbid model ingestion) cannot be switched on by a setting.
+
+    mas sources list            # sources, licences, and whether each is set up
+    mas sources sync bookshelf --book NBK430685 --book NBK53196   # StatPearls, Assay Guidance Manual
+    mas sources template        # start STORE/uploads/manifest.toml for your own documents
+    mas sources check           # synced books; which uploads are readable and why others are not
+
+| source | what it adds | set-up |
+|---|---|---|
+| Europe PMC, PubMed | peer-reviewed papers; open-access full text | none |
+| NCBI Bookshelf | open-access textbooks (e.g. StatPearls); text from the NLM LitArch FTP | sync a book once |
+| Wikibooks, Wikipedia | open textbooks and reference articles, read at the revision in force at the evidence cutoff | none |
+| your uploads | any document you have the right to use, declared in `manifest.toml` | add files + manifest |
+
+Research breadth and depth are settings: `search.breadth` queries in the first round,
+`search.depth` rounds in all, each later round planned from what was already searched and
+learned, with breadth multiplied by `search.breadth_decay`. Reading stops at
+`read.max_papers_full_read` documents per dimension, or when the share of documents that
+add a new topic falls below `search.saturation_stop`. Each round's numbers are recorded.
+
+The IUPHAR/BPS Guide to Pharmacology's curated affinities (open bulk files, CC BY-SA) are
+an evidence catalog entry the criteria proposer can bind a potency attribute to, alongside
+ChEMBL.
+
 ### Choosing language models
 
 Every agent role (retriever, reader, summarizer, proposer, critic) is bound to a provider in

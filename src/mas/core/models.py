@@ -466,13 +466,15 @@ def call_role(core, roster: ModelRoster, stream_id: str, request: ModelRequest, 
                                  "model_id": response.model_id, "trace_blob": trace_id, "schema_ok": not problems},
                         summary=f"{request.role} replied" + ("" if not problems else " (schema problems)"))
     if budget is not None and hasattr(budget, "record"):
+        total = getattr(budget, "root", budget)
         for level in budget.record("usd", spent):
+            used = total.used.get("usd", 0.0)
             core.journal.append(stream_id, "run.annotated", actor=make_actor("controller", "budget", "controller"),
                                 payload={"annotation": "budget_threshold", "kind": "usd", "level": level,
-                                         "used": round(budget.used.get("usd", 0.0), 4), "cap": budget.caps.get("usd"),
+                                         "used": round(used, 4), "cap": total.caps.get("usd"),
                                          "continues": budget.allows("usd")},
                                 summary=f"provider spend crossed the {level} threshold "
-                                        f"({budget.used.get('usd', 0.0):.2f} of {budget.caps.get('usd')} USD)")
+                                        f"({used:.2f} of {total.caps.get('usd')} USD)")
     if problems:
         raise ModelError("parse_failed", "; ".join(problems[:5]))
     return response

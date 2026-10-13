@@ -137,3 +137,44 @@ def abstract_passages(abstract_html: str | None, title: str | None) -> list[dict
         passages.append({"passage_id": f"abstract.p{index}", "kind": "abstract",
                          "section_path": ["Abstract"] + ([heading] if heading else []), "text": text})
     return passages
+
+
+def parse_bits(xml_text: str) -> dict[str, Any]:
+    """BITS (book chapter) XML, as served by the NLM LitArch open-access subset.
+
+    Passage ids reuse the publisher's section ids (`article-20545.s3.p1`), which are the
+    same anchors NCBI uses, so a quote can be located in the published chapter.
+    """
+    root = ET.fromstring(xml_text)
+    part = root.find(".//book-part") if root.tag != "book-part" else root
+    title = _text(part.find("book-part-meta/title-group/title")) if part is not None else ""
+    book_title = _text(root.find(".//book-meta/book-title-group/book-title"))
+    year = _text(root.find(".//book-meta/pub-date/year"))
+    passages: list[dict[str, Any]] = [{"passage_id": "title", "kind": "title", "section_path": [], "text": title}] if title else []
+    body = part.find("body") if part is not None else None
+    if body is not None:
+        loose = 0
+        for child in body:
+            if child.tag == "sec":
+                prefix = child.get("id") or f"sec{len(passages)}"
+                first = len(passages)
+                _walk_sections(child, [], prefix, passages)
+                if (child.get("sec-type") or "") == "pubmed-excerpt":
+                    for passage in passages[first:]:
+                        passage["kind"] = "abstract"   # the chapter's summary section
+            elif child.tag == "p":
+                loose += 1
+                text = _text(child)
+                if text:
+                    passages.append({"passage_id": f"body.p{loose}", "kind": "paragraph", "section_path": [], "text": text})
+    for index, wrap in enumerate(root.iter("table-wrap"), 1):
+        text = _table_text(wrap)
+        if text:
+            passages.append({"passage_id": wrap.get("id") or f"table{index}", "kind": "table",
+                             "section_path": ["Tables"], "text": text})
+    license_el = root.find(".//book-meta/permissions/license")
+    license_ = None
+    if license_el is not None:
+        license_ = license_el.get("{http://www.w3.org/1999/xlink}href") or _text(license_el)[:200] or None
+    return {"title": title, "year": year, "identifiers": {"book_part_id": root.get("id") or ""},
+            "container": book_title, "passages": passages, "license": license_}

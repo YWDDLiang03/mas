@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<book-part-wrapper id="article-9001" content-type="chapter" dtd-version="2.0" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <book-meta>
+    <book-title-group><book-title>Synthetic Pharmacology Pearls</book-title></book-title-group>
+    <pub-date><year>2025</year></pub-date>
+    <permissions><license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/"><license-p>CC BY 4.0</license-p></license></permissions>
+  </book-meta>
+  <book-part book-part-type="chapter">
+    <book-part-meta><title-group><title>Exampletinib</title></title-group></book-part-meta>
+    <body>
+      <sec id="article-9001.s1" sec-type="pubmed-excerpt"><title>Continuing Education Activity</title>
+        <p>Exampletinib is an oral multikinase inhibitor used for solid tumours.</p></sec>
+      <sec id="article-9001.s2" sec-type="Mechanism of Action"><title>Mechanism of Action</title>
+        <p>Exampletinib binds the ATP pocket of VEGFR2 and inhibits its phosphorylation.</p>
+        <sec id="article-9001.s2.1"><title>Selectivity</title><p>It also inhibits FGFR1 at higher concentrations.</p></sec></sec>
+      <sec id="article-9001.s3"><title>References</title><p>Ignored reference text.</p></sec>
+    </body>
+  </book-part>
+</book-part-wrapper>

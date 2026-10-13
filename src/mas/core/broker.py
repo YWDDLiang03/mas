@@ -146,8 +146,14 @@ class Broker:
     # --- dispatch -------------------------------------------------------------------
     def call(self, stream_id: str, capability: str, question_kind: str, inputs: dict[str, Any], *,
              requesting_actor: dict[str, Any], ids: dict[str, Any] | None = None,
-             budget: Any = None, required_value_kind: str | None = None) -> ToolResult:
+             budget: Any = None, required_value_kind: str | None = None,
+             tool_ids: tuple[str, ...] | list[str] | None = None) -> ToolResult:
+        """Dispatch to the first provider that attempts the question; `tool_ids` restricts and orders
+        the providers (used to query one named evidence source at a time)."""
         providers = self.resolve(capability, question_kind)
+        if tool_ids is not None:
+            by_id = {p.contract.tool_id: p for p in providers}
+            providers = [by_id[t] for t in tool_ids if t in by_id]
         if required_value_kind is not None:
             needed = VALUE_KIND_STRENGTH.get(required_value_kind, 0)
             providers = [p for p in providers if STRENGTH_ORDER[p.contract.claim_strength_ceiling] >= needed]

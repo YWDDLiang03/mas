@@ -56,7 +56,11 @@ def _s(default, doc, **kw) -> Setting:
 
 SETTINGS: dict[str, Setting] = {
     # literature breadth and depth
-    "search.sources": _s(["europepmc", "pubmed"], "evidence sources to query, in order of preference", item_type=str),
+    "search.sources": _s(["europepmc", "pubmed", "bookshelf", "wikibooks", "wikipedia", "uploads"],
+                         "evidence sources to query (see `mas sources list`); sources not set up are skipped and recorded",
+                         item_type=str),
+    "sources.cache_dir": _s("", "where synced books and downloaded reference data are kept (empty: ~/.cache/mas)"),
+    "sources.upload_dir": _s("", "folder of documents you supply, with a manifest.toml (empty: STORE/uploads)"),
     "search.breadth": _s(4, "queries generated per dimension per round", minimum=1, maximum=20, unit="queries",
                          const_id="const_search_breadth"),
     "search.depth": _s(2, "follow-up search rounds after the first", minimum=1, maximum=6, unit="rounds",
@@ -72,6 +76,8 @@ SETTINGS: dict[str, Setting] = {
     # reading
     "read.max_papers_full_read": _s(40, "documents read in full per dimension", minimum=1, maximum=500,
                                     unit="documents", const_id="const_read_max_documents"),
+    "read.max_papers_per_candidate": _s(2, "documents read for one candidate's literature criteria", minimum=1,
+                                        maximum=50, unit="documents", const_id="const_read_max_candidate_documents"),
     "read.evidence_k": _s(10, "passages kept per document for extraction", minimum=1, maximum=50, unit="passages"),
     "read.max_claims_per_paper": _s(8, "claims extracted per document per attribute", minimum=1, maximum=50,
                                     unit="claims"),
@@ -357,6 +363,11 @@ def validate(config: Config) -> None:
                           "or choose the checkpoint mode")
     if v["concurrency.max_parallel_agents"] < v["assess.workers"]:
         raise ConfigError("assess.workers cannot exceed concurrency.max_parallel_agents")
+    from mas.adapters.literature import registry
+    try:
+        registry.resolve(v["search.sources"])
+    except registry.SourceRefused as error:
+        raise ConfigError(f"search.sources: {error}") from None
     if config.roles:
         missing = sorted(set(config.roles.values()) - set(config.providers))
         if missing:

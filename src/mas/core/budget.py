@@ -35,6 +35,10 @@ class Budget:
             self.used[kind] = used + amount
             return True
 
+    @property
+    def root(self) -> "Budget":
+        return self
+
     def allows(self, kind: str) -> bool:
         """Whether work charged to `kind` may start: soft classes always may."""
         return kind in self.soft_kinds or not self.exhausted(kind)

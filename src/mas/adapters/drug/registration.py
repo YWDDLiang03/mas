@@ -6,10 +6,10 @@ The core never imports this module; a composition root (the CLI or a script) cal
 
 from __future__ import annotations
 
-from mas.adapters.literature.europepmc import EuropePMCReader, EuropePMCSearch
-from mas.adapters.literature.pubmed import PubMedSearch
+from mas.adapters.literature import tools as literature_tools
 
 from .chembl import ChEMBLBioactivity, TargetCache
+from .gtopdb import GtoPdbAffinity, GtoPdbData
 from .pubchem import PubChemIdentity, PubChemProperty
 from .universe import UniverseIdentity, UniverseRecordField
 
@@ -29,17 +29,19 @@ CAPABILITY_BINDINGS = {
 EVIDENCE_KINDS = ("curated_measurement", "database_entry", "peer_reviewed", "preprint")
 
 
-def register(broker, *, literature: bool = True, universe_file: str | None = None) -> None:
+def register(broker, *, literature: bool = True, universe_file: str | None = None, cache_dir: str | None = None,
+             upload_dir: str | None = None) -> None:
     """Register the adapter's tools. With a universe file, identity resolves from it first (PubChem stays as fallback)
-    and target bioactivity is fetched once per target."""
+    and target bioactivity is fetched once per target. Literature sources are registered for every task; which of
+    them a search uses is the `search.sources` setting."""
     if universe_file:
         broker.register(UniverseIdentity(universe_file))
         broker.register(UniverseRecordField(universe_file))
-    for provider in (PubChemIdentity(), PubChemProperty(), ChEMBLBioactivity(TargetCache() if universe_file else None)):
+    for provider in (PubChemIdentity(), PubChemProperty(), ChEMBLBioactivity(TargetCache() if universe_file else None),
+                     GtoPdbAffinity(GtoPdbData(cache_dir))):
         broker.register(provider)
     if literature:
-        for provider in (EuropePMCSearch(), PubMedSearch(), EuropePMCReader()):
-            broker.register(provider)
+        literature_tools.register(broker, cache_dir=cache_dir, upload_dir=upload_dir)
 
 # What the proposer may bind an attribute's evidence_request to. Parameters in angle
 # brackets are filled by the proposer; {names} is filled per candidate at run time.
@@ -56,6 +58,12 @@ EVIDENCE_CATALOG = [
      "units": {"pchembl_value": "pChEMBL"}, "evidence_kind": "curated_measurement", "determination_basis": "measured",
      "note": "Curated potency records (pChEMBL = -log10 molar IC50/Ki/Kd/EC50) against one target; use aggregation "
              "median (a maximum rises with the number of assays, favouring heavily studied compounds)."},
+    {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity", "identifier_scheme": "inchikey",
+     "parameters": {"target_chembl_id": "<a ChEMBL target id from the task's scope entities>"},
+     "units": {"affinity": "pChEMBL"}, "evidence_kind": "curated_measurement", "determination_basis": "measured",
+     "note": "Expert-curated affinities from the IUPHAR/BPS Guide to Pharmacology (pIC50, pKi, pKd; -log10 molar, the "
+             "pChEMBL scale), with action type and selectivity. An independent curation from ChEMBL: it can cover "
+             "compound-target pairs ChEMBL lacks. Use aggregation median."},
     {"capability": "literature_retrieval", "question_kind": "search", "identifier_scheme": None,
      "parameters": {"query_template": "<Europe PMC query containing {names}, e.g. ({names}) AND \"oral bioavailability\">",
                     "relevance_terms": ["<terms a relevant title or abstract must contain>"], "search_limit": 10},

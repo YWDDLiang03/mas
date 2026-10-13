@@ -10,6 +10,7 @@
     mas board show TASK [--all] | candidate show TASK CANDIDATE
     mas models show
     mas config show [--explain] | validate | save NAME | estimate [--dimensions N] [--candidates N]
+    mas sources list | check | sync bookshelf --book NBK... | template   evidence sources and their set-up
     mas bridge next|answer|status ...          answer LLM requests as an outside agent
 
 Global options: --store DIR (default $MAS_STORE or ./var/store), --models FILE (default STORE/models.toml),
@@ -129,10 +130,19 @@ def _universe_file(context: dict[str, Any] | None) -> str | None:
     return path if path and path.endswith(".json") and Path(path).exists() else None
 
 
-def _broker(core: Core, context: dict[str, Any] | None = None) -> Broker:
+def _cache_dir(args) -> str | None:
+    return _settings(args)["sources.cache_dir"] or None
+
+
+def _upload_dir(args) -> Path:
+    return Path(_settings(args)["sources.upload_dir"] or _store_dir(args) / "uploads")
+
+
+def _broker(core: Core, context: dict[str, Any] | None = None, args=None) -> Broker:
     from mas.adapters.drug.registration import register
     broker = Broker(core)
-    register(broker, universe_file=_universe_file(context))
+    register(broker, universe_file=_universe_file(context), cache_dir=_cache_dir(args) if args else None,
+             upload_dir=str(_upload_dir(args)) if args else None)
     return broker
 
 
@@ -241,10 +251,14 @@ def cmd_criteria(args) -> None:
             dimensions = [d for d in DIMENSIONS if not args.dimension or d["dimension"] in args.dimension]
             from mas.core import derivation
             from mas.core.budget import Budget
-            record = derivation.derive(core, _broker(core, task.get(core, args.task)), _roster(args), args.task, dimensions=dimensions,
-                                       catalog=EVIDENCE_CATALOG, by=_person("operator"), cutoff_date=args.cutoff,
+            settings = _settings(args)
+            from mas.core.budget import from_config
+            record = derivation.derive(core, _broker(core, task.get(core, args.task), args), _roster(args), args.task,
+                                       dimensions=dimensions, catalog=EVIDENCE_CATALOG, by=_person("operator"),
+                                       cutoff_date=args.cutoff or settings["search.date_to"] or None,
                                        max_documents=args.max_documents, templates=objective_templates,
-                                       budget=Budget({"llm_turns": args.llm_turns} if args.llm_turns else {}))
+                                       research=derivation.research_params(settings),
+                                       budget=from_config(settings, envelope={"llm_turns": args.llm_turns} if args.llm_turns else None))
             _print({k: record[k] for k in ("dimensions", "mandated", "accepted", "disputed", "considered_and_rejected",
                                            "revisions")})
 
@@ -304,7 +318,7 @@ def cmd_run(args) -> None:
         context = task.get(core, task_id) if task_id else None
         settings = _settings(args)
         workers = args.workers or settings["assess.workers"]
-        controller = RunController(core, _broker(core, context), _roster(args, required=False), adapter=ADAPTER,
+        controller = RunController(core, _broker(core, context, args), _roster(args, required=False), adapter=ADAPTER,
                                    implementation=_implementation(), workers=workers)
         try:
             if args.action == "start":
@@ -413,6 +427,72 @@ def cmd_config(args) -> None:
             print(f"  {row['key']:<36} {json.dumps(row['value']) + unit:<28} [{row['layer']}]  {row['doc']}")
 
 
+UPLOAD_TEMPLATE = """# Documents you supply. A file is read only when its entry declares a licence and that a
+# language model may read it. Formats: PDF (needs pdftotext), .txt/.md, .html, JATS/BITS .xml.
+#
+# [[document]]
+# file = "pk-handbook-ch3.pdf"
+# title = "Oral absorption of kinase inhibitors"
+# year = 2021
+# authors = "A. Author"
+# license = "licensed copy for internal research"
+# llm_ingestion_permitted = true
+"""
+
+
+def cmd_sources(args) -> None:
+    from mas.adapters.literature import registry
+    from mas.adapters.literature.bookshelf import BookshelfLibrary
+    from mas.adapters.literature.uploads import MANIFEST, UploadLibrary
+    settings = _settings(args)
+    library = BookshelfLibrary(_cache_dir(args))
+    uploads = UploadLibrary(_upload_dir(args))
+    if args.action == "list":
+        active = set(settings["search.sources"])
+        synced = library.synced()
+        for source in registry.SOURCES.values():
+            if source.llm_ingestion in ("refused", "unknown"):
+                state = "refused"
+            elif source.source_id == "bookshelf":
+                state = f"{len(synced)} book(s) synced" if synced else "needs a synced book"
+            elif source.source_id == "uploads":
+                readable = len(uploads.check()["readable"])
+                state = f"{readable} readable document(s)" if readable else "no readable documents"
+            else:
+                state = "ready"
+            print(f"{'*' if source.source_id in active else ' '} {source.source_id:<10} {state:<26} {source.title}")
+            print(f"    licence: {source.license}; model reading: {source.llm_ingestion.replace('_', ' ')}")
+            if source.note:
+                print(f"    {source.note}")
+        print("\n* = in search.sources")
+    elif args.action == "check":
+        for accession, book in sorted(library.synced().items()):
+            print(f"bookshelf {accession}  {book['title']}  {book['chapters']} chapters  updated {book['updated']}  {book['license']}")
+        report = uploads.check()
+        print(f"uploads at {uploads.root}:")
+        for key in ("readable", "refused", "missing"):
+            for item in report[key]:
+                print(f"  {key:<9} {item}")
+    elif args.action == "template":
+        target = uploads.root / MANIFEST
+        if target.exists():
+            sys.exit(f"{target} already exists")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(UPLOAD_TEMPLATE, encoding="utf-8")
+        print(f"wrote {target}")
+    else:
+        if args.source != "bookshelf" or not args.book:
+            sys.exit("usage: mas sources sync bookshelf --book NBK...")
+        open_access = library.file_list(refresh=True)
+        for accession in args.book:
+            if accession not in open_access:
+                sys.exit(f"{accession} is not in the NLM LitArch open-access subset; it cannot be read automatically")
+            print(f"syncing {accession} {open_access[accession]['title']} (streams the whole book once; keeps chapter XML)",
+                  flush=True)
+            manifest = library.sync(accession, progress=lambda m: print(f"  {m}", flush=True))
+            print(f"  {manifest['chapters']} chapters, licence {manifest['license']}")
+
+
 def cmd_models(args) -> None:
     roster = _roster(args)
     _print(roster.role_bindings())
@@ -446,7 +526,7 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--from", dest="file")
     c.add_argument("--dimension", action="append")
     c.add_argument("--cutoff", help="evidence cutoff date YYYY-MM-DD")
-    c.add_argument("--max-documents", type=int, default=6)
+    c.add_argument("--max-documents", type=int, help="documents read per dimension (default: read.max_papers_full_read)")
     c.add_argument("--llm-turns", type=int)
     c.set_defaults(func=cmd_criteria)
 
@@ -500,6 +580,12 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--dimensions", type=int, default=1)
     g.add_argument("--candidates", type=int, default=0)
     g.set_defaults(func=cmd_config)
+
+    so = sub.add_parser("sources")
+    so.add_argument("action", choices=("list", "check", "sync", "template"))
+    so.add_argument("source", nargs="?")
+    so.add_argument("--book", action="append", help="NCBI Bookshelf accession to sync (repeatable)")
+    so.set_defaults(func=cmd_sources)
 
     m = sub.add_parser("models")
     m.add_argument("action", choices=("show",))

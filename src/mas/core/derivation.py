@@ -105,61 +105,128 @@ def _excluded(hit: dict[str, Any], case_sources: list[dict[str, Any]]) -> bool:
     return reading.is_case_source(hit, case_sources)
 
 
+# Research breadth and depth when no settings are given: one round, as before settings existed.
+DEFAULT_RESEARCH = {"breadth": 5, "depth": 1, "breadth_decay": 0.5, "results_per_query": 10,
+                    "max_records_screened": 300, "max_documents": 8, "saturation_k": 3, "saturation_stop": 0.0,
+                    "sources": None}
+
+
+def research_params(settings) -> dict[str, Any]:
+    """Research breadth and depth for derivation from resolved settings (core/config.py)."""
+    if settings is None:
+        return dict(DEFAULT_RESEARCH)
+    return {"breadth": settings["search.breadth"], "depth": settings["search.depth"],
+            "breadth_decay": settings["search.breadth_decay"], "results_per_query": settings["search.results_per_query"],
+            "max_records_screened": settings["search.max_records_screened"],
+            "max_documents": settings["read.max_papers_full_read"], "saturation_k": DEFAULT_RESEARCH["saturation_k"],
+            "saturation_stop": settings["search.saturation_stop"], "sources": list(settings["search.sources"])}
+
+
 def enumerate_dimension(core: Core, broker, roster: ModelRoster, stream_id: str, *, task_context: dict[str, Any],
-                        dimension: dict[str, str], cutoff_date: str | None, saturation_k: int = 3,
-                        max_documents: int = 8, ids: dict | None = None, budget: Any = None,
+                        dimension: dict[str, str], cutoff_date: str | None, saturation_k: int | None = None,
+                        max_documents: int | None = None, ids: dict | None = None, budget: Any = None,
                         all_dimensions: list[dict[str, str]] | None = None,
-                        read_cache: dict[str, list[dict[str, Any]]] | None = None) -> dict[str, Any]:
-    """Recall-first enumeration for one dimension; returns hints, claims, and a visibility manifest."""
+                        read_cache: dict[str, list[dict[str, Any]]] | None = None,
+                        research: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Recall-first enumeration for one dimension: breadth x depth rounds of search and reading.
+
+    Round 0 plans `breadth` queries. Each later round plans queries from what was already
+    searched and learned (gaps, alternatives, counter-evidence), with breadth multiplied by
+    `breadth_decay`. Reading within a round stops after `saturation_k` consecutive documents
+    add no new topic; rounds stop at the document cap, when no new records turn up, or when
+    the share of documents adding a new topic falls below `saturation_stop`.
+    Returns hints, claims, per-round statistics, the stop reason, and a visibility manifest.
+    """
+    r = dict(DEFAULT_RESEARCH, **(research or {}))
+    if max_documents is not None:
+        r["max_documents"] = max_documents
+    if saturation_k is not None:
+        r["saturation_k"] = saturation_k
     objective = task_context["objective_text"]
     scope = ", ".join(e.get("label") or e.get("identifier", "") for e in task_context.get("scope_entities", []))
     focus = f"{dimension['focus']} as criteria for: {objective}" + (f" (scope: {scope})" if scope else "")
-    queries = reading.plan_queries(core, roster, stream_id, objective_text=objective, focus=focus, max_queries=5,
-                                   ids=ids, budget=budget)
-    hits, coverage_id = reading.search(core, broker, stream_id, [q["query"] for q in queries], cutoff_date=cutoff_date,
-                                       limit_per_query=10, ids=ids, budget=budget)
     case_sources = task_context.get("case_source_documents", [])
-    included, excluded = [], []
-    for hit in hits:
-        (excluded if _excluded(hit, case_sources) else included).append(hit)
-    included.sort(key=lambda h: (not h.get("is_review"), not h.get("pmcid"), -len(h.get("found_by", [])), h.get("best_rank", 0)))
+    all_queries: list[dict[str, str]] = []
+    coverage_ids: list[str] = []
+    seen: set[str] = set()
+    included_all: list[dict[str, Any]] = []
+    excluded_all: list[dict[str, Any]] = []
     hints: dict[str, list[str]] = {}
     claims: list[dict[str, Any]] = []
-    stale, read_count = 0, 0
-    for hit in included:
-        if read_count >= max_documents or stale >= saturation_k:
+    read_count, rounds, stop_reason = 0, [], "depth_reached"
+    breadth = float(r["breadth"])
+    for level in range(int(r["depth"])):
+        queries = reading.plan_queries(core, roster, stream_id, objective_text=objective, focus=focus,
+                                       max_queries=max(1, round(breadth)), ids=ids, budget=budget,
+                                       searched=[q["query"] for q in all_queries] if level else None,
+                                       learned=list(hints)[:40] if level else None)
+        all_queries += queries
+        hits, coverage_id = reading.search(core, broker, stream_id, [q["query"] for q in queries], cutoff_date=cutoff_date,
+                                           limit_per_query=r["results_per_query"], ids=ids, budget=budget,
+                                           sources=r["sources"])
+        coverage_ids.append(coverage_id)
+        room = max(0, int(r["max_records_screened"]) - len(seen))
+        fresh = [h for h in hits if reading._key(h) not in seen][:room]
+        seen.update(reading._key(h) for h in fresh)
+        included = [h for h in fresh if not _excluded(h, case_sources)]
+        excluded_all += [h for h in fresh if _excluded(h, case_sources)]
+        included.sort(key=lambda h: (not h.get("is_review"), not (h.get("pmcid") or h.get("source") in ("bookshelf", "uploads")),
+                                     -len(h.get("found_by", [])), h.get("best_rank", 0)))
+        included_all += included
+        stale, documents, contributing, new_topics = 0, 0, 0, 0
+        for hit in included:
+            if read_count >= r["max_documents"] or stale >= r["saturation_k"]:
+                break
+            key = reading._key(hit)
+            if read_cache is not None and key in read_cache:
+                found = read_cache[key]          # read once across dimensions; its claims cover every dimension
+            else:
+                document = reading.read(core, broker, stream_id, hit, ids=ids, budget=budget, cutoff_date=cutoff_date)
+                if document is None:
+                    continue
+                found = reading.extract_claims(core, roster, stream_id, document, {
+                    "purpose": "criterion_discovery", "objective_text": objective + (f" Scope: {scope}." if scope else ""),
+                    "dimensions": all_dimensions or [dimension], "attribute": None, "candidate": None}, ids=ids, budget=budget)
+                if read_cache is not None:
+                    read_cache[key] = found
+            read_count += 1
+            documents += 1
+            new = 0
+            for claim in found:
+                if claim["admission_state"] != "admitted":
+                    continue
+                claims.append(claim)
+                hint = reading.normalize_for_match(claim.get("attribute_hint") or claim["normalized_statement"])[:80]
+                if hint not in hints:
+                    new += 1
+                hints.setdefault(hint, []).append(claim["claim_id"])
+            contributing += 1 if new else 0
+            new_topics += new
+            stale = 0 if new else stale + 1
+        novelty = contributing / documents if documents else 0.0
+        rounds.append({"round": level, "queries": len(queries), "new_records": len(fresh), "documents_read": documents,
+                       "new_topics": new_topics, "novelty": round(novelty, 3), "coverage_id": coverage_id})
+        if read_count >= r["max_documents"]:
+            stop_reason = "document_cap"
             break
-        key = reading._key(hit)
-        if read_cache is not None and key in read_cache:
-            found = read_cache[key]          # read once across dimensions; its claims cover every dimension
-        else:
-            document = reading.read(core, broker, stream_id, hit, ids=ids, budget=budget)
-            if document is None:
-                continue
-            found = reading.extract_claims(core, roster, stream_id, document, {
-                "purpose": "criterion_discovery", "objective_text": objective + (f" Scope: {scope}." if scope else ""),
-                "dimensions": all_dimensions or [dimension], "attribute": None, "candidate": None}, ids=ids, budget=budget)
-            if read_cache is not None:
-                read_cache[key] = found
-        read_count += 1
-        new = 0
-        for claim in found:
-            if claim["admission_state"] != "admitted":
-                continue
-            claims.append(claim)
-            hint = reading.normalize_for_match(claim.get("attribute_hint") or claim["normalized_statement"])[:80]
-            if hint not in hints:
-                new += 1
-            hints.setdefault(hint, []).append(claim["claim_id"])
-        stale = 0 if new else stale + 1
-    manifest = {"actor": "derivation", "subject": dimension["dimension"], "catalog_size": len(hits),
-                "included_ids": [reading._key(h) for h in included],
-                "excluded": [{"id": reading._key(h), "omitted_reason": "case_source_document"} for h in excluded]
+        if not fresh:
+            stop_reason = "no_new_records"
+            break
+        if documents and novelty < r["saturation_stop"]:
+            stop_reason = "saturated"
+            break
+        breadth *= r["breadth_decay"]
+    manifest = {"actor": "derivation", "subject": dimension["dimension"], "catalog_size": len(seen),
+                "included_ids": [reading._key(h) for h in included_all],
+                "excluded": [{"id": reading._key(h), "omitted_reason": "case_source_document"} for h in excluded_all]
                 + [{"id": "historical_criteria_intake", "omitted_reason": "evaluator_only_artifact"}],
                 "content_hash": None, "recorded_at": utc_now()}
     manifest_id = core.artifacts.put("visibility_manifest", manifest)
-    return {"dimension": dimension["dimension"], "queries": queries, "coverage_id": coverage_id, "manifest_id": manifest_id,
-            "documents_read": read_count, "saturated": stale >= saturation_k, "hints": hints, "claims": claims}
+    return {"dimension": dimension["dimension"], "queries": all_queries, "coverage_id": coverage_ids[0] if coverage_ids else None,
+            "coverage_ids": coverage_ids, "manifest_id": manifest_id, "documents_read": read_count,
+            "saturated": stop_reason in ("saturated", "no_new_records"),
+            "rounds": rounds, "stop_reason": stop_reason, "research": {k: v for k, v in r.items()},
+            "hints": hints, "claims": claims}
 
 
 def _claims_block(claims: list[dict[str, Any]]) -> str:
@@ -243,7 +310,8 @@ def objective_criteria(core: Core, task_id: str, *, templates, by: dict[str, Any
 
 def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions: list[dict[str, str]],
            catalog: list[dict[str, Any]], by: dict[str, Any], cutoff_date: str | None = None, saturation_k: int = 3,
-           max_documents: int = 8, budget: Any = None, stream_id: str | None = None, templates=None) -> dict[str, Any]:
+           max_documents: int | None = None, budget: Any = None, stream_id: str | None = None, templates=None,
+           research: dict[str, Any] | None = None) -> dict[str, Any]:
     """Run derivation for a task; accepted proposals enter the registry and the review queue.
 
     Objective-mandated criteria (adapter `templates`) are registered first; literature-derived proposals
@@ -258,7 +326,8 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
     read_cache: dict[str, list[dict[str, Any]]] = {}
     enumerations = [enumerate_dimension(core, broker, roster, stream_id, task_context=context, dimension=d,
                                         cutoff_date=cutoff_date, saturation_k=saturation_k, max_documents=max_documents,
-                                        ids=ids, budget=budget, all_dimensions=dimensions, read_cache=read_cache)
+                                        ids=ids, budget=budget, all_dimensions=dimensions, read_cache=read_cache,
+                                        research=research)
                     for d in dimensions]
     claims = list({c["claim_id"]: c for e in enumerations for c in e["claims"]}.values())
     claims_by_id = {c["claim_id"]: c for c in claims}
