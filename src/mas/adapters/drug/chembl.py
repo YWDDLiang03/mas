@@ -76,12 +76,17 @@ def _rows_for_molecule(resource: str, collection: str, row_id: str, molecule: st
     """
     found: dict[Any, dict[str, Any]] = {}
     for field in MOLECULE_FIELDS:
-        body = http.get(f"{BASE}/{resource}",
-                        params=dict(params, format="json", limit=1000, **{field: molecule}))
-        if body is None:
-            raise ToolError("upstream_server_error", f"{resource} endpoint returned 404")
-        for row in body.get(collection) or []:
-            found[row[row_id]] = row
+        offset = 0
+        while True:            # paged like `_index_by_molecule`: a well-studied compound can exceed one page,
+            body = http.get(f"{BASE}/{resource}",   # and a silent truncation would bias an aggregate over the rest
+                            params=dict(params, format="json", limit=1000, offset=offset, **{field: molecule}))
+            if body is None:
+                raise ToolError("upstream_server_error", f"{resource} endpoint returned 404")
+            for row in body.get(collection) or []:
+                found[row[row_id]] = row
+            if not (body.get("page_meta") or {}).get("next"):
+                break
+            offset += 1000
     return list(found.values())
 
 

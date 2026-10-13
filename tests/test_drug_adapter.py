@@ -223,6 +223,28 @@ def test_an_activity_row_both_filters_return_stays_one_measurement(monkeypatch):
     assert all(v["unit"] == "pChEMBL" and v["value_kind"] == "curated" for v in values)
 
 
+def test_a_compound_with_more_rows_than_one_page_is_paged_on_the_no_cache_path(monkeypatch):
+    """The per-compound path asked for one page of 1000 and never looked at `page_meta.next`.
+    A well-studied compound exceeds that, and the rows beyond the first page would vanish
+    silently -- biasing the median the potency criteria aggregate, not merely losing records."""
+    pages = []
+
+    def paging_get(url, params=None, timeout_s=60, expect="json"):
+        pages.append(params.get("offset", 0))
+        rows = [r for r in ACTIVITY_ROWS if r["target_chembl_id"] == params["target_chembl_id"]]
+        for field in ("molecule_chembl_id", "parent_molecule_chembl_id"):
+            if field in params:
+                rows = [r for r in rows if r[field] == params[field]]
+        offset = params.get("offset", 0)
+        page = rows[offset // 1000:offset // 1000 + 1]          # one row per page, so every row needs its own request
+        has_next = offset // 1000 + 1 < len(rows)
+        return {"activities": page, "page_meta": {"next": "/next" if has_next else None}}
+
+    monkeypatch.setattr(chembl.http, "get", paging_get)
+    assert _activity_refs(ChEMBLBioactivity(), "CHEMBL941") == IMATINIB_ABL1
+    assert max(pages) >= 1000, "the second page was never requested"
+
+
 def test_target_cache_indexes_activities_under_both_the_salt_and_the_parent_id(monkeypatch):
     calls = []
     monkeypatch.setattr(chembl.http, "get", _fake_activity_get(calls))
