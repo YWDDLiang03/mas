@@ -184,6 +184,59 @@ filter (the obvious molecule filter silently returns nothing for a parent compou
 to record target engagement with references for compounds whose activity records are
 absent; it was added as a catalog entry that is explicitly not a potency surrogate.
 
+### 7.10 Round 1 of the manuscript case: execution record (13 October 2026)
+
+**What ran.** Criteria derivation for the manuscript case executed as three runs in one chain
+(`run_01M4TX07ME8VWFJGK2PKNNGSEF`, then two continuations). The first reached enumerate, four
+propose stages, filter and distill, and was interrupted mid-refine after 1 h 58 min by the
+execution environment's two-hour limit on a background job - not by an error in the system. No
+derived state was lost, because pool transitions live in the task stream and a continuation
+re-folds them: the second run resumed the tail without re-reading a single document. The
+continuations are visible as what they are; the chain is the record.
+
+**Evidence actually gathered** (from the journal, not from a report): 1,002 admitted claims -
+637 with a verified verbatim quote and 365 whose numeric value was additionally confirmed to
+appear inside that quote - and 9 quarantined, every one for `value_not_in_quote`, which is the
+gate catching a number asserted beside a quote that does not contain it. The claims come from 28
+documents, of which 17 are NCBI Bookshelf chapters contributing 473 claims, so the licence-gated
+textbook route (ADR-44) supplied nearly half the evidence of this round rather than a token
+sample. The MediaWiki sources are registered and permitted and contributed nothing in this round;
+that is reported rather than smoothed over.
+
+**A defect the pre-flight check caught before promotion froze it.** Five of the fifteen
+immediately promotable criteria asked ChEMBL's curated mechanism table whether a compound engages
+a required receptor - CSF1R, VEGFR1, VEGFR2, VEGFR3, FGFR1, the most direct evidence this case
+has - while accepting only `measured` and `derived` values. Checked against the assessor: such a
+claim is admitted and then set aside as `determination_basis_not_accepted`, so the cell reads
+"no data", indistinguishable from a compound with no record at all. The catalog entry does state
+`determination_basis: "curated"`, so the information was in front of the proposer and was missed.
+`validate_proposal` now refuses the pairing, naming both sides, and the run was stopped before
+promotion - a registered criterion changes only by expert decision - so the five went back to
+refinement instead of into the registry broken.
+
+**Provider behaviour measured before round 2 spends anything** (ADR-46). `deepseek-flash` with
+reasoning disabled honours `temperature=0`: two identical extraction calls returned byte-identical
+JSON. With reasoning on, two calls spent 700 and 656 of a 700-token completion allowance on
+reasoning and returned empty content with `finish_reason: length`; the adapter's empty-reply retry
+would have repeated that three times and still had nothing to parse. Requesting `deepseek-chat`,
+an id the provider no longer lists, returns a reply that echoes `deepseek-flash`. All three findings
+changed code: a truncated reply is asked again with room, and the recorded model id is the echoed
+one.
+
+**An operational fault worth recording.** A `DONE` marker left in an exchange queue by an earlier
+run made `bridge next --wait` return immediately, so a polling agent concluded the exchange was
+over and stopped answering while the run waited for it. The marker now counts only when it is at
+least as new as the newest request.
+
+**A sizing constraint, stated before the sweep rather than discovered during it.** Fifty-six of
+roughly sixty-five pool items bind to literature retrieval, and the sweep applies every rule to
+every candidate. One document read serves every literature attribute for a compound, so cost
+scales per compound rather than per cell, but that is still a search, up to two reads and an
+extraction for each of 3,177 compounds, which no provider in reach finishes in one session. The
+run is therefore staged as the design intends (U-13, ADR-33): a screen of the full universe on the
+database-bound rules, then literature on a shortlist as a continuation, with the leaderboard's
+member-set hash keeping the two boards distinct and the reference compound's rank reported on both.
+
 ## 8. What this log does not claim
 
-No agent executed repository code, started a server, ran a test suite, or performed a screening, ranking, or experiment. Literature reads are labelled by depth in each report; abstract-only reads are not presented as full text. Agent self-reports of their own time and reading are reproduced as given; the coordinator verified file existence, word counts, section order, hash checks, and the absence of code fences, not every claimed read.
+During the design waves (§1-§6) no agent executed repository code, started a server, ran a test suite, or performed a screening, ranking, or experiment. The build records from §7.9 onward do report executed code, test runs and live runs, and each states what was measured and where. Literature reads are labelled by depth in each report; abstract-only reads are not presented as full text. Agent self-reports of their own time and reading are reproduced as given; the coordinator verified file existence, word counts, section order, hash checks, and the absence of code fences, not every claimed read.
