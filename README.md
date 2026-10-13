@@ -44,6 +44,32 @@ Create a store and a model configuration, then work through a task:
 
 Expert decisions are confirmed on the terminal itself and cannot be scripted.
 
+A rule set records what entered it and what did not. `entries` are the rules that score the
+board; `pending` are the proposals still awaiting an expert decision; `deferred` are rules kept
+out of this run on purpose, by capability. A preference rule the trigger table admits can be in
+`entries` while its critic finding is still open -- that rule is also listed in
+`pending_but_scoring`, and the set's `acceptance_label` is `exploratory` with a reason naming it,
+so a board built on unconfirmed rules says so rather than reading as settled.
+
+Deferring a capability is how a large universe is screened honestly. One document read serves
+every literature-bound attribute for a compound, so literature cost scales per compound, not per
+cell -- but a search, up to two reads and an extraction for each of several thousand compounds is
+out of reach in one sitting. Screen the whole universe on the database-bound rules, then run
+literature on a registered shortlist as a continuation:
+
+    mas --store var/store rules confirm TASK --allow-pending \
+        --defer-capability literature_retrieval --defer-reason "screened on database rules"
+    mas --store var/store run start TASK                    # the whole universe
+    mas --store var/store task shortlist TASK --top 40      # a new task, members from the snapshot
+    mas --store var/store rules confirm SHORTLIST_TASK --allow-pending
+    mas --store var/store run start SHORTLIST_TASK          # literature on the shortlist
+
+The two boards are different boards, and the leaderboard's comparability key carries a hash of
+the member set so they cannot be mistaken for one another. Report a candidate's rank on each,
+with the rankable count beside the universe size: where no source holds a measurement, a cell is
+`unknown_missing` and the candidate falls below the coverage floor, which is the honest outcome
+rather than a number to fill in.
+
 ### The browser workbench
 
     mas --store var/store ui serve                   # http://127.0.0.1:8765/
