@@ -34,16 +34,17 @@ def test_layer_precedence_cli_beats_env_beats_profile_beats_project_beats_preset
     profiles.mkdir()
     (profiles / "lab.toml").write_text("[search]\ndepth = 4\nresults_per_query = 12\n", encoding="utf-8")
     config = resolve(preset="quick", project_file=project, profile="lab", profile_dir=profiles,
-                     environ={"MAS__SEARCH__RESULTS_PER_QUERY": "13", "MAS__READ__EVIDENCE_K": "7"},
-                     overrides=cfg.parse_overrides(["read.evidence_k=9"]))
+                     environ={"MAS__SEARCH__RESULTS_PER_QUERY": "13", "MAS__READ__MAX_CONTENT_CHARS": "7000"},
+                     overrides=cfg.parse_overrides(["read.max_content_chars=9000"]))
     assert (config["search.breadth"], config.sources["search.breadth"]) == (5, "project")
     assert (config["search.depth"], config.sources["search.depth"]) == (4, "profile")
     assert (config["search.results_per_query"], config.sources["search.results_per_query"]) == (13, "environment")
-    assert (config["read.evidence_k"], config.sources["read.evidence_k"]) == (9, "override")
+    assert (config["read.max_content_chars"], config.sources["read.max_content_chars"]) == (9000, "override")
     assert (config["read.max_papers_full_read"], config.sources["read.max_papers_full_read"]) == (10, "preset")
 
 
-def test_types_ranges_and_unknown_keys_are_refused():
+def test_types_ranges_and_unknown_keys_are_refused(monkeypatch):
+    monkeypatch.setitem(cfg.SETTINGS, "run.flag", cfg.Setting(True, "a boolean setting for this test"))
     with pytest.raises(cfg.ConfigError, match="no setting"):
         resolve(overrides=cfg.parse_overrides(["search.bredth=3"]))
     with pytest.raises(cfg.ConfigError, match="above the maximum"):
@@ -51,7 +52,8 @@ def test_types_ranges_and_unknown_keys_are_refused():
     with pytest.raises(cfg.ConfigError, match="not one of"):
         resolve(overrides={"budget.on_exhaust": "explode"})
     with pytest.raises(cfg.ConfigError, match="true/false"):
-        resolve(overrides={"read.prefer_full_text": "maybe"})
+        resolve(overrides={"run.flag": "maybe"})
+    assert resolve(overrides={"run.flag": "off"})["run.flag"] is False
     with pytest.raises(cfg.ConfigError, match="no setting"):
         resolve(environ={"MAS__SEARCH__NOPE": "1"})
 

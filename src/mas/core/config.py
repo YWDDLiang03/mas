@@ -53,6 +53,7 @@ def _s(default, doc, **kw) -> Setting:
 
 
 # --- the settings -------------------------------------------------------------------
+# Every setting here is read by the code; a setting nothing reads would mislead whoever changes it.
 
 SETTINGS: dict[str, Setting] = {
     # literature breadth and depth
@@ -71,32 +72,25 @@ SETTINGS: dict[str, Setting] = {
                                       unit="records", const_id="const_search_max_records"),
     "search.saturation_stop": _s(0.10, "stop a dimension when the share of newly relevant records falls below this",
                                  minimum=0.0, maximum=1.0, unit="fraction", const_id="const_search_saturation_stop"),
-    "search.date_from": _s("", "earliest publication date to admit (YYYY-MM-DD, empty for no bound)"),
     "search.date_to": _s("", "evidence cutoff date (YYYY-MM-DD, empty for no bound)"),
     # reading
     "read.max_papers_full_read": _s(40, "documents read in full per dimension", minimum=1, maximum=500,
                                     unit="documents", const_id="const_read_max_documents"),
     "read.max_papers_per_candidate": _s(2, "documents read for one candidate's literature criteria", minimum=1,
                                         maximum=50, unit="documents", const_id="const_read_max_candidate_documents"),
-    "read.evidence_k": _s(10, "passages kept per document for extraction", minimum=1, maximum=50, unit="passages"),
-    "read.max_claims_per_paper": _s(8, "claims extracted per document per attribute", minimum=1, maximum=50,
-                                    unit="claims"),
     "read.max_content_chars": _s(60000, "characters of a document offered to the reader", minimum=1000,
                                  maximum=500000, unit="characters"),
-    "read.prefer_full_text": _s(True, "read full text where available, else the abstract"),
-    "read.require_verbatim_span": _s(True, "refuse a claim whose quote is not found in the source"),
     # criteria pool workflow
     "criteria.inner_iterations": _s(3, "filter/distill/merge/refine passes within one round", minimum=1, maximum=10,
                                     unit="iterations", const_id="const_criteria_inner_iterations"),
     "criteria.stages": _s(["filter", "distill", "merge", "refine"], "pool stages run each iteration, in order",
                           item_type=str),
-    "criteria.n_critics": _s(1, "independent critics per proposal", minimum=1, maximum=5, unit="critics"),
+    "criteria.max_refines": _s(2, "refinement attempts before an item waits for the next round", minimum=1, maximum=5,
+                               unit="attempts", const_id="const_criteria_max_refines"),
+    "criteria.merge_overlap": _s(0.35, "word overlap at which two candidates are offered to the adjudicator to merge",
+                                 minimum=0.0, maximum=1.0, unit="fraction", const_id="const_criteria_merge_overlap"),
     "criteria.stall_rounds": _s(2, "unchanged iterations that end a round early", minimum=1, maximum=5,
                                 unit="iterations", const_id="const_criteria_stall_rounds"),
-    "criteria.on_stall": _s("finalize", "what to do when the pool stops changing",
-                            choices=("finalize", "pivot", "escalate")),
-    "criteria.pool_target_size": _s(0, "target number of surviving criteria; 0 leaves the count to the evidence",
-                                    minimum=0, maximum=100, unit="criteria", const_id="const_criteria_pool_target"),
     # sweep
     "assess.max_candidates": _s(0, "candidates assessed; 0 means the whole universe", minimum=0, maximum=1000000),
     "assess.workers": _s(1, "concurrent literature cells", minimum=1, maximum=32),
@@ -126,8 +120,6 @@ SETTINGS: dict[str, Setting] = {
                                 const_id="const_sr_complexity_penalty"),
     "sr.max_condition": _s(1e8, "design-matrix condition number above which a fit is refused", minimum=1.0,
                            maximum=1e15, const_id="const_sr_max_condition"),
-    "sr.use_rdkit": _s(False, "add locally computed RDKit descriptors (optional dependency)"),
-    "sr.use_pysr": _s(False, "search further with PySR, seeded by the model's expressions (optional dependency)"),
     # budget
     "budget.usd_max": _s(20.0, "provider spend allowed for one run", minimum=0.0, maximum=100000.0, unit="USD",
                          const_id="const_budget_usd_max"),
@@ -136,20 +128,14 @@ SETTINGS: dict[str, Setting] = {
                             choices=("warn_continue", "finalize_partial", "ask", "abort")),
     "budget.llm_turns": _s(0, "model calls allowed; 0 means no limit", minimum=0, maximum=1000000),
     "budget.tool_calls": _s(0, "tool calls allowed; 0 means no limit", minimum=0, maximum=1000000),
-    "budget.wall_clock_s": _s(0, "seconds a run may take; 0 means no limit", minimum=0, maximum=1000000, unit="s"),
     # concurrency
-    "concurrency.max_parallel_agents": _s(4, "model calls in flight", minimum=1, maximum=64),
-    "concurrency.per_host_min_interval_s": _s(0.4, "minimum gap between requests to one host", minimum=0.0,
-                                              maximum=60.0, unit="s"),
     # interaction
     "interaction.mode": _s("checkpoint", "how often the run stops for a person",
                            choices=("autonomous", "checkpoint", "interactive")),
     "interaction.checkpoints": _s(["criteria_final", "pre_rank"], "points at which a checkpoint run pauses",
                                   item_type=str),
-    "interaction.escalate_on": _s(["stall", "budget_warn"], "conditions that raise a review item", item_type=str),
     # run
     "run.seed": _s(0, "sweep seed; also seeds the symbolic-regression splits", minimum=0, maximum=2**31 - 1),
-    "run.save_prompts": _s(True, "keep full prompts and replies in trace artifacts (expert/auditor visibility)"),
 }
 
 CHECKPOINTS = ("search_plan", "criteria_final", "pre_rank", "report")
@@ -157,16 +143,16 @@ CHECKPOINTS = ("search_plan", "criteria_final", "pre_rank", "report")
 PRESETS: dict[str, dict[str, Any]] = {
     "quick": {
         "search.breadth": 2, "search.depth": 1, "search.max_records_screened": 60,
-        "read.max_papers_full_read": 10, "read.evidence_k": 5,
-        "criteria.inner_iterations": 1, "criteria.n_critics": 1,
+        "read.max_papers_full_read": 10,
+        "criteria.inner_iterations": 1,
         "sr.generations": 2, "budget.usd_max": 2.0, "interaction.mode": "autonomous",
         "interaction.checkpoints": [],
     },
     "standard": {},
     "deep": {
         "search.breadth": 8, "search.depth": 4, "search.max_records_screened": 1500,
-        "read.max_papers_full_read": 200, "read.evidence_k": 15,
-        "criteria.inner_iterations": 6, "criteria.n_critics": 3,
+        "read.max_papers_full_read": 200,
+        "criteria.inner_iterations": 6,
         "sr.generations": 8, "budget.usd_max": 100.0,
     },
 }
@@ -361,8 +347,6 @@ def validate(config: Config) -> None:
     if v["interaction.mode"] == "autonomous" and v["interaction.checkpoints"]:
         raise ConfigError("interaction.mode = autonomous cannot list checkpoints; clear interaction.checkpoints "
                           "or choose the checkpoint mode")
-    if v["concurrency.max_parallel_agents"] < v["assess.workers"]:
-        raise ConfigError("assess.workers cannot exceed concurrency.max_parallel_agents")
     from mas.adapters.literature import registry
     try:
         registry.resolve(v["search.sources"])
@@ -402,7 +386,7 @@ def estimate(config: Config, *, dimensions: int = 1, candidates: int = 0) -> dic
     documents = min(records, v["read.max_papers_full_read"] * dimensions)
     # one query-planning call and one extraction call per document, per inner iteration pass
     reads = documents * v["criteria.inner_iterations"]
-    pool_calls = dimensions * len(v["criteria.stages"]) * v["criteria.inner_iterations"] * max(1, v["criteria.n_critics"])
+    pool_calls = dimensions * (1 + len(v["criteria.stages"]) * v["criteria.inner_iterations"])
     sr_calls = 0 if v["sr.mode"] == "off" else v["sr.generations"] * (2 if v["sr.mode"] == "both" else 1)
     llm_calls = int(queries + reads + pool_calls + sr_calls)
     sweep = candidates or v["assess.max_candidates"]

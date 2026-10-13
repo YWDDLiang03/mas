@@ -14,6 +14,8 @@ PREFIXES = frozenset({
     "ig", "attr", "rule", "rules", "chg", "cand", "asm", "rsn", "lb", "lbd", "evs", "tool", "inv",
     "res", "mem", "hd", "q", "oq", "plan", "brief", "ret", "ckpt", "strat", "proto", "evr", "sub",
     "const", "bind", "ops", "ses", "cmd", "chain", "grp", "case",
+    "cri",   # criterion lineage in the derivation pool (iteration 2)
+    "expr",  # registered scoring expression (iteration 2)
 })
 
 

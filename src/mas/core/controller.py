@@ -175,6 +175,8 @@ class RunController:
         if not events or events[0].event_type != "run.created":
             raise RunError("rejected_invalid", f"{run_id} is not a run")
         binding = self.core.artifacts.payload(events[0].payload["binding_artifact_id"])
+        if binding.get("run_purpose", "sweep") != "sweep":
+            raise RunError("rejected_invalid", f"{run_id} is a {binding['run_purpose']} run, not a candidate sweep")
         task_id = events[0].payload["task_id"]
         context = task_mod.get(self.core, task_id, int(binding["task_context_id@v"].rsplit("@v", 1)[1]))
         rule_set = criteria.rule_set(self.core, task_id, binding["rules@v"])
@@ -331,6 +333,7 @@ class RunController:
                 sources=st.settings.get("search.sources"),
                 max_documents=st.settings.get("read.max_papers_per_candidate", 2),
                 limit_per_query=st.settings.get("search.results_per_query", 10),
+                max_chars=st.settings.get("read.max_content_chars"),
                 reading_attributes=[{"name": r["attribute"]["name"], "definition": r["attribute"]["definition"],
                                      "unit": r["attribute"].get("unit"),
                                      "ref": f"{r['attribute']['attribute_id']}@v{r['attribute']['version']}"}

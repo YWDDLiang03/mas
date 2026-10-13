@@ -28,6 +28,11 @@ class Source:
     note: str = ""
     requires: str = ""            # what must be set up before the source can answer
 
+    @property
+    def evidence_kind(self) -> str:
+        """The evidence kind of claims read from this source (matched against acceptable_value_sources)."""
+        return {"peer_reviewed_paper": "peer_reviewed"}.get(self.source_status, self.source_status)
+
 
 SOURCES: dict[str, Source] = {s.source_id: s for s in (
     Source("europepmc", "Europe PMC", "journal_literature", "tool_literature_europepmc_search",
@@ -84,6 +89,9 @@ def permitted(source_id: str) -> Source:
 def resolve(source_ids) -> list[Source]:
     """The permitted sources, in the given order; refuses the whole list if any entry is refused."""
     return [permitted(s) for s in dict.fromkeys(source_ids)]
+
+
+EVIDENCE_KINDS = ("peer_reviewed", "preprint", "reference_text", "tertiary_reference", "user_supplied_document")
 
 
 def for_hit(hit: dict) -> Source:

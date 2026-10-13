@@ -3,7 +3,9 @@
     mas init                                   create a store root and an example models.toml
     mas task new --from FILE.json | task list | task show TASK
     mas criteria propose TASK --from FILE.json  propose attribute+rule pairs written by a person
-    mas criteria derive TASK [--dimension D ...] derive criteria from literature (LLM roles)
+    mas criteria derive TASK [--dimension D ...] [--continues RUN] [--single-pass]
+                                               derive criteria from literature: a round of the pool workflow
+    mas criteria pool TASK [--all]             the criteria pool: states, versions, lineage
     mas rules confirm TASK [--allow-pending] | rules show TASK
     mas review list [TASK] | review decide ITEM --decision D --reason TEXT --exposure E
     mas run start TASK [--seed N] [--limit N] [--tool-calls N] [--llm-turns N] | run show RUN | run resume RUN
@@ -246,21 +248,81 @@ def cmd_criteria(args) -> None:
             from mas.adapters.drug.registration import objective_templates
             from mas.core import derivation
             _print(derivation.objective_criteria(core, args.task, templates=objective_templates, by=_person("operator")))
+        elif args.action == "pool":
+            _show_pool(core, args.task, show_all=args.all)
         else:
             from mas.adapters.drug.registration import DIMENSIONS, EVIDENCE_CATALOG, objective_templates
-            dimensions = [d for d in DIMENSIONS if not args.dimension or d["dimension"] in args.dimension]
-            from mas.core import derivation
-            from mas.core.budget import Budget
-            settings = _settings(args)
+            from mas.core import derivation, derivation_run
             from mas.core.budget import from_config
-            record = derivation.derive(core, _broker(core, task.get(core, args.task), args), _roster(args), args.task,
-                                       dimensions=dimensions, catalog=EVIDENCE_CATALOG, by=_person("operator"),
-                                       cutoff_date=args.cutoff or settings["search.date_to"] or None,
-                                       max_documents=args.max_documents, templates=objective_templates,
-                                       research=derivation.research_params(settings),
-                                       budget=from_config(settings, envelope={"llm_turns": args.llm_turns} if args.llm_turns else None))
-            _print({k: record[k] for k in ("dimensions", "mandated", "accepted", "disputed", "considered_and_rejected",
-                                           "revisions")})
+            dimensions = [d for d in DIMENSIONS if not args.dimension or d["dimension"] in args.dimension]
+            settings = _settings(args)
+            research = derivation.research_params(settings)
+            if args.max_documents:
+                research["max_documents"] = args.max_documents
+            budget = from_config(settings, envelope={"llm_turns": args.llm_turns} if args.llm_turns else None)
+            broker = _broker(core, task.get(core, args.task), args)
+            cutoff = args.cutoff or settings["search.date_to"] or None
+            if args.single_pass:
+                record = derivation.derive(core, broker, _roster(args), args.task, dimensions=dimensions,
+                                           catalog=EVIDENCE_CATALOG, by=_person("operator"), cutoff_date=cutoff,
+                                           templates=objective_templates, research=research, budget=budget)
+                _print({k: record[k] for k in ("dimensions", "mandated", "accepted", "disputed", "considered_and_rejected",
+                                               "revisions")})
+                return
+            try:
+                record = derivation_run.derive_iterative(
+                    core, broker, _roster(args), args.task, dimensions=dimensions, catalog=EVIDENCE_CATALOG,
+                    by=_person("operator"), research=research, inner_iterations=settings["criteria.inner_iterations"],
+                    stall_rounds=settings["criteria.stall_rounds"], stage_names=tuple(settings["criteria.stages"]),
+                    max_refines=settings["criteria.max_refines"], merge_overlap=settings["criteria.merge_overlap"],
+                    cutoff_date=cutoff, budget=budget, templates=objective_templates,
+                    continues_run_id=args.continues, settings=settings, implementation=_implementation())
+            except derivation_run.DerivationError as error:
+                sys.exit(str(error))
+            print(f"{record['run_id']}  round {record['round_index']}  {record['termination_reason']}  "
+                  f"pool {record['pool_states']}")
+            for e in record.get("enumeration", []):
+                print(f"  {e['dimension']:<28} {e['documents_read']} documents, {e['n_topics']} topics ({e['stop_reason']})")
+            for i in record.get("iterations", []):
+                print(f"  iteration {i['iteration']}: " + "; ".join(f"{k} {v}" for k, v in i.items()
+                                                                   if k not in ("iteration", "pool_changed")))
+            promotion = record.get("promotion") or {}
+            for key in ("accepted", "disputed"):
+                for item in promotion.get(key, []):
+                    print(f"  {key:<9} {item['rule_ref']:<44} {item['rule_kind']:<16} {item['name']}")
+            for item in promotion.get("deferred", []):
+                print(f"  deferred  {item['name']}: {'; '.join(item['problems'])[:100]}")
+            print(f"  next: {record['continuation_decision']['decision']}"
+                  + (f" (continue with --continues {record['run_id']})" if record['continuation_decision']['decision']
+                     == "continue_next_round" else ""))
+
+
+def _show_pool(core: Core, task_id: str, *, show_all: bool) -> None:
+    from mas.core import pool as pool_mod
+    folded = pool_mod.fold(core, task_id)
+    if not folded:
+        sys.exit("the criteria pool is empty; run `mas criteria derive TASK`")
+    counts: dict[str, int] = {}
+    for entry in folded.values():
+        counts[entry["state"]] = counts.get(entry["state"], 0) + 1
+    print("pool: " + ", ".join(f"{vocab.label('criterion_pool_state', k)} {v}" for k, v in sorted(counts.items())))
+    order = ("promoted", "candidate", "needs_refine", "deferred_next_round", "merged_away", "withdrawn", "filtered_out")
+    for entry in sorted(folded.values(), key=lambda e: (order.index(e["state"]), e["item"]["attribute"].get("name", ""))):
+        if not show_all and entry["state"] in ("merged_away", "withdrawn", "filtered_out"):
+            continue
+        attribute = entry["item"]["attribute"]
+        line = (f"  {entry['criterion_id']}@v{entry['version']:<3} {vocab.label('criterion_pool_state', entry['state']):<26} "
+                f"{attribute.get('name', '')[:48]:<48} {attribute.get('unit') or ''}")
+        if entry["promoted_as"]:
+            line += f"  -> {entry['promoted_as']['rule_ref']}"
+        print(line)
+        if entry["parents"]:
+            print(f"      merged from {', '.join(entry['parents'])}")
+        if show_all:
+            last = entry["history"][-1]
+            print(f"      last: {last['operation']} at {last['stage']} ({last['reason_kind']}) {last['reason_text'][:80]}")
+    if not show_all:
+        print("  (merged, withdrawn and filtered items hidden; show them with --all)")
 
 
 def cmd_rules(args) -> None:
@@ -359,6 +421,7 @@ def cmd_board(args) -> None:
         tuple_ = snap["reporting_tuple"]
         print(f"  admitted {tuple_['admitted_n']} · precision n/a without labels · coverage {tuple_['coverage_fraction']:.2f}"
               f" · sweep completeness {tuple_['sweep_completeness']:.2f} · abstentions {tuple_['abstention_n_by_reason']}")
+        args.top = args.top or _settings(args)["rank.top_n"]
         rows = snap["candidate_entries"] if args.all else snap["candidate_entries"][: args.top]
         for e in rows:
             score = "" if e["preference_score"] is None else f"{e['preference_score']:.2f}"
@@ -521,8 +584,11 @@ def main(argv: list[str] | None = None) -> int:
     t.set_defaults(func=cmd_task)
 
     c = sub.add_parser("criteria")
-    c.add_argument("action", choices=("propose", "derive", "mandated"))
+    c.add_argument("action", choices=("propose", "derive", "mandated", "pool"))
     c.add_argument("task")
+    c.add_argument("--continues", metavar="RUN", help="derive: continue the pool from this earlier derivation round")
+    c.add_argument("--single-pass", action="store_true", help="derive: one propose/critique/revise pass, no pool")
+    c.add_argument("--all", action="store_true", help="pool: include merged, withdrawn and filtered items")
     c.add_argument("--from", dest="file")
     c.add_argument("--dimension", action="append")
     c.add_argument("--cutoff", help="evidence cutoff date YYYY-MM-DD")
@@ -563,7 +629,7 @@ def main(argv: list[str] | None = None) -> int:
     b = sub.add_parser("board")
     b.add_argument("action", choices=("show",))
     b.add_argument("task")
-    b.add_argument("--top", type=int, default=25)
+    b.add_argument("--top", type=int, help="rows to show (default: rank.top_n)")
     b.add_argument("--all", action="store_true")
     b.set_defaults(func=cmd_board)
 

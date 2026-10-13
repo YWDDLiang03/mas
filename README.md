@@ -54,7 +54,7 @@ a range and a one-line explanation. Settings come from layers, lowest precedence
     mas config show --explain                 # every value, with the layer it came from
     mas --preset deep --set search.breadth=6 config validate
     mas config estimate --dimensions 5 --candidates 3177   # offline volume/cost estimate
-    mas --set read.evidence_k=12 config save mylab         # keep a profile
+    mas --set read.max_papers_full_read=60 config save mylab         # keep a profile
 
 A `mas.toml` uses the same sections, for example:
 
@@ -70,6 +70,32 @@ A `mas.toml` uses the same sections, for example:
 Each run binds the hash of its resolved settings and a record of where every value came
 from; verdict-affecting values are registered as run constants. `mas run resume` refuses
 if the settings changed since the run was bound, unless `--allow-config-drift` is given.
+
+### Deriving criteria: the pool workflow
+
+`mas criteria derive TASK` runs one *round* of an iterative workflow and records it as a
+run. It searches and reads (breadth × depth), then:
+
+1. **propose** — every distinct criterion the evidence supports goes into a pool, recall first;
+2. **filter** — deterministic checks (already registered, no supporting claim, unbound
+   evidence request), then a blind critic on its own model queue;
+3. **distill** — each candidate is sharpened into its most precise, measurable form;
+4. **merge** — candidates measuring the same quantity (same evidence route, unit and
+   direction, overlapping wording) are offered to an adjudicator, which may merge them;
+5. **refine** — items with validator problems or critic findings are revised or withdrawn.
+
+Steps 2–5 repeat up to `criteria.inner_iterations` times and stop early once the pool
+stops changing for `criteria.stall_rounds` iterations. Survivors are then promoted into the
+registry as *proposed* criteria: items with open critic findings go to the review queue as
+disputes, and hard exclusions or expert-set cutoffs still need an expert decision.
+
+Every pool change is recorded with its reason and evidence, and items keep their identity
+across versions, merges and rounds. Continue in a later round — with new evidence, a
+different model, or deeper settings — and the pool picks up where it stopped:
+
+    mas criteria derive TASK                         # round 1
+    mas criteria derive TASK --continues RUN_ID      # round 2, same chain
+    mas criteria pool TASK [--all]                   # states, versions, merges
 
 ### Evidence sources
 

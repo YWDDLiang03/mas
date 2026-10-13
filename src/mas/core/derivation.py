@@ -108,7 +108,7 @@ def _excluded(hit: dict[str, Any], case_sources: list[dict[str, Any]]) -> bool:
 # Research breadth and depth when no settings are given: one round, as before settings existed.
 DEFAULT_RESEARCH = {"breadth": 5, "depth": 1, "breadth_decay": 0.5, "results_per_query": 10,
                     "max_records_screened": 300, "max_documents": 8, "saturation_k": 3, "saturation_stop": 0.0,
-                    "sources": None}
+                    "sources": None, "max_content_chars": 60_000}
 
 
 def research_params(settings) -> dict[str, Any]:
@@ -119,7 +119,8 @@ def research_params(settings) -> dict[str, Any]:
             "breadth_decay": settings["search.breadth_decay"], "results_per_query": settings["search.results_per_query"],
             "max_records_screened": settings["search.max_records_screened"],
             "max_documents": settings["read.max_papers_full_read"], "saturation_k": DEFAULT_RESEARCH["saturation_k"],
-            "saturation_stop": settings["search.saturation_stop"], "sources": list(settings["search.sources"])}
+            "saturation_stop": settings["search.saturation_stop"], "sources": list(settings["search.sources"]),
+            "max_content_chars": settings["read.max_content_chars"]}
 
 
 def enumerate_dimension(core: Core, broker, roster: ModelRoster, stream_id: str, *, task_context: dict[str, Any],
@@ -186,7 +187,8 @@ def enumerate_dimension(core: Core, broker, roster: ModelRoster, stream_id: str,
                     continue
                 found = reading.extract_claims(core, roster, stream_id, document, {
                     "purpose": "criterion_discovery", "objective_text": objective + (f" Scope: {scope}." if scope else ""),
-                    "dimensions": all_dimensions or [dimension], "attribute": None, "candidate": None}, ids=ids, budget=budget)
+                    "dimensions": all_dimensions or [dimension], "attribute": None, "candidate": None}, ids=ids, budget=budget,
+                    max_chars=r["max_content_chars"])
                 if read_cache is not None:
                     read_cache[key] = found
             read_count += 1
@@ -341,7 +343,8 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
               f"Evidence catalog (bind each attribute's evidence_request to one entry):\n{json.dumps(catalog, ensure_ascii=False, indent=1)}\n\n"
               f"Attribute fields: name, definition, measurement_kind (quantitative|ordinal|categorical|qualitative_determination), "
               f"unit, direction (higher_better|lower_better|within_range|target_value|non_directional|undetermined), "
-              f"acceptable_value_sources (evidence kinds: curated_measurement, database_entry, peer_reviewed, preprint), "
+              f"acceptable_value_sources (evidence kinds: curated_measurement, database_entry, peer_reviewed, preprint, "
+              f"reference_text, tertiary_reference, user_supplied_document), "
               f"aggregation (max|min|consensus), evidence_request {{capability, question_kind, identifier_scheme, parameters}}, rationale.\n"
               f"Rule fields: rule_kind (hard_exclusion|preference|exploratory_consideration), predicate_form (threshold|ordering), cutoff {{comparator (>=|<=|>|<|==), value, unit}} or null, "
               f"cutoff_basis (source_stated_value|none_evidence_insufficient), on_missing/on_inapplicable/on_conflict "

@@ -96,7 +96,8 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
            ids: dict | None = None, cache: LiteratureCache | None = None, max_documents: int = 2,
            case_sources: list[dict[str, Any]] | None = None,
            reading_attributes: list[dict[str, Any]] | None = None,
-           sources: list[str] | None = None, limit_per_query: int | None = None) -> tuple[list[dict], str | None, list[str]]:
+           sources: list[str] | None = None, limit_per_query: int | None = None,
+           max_chars: int | None = None) -> tuple[list[dict], str | None, list[str]]:
     """Gather claims for one cell. Returns (claims, tool_error_ref, source kinds searched)."""
     request = attribute["evidence_request"]
     attr_ref = f"{attribute['attribute_id']}@v{attribute['version']}"
@@ -162,10 +163,11 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
                 extraction_key = (candidate["candidate_id"], key)
                 if extraction_key not in cache.extractions:
                     cache.extractions[extraction_key] = reading.extract_claims(core, roster, stream_id, document, question,
-                                                                               ids=ids, budget=budget)
+                                                                               ids=ids, budget=budget, max_chars=max_chars)
                 claims.extend(c for c in cache.extractions[extraction_key] if c.get("attribute_ref") == attr_ref)
             else:
-                claims.extend(reading.extract_claims(core, roster, stream_id, document, question, ids=ids, budget=budget))
+                claims.extend(reading.extract_claims(core, roster, stream_id, document, question, ids=ids, budget=budget,
+                                                     max_chars=max_chars))
         except ModelError as error:
             if error.error_class == "quota_exhausted":
                 raise BudgetBlocked() from None

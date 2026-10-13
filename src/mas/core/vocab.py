@@ -130,6 +130,15 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
     ),
     "task_mode": _domain("conditional", "exploratory"),
     "rule_role": _domain("hard_exclusion", "preference", "exploratory"),
+    # iteration 2: the criteria pool (design §5.6)
+    "criterion_pool_state": _labelled(
+        candidate=("candidate", "neutral"), needs_refine=("needs refinement", "attention"),
+        filtered_out=("filtered out", "muted"), merged_away=("merged into another", "muted"),
+        withdrawn=("withdrawn", "muted"), promoted=("in the registry", "positive"),
+        deferred_next_round=("deferred to the next round", "attention"),
+    ),
+    "criterion_change_operation": _domain("add", "revise", "merge", "remove", "reinstate", "promote", "defer"),
+    "run_purpose": _labelled(sweep=("candidate sweep", "neutral"), criteria_derivation=("criteria derivation", "neutral")),
     "trigger_class": _domain(
         "new_external_evidence", "unresolved_conflict", "consequential_missing_measurement",
         "questionable_exclusion", "decision_relevant_computation", "human_request",

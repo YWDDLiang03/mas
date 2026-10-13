@@ -237,7 +237,8 @@ def read(core: Core, broker, stream_id: str, hit: dict[str, Any], *, ids: dict |
         "pub_types": hit.get("pub_types", [])})
     if not documents:
         return None
-    document = dict(documents[0], source_id=source_id, tool_result_ref=result.result_id)
+    document = dict(documents[0], source_id=source_id, tool_result_ref=result.result_id,
+                    evidence_kind="preprint" if hit.get("is_preprint") else registry.for_hit(hit).evidence_kind)
     document["document_artifact_id"] = core.artifacts.put("document", document)
     return document
 
@@ -376,7 +377,8 @@ def _question_text(question: dict[str, Any]) -> str:
 
 
 def extract_claims(core: Core, roster: ModelRoster, stream_id: str, document: dict[str, Any], question: dict[str, Any], *,
-                   ids: dict | None = None, budget: Any = None, admit: bool = True) -> list[dict[str, Any]]:
+                   ids: dict | None = None, budget: Any = None, admit: bool = True,
+                   max_chars: int | None = None) -> list[dict[str, Any]]:
     """Extract, check, and record claims from one document for one question.
 
     `question`: {"purpose": "candidate_attribute" | "criterion_discovery", "objective_text",
@@ -397,7 +399,7 @@ def extract_claims(core: Core, roster: ModelRoster, stream_id: str, document: di
         item_schema = schema["properties"]["claims"]["items"]
         item_schema["required"] = item_schema["required"] + ["attribute_name"]
         item_schema["properties"]["attribute_name"] = {"type": "string", "enum": sorted(attribute_refs)}
-    passages = select_passages(document, terms)
+    passages = select_passages(document, terms, max_chars=max_chars or 60_000)
     response = call_role(core, roster, stream_id, ModelRequest(
         role="reader", system=READER_SYSTEM, response_schema=schema, max_tokens=6000,
         messages=[{"role": "user", "content": f"{_question_text(question)}\n\nDocument: {document.get('title')}\n\n{_render(passages)}"}],
@@ -406,7 +408,8 @@ def extract_claims(core: Core, roster: ModelRoster, stream_id: str, document: di
     reader = make_actor("agent", f"reader:{response.model_id}", "reader")
     candidate = question.get("candidate")
     attribute = question.get("attribute")
-    source_status = "preprint" if document.get("source_hit", {}).get("is_preprint") else "peer_reviewed"
+    source_status = ("preprint" if document.get("source_hit", {}).get("is_preprint")
+                     else document.get("evidence_kind", "peer_reviewed"))
     recorded = []
     for item in response.data["claims"]:
         reasons, problems = [], []
