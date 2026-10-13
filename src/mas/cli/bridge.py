@@ -28,6 +28,20 @@ def _pending(root: Path) -> list[Path]:
     return [p for p in requests if p.stem not in answered]
 
 
+def _finished(root: Path) -> bool:
+    """Is the DONE marker this session's? A marker left by an earlier run is stale.
+
+    A stale marker is worse than none: `next --wait` returns at once, so an agent that
+    polls in a loop concludes the work is over and stops answering, and the run that is
+    really waiting for it blocks until its own timeout.
+    """
+    marker = root / "DONE"
+    if not marker.exists():
+        return False
+    newest = max((p.stat().st_mtime for p in (root / "requests").glob("*.json")), default=0.0)
+    return marker.stat().st_mtime >= newest
+
+
 def _claim(root: Path, request: Path, agent: str) -> bool:
     """Claim a request atomically; a claim older than CLAIM_TIMEOUT_S may be taken over."""
     claims = root / "claims"
@@ -54,7 +68,7 @@ def cmd_next(root: Path, wait_s: float, agent: str = "agent") -> int:
             if _claim(root, request, agent):
                 print(request.read_text(encoding="utf-8"))
                 return 0
-        if (root / "DONE").exists() and not _pending(root):
+        if _finished(root) and not _pending(root):
             print(json.dumps({"status": "done"}))
             return 3
         if time.monotonic() > deadline:
@@ -86,7 +100,7 @@ def cmd_status(root: Path) -> int:
     requests = list((root / "requests").glob("*.json"))
     responses = list((root / "responses").glob("*.json"))
     print(json.dumps({"requests": len(requests), "responses": len(responses), "pending": len(_pending(root)),
-                      "done": (root / "DONE").exists()}))
+                      "done": _finished(root)}))
     return 0
 
 
