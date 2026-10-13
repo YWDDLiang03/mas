@@ -18,6 +18,7 @@ CORE_DEFAULTS: dict[str, tuple[Any, str]] = {
     "const_reflection_item_cap": (3, "items"),
     "const_sweep_tool_failure_share": (0.5, "fraction"),
     "const_tool_retry_limit": (3, "attempts"),
+    "const_ranking_coverage_floor": (0.5, "fraction"),
 }
 
 

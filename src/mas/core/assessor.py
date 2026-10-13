@@ -169,8 +169,13 @@ def _reason_text(attribute, rule, verdict, statement_value, cutoff, refs, dispos
 
 
 def roll_up(candidate_id: str, assessments: list[dict[str, Any]], *, coverage_floor: float,
-            recommended_requires_hd: bool, hd_refs: list[str] | None = None) -> dict[str, Any]:
-    """Candidate state from its cells (design §4.11)."""
+            recommended_requires_hd: bool, hd_refs: list[str] | None = None,
+            pending_hard_rules: list[str] | None = None) -> dict[str, Any]:
+    """Candidate state from its cells (design §4.11).
+
+    Hard rules still awaiting an expert decision keep every candidate `provisional`
+    (the rule set is exploratory); a rule set with no hard rule never recommends.
+    """
     hard = [a for a in assessments if a["rule_kind"] == "hard_exclusion" and a["verdict"] != "inapplicable"]
     prefs = [a for a in assessments if a["rule_kind"] == "preference" and a["verdict"] != "inapplicable"]
     n_fail = sum(a["verdict"] == "fail" for a in hard)
@@ -185,6 +190,10 @@ def roll_up(candidate_id: str, assessments: list[dict[str, Any]], *, coverage_fl
         state, reason = "rejected", f"hard rule failed: {', '.join(failed)}"
     elif n_unknown:
         state, reason = "provisional", f"hard rule unknown: {', '.join(blocking)}"
+    elif pending_hard_rules:
+        state, reason = "provisional", f"hard rules await an expert decision: {', '.join(pending_hard_rules)}"
+    elif not hard:
+        state, reason = "provisional", "no confirmed hard rule; ranked on preferences only"
     elif coverage < coverage_floor:
         state, reason = "provisional", f"hard-rule coverage {coverage:.2f} below floor {coverage_floor:.2f}"
     elif recommended_requires_hd and not hd_refs:
@@ -192,7 +201,8 @@ def roll_up(candidate_id: str, assessments: list[dict[str, Any]], *, coverage_fl
     else:
         state, reason = "recommended", "every hard rule passes with coverage at or above the floor"
     evaluated = [a for a in prefs if a["verdict"] in ("pass", "fail")]
-    return {"candidate_ref": candidate_id, "state": state, "state_reason": reason, "hard_rule_coverage": coverage,
+    return {"candidate_ref": candidate_id, "state": state, "state_reason": reason,
+            "hard_rule_coverage": coverage if hard else None,
             "n_fail_hard": n_fail, "n_unknown_hard": n_unknown, "n_preferences_evaluated": len(evaluated),
             "n_preferences": len(prefs), "blocking_unknowns": blocking}
 

@@ -54,7 +54,8 @@ EVIDENCE_CATALOG = [
     {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values", "identifier_scheme": "inchikey",
      "parameters": {"target_chembl_id": "<a ChEMBL target id from the task's scope entities>"},
      "units": {"pchembl_value": "pChEMBL"}, "evidence_kind": "curated_measurement", "determination_basis": "measured",
-     "note": "Curated potency records (pChEMBL = -log10 molar IC50/Ki/Kd/EC50) against one target; use aggregation max."},
+     "note": "Curated potency records (pChEMBL = -log10 molar IC50/Ki/Kd/EC50) against one target; use aggregation "
+             "median (a maximum rises with the number of assays, favouring heavily studied compounds)."},
     {"capability": "literature_retrieval", "question_kind": "search", "identifier_scheme": None,
      "parameters": {"query_template": "<Europe PMC query containing {names}, e.g. ({names}) AND \"oral bioavailability\">",
                     "relevance_terms": ["<terms a relevant title or abstract must contain>"], "search_limit": 10},
@@ -80,3 +81,46 @@ DIMENSIONS = [
     {"dimension": "metabolic_stability", "focus": "metabolic stability, clearance, half-life, and drug-drug interaction liability"},
     {"dimension": "toxicological_safety", "focus": "toxicity and safety liabilities relevant to chronic oral dosing"},
 ]
+
+
+def objective_templates(task_context: dict) -> list[dict]:
+    """Criteria the task mandates: potency at each required target; an approved route for a route constraint.
+
+    No cutoff is invented: potency is an ordering preference (median pChEMBL, higher is better);
+    the route constraint is a hard exclusion that an expert must confirm.
+    """
+    items = []
+    for index, entity in enumerate(task_context.get("scope_entities", [])):
+        if entity.get("role") != "required" or entity.get("identifier_scheme") != "chembl_target":
+            continue
+        label = entity.get("label") or entity["identifier"]
+        items.append({
+            "source_field": f"scope_entities[{index}]",
+            "attribute": {"name": f"{label} curated potency", "measurement_kind": "quantitative", "unit": "pChEMBL",
+                          "definition": f"Median pChEMBL value over curated point measurements against {label} "
+                                        f"({entity['identifier']})",
+                          "direction": "higher_better", "acceptable_value_sources": ["curated_measurement"],
+                          "aggregation": "median",
+                          "evidence_request": {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values",
+                                               "identifier_scheme": "inchikey",
+                                               "parameters": {"target_chembl_id": entity["identifier"]}},
+                          "rationale": f"{label} is a required target of the task"},
+            "rule": {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": None,
+                     "cutoff_basis": "none_evidence_insufficient", "on_missing": "unknown_no_penalty"}})
+    for index, constraint in enumerate(task_context.get("constraints", [])):
+        text = (constraint.get("text") or "").lower()
+        if constraint.get("hardness") == "hard" and constraint.get("kind") == "route" and "oral" in text:
+            items.append({
+                "source_field": f"constraints[{index}]",
+                "attribute": {"name": "Approved oral route on record", "measurement_kind": "categorical", "unit": None,
+                              "definition": "Whether an approved product of the compound is recorded with an oral route",
+                              "direction": "non_directional", "acceptable_value_sources": ["database_entry"],
+                              "aggregation": "consensus",
+                              "evidence_request": {"capability": "record_field_lookup", "question_kind": "record_field",
+                                                   "identifier_scheme": "inchikey", "parameters": {"field": "oral"}},
+                              "acceptable_determination_bases": ["measured", "derived"],
+                              "rationale": "the task's hard constraint: oral administration"},
+                "rule": {"rule_kind": "hard_exclusion", "predicate_form": "categorical_membership",
+                         "cutoff": {"comparator": "==", "value": True, "unit": None}, "cutoff_basis": "task_constraint",
+                         "on_missing": "unknown_blocks_recommendation"}})
+    return items

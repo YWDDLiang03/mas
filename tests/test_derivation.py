@@ -143,3 +143,18 @@ def test_ordering_preferences_score_by_percentile_and_skip_missing():
     assert scores["d"] == (None, 0.0)
     rules["rule_f@v1"]["direction"] = "lower_better"
     assert assessor.preference_scores(cells, rules, {})["a"] == (1.0, 1.0)
+
+
+def test_task_mandated_criteria_come_from_scope_and_constraints_without_duplicates(core):
+    from mas.adapters.drug.registration import objective_templates
+    spec = dict(SPEC, scope_entities=[
+        {"entity_kind": "target", "identifier": "CHEMBL1", "identifier_scheme": "chembl_target", "label": "T1", "role": "required"},
+        {"entity_kind": "target", "identifier": "CHEMBL2", "identifier_scheme": "chembl_target", "label": "T2", "role": "optional"}])
+    task_id, _ = task.record_version(core, spec, by=OPERATOR)
+    added = derivation.objective_criteria(core, task_id, templates=objective_templates, by=OPERATOR)
+    assert [a["name"] for a in added] == ["T1 curated potency", "Approved oral route on record"]
+    assert derivation.objective_criteria(core, task_id, templates=objective_templates, by=OPERATOR) == []
+    (item,) = review.items(core, [task_id]).values()                    # the hard route constraint needs an expert
+    assert item["subject"]["id"].startswith("rule_approved-oral-route-on-record")
+    ref = criteria.confirm_rule_set(core, task_id, by=OPERATOR, allow_pending=True)
+    assert [e["rule_ref"] for e in criteria.rule_set(core, task_id, ref)["entries"]] == ["rule_t1-curated-potency@v1"]

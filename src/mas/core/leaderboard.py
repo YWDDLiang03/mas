@@ -82,7 +82,8 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
                    evidence_snapshot_id: str | None, roll_ups: dict[str, dict[str, Any]],
                    cells: dict[str, list[dict[str, Any]]], scores: dict[str, tuple[float | None, float]],
                    identities: dict[str, dict[str, Any]], parent: dict[str, Any] | None, sweep_completeness: float,
-                   budget: dict[str, Any], strategy: str = "strat@v1", tool_coverage: dict[str, Any] | None = None) -> dict[str, Any]:
+                   budget: dict[str, Any], strategy: str = "strat@v1", tool_coverage: dict[str, Any] | None = None,
+                   ranking_coverage_floor: float = 0.5) -> dict[str, Any]:
     has_preferences = any(e["rule_kind"] == "preference" for e in rule_set["entries"])
     has_hard = any(e["rule_kind"] == "hard_exclusion" for e in rule_set["entries"])
     result_kind = "both_reported" if (has_hard and has_preferences) else "ranked_under_score" if has_preferences else "all_pass_set"
@@ -102,8 +103,13 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
                                              for kind in ("measured", "curated", "derived", "predicted")},
             "review_status": "none", "verdicts": {c["attribute_ref"]: c["verdict"] for c in candidate_cells},
         })
-    ranked = [e for e in entries if e["state"] in ("recommended", "provisional") and e["preference_score"] is not None]
-    ranked.sort(key=lambda e: (-e["preference_score"], STATE_ORDER[e["state"]], -e["preference_coverage"], -e["coverage"],
+    for entry in entries:
+        if entry["preference_score"] is not None and entry["preference_coverage"] < ranking_coverage_floor:
+            entry["rank_note"] = (f"too little preference evidence to rank (coverage {entry['preference_coverage']:.2f} "
+                                  f"below {ranking_coverage_floor:.2f})")
+    ranked = [e for e in entries if e["state"] in ("recommended", "provisional") and e["preference_score"] is not None
+              and e["preference_coverage"] >= ranking_coverage_floor]
+    ranked.sort(key=lambda e: (-e["preference_score"], STATE_ORDER[e["state"]], -e["preference_coverage"], -(e["coverage"] or 0),
                                e["candidate_ref"]))
     if has_preferences:
         for position, entry in enumerate(ranked, 1):
@@ -124,7 +130,7 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
         "run_id": run_id, "round_id": round_id, "rules@v": rule_set["rule_set_ref"], "strat@v": strategy,
         "evidence_snapshot_id": evidence_snapshot_id, "result_kind": result_kind,
         "ordering_method": rule_set.get("ordering_method"),
-        "all_pass_count": sum(e["state"] in ("recommended", "provisional") and e["coverage"] == 1.0
+        "all_pass_count": sum(e["state"] in ("recommended", "provisional") and (e["coverage"] or 0) == 1.0
                               and all(v == "pass" for k, v in e["verdicts"].items()) for e in entries) if has_hard else None,
         "candidate_entries": entries, "leaderboard_id": leaderboard_id,
         "parent_snapshot_id": parent["snapshot_id"] if parent else None,
@@ -132,6 +138,8 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
         "reporting_tuple": {"admitted_n": len(admitted), "precision_among_admitted": None,
                             "coverage_fraction": (len(value_bearing) / len(applicable)) if applicable else 0.0,
                             "sweep_completeness": sweep_completeness, "abstention_n_by_reason": abstentions,
+                            "ranking_coverage_floor": ranking_coverage_floor,
+                            "unranked_for_coverage": sum(1 for e in entries if "rank_note" in e),
                             "budget": budget},
         "interaction_estimate_provider": "none", "human_review_summary": {"recommended_requires_hd": True},
         "published_at": utc_now(),

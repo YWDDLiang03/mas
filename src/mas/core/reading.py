@@ -227,7 +227,9 @@ def select_passages(document: dict[str, Any], terms: list[str], *, max_chars: in
 
 
 def _render(passages: list[dict[str, Any]]) -> str:
-    return "\n\n".join(f"[{p['passage_id']}] ({' > '.join(p['section_path']) or p['kind']})\n{p['text']}" for p in passages)
+    """One header line per passage: `=== passage <id> | <kind> | <section path>` (ids never contain spaces or bars)."""
+    return "\n\n".join(f"=== passage {p['passage_id']} | {p['kind']} | {' > '.join(p['section_path'])}\n{p['text']}"
+                         for p in passages)
 
 
 # --- summarizing ----------------------------------------------------------------------

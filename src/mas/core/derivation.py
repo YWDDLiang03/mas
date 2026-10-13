@@ -205,11 +205,41 @@ def _normalize_proposal(proposal: dict[str, Any]) -> dict[str, Any]:
     return dict(proposal, attribute=attribute, rule=rule)
 
 
+def objective_criteria(core: Core, task_id: str, *, templates, by: dict[str, Any]) -> list[dict[str, Any]]:
+    """Criteria the task itself mandates (required scope entities, hard constraints), built by adapter templates.
+
+    `templates(task_context)` returns [{"attribute", "rule", "source_field"}]. Each is proposed with
+    `derived_from: task_context` and its source field, skipping any whose evidence key is already registered.
+    Hard exclusions among them still need an expert decision (trigger table).
+    """
+    from . import task as task_mod
+    context = task_mod.get(core, task_id)
+    existing = {criteria.evidence_key(a) for a in criteria.registered_attributes(core, task_id)}
+    who = make_actor("system", "objective-criteria", "adapter_template")
+    added = []
+    for item in templates(context):
+        if criteria.evidence_key(item["attribute"]) in existing:
+            continue
+        attribute = dict(item["attribute"], derived_from={"task_context": f"{task_id}@v{context['version']}",
+                                                           "field": item["source_field"]})
+        attr_ref, rule_ref = criteria.propose(core, task_id, attribute, item["rule"], by=who)
+        existing.add(criteria.evidence_key(item["attribute"]))
+        added.append({"attribute_ref": attr_ref, "rule_ref": rule_ref, "name": attribute["name"],
+                      "rule_kind": item["rule"]["rule_kind"], "source_field": item["source_field"]})
+    return added
+
+
 def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions: list[dict[str, str]],
            catalog: list[dict[str, Any]], by: dict[str, Any], cutoff_date: str | None = None, saturation_k: int = 3,
-           max_documents: int = 8, budget: Any = None, stream_id: str | None = None) -> dict[str, Any]:
-    """Run derivation for a task; accepted proposals enter the registry and the review queue."""
+           max_documents: int = 8, budget: Any = None, stream_id: str | None = None, templates=None) -> dict[str, Any]:
+    """Run derivation for a task; accepted proposals enter the registry and the review queue.
+
+    Objective-mandated criteria (adapter `templates`) are registered first; literature-derived proposals
+    that duplicate a registered attribute are recorded as duplicates. Proposals still disputed after one
+    revision enter the registry with a review item showing the open findings; the expert decides.
+    """
     from . import task as task_mod
+    mandated = objective_criteria(core, task_id, templates=templates, by=by) if templates else []
     context = task_mod.get(core, task_id)
     stream_id = stream_id or task_id
     ids = {"task_id": task_id}
@@ -222,7 +252,9 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
                         for label in [seed["candidate_ref"], *seed.get("aliases", [])]]
     scope = json.dumps(context.get("scope_entities", []), ensure_ascii=False)
     prompt = (f"Objective: {context['objective_text']}\nConstraints: {json.dumps(context.get('constraints', []), ensure_ascii=False)}\n"
-              f"Scope entities: {scope}\nDimensions: {', '.join(d['dimension'] for d in dimensions)}\n\n"
+              f"Scope entities: {scope}\nDimensions: {', '.join(d['dimension'] for d in dimensions)}\n"
+              f"Criteria already registered from the task itself (do not duplicate them): "
+              f"{json.dumps([a['name'] for a in criteria.registered_attributes(core, task_id)], ensure_ascii=False)}\n\n"
               f"Evidence catalog (bind each attribute's evidence_request to one entry):\n{json.dumps(catalog, ensure_ascii=False, indent=1)}\n\n"
               f"Attribute fields: name, definition, measurement_kind (quantitative|ordinal|categorical|qualitative_determination), "
               f"unit, direction (higher_better|lower_better|within_range|target_value|non_directional|undetermined), "
@@ -304,9 +336,14 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
                 status[index] = "accept" if after == "accept" else "unresolved_after_revision"
     accepted = []
     who = make_actor("agent", f"proposer:{proposer.model_id}", "proposer", model_family=roster.adapter("proposer").record.provider_family)
+    registered_keys = {criteria.evidence_key(a) for a in criteria.registered_attributes(core, task_id)}
+    disputed = []
     for index, proposal in items.items():
         mine = [f for f in findings if f["proposal_index"] == index]
-        if status[index] != "accept":
+        if status[index] == "accept" and criteria.evidence_key(proposal["attribute"]) in registered_keys:
+            status[index] = "duplicate_of_registered"
+        if status[index] not in ("accept", "unresolved_after_revision") or (status[index] == "unresolved_after_revision"
+                                                                              and validator[index]):
             rejected.append({"attribute": proposal["attribute"].get("name"), "validator": validator[index],
                              "critic": [f for f in mine if f["verdict"] == "fail"], "rejection_reason": status[index]})
             continue
@@ -316,13 +353,23 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
         rule = dict(proposal["rule"], expected_change=proposal["expected_change"],
                     falsification_test=proposal["falsification_test"],
                     dissent=[f for f in mine if f["verdict"] == "fail"])
-        attr_ref, rule_ref = criteria.propose(core, task_id, attribute, rule, by=who)
-        accepted.append({"attribute_ref": attr_ref, "rule_ref": rule_ref, "name": attribute["name"],
-                         "rule_kind": rule["rule_kind"], "critic_findings": mine})
+        if criteria.evidence_key(attribute) in registered_keys:
+            rejected.append({"attribute": attribute["name"], "validator": [], "critic": [], "rejection_reason": "duplicate_of_registered"})
+            continue
+        dispute = None
+        if status[index] == "unresolved_after_revision":
+            dispute = {"open_critic_findings": [f for f in mine if f["verdict"] == "fail"],
+                       "proposal_request": proposer.request_id, "critique_request": critic.request_id}
+        attr_ref, rule_ref = criteria.propose(core, task_id, attribute, rule, by=who, dispute=dispute)
+        registered_keys.add(criteria.evidence_key(attribute))
+        entry = {"attribute_ref": attr_ref, "rule_ref": rule_ref, "name": attribute["name"],
+                 "rule_kind": rule["rule_kind"], "critic_findings": mine}
+        (disputed if dispute else accepted).append(entry)
     record = {"task_id": task_id, "dimensions": [{k: e[k] for k in ("dimension", "documents_read", "saturated",
                                                                       "coverage_id", "manifest_id")}
                                                  | {"n_hints": len(e["hints"]), "n_claims": len(e["claims"])} for e in enumerations],
-              "accepted": accepted, "considered_and_rejected": rejected, "revisions": revision_record,
+              "mandated": mandated, "accepted": accepted, "disputed": disputed,
+              "considered_and_rejected": rejected, "revisions": revision_record,
               "proposer_model": proposer.model_id,
               "critic_model": critic.model_id,
               "independence": {"proposer_family": roster.adapter("proposer").record.provider_family,

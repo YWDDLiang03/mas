@@ -14,7 +14,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import assessor, criteria, evidence, identity, leaderboard, ledger, task as task_mod, vocab
+from . import assessor, constants, criteria, evidence, identity, leaderboard, ledger, task as task_mod, vocab
 from .budget import Budget
 from .canonical import sha256_hex
 from .clock import utc_now
@@ -24,6 +24,7 @@ from .runtime import Core
 
 CONTROLLER = make_actor("controller", "C15", "run_controller")
 STRATEGY = "strat@v1"
+RUN_STAGES = ("identity", "assess", "snapshot")
 DATABASE_FIRST = 0
 LITERATURE_LAST = 1
 
@@ -70,14 +71,22 @@ class RunState:
 
 
 class RunController:
-    def __init__(self, core: Core, broker, roster=None, *, adapter: dict[str, Any], host_platform: str = "linux"):
+    def __init__(self, core: Core, broker, roster=None, *, adapter: dict[str, Any], host_platform: str = "linux",
+                 implementation: dict[str, Any] | None = None):
         self.core, self.broker, self.roster = core, broker, roster
+        self.implementation = implementation or {}
         self.adapter = adapter  # {"adapter_id", "adapter_version", "primary_scheme"}
         self.host_platform = host_platform
 
     # --- journal helpers ----------------------------------------------------------
     def _emit(self, run_id: str, kind: str, **kwargs):
-        return self.core.journal.append(run_id, kind, actor=kwargs.pop("actor", CONTROLLER), **kwargs)
+        event = self.core.journal.append(run_id, kind, actor=kwargs.pop("actor", CONTROLLER), **kwargs)
+        if kind == "stage.closed":
+            closed = sum(1 for e in self.core.journal.replay(run_id) if e.event_type == "stage.closed")
+            self.core.journal.append(run_id, "progress.estimate_revised", actor=CONTROLLER, payload={"reason": "stage closed"},
+                                     progress={"scope": "run", "denominator_kind": "enumerated_fixed",
+                                               "completed": closed, "planned": len(RUN_STAGES)})
+        return event
 
     # --- start ----------------------------------------------------------------------
     def start(self, task_id: str, *, by: dict[str, Any], rule_set_ref: str | None = None, policy_arm: str = "P0",
@@ -110,7 +119,8 @@ class RunController:
             "tool_availability_snapshot": self.broker.manifest(),
             "known_reference_outcome_disclosure": [s for s in context.get("seed_candidates", []) if s.get("is_reference_outcome")],
             "derivation_configuration": "reference_disclosed", "budget_envelope": budget_envelope or {},
-            "candidate_limit": candidate_limit, "bound_at": utc_now(), "bound_by": by,
+            "candidate_limit": candidate_limit, "implementation": self.implementation,
+            "bound_at": utc_now(), "bound_by": by,
         }
         artifact_id = self.core.artifacts.put("run_binding", binding)
         self._emit(run_id, "run.created", actor=by, ids={"task_id": task_id, "run_id": run_id}, state_to="queued",
@@ -166,7 +176,7 @@ class RunController:
             self._emit(run_id, "run.started", ids=ids, state_from="queued", state_to="running")
         self._emit(run_id, "attempt.started", ids=ids, payload={"attempt_id": st.attempt_id, "resuming": resuming})
         if not resuming:
-            plan = {"plan_id": f"plan_{run_id}@v1", "stages": ["normalize", "plan", "identity", "assess", "snapshot", "close"],
+            plan = {"plan_id": f"plan_{run_id}@v1", "stages": list(RUN_STAGES),
                     "steps": [{"step": f"rule pass {r['entry']['rule_ref']}", "owner": "C11"} for r in st.rules],
                     "budget_envelope": st.binding["budget_envelope"]}
             plan_artifact = self.core.artifacts.put("plan", plan)
@@ -302,8 +312,10 @@ class RunController:
             by_candidate.setdefault(candidate_id, []).append(cell)
         requires_hd = st.task_context.get("human_review_requirements", {}).get("recommended_requires_hd", True)
         weights = (st.rule_set.get("ordering_method") or {}).get("weight_vector") or {}
+        pending_hard = [ref for ref in st.rule_set.get("pending", [])
+                        if criteria.load(self.core, ref, task_id)["rule_kind"] == "hard_exclusion"]
         roll_ups = {c: assessor.roll_up(c, by_candidate[c], coverage_floor=st.rule_set.get("coverage_floor", 1.0),
-                                        recommended_requires_hd=requires_hd) for c in candidates}
+                                        recommended_requires_hd=requires_hd, pending_hard_rules=pending_hard) for c in candidates}
         rules_info = {r["entry"]["rule_ref"]: {"rule_kind": r["rule"]["rule_kind"],
                                                "predicate_form": r["rule"].get("predicate_form", "threshold"),
                                                "direction": r["attribute"].get("direction")} for r in st.rules}
@@ -323,10 +335,12 @@ class RunController:
         snapshot = leaderboard.build_snapshot(
             task_context=st.task_context, leaderboard_id=lbd, run_id=run_id, round_id=st.round_id, rule_set=st.rule_set,
             evidence_snapshot_id=snapshot_id, roll_ups=roll_ups, cells=by_candidate, scores=scores,
-            identities=st.identities, parent=parent, sweep_completeness=sweep_completeness, budget=st.budget.snapshot())
+            identities=st.identities, parent=parent, sweep_completeness=sweep_completeness, budget=st.budget.snapshot(),
+            ranking_coverage_floor=float(constants.value(self.core, "const_ranking_coverage_floor")))
         all_snapshots = leaderboard.snapshots(self.core, task_id)
         snapshot["snapshot_id"] = f"lb_{task_id}_{len(all_snapshots) + 1}"
         snapshot_artifact = self.core.artifacts.put("leaderboard_snapshot", snapshot)
+        self._emit(run_id, "stage.closed", ids=ids, state_to="completed", payload={"stage": "snapshot"})
         self._emit(run_id, "leaderboard.snapshot_published", ids=ids,
                    payload={"snapshot_id": snapshot["snapshot_id"], "task_id": task_id, "artifact_id": snapshot_artifact,
                             "leaderboard_id": lbd, "result_kind": snapshot["result_kind"]},

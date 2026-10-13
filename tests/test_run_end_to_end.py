@@ -177,3 +177,19 @@ def test_budget_exhaustion_leaves_the_run_unresolved_with_unswept_cells(core):
     assert closed.payload["unswept_cells_manifest"]
     (snapshot,) = leaderboard.snapshots(core, task_id)
     assert snapshot["reporting_tuple"]["sweep_completeness"] < 1.0
+
+
+def test_candidates_below_the_ranking_coverage_floor_get_no_position():
+    from mas.core.leaderboard import build_snapshot
+    context = dict(SPEC, task_context_id="task_x", version=1)
+    rule_set = {"rule_set_ref": "rules@v1", "entries": [{"rule_kind": "preference"}, {"rule_kind": "preference"}],
+                "ordering_method": {}}
+    roll = {c: {"state": "provisional", "state_reason": "x", "hard_rule_coverage": 0.0, "blocking_unknowns": []} for c in "ab"}
+    snapshot = build_snapshot(task_context=context, leaderboard_id="lbd_x_1", run_id="run_x", round_id="r", rule_set=rule_set,
+                              evidence_snapshot_id=None, roll_ups=roll, cells={"a": [], "b": []},
+                              scores={"a": (1.0, 0.5), "b": (0.6, 1.0)}, identities={}, parent=None, sweep_completeness=1.0,
+                              budget={}, ranking_coverage_floor=0.75)
+    entries = {e["candidate_ref"]: e for e in snapshot["candidate_entries"]}
+    assert entries["b"]["position"] == 1 and entries["a"]["position"] is None
+    assert "too little preference evidence" in entries["a"]["rank_note"]
+    assert snapshot["reporting_tuple"]["unranked_for_coverage"] == 1

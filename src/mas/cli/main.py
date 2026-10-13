@@ -81,6 +81,21 @@ def _open(args) -> Core:
         sys.exit(f"cannot open store: {error}")
 
 
+def _implementation() -> dict[str, Any]:
+    """Package version and source commit, bound into every run so its strategy is identifiable."""
+    import subprocess
+    import mas
+    commit, dirty = None, None
+    try:
+        root = Path(mas.__file__).resolve().parents[2]
+        commit = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip() or None
+        dirty = bool(subprocess.run(["git", "-C", str(root), "status", "--porcelain", "src"], capture_output=True,
+                                    text=True).stdout.strip())
+    except OSError:
+        pass
+    return {"package_version": mas.__version__, "code_commit": commit, "uncommitted_changes": dirty}
+
+
 def _universe_file(context: dict[str, Any] | None) -> str | None:
     path = ((context or {}).get("candidate_universe") or {}).get("access_path")
     return path if path and path.endswith(".json") and Path(path).exists() else None
@@ -161,26 +176,35 @@ def cmd_criteria(args) -> None:
             for pair in pairs:
                 refs = criteria.propose(core, args.task, pair["attribute"], pair["rule"], by=_person("operator"))
                 print("proposed", *refs)
+        elif args.action == "mandated":
+            from mas.adapters.drug.registration import objective_templates
+            from mas.core import derivation
+            _print(derivation.objective_criteria(core, args.task, templates=objective_templates, by=_person("operator")))
         else:
-            from mas.adapters.drug.registration import DIMENSIONS, EVIDENCE_CATALOG
+            from mas.adapters.drug.registration import DIMENSIONS, EVIDENCE_CATALOG, objective_templates
             dimensions = [d for d in DIMENSIONS if not args.dimension or d["dimension"] in args.dimension]
             from mas.core import derivation
             from mas.core.budget import Budget
             record = derivation.derive(core, _broker(core, task.get(core, args.task)), _roster(args), args.task, dimensions=dimensions,
                                        catalog=EVIDENCE_CATALOG, by=_person("operator"), cutoff_date=args.cutoff,
-                                       max_documents=args.max_documents,
+                                       max_documents=args.max_documents, templates=objective_templates,
                                        budget=Budget({"llm_turns": args.llm_turns} if args.llm_turns else {}))
-            _print({k: record[k] for k in ("dimensions", "accepted", "considered_and_rejected")})
+            _print({k: record[k] for k in ("dimensions", "mandated", "accepted", "disputed", "considered_and_rejected",
+                                           "revisions")})
 
 
 def cmd_rules(args) -> None:
     with _open(args) as core:
         if args.action == "confirm":
             print(criteria.confirm_rule_set(core, args.task, by=_person("operator"), allow_pending=args.allow_pending,
-                                            coverage_floor=args.coverage_floor))
+                                            coverage_floor=args.coverage_floor,
+                                            defer_capabilities=tuple(args.defer_capability or ()),
+                                            defer_reason=args.defer_reason or ""))
             return
         rules = criteria.rule_set(core, args.task)
         print(f"{rules['rule_set_ref']}  acceptance: {rules['acceptance_label']}  pending: {rules['pending']}")
+        for item in rules.get("deferred", []):
+            print(f"  deferred {item['rule_ref']} ({item['capability']}): {item['reason']}")
         for entry in rules["entries"]:
             rule = criteria.load(core, entry["rule_ref"], args.task)
             attribute = criteria.load(core, entry["attribute_ref"], args.task)
@@ -222,7 +246,8 @@ def cmd_run(args) -> None:
             created = core.journal.replay(args.run, 1, 1)
             task_id = created[0].payload["task_id"] if created else None
         context = task.get(core, task_id) if task_id else None
-        controller = RunController(core, _broker(core, context), _roster(args, required=False), adapter=ADAPTER)
+        controller = RunController(core, _broker(core, context), _roster(args, required=False), adapter=ADAPTER,
+                                   implementation=_implementation())
         try:
             if args.action == "start":
                 envelope = {k: v for k, v in (("tool_calls", args.tool_calls), ("llm_turns", args.llm_turns)) if v}
@@ -307,7 +332,7 @@ def main(argv: list[str] | None = None) -> int:
     t.set_defaults(func=cmd_task)
 
     c = sub.add_parser("criteria")
-    c.add_argument("action", choices=("propose", "derive"))
+    c.add_argument("action", choices=("propose", "derive", "mandated"))
     c.add_argument("task")
     c.add_argument("--from", dest="file")
     c.add_argument("--dimension", action="append")
@@ -321,6 +346,8 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("task")
     r.add_argument("--allow-pending", action="store_true")
     r.add_argument("--coverage-floor", type=float, default=1.0)
+    r.add_argument("--defer-capability", action="append", help="list rules needing this capability as deferred")
+    r.add_argument("--defer-reason")
     r.set_defaults(func=cmd_rules)
 
     v = sub.add_parser("review")

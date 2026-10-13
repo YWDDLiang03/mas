@@ -13,7 +13,7 @@ MEASUREMENT_KINDS = ("quantitative", "ordinal", "categorical", "qualitative_dete
 DIRECTIONS = ("higher_better", "lower_better", "within_range", "target_value", "non_directional", "undetermined")
 RULE_KINDS = ("hard_exclusion", "preference", "exploratory_consideration")
 CUTOFF_BASES = ("measured_distribution", "regulatory_or_standard_reference", "source_stated_value",
-                "expert_set", "none_evidence_insufficient")
+                "expert_set", "task_constraint", "none_evidence_insufficient")
 COMPARATORS = (">=", "<=", ">", "<", "==", "in", "not_in")
 ON_STATE_POLICIES = ("unknown_no_penalty", "unknown_blocks_recommendation", "route_to_human", "exclude")
 AGGREGATIONS = ("max", "min", "median", "consensus")
@@ -87,7 +87,8 @@ def _versions(core: Core, task_id: str, kind: str, base_id: str) -> list[dict[st
 
 
 def propose(core: Core, task_id: str, attribute: dict[str, Any], rule: dict[str, Any], *,
-            by: dict[str, Any], derivation_configuration: str = "reference_disclosed") -> tuple[str, str]:
+            by: dict[str, Any], derivation_configuration: str = "reference_disclosed",
+            dispute: dict[str, Any] | None = None) -> tuple[str, str]:
     """Propose one attribute version and one rule version, and raise their confirmation item.
 
     Proposals enter as `proposed`; templates and people never pre-approve them.
@@ -117,7 +118,12 @@ def propose(core: Core, task_id: str, attribute: dict[str, Any], rule: dict[str,
                             payload={"kind": kind, "id": base_id, "version": version, "artifact_id": artifact_id},
                             artifact_links=[{"kind": kind, "id": artifact_id, "version": version}],
                             summary=f"proposed {base_id}@v{version}")
-    if needs_expert(rule_record):
+    if dispute is not None:
+        review.request(core, task_id, subject={"kind": "rule_version", "id": rule_ref, "version": rule_version,
+                                               "attribute_ref": attr_ref},
+                       why_expert_required="proposer and critic still disagree after one revision",
+                       requested_by=by, inspection_bundle=dispute)
+    elif needs_expert(rule_record):
         why = "hard_exclusion entering confirmed" if rule_record["rule_kind"] == "hard_exclusion" else "rule confirmation"
         if rule_record["cutoff_basis"] == "expert_set":
             why += "; cutoff_basis expert_set"
@@ -130,7 +136,7 @@ def propose(core: Core, task_id: str, attribute: dict[str, Any], rule: dict[str,
 def needs_expert(rule: dict[str, Any]) -> bool:
     """Trigger table (design §12.1): hard exclusions and expert-set cutoffs need an `hd_`;
     evidence-sourced preference rules proceed automatically, recorded and reversible."""
-    return rule["rule_kind"] == "hard_exclusion" or rule["cutoff_basis"] == "expert_set"
+    return rule["rule_kind"] == "hard_exclusion" or rule["cutoff_basis"] in ("expert_set", "task_constraint")
 
 
 def load(core: Core, ref: str, task_id: str) -> dict[str, Any]:
@@ -145,7 +151,8 @@ def load(core: Core, ref: str, task_id: str) -> dict[str, Any]:
 
 def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_method: dict[str, Any] | None = None,
                      coverage_floor: float = 1.0, constants: list[dict[str, Any]] | None = None,
-                     allow_pending: bool = False) -> str:
+                     allow_pending: bool = False, defer_capabilities: tuple[str, ...] = (),
+                     defer_reason: str = "") -> str:
     """Assemble `rules@v<n>` from the rule proposals that may enter it.
 
     A rule needing an expert enters only with an `hd_` approving it; a preference rule the
@@ -164,9 +171,13 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     for event in core.journal.replay(task_id):
         if event.event_type == "criterion.version_proposed" and event.payload["kind"] == "rule":
             proposed[event.payload["id"]] = f"{event.payload['id']}@v{event.payload['version']}"   # latest version wins
-    entries = []
+    entries, deferred = [], []
     for rule_ref in sorted(proposed.values()):
         rule = load(core, rule_ref, task_id)
+        capability = load(core, rule["attribute_ref"], task_id)["evidence_request"]["capability"]
+        if capability in defer_capabilities:
+            deferred.append({"rule_ref": rule_ref, "capability": capability, "reason": defer_reason})
+            continue
         item = decided.get(rule_ref)
         if item is not None:
             if item["decision"] not in ("approve", "approve_with_edits"):
@@ -191,14 +202,15 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
               "ordering_method": ordering_method or {"kind": "weighted_preference", "weight_vector": {}, "tie_break": "candidate_id"},
               "coverage_floor": coverage_floor,
               "evidence_admission_predicate_hash": sha256_hex(admission_predicate),
-              "confirmed_by": [e["confirmed_by"] for e in entries], "pending": open_refs,
+              "confirmed_by": [e["confirmed_by"] for e in entries], "pending": open_refs, "deferred": deferred,
               "acceptance_label": "exploratory" if open_refs else "prespecified", "preregistration_ref": None}
     artifact_id = core.artifacts.put("rule_set", record)
     core.journal.append(task_id, "criterion.version_approved", actor=by, ids={"task_id": task_id},
                         payload={"rule_set_ref": record["rule_set_ref"], "artifact_id": artifact_id,
                                  "hash": record["evidence_admission_predicate_hash"], "pending": open_refs},
                         artifact_links=[{"kind": "rule_set", "id": artifact_id, "version": version}],
-                        summary=f"confirmed {record['rule_set_ref']} ({len(entries)} rules, {len(open_refs)} pending)")
+                        summary=f"confirmed {record['rule_set_ref']} ({len(entries)} rules, {len(open_refs)} pending, "
+                                f"{len(deferred)} deferred)")
     return record["rule_set_ref"]
 
 
@@ -208,3 +220,20 @@ def rule_set(core: Core, task_id: str, ref: str | None = None) -> dict[str, Any]
         raise KeyError(f"{task_id} has no confirmed rule set")
     chosen = approvals[-1] if ref is None else next(e for e in approvals if e.payload["rule_set_ref"] == ref)
     return core.artifacts.payload(chosen.payload["artifact_id"])
+
+
+def registered_attributes(core: Core, task_id: str) -> list[dict[str, Any]]:
+    """Latest version of every attribute proposed in a task."""
+    latest: dict[str, dict[str, Any]] = {}
+    for event in core.journal.replay(task_id):
+        if event.event_type == "criterion.version_proposed" and event.payload["kind"] == "attribute":
+            latest[event.payload["id"]] = core.artifacts.payload(event.payload["artifact_id"])
+    return list(latest.values())
+
+
+def evidence_key(attribute: dict[str, Any]) -> str:
+    """Two attributes asking the same tool the same question are duplicates (registry invariant)."""
+    request = attribute.get("evidence_request") or {}
+    return sha256_hex({k: request.get(k) for k in ("capability", "question_kind", "parameters")}
+                      if request.get("capability") != "literature_retrieval"
+                      else {"name": (attribute.get("name") or "").strip().lower(), "unit": attribute.get("unit")})
