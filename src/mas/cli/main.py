@@ -10,6 +10,7 @@
     mas review list [TASK] | review decide ITEM --decision D --reason TEXT --exposure E
     mas run start TASK [--seed N] [--limit N] [--tool-calls N] [--llm-turns N] | run show RUN | run resume RUN
     mas board show TASK [--all] | candidate show TASK CANDIDATE
+    mas score show TASK                        the ordering method: a fitted expression, its fit and its holdout test
     mas models show
     mas config show [--explain] | validate | save NAME | estimate [--dimensions N] [--candidates N]
     mas sources list | check | sync bookshelf --book NBK... | template   evidence sources and their set-up
@@ -31,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from mas.core import config as config_mod
-from mas.core import criteria, leaderboard, projection, review, task, vocab
+from mas.core import criteria, leaderboard, projection, review, sr_stage, task, vocab
 from mas.core.broker import Broker
 from mas.core.controller import RunController, RunError
 from mas.core.journal import actor
@@ -421,6 +422,12 @@ def cmd_board(args) -> None:
         tuple_ = snap["reporting_tuple"]
         print(f"  admitted {tuple_['admitted_n']} · precision n/a without labels · coverage {tuple_['coverage_fraction']:.2f}"
               f" · sweep completeness {tuple_['sweep_completeness']:.2f} · abstentions {tuple_['abstention_n_by_reason']}")
+        if snap.get("abstention_reason"):
+            print(f"  {vocab.label('result_kind', snap['result_kind'])}: "
+                  f"{vocab.label('abstention_reason', snap['abstention_reason'])}")
+        method = snap.get("ordering_method") or {}
+        if method.get("kind") == "symbolic_expression":
+            print(f"  score = {method['expression_text']}  ({method['provenance']}; `mas score show` for the fit)")
         args.top = args.top or _settings(args)["rank.top_n"]
         rows = snap["candidate_entries"] if args.all else snap["candidate_entries"][: args.top]
         for e in rows:
@@ -442,6 +449,19 @@ def cmd_candidate(args) -> None:
         print(f"{entry['candidate_ref']}  {entry['identity_labels'][0]}  {vocab.label('candidate', entry['state'])}"
               f"  position {entry['position']}  score {entry['preference_score']}")
         print(f"  reason: {entry['state_reason']}")
+        explained = sr_stage.rationale_of(core, snap["run_id"], entry["candidate_ref"])
+        if explained:
+            print(f"  score {explained['score']:.4f} · coverage {explained['coverage']:.2f} · "
+                  f"intercept {explained['intercept']:+.4f}; terms by contribution:")
+            for item in explained["terms"]:
+                share = f"{(item['share'] or 0) * 100:3.0f}%"
+                print(f"    {item['contribution']:+9.4f} {share}  {item['term']:<34} value {item['value']:<12.4g}"
+                      f" × {item['coefficient']:+.4f}  {item['grounding']}")
+                for claim_id in item["claim_refs"][:3]:
+                    print(f"        evidence {claim_id}")
+            for missing in explained["terms_missing"]:
+                print(f"    {'no value':>14}  {missing['term']:<34} missing "
+                      f"{', '.join(missing['missing_features'])}")
         for event in core.journal.replay(snap["run_id"]):
             if event.event_type == "candidate.assessed" and event.payload["candidate_ref"] == entry["candidate_ref"]:
                 cell = core.artifacts.payload(event.payload["artifact_id"])
@@ -449,6 +469,54 @@ def cmd_candidate(args) -> None:
                 print(f"  {cell['attribute_ref']:<44} {vocab.label('verdict', cell['verdict']):<20} {reason['reason_text']}")
                 for claim_id in cell["value_source_claim_refs"][:3]:
                     print(f"      evidence {claim_id}")
+
+
+def cmd_score(args) -> None:
+    """How the published score was produced, and what the alternative scored on the holdout."""
+    with _open(args) as core:
+        shots = leaderboard.snapshots(core, args.task)
+        if not shots:
+            sys.exit("no snapshot yet")
+        snap = shots[-1]
+        method = snap.get("ordering_method") or {}
+        rules = criteria.rule_set(core, args.task, snap["rules@v"])
+        print(f"{snap['snapshot_id']}  rules {snap['rules@v']}  ordering method: "
+              f"{method.get('kind', 'weighted_preference')}")
+        print(f"  acceptance: {vocab.label('acceptance_label', rules['acceptance_label'])}"
+              + ("".join(f"\n    - {reason}" for reason in rules.get("acceptance_reasons") or [])))
+        if method.get("kind") == "symbolic_expression":
+            print(f"  score = {method['expression_text']}")
+            print(f"  {method['provenance']} · mode {method['mode']} · {method['fitter_version']} · "
+                  f"{method['expression_ref']} · splits {method['split']['counts']} (seed {method['split']['seed']})")
+            for item in method["coefficients"]:
+                print(f"    {item['coefficient']:+9.4f}  {item['term']:<34} {item['direction']:<15} {item['grounding']}")
+            adoption = method["metrics"]["adoption"]
+            print(f"  holdout {adoption['metric']}: expression {adoption['expression']:+.3f} vs baseline "
+                  f"{adoption['baseline']:+.3f} → margin {adoption['margin']:+.3f} "
+                  f"(needed {adoption['min_improvement']:+.3f}) over {adoption['compared_n']} candidates")
+        record = sr_stage.record_of(core, snap["run_id"])
+        if record is None:
+            print("  no symbolic-regression attempt was recorded for this run")
+            return
+        print(f"  attempt: sr.mode {record['mode_setting']} · rank.method {record['rank_method']} · "
+              f"adopted {record['adopted']}" + (f" · {record['not_installed']}" if record.get("not_installed") else "")
+              + (f" · {record['not_attempted']}" if record.get("not_attempted") else ""))
+        for attempt in record["attempts"]:
+            print(f"  {attempt['mode']}{' ' + attempt['target_rule_ref'] if attempt.get('target_rule_ref') else ''}: "
+                  f"coefficients {attempt.get('route', '-')} · {len(attempt.get('generations', []))} generation(s) · "
+                  f"stopped {attempt['stopped']}")
+            for feature in attempt.get("features_refused") or []:
+                print(f"    refused feature {feature['name']}: {feature['reason']} ({feature['detail']})")
+            for generation in attempt.get("generations") or []:
+                for expression in generation["expressions"]:
+                    metric = expression["metric"]
+                    print(f"    gen {generation['generation']}  {metric['metric']} "
+                          f"{metric['value'] if metric['value'] is None else round(metric['value'], 4)}  "
+                          f"selection {expression['selection_score']}  {expression['text']}")
+                for rejected in generation["rejected"]:
+                    print(f"    gen {generation['generation']}  rejected: {rejected['reason']} — {rejected['detail'][:90]}")
+            if attempt.get("adoption"):
+                print(f"    holdout: {attempt['adoption']['reason']} (margin {attempt['adoption']['margin']})")
 
 
 def _bound_settings(core: Core, run_id: str) -> dict[str, Any] | None:
@@ -638,6 +706,11 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("task")
     d.add_argument("candidate")
     d.set_defaults(func=cmd_candidate)
+
+    s = sub.add_parser("score")
+    s.add_argument("action", choices=("show",))
+    s.add_argument("task")
+    s.set_defaults(func=cmd_score)
 
     g = sub.add_parser("config")
     g.add_argument("action", choices=("show", "validate", "save", "estimate"))

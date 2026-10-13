@@ -17,6 +17,10 @@ CUTOFF_BASES = ("measured_distribution", "regulatory_or_standard_reference", "so
 COMPARATORS = (">=", "<=", ">", "<", "==", "in", "not_in")
 ON_STATE_POLICIES = ("unknown_no_penalty", "unknown_blocks_recommendation", "route_to_human", "exclude")
 AGGREGATIONS = ("max", "min", "median", "consensus")
+# Bases a value may be determined on. `predicted` is never mixed with the others inside one
+# attribute: a predicted value standing in for a measurement is a surrogate inside a verdict
+# (design §4.11), so a predicted quantity needs its own attribute and its own rule.
+DETERMINATION_BASES = ("measured", "derived", "predicted", "simulated")
 
 
 class InvariantViolation(ValueError):
@@ -41,6 +45,17 @@ def check_attribute(attr: dict[str, Any]) -> None:
     _choice("aggregation", attr.get("aggregation", "consensus"), AGGREGATIONS)
     if attr["measurement_kind"] == "quantitative" and not attr.get("unit"):
         raise InvariantViolation("units", f"quantitative attribute {attr['name']!r} has no unit")
+    bases = attr.get("acceptable_determination_bases")
+    if bases is not None:
+        if not isinstance(bases, list) or not bases:
+            raise InvariantViolation("schema", "acceptable_determination_bases is a non-empty list when given")
+        for basis in bases:
+            _choice("acceptable_determination_bases", basis, DETERMINATION_BASES)
+        if "predicted" in bases and len(bases) > 1:
+            # A predicted value standing in for a measurement is a surrogate inside a verdict
+            # (design §4.11): a predicted quantity is its own attribute, with its own rule.
+            raise InvariantViolation("schema", f"attribute {attr['name']!r} accepts predicted values alongside "
+                                              f"{sorted(set(bases) - {'predicted'})}; give predicted values their own attribute")
     request = attr["evidence_request"]
     if not request.get("capability") or not request.get("question_kind"):
         raise InvariantViolation("schema", "evidence_request needs capability and question_kind")
@@ -149,10 +164,21 @@ def load(core: Core, ref: str, task_id: str) -> dict[str, Any]:
     raise KeyError(ref)
 
 
+def chosen_after_results(ordering_method: dict[str, Any] | None) -> bool:
+    """True for an ordering method derived from the results it will then rank (design §5.7).
+
+    A symbolic expression is fitted on assessed cells, so the ranking rule was chosen after
+    seeing the data: unless it was preregistered, the rule set is exploratory however many of
+    its rules are confirmed. Without this, a fitted ordering method would inherit the
+    `prespecified` label of the rules it was fitted on top of.
+    """
+    return (ordering_method or {}).get("kind") == "symbolic_expression"
+
+
 def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_method: dict[str, Any] | None = None,
                      coverage_floor: float = 1.0, constants: list[dict[str, Any]] | None = None,
                      allow_pending: bool = False, defer_capabilities: tuple[str, ...] = (),
-                     defer_reason: str = "") -> str:
+                     defer_reason: str = "", preregistration_ref: str | None = None) -> str:
     """Assemble `rules@v<n>` from the rule proposals that may enter it.
 
     A rule needing an expert enters only with an `hd_` approving it; a preference rule the
@@ -198,12 +224,16 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     version = len(existing) + 1
     admission_predicate = {"entries": [{k: e[k] for k in ("acceptable_value_sources", "on_states", "cutoff_basis")} for e in entries],
                            "coverage_floor": coverage_floor, "constants": constants or []}
+    fitted_ordering = chosen_after_results(ordering_method) and not preregistration_ref
+    acceptance_reasons = ([f"{len(open_refs)} rule proposals await an expert decision"] if open_refs else []) + \
+                         (["the ordering method was fitted on the results it ranks"] if fitted_ordering else [])
     record = {"rule_set_ref": f"rules@v{version}", "task_id": task_id, "entries": entries,
               "ordering_method": ordering_method or {"kind": "weighted_preference", "weight_vector": {}, "tie_break": "candidate_id"},
               "coverage_floor": coverage_floor,
               "evidence_admission_predicate_hash": sha256_hex(admission_predicate),
               "confirmed_by": [e["confirmed_by"] for e in entries], "pending": open_refs, "deferred": deferred,
-              "acceptance_label": "exploratory" if open_refs else "prespecified", "preregistration_ref": None}
+              "acceptance_label": vocab.require("acceptance_label", "exploratory" if acceptance_reasons else "prespecified"),
+              "acceptance_reasons": acceptance_reasons, "preregistration_ref": preregistration_ref}
     artifact_id = core.artifacts.put("rule_set", record)
     core.journal.append(task_id, "criterion.version_approved", actor=by, ids={"task_id": task_id},
                         payload={"rule_set_ref": record["rule_set_ref"], "artifact_id": artifact_id,

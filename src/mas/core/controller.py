@@ -16,7 +16,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import assessor, constants, criteria, evidence, identity, leaderboard, ledger, task as task_mod, vocab
+from . import (assessor, constants, criteria, evidence, identity, leaderboard, ledger, sr_stage,
+               task as task_mod, vocab)
 from .budget import Budget
 from .canonical import sha256_hex
 from .clock import utc_now
@@ -380,11 +381,25 @@ class RunController:
                                                "predicate_form": r["rule"].get("predicate_form", "threshold"),
                                                "direction": r["attribute"].get("direction")} for r in st.rules}
         scores = assessor.preference_scores(by_candidate, rules_info, weights)
+        if sr_stage.enabled(st.settings):
+            # Symbolic regression is strictly additive: it fits on cells already assessed, installs an
+            # ordering method only if it wins on its holdout, and records the attempt either way.
+            sr = sr_stage.fit_and_install(self.core, self.roster, run_id=run_id, task_id=task_id,
+                                          task_context=st.task_context, rule_set=st.rule_set, rules=st.rules,
+                                          cells_by_candidate=by_candidate, rules_info=rules_info, weights=weights,
+                                          baseline_scores=scores, identities=st.identities, settings=st.settings,
+                                          by=CONTROLLER, budget=st.budget, ids=ids)
+            if sr.get("installed_rule_set_ref"):
+                st.rule_set = criteria.rule_set(self.core, task_id, sr["installed_rule_set_ref"])
+        ordering_method = st.rule_set.get("ordering_method") or {}
+        if ordering_method.get("kind") == "symbolic_expression":
+            # The registered ordering method decides the score; a resumed run reads it from the rule set.
+            scores = assessor.expression_scores(by_candidate, rules_info, ordering_method)
         claim_ids = sorted({r for cell in st.cells.values() for r in cell["value_source_claim_refs"]})
         snapshot_id = ledger.freeze_snapshot(self.core, run_id, task_id=task_id, claim_ids=claim_ids,
                                              cutoff_at=st.binding["evidence_cutoff"],
                                              tool_manifest=st.binding["tool_availability_snapshot"], by=CONTROLLER)
-        lbd = leaderboard.leaderboard_record(self.core, st.task_context)
+        lbd = leaderboard.leaderboard_record(self.core, st.task_context, members=candidates)
         previous = [s for s in leaderboard.snapshots(self.core, task_id) if s["leaderboard_id"] == lbd]
         parent = previous[-1] if previous else None
         planned = len(candidates) * len(st.rules)

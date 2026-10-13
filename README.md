@@ -39,6 +39,7 @@ Create a store and a model configuration, then work through a task:
     mas --store var/store run start TASK --seed 1
     mas --store var/store board show TASK
     mas --store var/store candidate show TASK NAME
+    mas --store var/store score show TASK            # how the score was produced
 
 Expert decisions are confirmed on the terminal itself and cannot be scripted.
 
@@ -96,6 +97,54 @@ different model, or deeper settings — and the pool picks up where it stopped:
     mas criteria derive TASK                         # round 1
     mas criteria derive TASK --continues RUN_ID      # round 2, same chain
     mas criteria pool TASK [--all]                   # states, versions, merges
+
+### Scoring
+
+By default the leaderboard score is a weighted percentile over the confirmed preference
+criteria. With `sr.mode` set, the run also tries to *derive* the score: the proposer chooses
+which already-assessed features belong in it, what transformation each deserves, which
+direction every term must push, and a prior magnitude where it can cite one; the numerics
+stay small enough to check by hand (least squares on standardised columns, shrunk toward the
+model's prior instead of toward zero, solved by Gaussian elimination, refusing a constant
+column or an ill-conditioned design). Terms come from a fixed grammar — `x`, `log1p(x)`,
+`1/(1+x)`, `x²`, `x·y`, `hinge(x, c)`, `z(x)` — at depth 1 and at most `sr.max_terms` of them,
+proposed as structured JSON, never as an expression string to evaluate.
+
+    mas --set sr.mode=potency --set rank.method=symbolic_expression run start TASK
+    mas score show TASK            # the expression, its fit, and how it did on the holdout
+    mas candidate show TASK NAME   # that candidate's terms by contribution, with the claims behind them
+
+Two modes: `potency` regresses the median pChEMBL of a required target on descriptor and
+record-field cells, and `leaderboard_score` reproduces the weighted-percentile score from the
+confirmed preference values. Nothing new is fetched — the features are cells the sweep already
+assessed.
+
+What the numbers are protected by, and why the default is still the percentile score:
+
+- the candidates are split three ways by hash (**train** fits, **select** compares generations,
+  **holdout** is looked at once), so more generations cannot buy a better result;
+- every reference outcome is excluded from all three splits and scored only once the
+  expression is frozen;
+- the proposer sees feature names, definitions, units, directions, coverage counts,
+  training-split quartiles and the previous generations' aggregate diagnostics — never a
+  per-candidate row, never the target column, never the reference compound;
+- anything derived from the target is refused before it is offered, including a prediction of
+  the same target and any feature whose fitting-row ranking *is* the target's;
+- a fitted coefficient whose sign contradicts the direction the model declared rejects the
+  expression, a hinge constant must be a quartile that was shown or a value in a cited claim,
+  and a blind critic runs symmetric scrutiny on the terms and priors;
+- a term is called `mechanistic` only when the claims it cites exist, were admitted and had
+  their spans verified; otherwise it is `associational`. Both are allowed in the score.
+
+The expression is adopted only if it beats the weighted-percentile baseline by
+`sr.min_improvement` on the holdout, measured as rank agreement with the target. Otherwise the
+baseline keeps the ranking and the attempt is recorded anyway, with every rejected expression
+and every generation's diagnostics. An adopted expression is registered as the rule set's
+ordering method before any snapshot is published, which makes the rule set *exploratory* —
+the ranking rule was chosen after seeing results — and raises a `rule_set_version` item for an
+expert to confirm. Where a target has too few usable rows to fit, the model's cited
+coefficients are used directly and the expression is recorded as `expert_prior`; it faces the
+same holdout gate.
 
 ### Evidence sources
 

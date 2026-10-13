@@ -19,6 +19,20 @@ CORE_DEFAULTS: dict[str, tuple[Any, str]] = {
     "const_sweep_tool_failure_share": (0.5, "fraction"),
     "const_tool_retry_limit": (3, "attempts"),
     "const_ranking_coverage_floor": (0.5, "fraction"),
+    # Symbolic-regression scoring (design §5.7). The `sr.*` settings carry the same ids, so a run
+    # with settings registers its own values; these are what a run without settings uses.
+    "const_sr_generations": (4, "generations"),
+    "const_sr_max_terms": (4, "terms"),
+    "const_sr_min_improvement": (0.02, "fraction"),
+    "const_sr_min_training_rows": (12, "rows"),
+    "const_sr_select_share": (0.25, "fraction"),
+    "const_sr_holdout_share": (0.25, "fraction"),
+    "const_sr_ridge": (0.1, "weight"),
+    "const_sr_complexity_penalty": (0.01, "score"),
+    "const_sr_max_condition": (1e8, "ratio"),
+    # The admissible knees of a hinge term: the quantiles of the feature's fitting rows that the
+    # proposer is shown. A constant anywhere else must come from a claim the term cites.
+    "const_sr_hinge_grid": ([0.0, 0.25, 0.5, 0.75, 1.0], "quantiles"),
 }
 
 

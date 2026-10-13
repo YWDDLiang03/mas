@@ -10,10 +10,16 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import symbolic
 from .canonical import sha256_hex
 from .clock import utc_now
 
 ASSESSOR_VERSION = "assessor-1"
+
+# What an attribute accepts when it declares nothing: a measurement or a derivation, never a
+# prediction. The registry owns the full list of bases (`criteria.DETERMINATION_BASES`); the
+# assessor only needs the default and whether an attribute is the one that carries predictions.
+DEFAULT_DETERMINATION_BASES = ("measured", "derived")
 
 UNIT_SYNONYMS = {"percent": "%", "pct": "%", "nmol/l": "nM", "µm": "uM", "μm": "uM", "umol/l": "uM",
                  "g/mol": "g/mol", "da": "g/mol", "dalton": "g/mol", "h": "h", "hr": "h", "hours": "h"}
@@ -46,10 +52,15 @@ def _median(values: list[float]) -> float:
     return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
 
 
+def declares_predicted(attribute: dict[str, Any]) -> bool:
+    """True when the attribute is the one that carries predicted values, rather than measurements."""
+    return "predicted" in (attribute.get("acceptable_determination_bases") or DEFAULT_DETERMINATION_BASES)
+
+
 def usable_claims(claims: list[dict[str, Any]], attribute: dict[str, Any]) -> tuple[list[dict], list[dict]]:
     """Split claims into those usable for this attribute and those set aside, with reasons."""
     accepted_kinds = set(attribute["acceptable_value_sources"])
-    accepted_bases = set(attribute.get("acceptable_determination_bases", ["measured", "derived"]))
+    accepted_bases = set(attribute.get("acceptable_determination_bases") or DEFAULT_DETERMINATION_BASES)
     unit = canonical_unit(attribute.get("unit"))
     usable, set_aside = [], []
     for claim in claims:
@@ -260,3 +271,33 @@ def preference_scores(cells_by_candidate: dict[str, list[dict[str, Any]]], rules
                 denominator += weight
         out[candidate] = ((numerator / denominator) if denominator else None, (denominator / total) if total else 0.0)
     return out
+
+
+def feature_values(cells: list[dict[str, Any]], rules: dict[str, dict[str, Any]]) -> dict[str, float]:
+    """Numeric values a candidate's cells offer as scoring features, keyed by attribute reference.
+
+    Only a value-bearing cell of a rule still in the confirmed set counts: a cell left over from a
+    rule that is no longer confirmed is missing evidence for the score, not a usable number.
+    """
+    out: dict[str, float] = {}
+    for cell in cells:
+        if cell["rule_ref"] not in rules or cell["verdict"] not in ("pass", "fail"):
+            continue
+        value = cell.get("value")
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            out[cell["attribute_ref"]] = float(value)
+    return out
+
+
+def expression_scores(cells_by_candidate: dict[str, list[dict[str, Any]]], rules: dict[str, dict[str, Any]],
+                      expression: Any) -> dict[str, tuple[float | None, float]]:
+    """Score per candidate under a registered scoring expression (design §5.7).
+
+    Same contract as `preference_scores`: {candidate: (score or None, coverage)}, where coverage is
+    the weighted share of the expression's features that had a usable value — so the ranking
+    coverage floor, the change notes and the snapshot's reporting tuple need no change. The
+    expression is applied exactly as registered; this function never refits anything.
+    """
+    expr = symbolic.as_expression(expression)
+    return {candidate: symbolic.evaluate(expr, feature_values(cells, rules))
+            for candidate, cells in cells_by_candidate.items()}

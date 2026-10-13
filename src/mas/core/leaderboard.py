@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import vocab
 from .canonical import sha256_hex
 from .clock import utc_now
 from .ids import new_id
@@ -18,13 +19,30 @@ from .runtime import Core
 STATE_ORDER = {"recommended": 0, "provisional": 1, "unassessed": 2, "rejected": 3}
 
 
-def leaderboard_record(core: Core, task_context: dict[str, Any]) -> str:
-    """The open leaderboard (`lbd_`) for the task's comparability key, opening one if needed."""
+def member_set_hash(task_context: dict[str, Any], members: list[str] | None = None) -> str:
+    """Hash of the candidates a snapshot compares: the ranked set, else the task's declared universe."""
+    if members is None:
+        universe = task_context.get("candidate_universe") or {}
+        members = list(universe.get("members") or [])
+        members += [s["candidate_ref"] for s in task_context.get("seed_candidates", [])]
+    return sha256_hex(sorted(set(members)))
+
+
+def leaderboard_record(core: Core, task_context: dict[str, Any], members: list[str] | None = None) -> str:
+    """The open leaderboard (`lbd_`) for the task's comparability key, opening one if needed.
+
+    The key includes a hash of the member set, because a percentile-style score is set-dependent:
+    the same candidate's score moves when the set it is compared against changes, so two
+    snapshots over different member sets are not comparable and must not share a leaderboard or
+    exchange change records. `members` is the set actually ranked (the resolved candidates of a
+    run), which is what a run-level candidate limit changes; without it the task's universe is used.
+    """
     key_fields = {k: task_context.get(k) for k in ("objective_text", "mode", "evaluation_scope")}
     key_fields["required_scope"] = sorted(e.get("identifier", "") for e in task_context.get("scope_entities", [])
                                           if e.get("role") == "required")
     universe = task_context.get("candidate_universe") or {}
     key_fields["universe"] = {k: universe.get(k) for k in ("kind", "source", "as_of")}
+    key_fields["member_set_hash"] = member_set_hash(task_context, members)
     key_fields["hard_constraints"] = sorted(c.get("text", "") for c in task_context.get("constraints", [])
                                             if c.get("hardness") == "hard")
     comparability_key = sha256_hex(key_fields)
@@ -86,7 +104,8 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
                    ranking_coverage_floor: float = 0.5) -> dict[str, Any]:
     has_preferences = any(e["rule_kind"] == "preference" for e in rule_set["entries"])
     has_hard = any(e["rule_kind"] == "hard_exclusion" for e in rule_set["entries"])
-    result_kind = "both_reported" if (has_hard and has_preferences) else "ranked_under_score" if has_preferences else "all_pass_set"
+    result_kind = vocab.require("result_kind", "both_reported" if (has_hard and has_preferences)
+                               else "ranked_under_score" if has_preferences else "all_pass_set")
     entries = []
     for candidate_id, summary in roll_ups.items():
         candidate_cells = cells.get(candidate_id, [])
@@ -124,11 +143,26 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
         if e["state"] in ("provisional", "unassessed"):
             key = e["state_reason"].split(":")[0]
             abstentions[key] = abstentions.get(key, 0) + 1
+    abstention_reason = None
+    if not ranked and not admitted:
+        # Nothing to recommend and nothing rankable: the snapshot says so with a reason, rather
+        # than reporting an empty ranking that reads like a result (design §4.12).
+        if entries and all(e["state"] == "rejected" for e in entries):
+            abstention_reason = "all_candidates_excluded"
+        elif not value_bearing:
+            abstention_reason = "evidence_unavailable"
+        elif any(c["verdict"] == "unknown_conflicted" for c in applicable):
+            abstention_reason = "unresolved_conflicts"
+        else:
+            abstention_reason = "insufficient_coverage"
+        result_kind = vocab.require("result_kind", "no_recommendation")
+        vocab.require("abstention_reason", abstention_reason)
     snapshot = {
         "snapshot_id": None, "task_id": task_context["task_context_id"],
         "task_context_id@v": f"{task_context['task_context_id']}@v{task_context['version']}",
         "run_id": run_id, "round_id": round_id, "rules@v": rule_set["rule_set_ref"], "strat@v": strategy,
         "evidence_snapshot_id": evidence_snapshot_id, "result_kind": result_kind,
+        "no_recommendation": result_kind == "no_recommendation", "abstention_reason": abstention_reason,
         "ordering_method": rule_set.get("ordering_method"),
         "all_pass_count": sum(e["state"] in ("recommended", "provisional") and (e["coverage"] or 0) == 1.0
                               and all(v == "pass" for k, v in e["verdicts"].items()) for e in entries) if has_hard else None,
