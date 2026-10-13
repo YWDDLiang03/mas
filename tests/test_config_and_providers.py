@@ -115,11 +115,12 @@ class FakeReply:
         return self.body
 
 
-def chat(content, *, reasoning=None, prompt=100, completion=50):
+def chat(content, *, reasoning=None, prompt=100, completion=50, finish_reason="stop"):
     message = {"content": content}
     if reasoning:
         message["reasoning_content"] = reasoning
-    return FakeReply({"model": "deepseek-flash", "choices": [{"message": message}],
+    return FakeReply({"model": "deepseek-flash",
+                      "choices": [{"message": message, "finish_reason": finish_reason}],
                       "usage": {"prompt_tokens": prompt, "completion_tokens": completion}})
 
 
@@ -170,6 +171,62 @@ def test_empty_reply_is_retried_and_errors_never_contain_the_key(tmp_path, monke
     with pytest.raises(models.ModelError) as error:
         adapter.complete(ModelRequest(role="reader", system="s", messages=[]))
     assert error.value.error_class == "auth_rejected" and "sk-very-secret" not in str(error.value)
+
+
+def test_a_reply_cut_off_at_the_token_limit_is_asked_again_with_room(monkeypatch):
+    """Measured on deepseek-flash: with thinking on, reasoning can consume the whole allowance
+    and the content comes back empty with finish_reason "length". Re-sending the same request
+    repeats that, so the adapter raises the limit instead."""
+    sent, replies = [], iter([chat("", finish_reason="length"), chat('{"a": 1}')])
+
+    def post(url, timeout, headers, json):   # noqa: A002 - mirrors requests.post
+        sent.append(json["max_tokens"])
+        return next(replies)
+
+    monkeypatch.setattr(models.requests, "post", post)
+    monkeypatch.setenv("DS_KEY", "k")
+    adapter = OpenAICompatibleAdapter("ds", "m", base_url="https://x", api_key_env="DS_KEY", thinking=True)
+    reply = adapter.complete(ModelRequest(role="proposer", system="s", messages=[], max_tokens=1000,
+                                          response_schema={"type": "object"}))
+    assert sent == [1000, 2000] and reply.text == '{"a": 1}' and reply.truncated is False
+
+
+def test_a_reply_that_stays_truncated_says_so_and_stops_at_the_ceiling(monkeypatch):
+    sent = []
+
+    def post(url, timeout, headers, json):   # noqa: A002 - mirrors requests.post
+        sent.append(json["max_tokens"])
+        return chat('{"a": ', finish_reason="length")
+
+    monkeypatch.setattr(models.requests, "post", post)
+    monkeypatch.setenv("DS_KEY", "k")
+    adapter = OpenAICompatibleAdapter("ds", "m", base_url="https://x", api_key_env="DS_KEY",
+                                      max_token_ceiling=2500)
+    reply = adapter.complete(ModelRequest(role="proposer", system="s", messages=[], max_tokens=1000,
+                                          response_schema={"type": "object"}))
+    assert sent == [1000, 2000, 2500] and reply.truncated is True
+
+
+def test_a_truncated_reply_is_repaired_with_more_room_and_recorded(core, monkeypatch):
+    sent, replies = [], iter([chat("", finish_reason="length"), chat("", finish_reason="length"),
+                              chat("", finish_reason="length"), chat('{"v": 7}')])
+
+    def post(url, timeout, headers, json):   # noqa: A002 - mirrors requests.post
+        sent.append(json["max_tokens"])
+        return next(replies)
+
+    monkeypatch.setattr(models.requests, "post", post)
+    monkeypatch.setenv("DS_KEY", "k")
+    roster = ModelRoster.from_tables(
+        {"ds": {"kind": "openai_compatible", "base_url": "https://x", "api_key_env": "DS_KEY", "model": "m"}},
+        {"proposer": "ds"}, ".")
+    response = call_role(core, roster, "run_x",
+                         ModelRequest(role="proposer", system="s", messages=[], max_tokens=1000,
+                                      response_schema={"type": "object", "required": ["v"]}))
+    assert response.data == {"v": 7}
+    assert sent[0] == 1000 and max(sent) > 1000   # the repair asked for room, not the same request again
+    finished = [e for e in core.journal.replay("run_x") if e.event_type == "agent.finished"][-1]
+    assert finished.payload["schema_ok"] is True and "reply_truncated" in finished.payload
 
 
 def test_missing_key_source_is_reported_without_a_value(tmp_path):

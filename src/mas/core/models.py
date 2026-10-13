@@ -74,6 +74,7 @@ class ModelResponse:
     latency_ms: int = 0
     cost_usd: float = 0.0
     reasoning: str = ""   # provider reasoning text, kept in the trace only
+    truncated: bool = False   # the provider stopped at the token limit, so the reply is incomplete
 
 
 class ModelAdapter(Protocol):
@@ -212,13 +213,14 @@ class OpenAICompatibleAdapter:
                  api_key_file: str | None = None, provider_family: str = "openai_compatible",
                  json_response_format: bool = True, timeout_s: int = 300, thinking: bool | None = None,
                  reasoning_effort: str | None = None, price_input_per_mtok: float | None = None,
-                 price_output_per_mtok: float | None = None, empty_reply_retries: int = 2):
+                 price_output_per_mtok: float | None = None, empty_reply_retries: int = 2,
+                 max_token_ceiling: int = 32000):
         self.record = CapabilityRecord(adapter_id, provider_family, model)
         self.base_url, self.api_key_env, self.api_key_file = base_url.rstrip("/"), api_key_env, api_key_file
         self.json_response_format, self.timeout_s = json_response_format, timeout_s
         self.thinking, self.reasoning_effort = thinking, reasoning_effort
         self.price_in, self.price_out = price_input_per_mtok, price_output_per_mtok
-        self.empty_reply_retries = empty_reply_retries
+        self.empty_reply_retries, self.max_token_ceiling = empty_reply_retries, max_token_ceiling
 
     def decoding(self, temperature: float) -> dict[str, Any]:
         """The decoding parameters actually sent, for the run binding."""
@@ -256,7 +258,11 @@ class OpenAICompatibleAdapter:
         payload = self.payload(request)
         started = time.monotonic()
         usage_total = {"input_tokens": 0, "output_tokens": 0}
+        max_tokens = request.max_tokens
+        ceiling = max(request.max_tokens, min(4 * request.max_tokens, self.max_token_ceiling))
+        finish_reason = None
         for attempt in range(self.empty_reply_retries + 1):
+            payload["max_tokens"] = max_tokens
             try:
                 reply = requests.post(f"{self.base_url}/chat/completions", timeout=self.timeout_s,
                                       headers={"authorization": f"Bearer {key}", "content-type": "application/json"},
@@ -269,17 +275,26 @@ class OpenAICompatibleAdapter:
                 raise ModelError("auth_rejected" if reply.status_code in (401, 403) else "upstream_server_error",
                                  redact(reply.text[:500], [key]))
             body = reply.json()
-            message = body["choices"][0]["message"]
+            choice = body["choices"][0]
+            message = choice["message"]
+            finish_reason = choice.get("finish_reason")
             usage = body.get("usage", {})
             usage_total["input_tokens"] += usage.get("prompt_tokens", 0)
             usage_total["output_tokens"] += usage.get("completion_tokens", 0)
             text = message.get("content") or ""
+            if finish_reason == "length" and max_tokens < ceiling:
+                # A reply cut off at the limit is never a complete JSON value, and a reasoning
+                # model can spend the whole allowance before the answer starts (measured on
+                # deepseek-flash: 700 of 700 completion tokens were reasoning, content empty).
+                max_tokens = min(2 * max_tokens, ceiling)
+                continue
             if text.strip() or attempt == self.empty_reply_retries:
                 break   # providers in JSON mode may occasionally return empty content; ask again
         return ModelResponse(request.request_id, text, None, body.get("model", self.record.model_id),
                              "openai_compatible_api", usage_total, int((time.monotonic() - started) * 1000),
                              cost_usd=_cost(usage_total, self.price_in, self.price_out),
-                             reasoning=message.get("reasoning_content") or "")
+                             reasoning=message.get("reasoning_content") or "",
+                             truncated=finish_reason == "length")
 
 
 class ExchangeAdapter:
@@ -452,18 +467,22 @@ def call_role(core, roster: ModelRoster, stream_id: str, request: ModelRequest, 
                 budget.try_charge("llm_turns", 1)
             attempt_request = ModelRequest(
                 role=request.role, system=request.system, response_schema=request.response_schema,
-                max_tokens=request.max_tokens, temperature=request.temperature, metadata=request.metadata,
+                max_tokens=2 * attempt_request.max_tokens if response.truncated else request.max_tokens,
+                temperature=request.temperature, metadata=request.metadata,
                 request_id=new_id("brief"),
                 messages=request.messages + [{"role": "assistant", "content": response.text},
                                              {"role": "user", "content": "Your reply did not match the schema: "
                                               + "; ".join(problems[:10]) + ". Reply again with corrected JSON only."}])
     trace_id = core.artifacts.put("trace", {"request": asdict(request), "final_text": response.text,
                                             "model_id": response.model_id, "provider_path": response.provider_path,
-                                            "schema_problems": problems, "reasoning": reasoning})
+                                            "schema_problems": problems, "reasoning": reasoning,
+                                            "truncated": response.truncated,
+                                            "max_tokens_final": attempt_request.max_tokens})
     core.journal.append(stream_id, "agent.finished", actor=who, ids=ids or {}, visibility="default",
                         payload={"request_id": request.request_id, "role": request.role, "usage": response.usage,
                                  "cost_usd": round(spent, 6), "provider_path": response.provider_path,
-                                 "model_id": response.model_id, "trace_blob": trace_id, "schema_ok": not problems},
+                                 "model_id": response.model_id, "trace_blob": trace_id, "schema_ok": not problems,
+                                 "reply_truncated": response.truncated},
                         summary=f"{request.role} replied" + ("" if not problems else " (schema problems)"))
     if budget is not None and hasattr(budget, "record"):
         total = getattr(budget, "root", budget)
