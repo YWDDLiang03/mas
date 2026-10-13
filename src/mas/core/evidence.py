@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from . import ledger, reading, vocab
+from . import criteria, ledger, reading, vocab
 from .journal import actor as make_actor
 from .models import ModelError
 from .runtime import Core
@@ -35,11 +35,19 @@ def determination_basis(value: dict[str, Any]) -> str:
 
     A tool knows what its own records are: ChEMBL's mechanism table states that engagement
     is documented, which is `curated`, not a measurement of anything, so it declares that
-    basis itself. A declared basis is validated against the registered value-kind
-    vocabulary, so an unregistered one is refused rather than carried into a claim.
+    basis itself. A declared basis is checked against `criteria.DETERMINATION_BASES`, the
+    same closed list an attribute may ask for, rather than against the value-kind domain,
+    which also admits `missing` - a value kind, never a basis. The list stays where the
+    attribute validator reads it instead of becoming a vocabulary domain, so that one
+    registry cannot drift from the other.
     """
     declared = value.get("determination_basis")
-    return vocab.require("value_kind", declared) if declared is not None else DB_BASIS.get(value.get("value_kind"), "measured")
+    if declared is None:
+        return DB_BASIS.get(value.get("value_kind"), "measured")
+    if declared not in criteria.DETERMINATION_BASES:
+        raise vocab.VocabularyViolation(f"{declared!r} is not a determination basis; "
+                                        f"expected one of {criteria.DETERMINATION_BASES}")
+    return declared
 
 
 def claims_from_tool_result(core: Core, stream_id: str, result, *, candidate: dict[str, Any], attribute_ref: str,
