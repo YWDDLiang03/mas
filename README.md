@@ -42,11 +42,40 @@ Create a store and a model configuration, then work through a task:
 
 Expert decisions are confirmed on the terminal itself and cannot be scripted.
 
+### Settings
+
+Every tunable number — literature breadth and depth, documents read, criteria iterations,
+symbolic-regression options, spend cap, interaction mode — is a named setting with a type,
+a range and a one-line explanation. Settings come from layers, lowest precedence first:
+
+    built-in defaults → --preset quick|standard|deep → ./mas.toml (or STORE/mas.toml)
+      → --profile NAME (~/.config/mas/profiles/NAME.toml) → MAS__SECTION__KEY env → --set KEY=VALUE
+
+    mas config show --explain                 # every value, with the layer it came from
+    mas --preset deep --set search.breadth=6 config validate
+    mas config estimate --dimensions 5 --candidates 3177   # offline volume/cost estimate
+    mas --set read.evidence_k=12 config save mylab         # keep a profile
+
+A `mas.toml` uses the same sections, for example:
+
+    [search]
+    breadth = 6
+    depth = 3
+    [read]
+    max_papers_full_read = 60
+    [budget]
+    usd_max = 20.0
+    on_exhaust = "warn_continue"   # or finalize_partial | ask | abort
+
+Each run binds the hash of its resolved settings and a record of where every value came
+from; verdict-affecting values are registered as run constants. `mas run resume` refuses
+if the settings changed since the run was bound, unless `--allow-config-drift` is given.
+
 ### Choosing language models
 
 Every agent role (retriever, reader, summarizer, proposer, critic) is bound to a provider in
-`STORE/models.toml`. API keys are read from environment variables at call time and are never
-written to any record.
+`mas.toml` (or the older `STORE/models.toml`). API keys are read from an environment variable
+or a key file at call time and are never written to any record, trace or error message.
 
     [providers.mine]
     kind = "openai_compatible"            # any OpenAI-compatible endpoint
@@ -62,6 +91,15 @@ written to any record.
     [providers.subagents]
     kind = "exchange"                     # requests are answered by an outside agent
     exchange_dir = "llm_exchange"
+
+    [providers.deepseek]                  # DeepSeek V4.1 Flash, 1M context
+    kind = "openai_compatible"
+    base_url = "https://api.deepseek.com"
+    model = "deepseek-flash"
+    api_key_file = "~/deepseek-key"       # or api_key_env; read at call time, never recorded
+    thinking = false                      # extraction roles: deterministic, temperature honoured
+    price_input_per_mtok = 0.30           # lets the run account its spend against budget.usd_max
+    price_output_per_mtok = 1.20
 
     [roles]
     reader = "claude"

@@ -1,0 +1,194 @@
+"""Layered settings (core/config.py), spend accounting (core/budget.py), and the
+OpenAI-compatible adapter's key-file, thinking and JSON-mode behaviour."""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from mas.core import config as cfg
+from mas.core import models
+from mas.core.budget import Budget, from_config
+from mas.core.models import ModelRequest, ModelRoster, OpenAICompatibleAdapter, call_role
+
+
+def resolve(**kw):
+    kw.setdefault("project_file", None)
+    kw.setdefault("environ", {})
+    return cfg.resolve(**kw)
+
+
+def test_defaults_resolve_and_every_value_has_a_layer():
+    config = resolve()
+    assert config["search.breadth"] == 4 and config["budget.usd_max"] == 20.0
+    assert config["budget.on_exhaust"] == "warn_continue"
+    assert set(config.sources) == set(cfg.SETTINGS)
+    assert all(layer == "default" for layer in config.sources.values())
+
+
+def test_layer_precedence_cli_beats_env_beats_profile_beats_project_beats_preset(tmp_path):
+    project = tmp_path / "mas.toml"
+    project.write_text("[search]\nbreadth = 5\ndepth = 3\nresults_per_query = 11\n", encoding="utf-8")
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    (profiles / "lab.toml").write_text("[search]\ndepth = 4\nresults_per_query = 12\n", encoding="utf-8")
+    config = resolve(preset="quick", project_file=project, profile="lab", profile_dir=profiles,
+                     environ={"MAS__SEARCH__RESULTS_PER_QUERY": "13", "MAS__READ__EVIDENCE_K": "7"},
+                     overrides=cfg.parse_overrides(["read.evidence_k=9"]))
+    assert (config["search.breadth"], config.sources["search.breadth"]) == (5, "project")
+    assert (config["search.depth"], config.sources["search.depth"]) == (4, "profile")
+    assert (config["search.results_per_query"], config.sources["search.results_per_query"]) == (13, "environment")
+    assert (config["read.evidence_k"], config.sources["read.evidence_k"]) == (9, "override")
+    assert (config["read.max_papers_full_read"], config.sources["read.max_papers_full_read"]) == (10, "preset")
+
+
+def test_types_ranges_and_unknown_keys_are_refused():
+    with pytest.raises(cfg.ConfigError, match="no setting"):
+        resolve(overrides=cfg.parse_overrides(["search.bredth=3"]))
+    with pytest.raises(cfg.ConfigError, match="above the maximum"):
+        resolve(overrides={"search.breadth": "99"})
+    with pytest.raises(cfg.ConfigError, match="not one of"):
+        resolve(overrides={"budget.on_exhaust": "explode"})
+    with pytest.raises(cfg.ConfigError, match="true/false"):
+        resolve(overrides={"read.prefer_full_text": "maybe"})
+    with pytest.raises(cfg.ConfigError, match="no setting"):
+        resolve(environ={"MAS__SEARCH__NOPE": "1"})
+
+
+def test_cross_field_checks():
+    with pytest.raises(cfg.ConfigError, match="symbolic_expression"):
+        resolve(overrides={"rank.method": "symbolic_expression"})
+    with pytest.raises(cfg.ConfigError, match="autonomous"):
+        resolve(overrides={"interaction.mode": "autonomous"})
+    with pytest.raises(cfg.ConfigError, match="30%"):
+        resolve(overrides={"sr.select_share": "0.4", "sr.holdout_share": "0.4"})
+    assert resolve(preset="quick")["interaction.mode"] == "autonomous"   # quick clears its checkpoints
+
+
+def test_hash_tracks_values_and_layer_record_explains_them():
+    a, b = resolve(), resolve(overrides={"search.breadth": "6"})
+    assert a.hash() != b.hash() and a.hash() == resolve().hash()
+    record = b.layer_record()
+    row = next(r for r in record["settings"] if r["key"] == "search.breadth")
+    assert row == {"key": "search.breadth", "value": 6, "layer": "override", "unit": "queries",
+                   "doc": cfg.SETTINGS["search.breadth"].doc}
+    assert ("const_search_breadth", 6, "queries") in b.registered_constants()
+
+
+def test_roles_must_bind_to_configured_providers(tmp_path):
+    project = tmp_path / "mas.toml"
+    project.write_text('[roles]\nreader = "nowhere"\n', encoding="utf-8")
+    with pytest.raises(cfg.ConfigError, match="not configured"):
+        resolve(project_file=project)
+
+
+def test_estimate_is_offline_and_bounded():
+    estimate = cfg.estimate(resolve(preset="quick"), dimensions=3, candidates=100)
+    assert estimate["search_queries"] == 6 and estimate["documents_read"] <= 30
+    assert estimate["candidates_assessed"] == 100 and estimate["budget_usd_max"] == 2.0
+
+
+# --- budget --------------------------------------------------------------------------
+
+def test_soft_spend_cap_warns_and_continues_hard_cap_refuses():
+    soft = from_config(resolve())
+    assert soft.record("usd", 15.0) == []
+    assert soft.record("usd", 1.5) == ["warn"]
+    assert soft.record("usd", 4.0) == ["cap"] and soft.allows("usd")
+    assert soft.record("usd", 1.0) == []   # each threshold is reported once
+    hard = from_config(resolve(overrides={"budget.on_exhaust": "abort"}))
+    hard.record("usd", 20.0)
+    assert not hard.allows("usd")
+    assert Budget({"llm_turns": 0}).try_charge("llm_turns")   # 0 means no limit
+
+
+# --- OpenAI-compatible adapter --------------------------------------------------------
+
+class FakeReply:
+    def __init__(self, body, status=200):
+        self.body, self.status_code, self.text = body, status, json.dumps(body)
+
+    def json(self):
+        return self.body
+
+
+def chat(content, *, reasoning=None, prompt=100, completion=50):
+    message = {"content": content}
+    if reasoning:
+        message["reasoning_content"] = reasoning
+    return FakeReply({"model": "deepseek-flash", "choices": [{"message": message}],
+                      "usage": {"prompt_tokens": prompt, "completion_tokens": completion}})
+
+
+def test_key_file_thinking_json_guard_and_cost(tmp_path, monkeypatch):
+    key_file = tmp_path / "key"
+    key_file.write_text("sk-secret-value\n", encoding="utf-8")
+    sent = []
+
+    def post(url, timeout, headers, json):   # noqa: A002 - mirrors requests.post
+        sent.append({"url": url, "headers": headers, "json": json})
+        return chat('{"ok": true}', reasoning="thinking text")
+
+    monkeypatch.setattr(models.requests, "post", post)
+    adapter = OpenAICompatibleAdapter("ds", "deepseek-flash", base_url="https://api.deepseek.com/",
+                                      api_key_file=str(key_file), thinking=False,
+                                      price_input_per_mtok=0.30, price_output_per_mtok=1.20)
+    reply = adapter.complete(ModelRequest(role="reader", system="Extract.", messages=[{"role": "user", "content": "x"}],
+                                          response_schema={"type": "object"}))
+    body = sent[0]["json"]
+    assert sent[0]["url"] == "https://api.deepseek.com/chat/completions"
+    assert sent[0]["headers"]["authorization"] == "Bearer sk-secret-value"
+    assert body["thinking"] == {"type": "disabled"} and body["temperature"] == 0.0
+    assert body["response_format"] == {"type": "json_object"} and "json" in body["messages"][0]["content"]
+    assert reply.cost_usd == pytest.approx((100 * 0.30 + 50 * 1.20) / 1e6)
+    assert reply.reasoning == "thinking text"
+    assert adapter.decoding(0.0) == {"thinking": False, "temperature": 0.0}
+
+
+def test_thinking_on_does_not_send_an_ignored_temperature(monkeypatch):
+    monkeypatch.setenv("DS_KEY", "k")
+    adapter = OpenAICompatibleAdapter("ds", "deepseek-flash", base_url="https://x", api_key_env="DS_KEY",
+                                      thinking=True, reasoning_effort="high")
+    body = adapter.payload(ModelRequest(role="proposer", system="s", messages=[]))
+    assert "temperature" not in body and body["reasoning_effort"] == "high" and "thinking" not in body
+    assert adapter.decoding(0.0) == {"thinking": True, "reasoning_effort": "high"}
+
+
+def test_empty_reply_is_retried_and_errors_never_contain_the_key(tmp_path, monkeypatch):
+    replies = iter([chat(""), chat('{"a": 1}')])
+    monkeypatch.setattr(models.requests, "post", lambda *a, **k: next(replies))
+    monkeypatch.setenv("DS_KEY", "sk-very-secret")
+    adapter = OpenAICompatibleAdapter("ds", "m", base_url="https://x", api_key_env="DS_KEY")
+    reply = adapter.complete(ModelRequest(role="reader", system="s", messages=[]))
+    assert reply.text == '{"a": 1}' and reply.usage["input_tokens"] == 200
+
+    monkeypatch.setattr(models.requests, "post",
+                        lambda *a, **k: FakeReply({"error": "bad key sk-very-secret"}, status=401))
+    with pytest.raises(models.ModelError) as error:
+        adapter.complete(ModelRequest(role="reader", system="s", messages=[]))
+    assert error.value.error_class == "auth_rejected" and "sk-very-secret" not in str(error.value)
+
+
+def test_missing_key_source_is_reported_without_a_value(tmp_path):
+    adapter = OpenAICompatibleAdapter("ds", "m", base_url="https://x", api_key_env="MAS_TEST_UNSET_KEY",
+                                      api_key_file=str(tmp_path / "absent"))
+    with pytest.raises(models.ModelError) as error:
+        adapter.complete(ModelRequest(role="reader", system="s", messages=[]))
+    assert error.value.error_class == "auth_missing"
+
+
+def test_call_role_records_spend_and_reports_thresholds_once(core, monkeypatch):
+    monkeypatch.setattr(models.requests, "post", lambda *a, **k: chat('{"v": 1}', prompt=1_000_000, completion=0))
+    monkeypatch.setenv("DS_KEY", "k")
+    roster = ModelRoster.from_tables(
+        {"ds": {"kind": "openai_compatible", "base_url": "https://x", "api_key_env": "DS_KEY", "model": "m",
+                "price_input_per_mtok": 0.9}}, {"reader": "ds"}, ".")
+    budget = Budget({"usd": 2.0}, soft_kinds=("usd",), warn_at=0.8)
+    for _ in range(3):
+        call_role(core, roster, "run_test", ModelRequest(role="reader", system="s", messages=[],
+                                                          response_schema={"type": "object"}), budget=budget)
+    notes = [e.payload for e in core.journal.replay("run_test") if e.event_type == "run.annotated"]
+    assert [n["level"] for n in notes] == ["warn", "cap"] and notes[-1]["continues"] is True
+    finished = [e.payload for e in core.journal.replay("run_test") if e.event_type == "agent.finished"]
+    assert finished[0]["cost_usd"] == pytest.approx(0.9)

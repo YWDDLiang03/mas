@@ -9,9 +9,12 @@
     mas run start TASK [--seed N] [--limit N] [--tool-calls N] [--llm-turns N] | run show RUN | run resume RUN
     mas board show TASK [--all] | candidate show TASK CANDIDATE
     mas models show
+    mas config show [--explain] | validate | save NAME | estimate [--dimensions N] [--candidates N]
     mas bridge next|answer|status ...          answer LLM requests as an outside agent
 
-Global options: --store DIR (default $MAS_STORE or ./var/store), --models FILE (default STORE/models.toml).
+Global options: --store DIR (default $MAS_STORE or ./var/store), --models FILE (default STORE/models.toml),
+--config FILE (default ./mas.toml, else STORE/mas.toml), --preset quick|standard|deep, --profile NAME,
+--set KEY=VALUE (repeatable; outranks MAS__SECTION__KEY environment variables).
 Expert decisions are confirmed on the terminal itself; a script cannot supply the confirmation.
 """
 
@@ -24,6 +27,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from mas.core import config as config_mod
 from mas.core import criteria, leaderboard, projection, review, task, vocab
 from mas.core.broker import Broker
 from mas.core.controller import RunController, RunError
@@ -55,6 +59,30 @@ provider_family = "anthropic"
 # base_url = "https://api.example.com/v1"
 # api_key_env = "MY_PROVIDER_API_KEY"
 # model = "my-model"
+
+# DeepSeek V4.1 Flash (1M context). The key is read at call time from the variable or the file.
+# Extraction and judging roles run with thinking disabled so temperature 0 is honoured;
+# prices (USD per million tokens, peak rates) let the run account its spend.
+# [providers.deepseek]
+# kind = "openai_compatible"
+# base_url = "https://api.deepseek.com"
+# model = "deepseek-flash"
+# api_key_env = "DEEPSEEK_API_KEY"
+# api_key_file = "~/deepseek-key"
+# thinking = false
+# price_input_per_mtok = 0.30
+# price_output_per_mtok = 1.20
+#
+# [providers.deepseek_thinking]
+# kind = "openai_compatible"
+# base_url = "https://api.deepseek.com"
+# model = "deepseek-flash"
+# api_key_env = "DEEPSEEK_API_KEY"
+# api_key_file = "~/deepseek-key"
+# thinking = true
+# reasoning_effort = "high"
+# price_input_per_mtok = 0.30
+# price_output_per_mtok = 1.20
 
 [roles]
 retriever = "subagents"
@@ -120,7 +148,29 @@ def _expand_universe(spec: dict[str, Any]) -> dict[str, Any]:
     return dict(spec, candidate_universe=universe)
 
 
+def _config_file(args) -> Path | None:
+    if getattr(args, "config", None):
+        return Path(args.config)
+    for candidate in (Path(config_mod.PROJECT_FILE), _store_dir(args) / config_mod.PROJECT_FILE):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _settings(args) -> "config_mod.Config":
+    try:
+        return config_mod.resolve(preset=getattr(args, "preset", None) or "standard", project_file=_config_file(args),
+                                  profile=getattr(args, "profile", None),
+                                  overrides=config_mod.parse_overrides(getattr(args, "set", None) or []))
+    except config_mod.ConfigError as error:
+        sys.exit(f"configuration: {error}")
+
+
 def _roster(args, required: bool = True) -> ModelRoster | None:
+    settings = _settings(args)
+    if settings.providers and not args.models:
+        source = _config_file(args)
+        return ModelRoster.from_tables(settings.providers, settings.roles, source.parent if source else _store_dir(args))
     path = Path(args.models) if args.models else _store_dir(args) / "models.toml"
     if not path.exists():
         if required:
@@ -252,17 +302,26 @@ def cmd_run(args) -> None:
             created = core.journal.replay(args.run, 1, 1)
             task_id = created[0].payload["task_id"] if created else None
         context = task.get(core, task_id) if task_id else None
+        settings = _settings(args)
+        workers = args.workers or settings["assess.workers"]
         controller = RunController(core, _broker(core, context), _roster(args, required=False), adapter=ADAPTER,
-                                   implementation=_implementation(), workers=getattr(args, "workers", 1) or 1)
+                                   implementation=_implementation(), workers=workers)
         try:
             if args.action == "start":
                 envelope = {k: v for k, v in (("tool_calls", args.tool_calls), ("llm_turns", args.llm_turns)) if v}
-                run_id = controller.start(args.task, by=_person("operator"), sweep_seed=args.seed, budget_envelope=envelope,
-                                          candidate_limit=args.limit, evidence_cutoff=args.cutoff, execute=False)
+                seed = args.seed if args.seed is not None else settings["run.seed"]
+                limit = args.limit or settings["assess.max_candidates"] or None
+                run_id = controller.start(args.task, by=_person("operator"), sweep_seed=seed, budget_envelope=envelope,
+                                          candidate_limit=limit, evidence_cutoff=args.cutoff or settings["search.date_to"] or None,
+                                          execute=False, settings=settings)
                 print(run_id, flush=True)
                 controller.execute(run_id)
             elif args.action == "resume":
                 run_id = args.run
+                bound = (_bound_settings(core, run_id) or {}).get("config_hash")
+                if bound and bound != settings.hash() and not args.allow_config_drift:
+                    sys.exit(f"the settings changed since {run_id} was bound (hash {bound[:12]} -> {settings.hash()[:12]}); "
+                             "resume with the original settings or pass --allow-config-drift")
                 controller.resume(run_id)
             else:
                 run_id = args.run
@@ -315,6 +374,45 @@ def cmd_candidate(args) -> None:
                     print(f"      evidence {claim_id}")
 
 
+def _bound_settings(core: Core, run_id: str) -> dict[str, Any] | None:
+    created = core.journal.replay(run_id, 1, 1)
+    if not created or created[0].event_type != "run.created":
+        return None
+    return core.artifacts.payload(created[0].payload["binding_artifact_id"]).get("settings")
+
+
+def cmd_config(args) -> None:
+    settings = _settings(args)
+    if args.action == "validate":
+        print(f"valid  preset {settings.preset}  profile {settings.profile or '-'}  hash {settings.hash()[:12]}  "
+              f"source {_config_file(args) or 'defaults only'}")
+    elif args.action == "save":
+        if not args.name:
+            sys.exit("config save needs a profile NAME")
+        target = config_mod.PROFILE_DIR / f"{args.name}.toml"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        lines, section = [f"# saved by `mas config save` (preset {settings.preset})"], None
+        for key, value in settings.non_default().items():
+            head, leaf = key.rsplit(".", 1)
+            if head != section:
+                lines.append(f"\n[{head}]")
+                section = head
+            lines.append(f"{leaf} = {json.dumps(value)}")
+        target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        print(f"saved {len(settings.non_default())} non-default settings to {target}")
+    elif args.action == "estimate":
+        _print(config_mod.estimate(settings, dimensions=args.dimensions, candidates=args.candidates))
+    else:
+        if not args.explain:
+            _print({"preset": settings.preset, "profile": settings.profile, "config_hash": settings.hash(),
+                    "settings": settings.values, "providers": sorted(settings.providers), "roles": settings.roles})
+            return
+        print(f"preset {settings.preset}  profile {settings.profile or '-'}  hash {settings.hash()[:12]}")
+        for row in settings.layer_record()["settings"]:
+            unit = f" {row['unit']}" if row["unit"] else ""
+            print(f"  {row['key']:<36} {json.dumps(row['value']) + unit:<28} [{row['layer']}]  {row['doc']}")
+
+
 def cmd_models(args) -> None:
     roster = _roster(args)
     _print(roster.role_bindings())
@@ -328,6 +426,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="mas", description=__doc__.split("\n")[0])
     parser.add_argument("--store")
     parser.add_argument("--models")
+    parser.add_argument("--config", help="settings file (default ./mas.toml, else STORE/mas.toml)")
+    parser.add_argument("--preset", choices=sorted(config_mod.PRESETS))
+    parser.add_argument("--profile", help="settings profile from ~/.config/mas/profiles/NAME.toml")
+    parser.add_argument("--set", action="append", metavar="KEY=VALUE", help="override one setting (repeatable)")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init").set_defaults(func=cmd_init)
 
@@ -369,12 +471,13 @@ def main(argv: list[str] | None = None) -> int:
     u = sub.add_parser("run")
     u.add_argument("action", choices=("start", "show", "resume"))
     u.add_argument("task_or_run")
-    u.add_argument("--seed", type=int, default=0)
+    u.add_argument("--seed", type=int)
     u.add_argument("--limit", type=int)
     u.add_argument("--tool-calls", type=int)
     u.add_argument("--llm-turns", type=int)
     u.add_argument("--cutoff")
-    u.add_argument("--workers", type=int, default=1, help="concurrent literature cells (model calls)")
+    u.add_argument("--workers", type=int, help="concurrent literature cells (default: assess.workers)")
+    u.add_argument("--allow-config-drift", action="store_true", help="resume although the settings changed")
     u.set_defaults(func=cmd_run)
 
     b = sub.add_parser("board")
@@ -389,6 +492,14 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("task")
     d.add_argument("candidate")
     d.set_defaults(func=cmd_candidate)
+
+    g = sub.add_parser("config")
+    g.add_argument("action", choices=("show", "validate", "save", "estimate"))
+    g.add_argument("name", nargs="?")
+    g.add_argument("--explain", action="store_true", help="show the layer each value came from")
+    g.add_argument("--dimensions", type=int, default=1)
+    g.add_argument("--candidates", type=int, default=0)
+    g.set_defaults(func=cmd_config)
 
     m = sub.add_parser("models")
     m.add_argument("action", choices=("show",))

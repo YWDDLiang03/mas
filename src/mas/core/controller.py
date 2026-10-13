@@ -21,7 +21,7 @@ from .budget import Budget
 from .canonical import sha256_hex
 from .clock import utc_now
 from .ids import new_id
-from .journal import actor as make_actor
+from .journal import EVAL_STREAM, actor as make_actor
 from .runtime import Core
 
 CONTROLLER = make_actor("controller", "C15", "run_controller")
@@ -98,7 +98,10 @@ class RunController:
               screening_rounds: int = 1, budget_envelope: dict[str, Any] | None = None, sweep_seed: int = 0,
               memory_mode: str = "cold", evidence_cutoff: str | None = None, chain_id: str | None = None,
               continues_run_id: str | None = None, continuation_kind: str = "root", candidate_limit: int | None = None,
-              execute: bool = True) -> str:
+              execute: bool = True, settings: Any = None) -> str:
+        """Bind and (by default) execute a run. `settings` is a resolved core.config.Config: its hash and
+        layer record are bound, its verdict-affecting values are registered as run-scoped constants,
+        and its budget policy decides whether reaching the spend cap stops the run."""
         vocab.require("policy_arm", policy_arm)
         vocab.require("memory_mode", memory_mode)
         vocab.require("continuation_kind", continuation_kind)
@@ -108,6 +111,15 @@ class RunController:
             raise RunError("rejected_not_permitted_in_state", f"{len(blocking)} blocking unknowns are open")
         rule_set = criteria.rule_set(self.core, task_id, rule_set_ref)
         run_id = new_id("run")
+        settings_ref, budget_policy = None, {}
+        if settings is not None:
+            settings_ref = {"config_hash": settings.hash(), "preset": settings.preset, "profile": settings.profile,
+                            "layers_artifact_id": self.core.artifacts.put("config_layers", settings.layer_record())}
+            budget_envelope = {"usd": settings["budget.usd_max"], **({k: v for k, v in (
+                ("llm_turns", settings["budget.llm_turns"]), ("tool_calls", settings["budget.tool_calls"])) if v}),
+                **(budget_envelope or {})}
+            budget_policy = {"on_exhaust": settings["budget.on_exhaust"], "warn_at": settings["budget.warn_at"],
+                             "soft_kinds": ["usd"] if settings["budget.on_exhaust"] == "warn_continue" else []}
         binding = {
             "bind_id": f"bind_{run_id}", "run_id": run_id,
             "task_context_id@v": f"{task_id}@v{context['version']}", "case_id@v": context.get("case_ref"),
@@ -125,12 +137,16 @@ class RunController:
             "known_reference_outcome_disclosure": [s for s in context.get("seed_candidates", []) if s.get("is_reference_outcome")],
             "derivation_configuration": "reference_disclosed", "budget_envelope": budget_envelope or {},
             "candidate_limit": candidate_limit, "implementation": self.implementation,
+            "settings": settings_ref, "budget_policy": budget_policy,
             "bound_at": utc_now(), "bound_by": by,
         }
         artifact_id = self.core.artifacts.put("run_binding", binding)
         self._emit(run_id, "run.created", actor=by, ids={"task_id": task_id, "run_id": run_id}, state_to="queued",
                    payload={"binding_artifact_id": artifact_id, "task_id": task_id, "chain_id": binding["chain_id"]},
                    artifact_links=[{"kind": "run_binding", "id": artifact_id}], summary=f"run bound to {rule_set['rule_set_ref']}")
+        if settings is not None:
+            from .config import register_constants
+            register_constants(self.core, settings, by=by, stream_id=run_id)
         if continues_run_id:
             self.core.journal.append(task_id, "run.continued", actor=by, payload={
                 "parent_run_id": continues_run_id, "run_id": run_id, "continuation_kind": continuation_kind})
@@ -147,7 +163,10 @@ class RunController:
         task_id = events[0].payload["task_id"]
         context = task_mod.get(self.core, task_id, int(binding["task_context_id@v"].rsplit("@v", 1)[1]))
         rule_set = criteria.rule_set(self.core, task_id, binding["rules@v"])
-        state = RunState(run_id, binding, context, rule_set, Budget(binding["budget_envelope"]),
+        policy = binding.get("budget_policy") or {}
+        budget = Budget(binding["budget_envelope"], soft_kinds=tuple(policy.get("soft_kinds", ())),
+                        warn_at=policy.get("warn_at"))
+        state = RunState(run_id, binding, context, rule_set, budget,
                          attempt_id=f"att_{run_id}_1", round_id=f"round_{run_id}_1")
         for entry in rule_set["entries"]:
             rule = criteria.load(self.core, entry["rule_ref"], task_id)
@@ -352,7 +371,8 @@ class RunController:
             task_context=st.task_context, leaderboard_id=lbd, run_id=run_id, round_id=st.round_id, rule_set=st.rule_set,
             evidence_snapshot_id=snapshot_id, roll_ups=roll_ups, cells=by_candidate, scores=scores,
             identities=st.identities, parent=parent, sweep_completeness=sweep_completeness, budget=st.budget.snapshot(),
-            ranking_coverage_floor=float(constants.value(self.core, "const_ranking_coverage_floor")))
+            ranking_coverage_floor=float(constants.value(self.core, "const_ranking_coverage_floor",
+                                                         (EVAL_STREAM, st.run_id))))
         all_snapshots = leaderboard.snapshots(self.core, task_id)
         snapshot["snapshot_id"] = f"lb_{task_id}_{len(all_snapshots) + 1}"
         snapshot_artifact = self.core.artifacts.put("leaderboard_snapshot", snapshot)
