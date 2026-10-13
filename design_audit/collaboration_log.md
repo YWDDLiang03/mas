@@ -237,6 +237,52 @@ run is therefore staged as the design intends (U-13, ADR-33): a screen of the fu
 database-bound rules, then literature on a shortlist as a continuation, with the leaderboard's
 member-set hash keeping the two boards distinct and the reference compound's rank reported on both.
 
+### 7.11 Round 1: criteria frozen, and three defects the queue agents found (13 October 2026)
+
+**The pool closed.** Four rounds in one chain, stopping at the round limit with 34 criteria in the
+registry and 38 withdrawn. The last two iterations were: filter sent 46 items to refinement and
+kept 1, refinement revised 31 and withdrew 24; then filter sent 25 back and kept 7, refinement
+revised 27 and withdrew none. Twenty-five promoted criteria carry no open finding; nine are
+disputed and wait for an expert. Withdrawals were taken where the cited evidence could not carry
+the quantity - no numeric value on the declared axis, variants outside the required receptor set,
+class-level or pronoun-subject quotes - or where the construction was confounded, such as a count
+that rises with how thoroughly a compound has been studied.
+
+**The fix from §7.10 was unreachable, and the queue agent found it.** `validate_proposal` now
+refuses an attribute that cannot accept what its bound source returns, and the system prompt tells
+the proposer to declare `acceptable_determination_bases`. But `_normalize_proposal` filters an
+attribute to `ATTRIBUTE_FIELDS`, which omitted that field, so the declaration was stripped before
+the validator re-read it: the five receptor attributes came back with the identical problem after
+every revision. The test that covered the check passed because it called the validator directly,
+skipping the normaliser the pipeline runs first. Recorded as ADR-48, because the general fault is
+worse than the instance - a prompt may only ask for what the code accepts end to end. The agent
+worked around it by rebinding those five to the IUPHAR/BPS curation, which returns a `measured`
+basis and a distinct evidence key from the ChEMBL potency criteria; the mapping it could not verify
+from its own vantage, ChEMBL target id to UniProt accession, is real and resolves.
+
+**Five rules score the board while disputed.** Confirming the set surfaced that
+`confirm_rule_set` admits a preference rule through the trigger table without re-consulting the
+open review items, so a rule can sit in `entries` and in `pending[]` at once - the second list
+reading, on its own, as "did not enter the set". Thirteen rules score the screen and five of them
+are disputed. The entry now records `disputed`, the set records `pending_but_scoring`, and the
+acceptance reasons name the rules (ADR-47). The dispute was not decided: only the user may make
+that decision.
+
+**What the data actually supports, measured before the sweep.** Of the 3,177 compounds, the
+IUPHAR/BPS curation lists 1,988 as ligands but only 36 carry any interaction row against the five
+required receptors, and exactly one - pazopanib - carries all five. Surufatinib carries two
+(VEGFR2 7.68, FGFR1 7.28), both higher than sunitinib's and sorafenib's at the same receptors,
+while pazopanib, nintedanib, linifanib, cediranib and catequentinib carry four or five. Adding an
+independent curation therefore makes the case harder, which is the reason to add it. ADR-49 states
+the consequence: where measurement is absent the system reports absence, and the board reports its
+rankable count beside the universe size instead of presenting one as the other.
+
+**One latent defect fixed on the way.** The per-compound ChEMBL listing asked for a single page of
+1,000 rows and never read `page_meta.next`, so a compound with more measurements against a target
+than that lost the remainder silently - biasing the median those criteria aggregate rather than
+merely dropping records. The sweep takes the cached path, which pages correctly; the single-compound
+path a `mas candidate` query uses did not.
+
 ## 8. What this log does not claim
 
 During the design waves (§1-§6) no agent executed repository code, started a server, ran a test suite, or performed a screening, ranking, or experiment. The build records from §7.9 onward do report executed code, test runs and live runs, and each states what was measured and where. Literature reads are labelled by depth in each report; abstract-only reads are not presented as full text. Agent self-reports of their own time and reading are reproduced as given; the coordinator verified file existence, word counts, section order, hash checks, and the absence of code fences, not every claimed read.
