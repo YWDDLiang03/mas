@@ -6,3 +6,5 @@ build/
 dist/
 # local store roots used during development
 var/
+# case-source documents supplied by the user (not redistributable)
+CELL1.pdf
