@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import symbolic
+from . import criteria, symbolic
 from .canonical import sha256_hex
 from .clock import utc_now
 
@@ -102,14 +102,19 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
     else:
         cutoff = rule.get("cutoff")
         categorical = attribute["measurement_kind"] == "categorical"
+        # The attribute may be about a derived quantity -- an excess over a stated bound, a distance
+        # outside a stated band -- while its source returns the raw value. Applied per claim, before
+        # aggregation and before any comparison, so the cell carries the quantity the attribute names.
+        declared = attribute.get("value_transform")
+        transform = (lambda v: criteria.apply_value_transform(v, declared)) if declared else (lambda v: v)
         values = []
         for c in usable:
             if categorical:
                 values.append(c["value"])
             elif c.get("value") is not None:
-                values.append(float(c["value"]))
+                values.append(transform(float(c["value"])))
             else:   # a reported range contributes both ends: a range straddling a cutoff is a conflict, not a pass
-                values.extend([float(c["value_low"]), float(c["value_high"])])
+                values.extend([transform(float(c["value_low"])), transform(float(c["value_high"]))])
         aggregation = "consensus" if categorical else attribute.get("aggregation", "consensus")
         if cutoff is None:
             if rule.get("predicate_form") == "ordering" and rule["rule_kind"] == "preference":

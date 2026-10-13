@@ -137,6 +137,10 @@ class StageContext:
                 "database_entry, peer_reviewed, preprint, reference_text (textbooks), tertiary_reference "
                 "(encyclopedias, wikis), user_supplied_document), aggregation (max|min|median|consensus), "
                 "acceptable_determination_bases (defaults to measured and derived), "
+                "value_transform when the attribute is about a derived quantity rather than the value the source "
+                "returns -- {kind: excess_above|shortfall_below|distance_outside_band, bound or low and high, "
+                "basis, source_refs}; without it the raw value is what gets ranked, however the definition "
+                "describes the quantity, "
                 "evidence_request {capability, question_kind, identifier_scheme, parameters}, rationale.\n"
                 + SCHEMA_BLOCK_FORMS)
 

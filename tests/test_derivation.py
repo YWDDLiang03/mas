@@ -145,6 +145,61 @@ def test_ordering_preferences_score_by_percentile_and_skip_missing():
     assert assessor.preference_scores(cells, rules, {})["a"] == (1.0, 1.0)
 
 
+def test_an_attribute_about_a_derived_quantity_declares_the_transformation_and_it_is_applied():
+    """A proposer can define a one-sided quantity correctly in prose -- "the excess above 500 g/mol,
+    zero for a molecule at or below it" -- while the bound source returns the raw descriptor. Nothing
+    applied the difference, so the cell carried the raw weight under the derived quantity's name and
+    `lower_better` direction: every molecule inside the band was ranked by how small it was instead of
+    tying at zero. The transformation is declared, checked, and applied before aggregation."""
+    attribute = {"attribute_id": "attr_mw", "version": 1, "name": "Molecular weight in excess of the upper bound",
+                 "definition": "the excess in g/mol above 500, zero at or below it", "unit": "g/mol",
+                 "measurement_kind": "quantitative", "direction": "lower_better", "aggregation": "median",
+                 "acceptable_value_sources": ["database_entry"], "acceptable_determination_bases": ["derived"],
+                 "value_transform": {"kind": "excess_above", "bound": 500, "basis": "source_stated_value",
+                                     "source_refs": ["claim_bound"]},
+                 "evidence_request": {"capability": "property_estimate", "question_kind": "computed_property",
+                                      "parameters": {"property": "MolecularWeight"}}}
+    rule = {"rule_id": "rule_mw", "version": 1, "rule_kind": "preference", "predicate_form": "ordering",
+            "cutoff": None, "cutoff_basis": "none_evidence_insufficient"}
+    criteria.check_attribute(attribute)
+
+    def value_for(weight):
+        claims = [{"claim_id": "c1", "admission_state": "admitted", "evidence_kind": "database_entry",
+                   "determination_basis": "derived", "value": weight, "unit": "g/mol"}]
+        cell, _ = assessor.assess_cell(candidate={"candidate_id": "x"}, attribute=attribute, rule=rule,
+                                       rule_set_ref="rules@v1", claims=claims, resolved=True)
+        return cell["value"]
+
+    assert value_for(480.6) == 0.0 and value_for(397.0) == 0.0   # inside the bound: tied, not ranked by size
+    assert value_for(612.0) == 112.0                              # outside: the excess itself
+
+    banded = dict(attribute, attribute_id="attr_lp", unit="log units", name="Distance outside the band",
+                  value_transform={"kind": "distance_outside_band", "low": 2, "high": 4,
+                                   "basis": "source_stated_value", "source_refs": ["claim_band"]})
+    criteria.check_attribute(banded)
+    assert criteria.apply_value_transform(3.4, banded["value_transform"]) == 0.0
+    assert criteria.apply_value_transform(1.2, banded["value_transform"]) == pytest.approx(0.8)
+    assert criteria.apply_value_transform(5.1, banded["value_transform"]) == pytest.approx(1.1)
+
+    # a bound no source states is the arbitrary cutoff the registry refuses elsewhere
+    with pytest.raises(criteria.InvariantViolation, match="arbitrary_cutoff"):
+        criteria.check_attribute(dict(attribute, value_transform={"kind": "excess_above", "bound": 500,
+                                                                  "basis": "source_stated_value"}))
+    with pytest.raises(criteria.InvariantViolation, match="value_transform kind"):
+        criteria.check_attribute(dict(attribute, value_transform={"kind": "log", "bound": 1,
+                                                                  "basis": "task_constraint"}))
+    with pytest.raises(criteria.InvariantViolation, match="numeric bound"):
+        criteria.check_attribute(dict(attribute, value_transform={"kind": "excess_above", "bound": "500",
+                                                                  "basis": "task_constraint"}))
+    with pytest.raises(criteria.InvariantViolation, match="is not below"):
+        criteria.check_attribute(dict(banded, value_transform={"kind": "distance_outside_band", "low": 4,
+                                                               "high": 2, "basis": "task_constraint"}))
+    # and the declaration must survive the normaliser the pipeline runs before validating (ADR-48)
+    from mas.core.derivation import _normalize_proposal
+    kept = _normalize_proposal({"attribute": attribute, "rule": rule})["attribute"]
+    assert kept["value_transform"] == attribute["value_transform"]
+
+
 def test_an_ordering_rule_uses_the_aggregation_the_attribute_declares(core=None):
     """The cutoff-less ordering path took the best of the usable values whatever the attribute asked
     for. A maximum rises with the number of assays, so the board rewarded having been studied often:

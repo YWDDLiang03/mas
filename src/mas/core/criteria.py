@@ -28,6 +28,51 @@ AGGREGATIONS = ("max", "min", "median", "consensus")
 # `assessor.DEFAULT_DETERMINATION_BASES`, so an attribute that does not name it sees no curated
 # claim at all rather than counting an assertion as a measurement.
 DETERMINATION_BASES = ("measured", "derived", "predicted", "simulated", "curated")
+# Deterministic transformations an attribute may declare between the value its bound source returns
+# and the quantity the attribute is about, with the parameters each one needs.
+#
+# WHY this exists: a proposer can define a one-sided or banded quantity correctly in prose -- "the
+# excess above 500 g/mol, zero for a molecule at or below it" -- while the bound source returns the
+# raw descriptor, and nothing applied the difference. The cell then carried the raw value under the
+# derived quantity's name and direction, so every molecule inside the band was ranked by how small
+# it was rather than tied at zero. Declaring the transformation makes it checkable and applied; the
+# bounds carry a `basis` for the same reason a cutoff does, because an unsourced bound inside a
+# transformation is the arbitrary cutoff the registry refuses elsewhere.
+VALUE_TRANSFORMS = {"excess_above": ("bound",), "shortfall_below": ("bound",),
+                    "distance_outside_band": ("low", "high")}
+
+
+def check_value_transform(transform: dict[str, Any] | None, attr_name: str = "") -> None:
+    if transform is None:
+        return
+    kind = transform.get("kind")
+    if kind not in VALUE_TRANSFORMS:
+        raise InvariantViolation("schema", f"value_transform kind must be one of "
+                                          f"{tuple(VALUE_TRANSFORMS)}, got {kind!r}")
+    for parameter in VALUE_TRANSFORMS[kind]:
+        value = transform.get(parameter)
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise InvariantViolation("schema", f"value_transform {kind} needs a numeric {parameter}")
+    if kind == "distance_outside_band" and transform["low"] >= transform["high"]:
+        raise InvariantViolation("schema", f"value_transform band low {transform['low']} is not below "
+                                          f"high {transform['high']}")
+    basis = transform.get("basis")
+    _choice("value_transform basis", basis, tuple(b for b in CUTOFF_BASES if b != "none_evidence_insufficient"))
+    if basis == "source_stated_value" and not transform.get("source_refs"):
+        raise InvariantViolation("arbitrary_cutoff", f"value_transform on {attr_name!r} claims a source-stated "
+                                                    f"bound without naming the claims that state it")
+
+
+def apply_value_transform(value: float, transform: dict[str, Any] | None) -> float:
+    """The declared quantity, from the value the source returned. Pure, total on floats."""
+    if transform is None:
+        return value
+    kind = transform["kind"]
+    if kind == "excess_above":
+        return max(0.0, value - float(transform["bound"]))
+    if kind == "shortfall_below":
+        return max(0.0, float(transform["bound"]) - value)
+    return max(0.0, float(transform["low"]) - value) + max(0.0, value - float(transform["high"]))
 
 
 class InvariantViolation(ValueError):
@@ -50,6 +95,9 @@ def check_attribute(attr: dict[str, Any]) -> None:
     _choice("measurement_kind", attr["measurement_kind"], MEASUREMENT_KINDS)
     _choice("direction", attr["direction"], DIRECTIONS)
     _choice("aggregation", attr.get("aggregation", "consensus"), AGGREGATIONS)
+    check_value_transform(attr.get("value_transform"), attr.get("name", ""))
+    if attr.get("value_transform") and attr["measurement_kind"] != "quantitative":
+        raise InvariantViolation("schema", f"value_transform on {attr['name']!r} needs a quantitative attribute")
     if attr["measurement_kind"] == "quantitative" and not attr.get("unit"):
         raise InvariantViolation("units", f"quantitative attribute {attr['name']!r} has no unit")
     bases = attr.get("acceptable_determination_bases")

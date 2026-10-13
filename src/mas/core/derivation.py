@@ -103,7 +103,8 @@ REVISION_CHECKS = ("objective_conformance", "evidence_support", "unit_applicabil
 # that instruction impossible to satisfy -- the attribute came back with the identical validator problem after every
 # revision, because the declaration was stripped before the check re-read it.
 ATTRIBUTE_FIELDS = ("name", "definition", "measurement_kind", "unit", "direction", "acceptable_value_sources",
-                    "acceptable_determination_bases", "aggregation", "evidence_request", "rationale")
+                    "acceptable_determination_bases", "aggregation", "value_transform", "evidence_request",
+                    "rationale")
 
 # WHY one shared constant: both prompt builders describe the rule schema, and when the description drifts from what
 # `check_rule` accepts a proposer spends revisions discovering the real contract. This listed two of the five
@@ -386,6 +387,10 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
               f"acceptable_value_sources (evidence kinds: curated_measurement, database_entry, peer_reviewed, preprint, "
               f"reference_text, tertiary_reference, user_supplied_document), "
               f"acceptable_determination_bases (defaults to measured and derived), "
+              f"value_transform when the attribute is about a derived quantity rather than the value the source "
+              f"returns -- {{kind: excess_above|shortfall_below|distance_outside_band, bound or low and high, "
+              f"basis, source_refs}}; without it the raw value is what gets ranked, however the definition "
+              f"describes the quantity, "
               f"aggregation (max|min|consensus), evidence_request {{capability, question_kind, identifier_scheme, parameters}}, rationale.\n"
               + SCHEMA_BLOCK_FORMS
               + f"\nClaims ({len(claims)}):\n{_claims_block(claims)}")
