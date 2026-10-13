@@ -17,6 +17,8 @@
     mas models show
     mas config show [--explain] | validate | save NAME | estimate [--dimensions N] [--candidates N]
     mas sources list | check | sync bookshelf --book NBK... | template   evidence sources and their set-up
+    mas ui serve [--port 8765]                 the browser workbench: the same read surfaces in a browser,
+                                               on loopback, read-only; it may run while a run holds the store
     mas bridge next|answer|status ...          answer LLM requests as an outside agent
 
 Global options: --store DIR (default $MAS_STORE or ./var/store), --models FILE (default STORE/models.toml),
@@ -684,6 +686,21 @@ def cmd_models(args) -> None:
     _print(roster.role_bindings())
 
 
+def cmd_ui(args) -> None:
+    """Serve the browser workbench (`ui_ux_spec.md` §15.5): loopback only, read-only, no decisions."""
+    from mas.ui.server import address, make_server, serve
+    try:
+        roster = _roster(args, required=False)
+        server = make_server(_store_dir(args), port=args.port, host=args.host, settings=_settings(args),
+                             role_bindings=roster.role_bindings() if roster else None)
+    except (StoreError, ValueError, OSError) as error:
+        sys.exit(f"cannot serve the workbench: {error}")
+    print(f"workbench at {address(server)}")
+    print("read-only: the browser records nothing. Runs are started and expert decisions confirmed on this "
+          "terminal (`mas run start`, `mas review decide`). Stop the workbench with ctrl-c.", flush=True)
+    serve(server)
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] == "bridge":
@@ -785,6 +802,12 @@ def main(argv: list[str] | None = None) -> int:
     m = sub.add_parser("models")
     m.add_argument("action", choices=("show",))
     m.set_defaults(func=cmd_models)
+
+    w = sub.add_parser("ui")
+    w.add_argument("action", choices=("serve",))
+    w.add_argument("--port", type=int, default=8765)
+    w.add_argument("--host", default="127.0.0.1", help="loopback address to bind (127.0.0.1, ::1 or localhost)")
+    w.set_defaults(func=cmd_ui)
 
     args = parser.parse_args(argv)
     if args.command == "run":

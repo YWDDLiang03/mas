@@ -44,6 +44,27 @@ Create a store and a model configuration, then work through a task:
 
 Expert decisions are confirmed on the terminal itself and cannot be scripted.
 
+### The browser workbench
+
+    mas --store var/store ui serve                   # http://127.0.0.1:8765/
+
+The same read surfaces in a browser: tasks and runs, the leaderboard, a candidate's rationale
+with its claim quotes and mechanism note, run progress, the review queue, the criteria pool with
+lineage, and the resolved settings with the layer each value came from. Every page has a JSON
+twin at `/api/...` rendered from the same data.
+
+Three properties it keeps, each covered by a test:
+
+* **Loopback only.** It binds `127.0.0.1` (or `::1`) and refuses any other address, because the
+  surface is unauthenticated. To reach it from another machine, forward the port over SSH.
+* **Read-only.** It opens the store root with no lock, so it works while a run is writing, and
+  every write path is refused before SQLite is reached. Any method but GET or HEAD is 405.
+* **No decisions.** A pending expert decision is shown, never made: `mas review decide` on the
+  terminal is the only way to answer one. Runs are started the same way.
+
+Keys are never rendered: a setting naming an API key shows where the key is read from, never a
+value, and no page opens a key file.
+
 ### Settings
 
 Every tunable number — literature breadth and depth, documents read, criteria iterations,

@@ -17,9 +17,15 @@ class Core:
     artifacts: ArtifactStore
 
     @classmethod
-    def open(cls, root: str | os.PathLike, **store_options) -> "Core":
-        store = Store.open(root, **store_options)
+    def open(cls, root: str | os.PathLike, *, read_only: bool = False, **store_options) -> "Core":
+        """Open a store root. `read_only=True` takes no lock, so it opens a root a host already holds,
+        and refuses every write with `StoreError("read_only", ...)`."""
+        store = Store.open(root, read_only=read_only, **store_options)
         return cls(store, Journal(store), ArtifactStore(store))
+
+    @property
+    def read_only(self) -> bool:
+        return self.store.read_only
 
     def close(self) -> None:
         self.store.close()

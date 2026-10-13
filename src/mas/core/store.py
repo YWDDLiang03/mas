@@ -5,6 +5,12 @@ append-only, enforced by triggers, so no code path can rewrite or delete them.
 The host holds an operating-system lock on the root for as long as it is open;
 the operating system releases it when the process ends, so a crash never leaves
 a stale lock.
+
+A root may also be opened read-only (`read_only=True`). Such a reader takes no
+lock, so it works while a service host holds the root, and every write path is
+refused with `StoreError("read_only", ...)` before SQLite is reached. This is
+what a second surface over a running store gets: the browser workbench
+(`ui_ux_spec.md` §15) reads one store while a run writes it.
 """
 
 from __future__ import annotations
@@ -14,6 +20,7 @@ import sqlite3
 import sys
 import threading
 from pathlib import Path
+from typing import Any
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS events (
@@ -136,25 +143,55 @@ class _RootLock:
             self._handle = None
 
 
+class _ReadOnlyConnection:
+    """A connection that answers reads and refuses every write, naming the reason."""
+
+    READING = ("select", "explain", "with")
+
+    def __init__(self, connection: sqlite3.Connection):
+        self.connection = connection
+
+    def execute(self, sql: str, parameters: Any = ()) -> sqlite3.Cursor:
+        head = sql.strip().split(" ", 1)[0].lower()
+        if head not in self.READING and not (head == "pragma" and "=" not in sql):
+            raise StoreError("read_only", f"this store root is open read-only; {sql.strip()[:40]!r} would write")
+        return self.connection.execute(sql, parameters)
+
+    def executescript(self, sql: str) -> None:
+        raise StoreError("read_only", "this store root is open read-only; a script would write")
+
+    def executemany(self, sql: str, parameters: Any) -> None:
+        raise StoreError("read_only", f"this store root is open read-only; {sql.strip()[:40]!r} would write")
+
+    def close(self) -> None:
+        self.connection.close()
+
+
 class Store:
     """An open store root. Use `Store.open(path)`; close it, or use it as a context manager."""
 
-    def __init__(self, root: Path, connection: sqlite3.Connection, lock: _RootLock):
+    def __init__(self, root: Path, connection: "sqlite3.Connection | _ReadOnlyConnection", lock: _RootLock,
+                 read_only: bool = False):
         self.root = root
         self.db = connection
+        self.read_only = read_only
         self._lock = lock
         self.write_lock = threading.RLock()  # one writer at a time inside this host
 
     @classmethod
-    def open(cls, root: str | os.PathLike, *, create: bool = True, allow_unsupported_root: bool = False) -> "Store":
+    def open(cls, root: str | os.PathLike, *, create: bool = True, allow_unsupported_root: bool = False,
+             read_only: bool = False) -> "Store":
+        """Open a store root. `read_only=True` creates nothing, takes no lock, and refuses every write."""
         path = Path(root)
-        if create:
+        if create and not read_only:
             path.mkdir(parents=True, exist_ok=True)
         if not path.is_dir():
             raise StoreError("store_root_missing", f"{path} is not a directory")
         reason = unsupported_root_reason(path)
         if reason and not allow_unsupported_root:
             raise StoreError("store_root_unsupported", reason)
+        if read_only:
+            return cls._open_read_only(path)
         lock = _RootLock(path)
         lock.acquire()
         try:
@@ -167,6 +204,15 @@ class Store:
             lock.release()
             raise
         return cls(path, connection, lock)
+
+    @classmethod
+    def _open_read_only(cls, path: Path) -> "Store":
+        """A reader of an existing root: no lock, so another host may hold the root and keep writing."""
+        database = path / "store.db"
+        if not database.is_file():
+            raise StoreError("store_root_missing", f"{database} does not exist")
+        connection = sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True, check_same_thread=False)
+        return cls(path, _ReadOnlyConnection(connection), _RootLock(path), read_only=True)
 
     def close(self) -> None:
         try:
