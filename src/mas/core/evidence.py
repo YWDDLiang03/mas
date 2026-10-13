@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from . import ledger, reading
+from . import ledger, reading, vocab
 from .journal import actor as make_actor
 from .models import ModelError
 from .runtime import Core
@@ -22,8 +22,24 @@ from .runtime import Core
 class BudgetBlocked(Exception):
     """The cell could not be attempted because its budget reservation is used up."""
 
+# Fallback when a tool does not declare a basis: what the kind of value it returned implies.
+# `curated` maps to `measured` because a curated potency record (a pChEMBL value) is an
+# experimental measurement a curator carried over from the primary literature. A tool whose
+# records are assertions rather than measurements must say so per value (`determination_basis`).
 DB_BASIS = {"measured": "measured", "curated": "measured", "derived": "derived", "predicted": "predicted",
             "simulated": "predicted"}
+
+
+def determination_basis(value: dict[str, Any]) -> str:
+    """The basis the tool declared for this value, else the basis its value kind implies.
+
+    A tool knows what its own records are: ChEMBL's mechanism table states that engagement
+    is documented, which is `curated`, not a measurement of anything, so it declares that
+    basis itself. A declared basis is validated against the registered value-kind
+    vocabulary, so an unregistered one is refused rather than carried into a claim.
+    """
+    declared = value.get("determination_basis")
+    return vocab.require("value_kind", declared) if declared is not None else DB_BASIS.get(value.get("value_kind"), "measured")
 
 
 def claims_from_tool_result(core: Core, stream_id: str, result, *, candidate: dict[str, Any], attribute_ref: str,
@@ -55,7 +71,7 @@ def claims_from_tool_result(core: Core, stream_id: str, result, *, candidate: di
             "claim_text": f"{value.get('name')} = {shown} {value.get('unit') or ''}".strip(),
             "claim_text_marker": "verbatim", "normalized_statement": f"{value.get('name')} = {shown} {value.get('unit') or ''}".strip(),
             "claim_type": "data_derived", "entities": [candidate["candidate_id"]], "evidence_kind": evidence_kind,
-            "determination_basis": DB_BASIS.get(value.get("value_kind"), "measured"), "value": value.get("value"),
+            "determination_basis": determination_basis(value), "value": value.get("value"),
             "value_low": low, "value_high": high,
             "unit": value.get("unit"), "unit_as_reported": value.get("unit"), "polarity": "supports",
             "scope_match": "direct", "reading_depth": "not_read", "verification_status": "unverified",

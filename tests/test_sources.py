@@ -101,6 +101,198 @@ def test_bookshelf_without_a_synced_book_is_not_configured(tmp_path):
     assert absent.value.absence_reason == "not_configured"
 
 
+DRUG_ENTRY_SECTIONS = ("Indications", "Mechanism of Action", "Administration")
+TOPIC_SECTIONS = ("Introduction", "Etiology", "Pathophysiology")
+
+
+def _bits(article: str, title: str, headings, text: str) -> str:
+    """A minimal BITS chapter: the section headings decide whether it reads as a drug entry."""
+    sections = "".join(f'<sec id="{article}.s{n}"><title>{h}</title><p>{title}: {text}</p></sec>'
+                       for n, h in enumerate(headings, 1))
+    return ('<book-part-wrapper id="%s" content-type="chapter" dtd-version="2.0">'
+            '<book-meta><book-title-group><book-title>Pearls</book-title></book-title-group>'
+            '<pub-date><year>2025</year></pub-date></book-meta>'
+            '<book-part book-part-type="chapter"><book-part-meta><title-group><title>%s</title></title-group>'
+            '</book-part-meta><body>%s</body></book-part></book-part-wrapper>' % (article, title, sections))
+
+
+def three_chapter_library(tmp_path) -> bookshelf.BookshelfLibrary:
+    """Three synced chapters, so document frequency can tell the query's terms apart:
+    `exampletinib` is in one chapter, `clearance` in two, `inhibitor` and `oral` in all three,
+    and `metabolism` in none."""
+    library = bookshelf.BookshelfLibrary(tmp_path)
+    book = library.root / "NBK9"
+    book.mkdir(parents=True)
+    (book / "article-9001.nxml").write_text((FIXTURES / "chapter.nxml").read_text(encoding="utf-8"), encoding="utf-8")
+    (book / "article-9002.nxml").write_text(_bits("article-9002", "Solid Tumour Management", TOPIC_SECTIONS,
+                                                  "an oral inhibitor is chosen once clearance is known"),
+                                            encoding="utf-8")
+    (book / "article-9003.nxml").write_text(_bits("article-9003", "Monotinib", DRUG_ENTRY_SECTIONS,
+                                                  "oral inhibitor with a clearance of 20 L/h"), encoding="utf-8")
+    (book / "manifest.json").write_text(json.dumps({"accession": "NBK9", "slug": "pearls", "title": "Pearls",
+                                                    "updated": "2026-10-01", "chapters": 3, "license": "CC BY"}))
+    return library
+
+
+LONG_QUERY = "exampletinib AND clearance AND inhibitor AND oral AND metabolism"
+
+
+def _esummary(uids: dict[str, dict]) -> dict:
+    return {"result": dict({"uids": list(uids)}, **uids)}
+
+
+def test_bookshelf_relaxes_a_long_query_and_records_every_attempt(tmp_path, monkeypatch):
+    library = three_chapter_library(tmp_path)
+    searches = []
+
+    def fake_get(url, params=None, **kw):
+        if url.endswith("esearch.fcgi"):
+            searches.append(params["term"])
+            return {"esearchresult": {"count": "9", "idlist": ["1"] if len(searches) == 1 else ["1", "2", "3", "4", "5"]}}
+        return _esummary({"1": {"bookaccessionid": "NBK9", "chapteraccessionid": "NBK100", "rid": "NBK100/article-9001.s2"}})
+
+    monkeypatch.setattr(http, "get", fake_get)
+    reply = bookshelf.BookshelfSearch(library).invoke("search", {"query": LONG_QUERY, "limit": 25})
+    attempts = [r for r in reply.records if "attempt" in r]
+    # the query as written first, then only its most distinctive clauses; the term the corpus does
+    # not contain at all goes first, then the words every chapter has, keeping the rarest
+    assert len(attempts) == 2 and len(searches) == 2 and attempts[0]["terms"] == LONG_QUERY.split(" AND ")
+    assert attempts[1]["terms"] == ["exampletinib", "clearance", "inhibitor"]
+    assert attempts[1]["dropped"] == ["oral", "metabolism"] and attempts[1]["relaxed"]
+    assert "(exampletinib AND clearance AND inhibitor) AND (pearls[book])" == searches[1]
+    assert reply.records[-1] == {"query": LONG_QUERY, "searches": 2, "target": 5, "hit_count": 5, "returned": 1,
+                                 "reference_entries": 0}
+
+
+def test_bookshelf_relaxation_is_bounded_and_stops_when_terms_run_out(tmp_path, monkeypatch):
+    library = three_chapter_library(tmp_path)
+    searches, calls = [], []
+
+    def fake_get(url, params=None, **kw):
+        calls.append(url)
+        if url.endswith("esearch.fcgi"):
+            searches.append(params["term"])
+            return {"esearchresult": {"count": "1", "idlist": ["1"]}}
+        return _esummary({"1": {"bookaccessionid": "NBK9", "chapteraccessionid": "NBK100", "rid": "NBK100/article-9001.s2"}})
+
+    monkeypatch.setattr(http, "get", fake_get)
+    reply = bookshelf.BookshelfSearch(library).invoke("search", {"query": LONG_QUERY, "limit": 25})
+    attempts = [r for r in reply.records if "attempt" in r]
+    # the target is never reached, so relaxation stops at the search bound, halving the terms each
+    # time; the whole query costs that many searches plus the one summary call
+    assert len(searches) == bookshelf.MAX_SEARCHES_PER_QUERY == len(attempts)
+    assert len(calls) == bookshelf.MAX_SEARCHES_PER_QUERY + 1
+    assert [len(a["terms"]) for a in attempts] == [5, 3, 2, 1] and attempts[-1]["terms"] == ["exampletinib"]
+    assert len(reply.values) == 1          # the one chapter the single id resolves to
+
+
+def test_bookshelf_ranks_a_drug_entry_above_a_topic_chapter(tmp_path, monkeypatch):
+    library = three_chapter_library(tmp_path)
+
+    def fake_get(url, params=None, **kw):
+        if url.endswith("esearch.fcgi"):
+            return {"esearchresult": {"count": "2", "idlist": ["1", "2"]}}
+        return _esummary({"1": {"bookaccessionid": "NBK9", "chapteraccessionid": "NBK200", "rid": "NBK200/article-9002.s2"},
+                          "2": {"bookaccessionid": "NBK9", "chapteraccessionid": "NBK300", "rid": "NBK300/article-9003.s1"}})
+
+    monkeypatch.setattr(http, "get", fake_get)
+    reply = bookshelf.BookshelfSearch(library).invoke("search", {"query": "monotinib clearance", "limit": 5,
+                                                                 "min_chapters": 1})
+    hits = [v["value"] for v in reply.values]
+    # the search engine returned the topic chapter first; the entry the query named outranks it
+    assert [h["title"] for h in hits] == ["Monotinib", "Solid Tumour Management"]
+    assert [h["best_rank"] for h in hits] == [0, 1]
+    assert hits[0]["is_reference_entry"] and not hits[0]["is_review"] and hits[0]["title_matched_query"]
+    assert hits[0]["pub_types"] == ["book chapter", "reference entry"]
+    assert hits[1]["is_review"] and not hits[1]["is_reference_entry"]
+    assert hits[1]["pub_types"] == ["book chapter", "review"]
+    # reading.search keeps the provider's order, so the entry is the first hit the reader sees
+    assert reply.records[-1]["reference_entries"] == 1
+
+
+# a drug entry and a topic chapter of the three-chapter library, as esummary returns them
+ENTRY_RECORD = {"bookaccessionid": "NBK9", "chapteraccessionid": "NBK300", "rid": "NBK300/article-9003.s1"}
+TOPIC_RECORD = {"bookaccessionid": "NBK9", "chapteraccessionid": "NBK200", "rid": "NBK200/article-9002.s2"}
+
+
+def _fake_eutils(records: dict[str, dict]):
+    """esearch returning the given uids in order, and the matching esummary."""
+    def fake_get(url, params=None, **kw):
+        if url.endswith("esearch.fcgi"):
+            return {"esearchresult": {"count": str(len(records)), "idlist": list(records)}}
+        return _esummary(records)
+    return fake_get
+
+
+def test_bookshelf_genre_alone_does_not_outrank_a_query_match(tmp_path, monkeypatch):
+    """Being a drug entry is not relevance: it used to be added to every hit's score, so one
+    monograph that merely mentioned a query word buried the chapter the query was about."""
+    library = three_chapter_library(tmp_path)
+    # the search engine puts the entry first; the query names the topic chapter by title
+    monkeypatch.setattr(http, "get", _fake_eutils({"1": ENTRY_RECORD, "2": TOPIC_RECORD}))
+    hits = [v["value"] for v in bookshelf.BookshelfSearch(library).invoke(
+        "search", {"query": "solid tumour management clearance", "limit": 5, "min_chapters": 1}).values]
+    assert [h["title"] for h in hits] == ["Solid Tumour Management", "Monotinib"]
+    assert hits[0]["title_matched_query"] and not hits[1]["title_matched_query"]
+    # the genre is still reported on the hit; it just does not rank
+    assert hits[1]["is_reference_entry"] and hits[1]["pub_types"] == ["book chapter", "reference entry"]
+    assert not hits[1]["is_review"] and hits[0]["is_review"]
+    # with no title matching the query at all, the search engine's own order is kept
+    monkeypatch.setattr(http, "get", _fake_eutils({"1": TOPIC_RECORD, "2": ENTRY_RECORD}))
+    hits = [v["value"] for v in bookshelf.BookshelfSearch(library).invoke(
+        "search", {"query": "clearance", "limit": 5, "min_chapters": 1}).values]
+    assert [h["title"] for h in hits] == ["Solid Tumour Management", "Monotinib"]
+
+
+def test_bookshelf_prefers_a_reference_entry_among_equal_title_matches(tmp_path, monkeypatch):
+    """Genre still breaks a tie between chapters the query already names by title."""
+    library = three_chapter_library(tmp_path)
+    monkeypatch.setattr(http, "get", _fake_eutils({"1": TOPIC_RECORD, "2": ENTRY_RECORD}))
+    hits = [v["value"] for v in bookshelf.BookshelfSearch(library).invoke(
+        "search", {"query": '"solid tumour management" monotinib', "limit": 5, "min_chapters": 1}).values]
+    assert all(h["title_matched_query"] for h in hits)
+    assert [h["title"] for h in hits] == ["Monotinib", "Solid Tumour Management"]
+
+
+def test_bookshelf_resolves_a_whole_chapter_hit_through_the_title_index(tmp_path, monkeypatch):
+    library = three_chapter_library(tmp_path)
+    assert library.index().article_for_title("NBK9", "Monotinib") == "article-9003"
+
+    def fake_get(url, params=None, **kw):
+        if url.endswith("esearch.fcgi"):
+            return {"esearchresult": {"count": "2", "idlist": ["1", "2"]}}
+        # a whole-chapter match carries no section, and the book's own record is not a chapter
+        return _esummary({"1": {"bookaccessionid": "NBK9", "chapteraccessionid": "NBK300", "rid": "NBK300",
+                                "title": "Monotinib"},
+                          "2": {"bookaccessionid": "NBK9", "chapteraccessionid": "NBK9", "rid": "NBK9",
+                                "title": "Pearls"}})
+
+    monkeypatch.setattr(http, "get", fake_get)
+    hits = [v["value"] for v in bookshelf.BookshelfSearch(library).invoke(
+        "search", {"query": "monotinib", "min_chapters": 1}).values]
+    assert [(h["nbk"], h["article_file"], h["matched_sections"]) for h in hits] == [("NBK300", "article-9003", [])]
+
+
+def test_bookshelf_drops_query_syntax_written_for_another_search_engine(tmp_path, monkeypatch):
+    library = three_chapter_library(tmp_path)
+    searches = []
+
+    def fake_get(url, params=None, **kw):
+        if url.endswith("esearch.fcgi"):
+            searches.append(params["term"])
+            return {"esearchresult": {"count": "0", "idlist": []}}
+        raise AssertionError("no summary call without ids")
+
+    monkeypatch.setattr(http, "get", fake_get)
+    reply = bookshelf.BookshelfSearch(library).invoke("search", {
+        "query": '("exampletinib"[tiab] OR "monotinib") AND clearance AND FIRST_PDATE:[1900-01-01 TO 2026-10-13]',
+        "cutoff_date": "2026-10-13", "limit": 5})
+    # Entrez has no such fields; left in place they would be ANDed in as words and return nothing
+    assert all("FIRST_PDATE" not in term and "[tiab]" not in term for term in searches)
+    assert searches[0] == '(("exampletinib" OR "monotinib") AND clearance) AND (pearls[book])'
+    assert reply.values == [] and reply.records[-1]["returned"] == 0
+
+
 # --- MediaWiki -------------------------------------------------------------------------------
 
 def test_wiki_reader_reads_the_revision_in_force_at_the_cutoff(monkeypatch):
@@ -204,6 +396,47 @@ def test_search_queries_each_source_and_records_unavailable_ones(core):
     assert coverage["hits_by_source"] == {"europepmc": 1, "wikipedia": 1}
     assert {h["source"] for h in hits} == {"europepmc", "wikipedia"} and len(hits) == 2
     assert not coverage["retrieval_failures"]
+
+
+def test_search_coverage_records_what_each_source_was_actually_asked(core):
+    """The provider's own records — for Bookshelf the relaxation attempts, with the terms sent and
+    dropped — reach the search_coverage artifact, not only the broker's tool-result artifact."""
+    attempts = [{"query": "(a AND b) AND (pearls[book])", "attempt": 1, "terms": ["a", "b"], "dropped": [],
+                 "relaxed": False, "hit_count": 0},
+                {"query": "(a) AND (pearls[book])", "attempt": 2, "terms": ["a"], "dropped": ["b"],
+                 "relaxed": True, "hit_count": 1}]
+    broker = Broker(core)
+    broker.register(tool("tool_literature_bookshelf_search", "literature_retrieval", "source_retrieval",
+                         lambda i: ProviderResponse(values=[{"name": "search_hit", "value": paper(1), "value_kind": "curated"}],
+                                                    records=[dict(a) for a in attempts])))
+    broker.register(tool("tool_literature_europepmc_search", "literature_retrieval", "source_retrieval",
+                         lambda i: ProviderResponse(values=[{"name": "search_hit", "value": paper(2), "value_kind": "curated"}])))
+    _, coverage_id = reading.search(core, broker, "run_y", ["a AND b"], cutoff_date=None,
+                                    sources=["bookshelf", "europepmc"])
+    counts = {c["source"]: c for c in core.artifacts.payload(coverage_id)["result_counts"]}
+    # the keys other code and tests read are unchanged; the provider detail sits under one new key
+    assert set(counts["bookshelf"]) == {"query", "source", "returned", "tool_id", "provider_records"}
+    assert counts["bookshelf"]["query"] == "a AND b" and counts["bookshelf"]["returned"] == 1
+    assert counts["bookshelf"]["tool_id"] == "tool_literature_bookshelf_search"
+    assert [r["terms"] for r in counts["bookshelf"]["provider_records"]] == [["a", "b"], ["a"]]
+    assert counts["bookshelf"]["provider_records"][1]["dropped"] == ["b"]
+    assert counts["europepmc"]["provider_records"] == []        # a provider that records nothing
+
+
+def test_reading_order_reads_a_reference_entry_with_the_reviews():
+    """Honest genre flags give a drug monograph is_review=False; it must not therefore sort below
+    every review, because that put it out of reach of the per-dimension document budget."""
+    review = {"title": "Review", "is_review": True, "pmcid": "PMC1", "found_by": ["q"], "best_rank": 3}
+    entry = {"title": "Monotinib", "is_review": False, "is_reference_entry": True, "source": "bookshelf",
+             "found_by": ["q"], "best_rank": 1}
+    primary = {"title": "Trial report", "is_review": False, "pmcid": "PMC2", "found_by": ["q", "q2"], "best_rank": 0}
+    assert [h["title"] for h in sorted([primary, review, entry], key=derivation.reading_order)] == [
+        "Monotinib", "Review", "Trial report"]
+    # among equally preferred genres the earlier keys still decide: reachable full text, then
+    # how many queries found the hit, then the source's own rank
+    entry_unreachable = dict(entry, source="mediawiki", title="Unreachable entry")
+    assert [h["title"] for h in sorted([entry_unreachable, review], key=derivation.reading_order)] == [
+        "Review", "Unreachable entry"]
 
 
 def test_enumeration_runs_follow_up_rounds_with_decaying_breadth(core):

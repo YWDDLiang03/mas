@@ -54,6 +54,25 @@ def test_live_bookshelf_finds_and_reads_a_synced_chapter():
     assert document["license"].startswith("https://creativecommons.org/")
 
 
+def test_live_bookshelf_relaxes_a_multi_term_dimension_query():
+    """A query of the shape the planner writes for Europe PMC returned one chapter or none,
+    because E-utilities ANDs every term; relaxation has to reach several."""
+    from mas.adapters.literature import bookshelf
+    library = bookshelf.BookshelfLibrary()
+    if "NBK430685" not in library.synced():
+        pytest.skip("StatPearls not synced (mas sources sync bookshelf --book NBK430685)")
+    reply = bookshelf.BookshelfSearch(library).invoke("search", {
+        "query": "oral bioavailability absorption food effect tyrosine kinase inhibitor",
+        "limit": 25, "cutoff_date": "2026-10-13"})
+    hits = [v["value"] for v in reply.values]
+    attempts = [r for r in reply.records if "attempt" in r]
+    assert len(hits) >= 5, reply.records
+    assert 1 < len(attempts) <= bookshelf.MAX_SEARCHES_PER_QUERY
+    assert [len(a["terms"]) for a in attempts] == sorted((len(a["terms"]) for a in attempts), reverse=True)
+    assert any(h["is_reference_entry"] for h in hits), [h["title"] for h in hits]
+    assert hits[0]["is_reference_entry"] or not any(h["is_reference_entry"] for h in hits)
+
+
 @pytest.mark.parametrize("site", ["wikipedia", "wikibooks"])
 def test_live_mediawiki_search_and_revision_pinned_read(site):
     from mas.adapters.literature import mediawiki

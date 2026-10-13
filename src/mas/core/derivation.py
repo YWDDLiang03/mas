@@ -105,6 +105,20 @@ def _excluded(hit: dict[str, Any], case_sources: list[dict[str, Any]]) -> bool:
     return reading.is_case_source(hit, case_sources)
 
 
+def reading_order(hit: dict[str, Any]) -> tuple[bool, bool, int, int]:
+    """Reading order for criterion discovery: a review or a reference entry first, then a document
+    whose full text is reachable, then the hits more queries found, then the source's own rank.
+
+    WHY a reference entry counts with the reviews: the genre flags are honest, so a drug monograph
+    carries `is_review=False`. With `not is_review` as the only primary key, every monograph sorted
+    below every review from every source and the per-dimension document budget never reached one —
+    yet the monograph is where a measured quantity is attributable to a named compound.
+    """
+    return (not (hit.get("is_review") or hit.get("is_reference_entry")),
+            not (hit.get("pmcid") or hit.get("source") in ("bookshelf", "uploads")),
+            -len(hit.get("found_by", [])), hit.get("best_rank", 0))
+
+
 # Research breadth and depth when no settings are given: one round, as before settings existed.
 DEFAULT_RESEARCH = {"breadth": 5, "depth": 1, "breadth_decay": 0.5, "results_per_query": 10,
                     "max_records_screened": 300, "max_documents": 8, "saturation_k": 3, "saturation_stop": 0.0,
@@ -171,8 +185,7 @@ def enumerate_dimension(core: Core, broker, roster: ModelRoster, stream_id: str,
         seen.update(reading._key(h) for h in fresh)
         included = [h for h in fresh if not _excluded(h, case_sources)]
         excluded_all += [h for h in fresh if _excluded(h, case_sources)]
-        included.sort(key=lambda h: (not h.get("is_review"), not (h.get("pmcid") or h.get("source") in ("bookshelf", "uploads")),
-                                     -len(h.get("found_by", [])), h.get("best_rank", 0)))
+        included.sort(key=reading_order)
         included_all += included
         stale, documents, contributing, new_topics = 0, 0, 0, 0
         for hit in included:

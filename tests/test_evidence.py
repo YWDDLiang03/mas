@@ -1,7 +1,9 @@
 import pytest
 
-from mas.core import identity, ledger
-from mas.core.broker import Broker
+from mas.core import identity, ledger, vocab
+from mas.core.assessor import usable_claims
+from mas.core.broker import Broker, ToolResult
+from mas.core.evidence import claims_from_tool_result
 from mas.core.journal import actor
 from mas.core.runtime import Core
 from tests.fakes import AbsentProvider, FakeIdentity, FakeProperty
@@ -95,3 +97,51 @@ def test_claims_need_locations_and_snapshots_freeze_admitted_claims(core):
     snapshot = ledger.freeze_snapshot(core, "run_x", task_id="task_t", claim_ids=[admitted], cutoff_at="2026-10-13",
                                       tool_manifest=[], by=WHO)
     assert snapshot == "evs_task_t_1"
+
+
+# --- what a tool returns is recorded with the basis the tool declares ---------------------
+
+MECHANISM_VALUE = {"name": "target_engagement", "value": True, "unit": None, "value_kind": "curated",
+                   "determination_basis": "curated", "source_record_ref": "chembl_mechanism_304",
+                   "conditions": {"action_type": "INHIBITOR"}}
+POTENCY_VALUE = {"name": "pchembl_value", "value": 7.5, "unit": "pChEMBL", "value_kind": "curated",
+                 "source_record_ref": "chembl_activity_909963", "conditions": {"standard_type": "IC50"}}
+ENGAGEMENT_ATTRIBUTE = {"attribute_id": "attr_engagement", "version": 1, "name": "ABL1 engagement on record",
+                        "measurement_kind": "categorical", "unit": None,
+                        "acceptable_value_sources": ["database_entry"]}
+
+
+def tool_result(values, tool_id="tool_drug_chembl_mechanism"):
+    return ToolResult(result_id="tres_1", invocation={"tool_id": tool_id}, outcome="ok", values=values, records=[],
+                      provenance={"tool_id": tool_id, "invocation_id": "inv_1", "license_id": "CC BY-SA 3.0 (ChEMBL)",
+                                  "data_version": "chembl", "upstream_ref": ["chembl:mechanism:CHEMBL941:CHEMBL1862"]})
+
+
+def db_claims(core, values, tool_id="tool_drug_chembl_mechanism"):
+    return claims_from_tool_result(core, "run_x", tool_result(values, tool_id), candidate={"candidate_id": "cand_ik-K1"},
+                                   attribute_ref="attr_engagement@v1", evidence_kind="database_entry",
+                                   link_basis="exact_identifier_match")
+
+
+def test_a_tool_declared_basis_is_kept_and_an_undeclared_one_falls_back_to_the_value_kind(core):
+    claims = db_claims(core, [MECHANISM_VALUE, POTENCY_VALUE])
+    # the mechanism row is a curated assertion and says so; a curated potency record is a
+    # measurement a curator carried over, and still maps to `measured` through DB_BASIS
+    assert [c["determination_basis"] for c in claims] == ["curated", "measured"]
+    assert all(c["admission_state"] == "admitted" for c in claims)
+
+
+def test_an_attribute_that_does_not_accept_curated_claims_gets_no_evidence(core):
+    claims = db_claims(core, [MECHANISM_VALUE])
+    # fails closed: an attribute that forgets acceptable_determination_bases ["curated"] sees
+    # nothing, rather than counting a categorical assertion as a measurement
+    usable, set_aside = usable_claims(claims, ENGAGEMENT_ATTRIBUTE)
+    assert usable == [] and [c["set_aside_reason"] for c in set_aside] == ["determination_basis_not_accepted"]
+    declared = dict(ENGAGEMENT_ATTRIBUTE, acceptable_determination_bases=["curated"])
+    usable, set_aside = usable_claims(claims, declared)
+    assert [c["claim_id"] for c in usable] == [claims[0]["claim_id"]] and set_aside == []
+
+
+def test_an_unregistered_determination_basis_is_refused(core):
+    with pytest.raises(vocab.VocabularyViolation):
+        db_claims(core, [dict(MECHANISM_VALUE, determination_basis="asserted")])

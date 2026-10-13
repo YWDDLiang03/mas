@@ -192,7 +192,9 @@ def search(core: Core, broker, stream_id: str, queries: list[str], *, cutoff_dat
     Without `sources`, each query goes to the first search tool that answers. With `sources`
     (registry ids, see adapters/literature/registry.py), each query goes to every permitted
     source in turn; a source that is not set up is recorded as unavailable, not as a failure.
-    Returns (hits, coverage_record_artifact_id). Each hit lists the queries that found it.
+    Returns (hits, coverage_record_artifact_id). Each hit lists the queries that found it. Every
+    `result_counts` entry carries what the source itself recorded about the call under
+    `provider_records` — for Bookshelf, the relaxation attempts actually sent to E-utilities.
     """
     from mas.adapters.literature import registry
     who = make_actor("agent", "finder", "retriever")
@@ -215,7 +217,12 @@ def search(core: Core, broker, stream_id: str, queries: list[str], *, cutoff_dat
                 failures.append({"query": query, "source": source_id, "outcome": result.outcome,
                                  "reason": (result.error or {}).get("class") or result.absence_reason})
             hits = [v["value"] for v in result.values if v.get("name") == "search_hit"]
-            counts.append({"query": query, "source": source_id, "returned": len(hits), "tool_id": result.invocation["tool_id"]})
+            # `provider_records` is what the source itself recorded about the attempt — for Bookshelf,
+            # the relaxation attempts: the terms actually sent, the terms dropped, the hits each got.
+            # Without it the coverage artifact says only what was requested, not what was asked.
+            counts.append({"query": query, "source": source_id, "returned": len(hits),
+                           "tool_id": result.invocation["tool_id"],
+                           "provider_records": list(result.records or [])})
             for rank, hit in enumerate(hits):
                 if source_id and not hit.get("source"):
                     hit = dict(hit, source=source_id)

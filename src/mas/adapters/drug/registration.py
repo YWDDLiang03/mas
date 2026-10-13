@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from mas.adapters.literature import tools as literature_tools
 
-from .chembl import ChEMBLBioactivity, TargetCache
+from .chembl import ChEMBLBioactivity, ChEMBLMechanism, TargetCache
 from .gtopdb import GtoPdbAffinity, GtoPdbData
 from .pubchem import PubChemIdentity, PubChemProperty
 from .universe import UniverseIdentity, UniverseRecordField
@@ -32,12 +32,13 @@ EVIDENCE_KINDS = ("curated_measurement", "database_entry", "peer_reviewed", "pre
 def register(broker, *, literature: bool = True, universe_file: str | None = None, cache_dir: str | None = None,
              upload_dir: str | None = None) -> None:
     """Register the adapter's tools. With a universe file, identity resolves from it first (PubChem stays as fallback)
-    and target bioactivity is fetched once per target. Literature sources are registered for every task; which of
-    them a search uses is the `search.sources` setting."""
+    and a target's bioactivity and mechanism records are each fetched once per target. Literature sources are
+    registered for every task; which of them a search uses is the `search.sources` setting."""
     if universe_file:
         broker.register(UniverseIdentity(universe_file))
         broker.register(UniverseRecordField(universe_file))
-    for provider in (PubChemIdentity(), PubChemProperty(), ChEMBLBioactivity(TargetCache() if universe_file else None),
+    targets = TargetCache() if universe_file else None
+    for provider in (PubChemIdentity(), PubChemProperty(), ChEMBLBioactivity(targets), ChEMBLMechanism(targets),
                      GtoPdbAffinity(GtoPdbData(cache_dir))):
         broker.register(provider)
     if literature:
@@ -81,6 +82,27 @@ EVIDENCE_CATALOG.append(
      "note": "ChEMBL molecule record. Route flags and warnings are booleans (use measurement_kind categorical, unit null, "
              "cutoff {comparator: '==', value: true or false}); they are often empty before approval, which gives unknown, "
              "never fail. first_approval is a year; max_phase is 0-4 (quantitative)."})
+
+EVIDENCE_CATALOG.append(
+    {"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records", "identifier_scheme": "inchikey",
+     "parameters": {"target_chembl_id": "<a ChEMBL target id from the task's scope entities>"},
+     "units": {"target_engagement": None}, "evidence_kind": "database_entry", "determination_basis": "curated",
+     "note": "ChEMBL's curated mechanism-of-action table: one record per curated statement, with its references "
+             "(PubMed ids, FDA and EMA labels, DailyMed label sections), that this compound engages this target; the "
+             "action type (INHIBITOR, AGONIST, ...), the direct-interaction flag and any selectivity comment are in "
+             "each claim's conditions for a narrative to cite. A curation independent of the activity table: it covers "
+             "compound-target pairs that have no pChEMBL record at all, though the table is small (a few dozen records "
+             "per target) and reaches little beyond approved and late-stage drugs. Every record carries the same "
+             "categorical value, engagement on record (use measurement_kind "
+             "categorical, unit null, cutoff {comparator: '==', value: true}); curation is sparse outside developed "
+             "drugs, so absence must give unknown, never fail. A record is an expert assertion carrying references, "
+             "not a measurement of anything, so every claim from it is stamped determination_basis curated: an "
+             "attribute bound to this entry must declare acceptable_determination_bases: [\"curated\"], because the "
+             "default bases (measured, derived) set every one of these claims aside and the attribute then sees no "
+             "evidence at all. It is NOT a potency value and must never stand in for "
+             "one: a record says that engagement is documented, not how strong it is, and a compound with a record is "
+             "not thereby more potent than one measured at pChEMBL 9. Bind it as evidence of engagement alongside a "
+             "potency attribute, never as that attribute's source."})
 
 # Assessment dimensions offered to derivation; each is enumerated separately (design §8.3).
 DIMENSIONS = [
