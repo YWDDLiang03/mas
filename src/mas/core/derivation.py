@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from . import criteria, reading
+from . import assessor, criteria, reading
 from .clock import utc_now
 from .journal import actor as make_actor
 from .models import ModelRequest, ModelRoster, call_role
@@ -62,6 +62,8 @@ PROPOSER_SYSTEM = (
     "A preference rule without a cited cutoff uses predicate_form ordering: candidates are ranked by the value in "
     "the attribute's direction. "
     "Bind each attribute's evidence_request to one entry of the evidence catalog and fill its parameters. "
+    "When that entry states a determination_basis, list it in the attribute's acceptable_determination_bases, "
+    "or every value the source returns is set aside and the attribute carries no evidence. "
     "Never name or allude to any specific candidate compound in definitions, rationales, or rules. "
     "Merge duplicates; record what you considered and rejected, with reasons. Recall matters: cover every distinct "
     "property the claims support, across all dimensions."
@@ -278,9 +280,19 @@ def validate_proposal(proposal: dict[str, Any], *, claims_by_id: dict[str, dict[
         if not values:
             problems.append("arbitrary_cutoff: source_stated_value cutoff without a cited claim carrying a value")
     request = attribute.get("evidence_request") or {}
-    if not any(entry["capability"] == request.get("capability") and entry["question_kind"] == request.get("question_kind")
-               for entry in catalog):
+    entry = next((e for e in catalog if e["capability"] == request.get("capability")
+                  and e["question_kind"] == request.get("question_kind")), None)
+    if entry is None:
         problems.append("schema: evidence_request is not bound to a catalog entry")
+    elif entry.get("determination_basis"):
+        # The source states what its records are. An attribute that does not accept that basis has
+        # every value it receives set aside at assessment time, which reads as "no data" rather than
+        # as a mistake, so the pairing is refused here instead.
+        accepted = list(attribute.get("acceptable_determination_bases") or assessor.DEFAULT_DETERMINATION_BASES)
+        if entry["determination_basis"] not in accepted:
+            problems.append(f"evidence_support: the bound source returns {entry['determination_basis']} records and "
+                            f"acceptable_determination_bases {accepted} excludes that basis, so every value it returns "
+                            f"would be set aside and the attribute would carry no evidence")
     if request.get("capability") == "literature_retrieval" and not (attribute.get("measurement_kind") == "quantitative"
                                                                      and attribute.get("unit")):
         problems.append("schema: literature evidence yields numbers with units; a literature-bound attribute must be "

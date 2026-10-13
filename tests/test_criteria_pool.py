@@ -267,6 +267,35 @@ def test_budget_refusal_ends_the_round_unresolved_and_keeps_the_pool(core):
     assert any(e["state"] in pool.ACTIVE_STATES for e in pool.fold(core, task_id).values())
 
 
+def test_a_source_basis_the_attribute_does_not_accept_is_refused_not_silently_empty():
+    """A curated mechanism record is admitted evidence, but an attribute accepting only measured and
+    derived values sets every one of them aside at assessment time, which looks like "no data".
+    The validator refuses the pairing instead, so refinement can fix it."""
+    from mas.core.derivation import validate_proposal
+
+    entry = next(e for e in EVIDENCE_CATALOG if e["question_kind"] == "mechanism_records")
+    assert entry["determination_basis"] == "curated"
+    attribute = {
+        "name": "Engagement of the required receptor on a curated record",
+        "definition": "Whether a curated mechanism record states that the compound engages the required receptor",
+        "measurement_kind": "categorical", "unit": None, "direction": "higher_better",
+        "acceptable_value_sources": ["database_entry"], "aggregation": "any",
+        "evidence_request": {"capability": entry["capability"], "question_kind": entry["question_kind"],
+                             "parameters": {"target_chembl_id": "CHEMBL_T1"}},
+        "rationale": "the objective requires engagement of the named receptor"}
+    rule = {"rule_kind": "preference", "predicate_form": "threshold", "cutoff": {"comparator": "==", "value": True},
+            "cutoff_basis": "task_constraint"}
+    item = {"attribute": attribute, "supporting_claim_ids": ["claim_1"], "rule": rule}
+    claims = {"claim_1": {"claim_id": "claim_1", "determination_basis": "curated", "value": True}}
+
+    problems = validate_proposal(item, claims_by_id=claims, reference_labels=[], catalog=EVIDENCE_CATALOG)
+    assert [p for p in problems if "acceptable_determination_bases" in p], problems
+
+    accepted = dict(item, attribute=dict(attribute, acceptable_determination_bases=["curated"]))
+    assert not [p for p in validate_proposal(accepted, claims_by_id=claims, reference_labels=[],
+                                             catalog=EVIDENCE_CATALOG) if "acceptable_determination_bases" in p]
+
+
 def test_merge_groups_need_the_same_route_unit_and_direction():
     from mas.core.derivation_stages import merge_groups
     def entry(i, name, unit="%", direction="higher_better"):
