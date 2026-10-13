@@ -78,6 +78,24 @@ CRITIC_SYSTEM = (
     "proposal; findings without a referent are not allowed."
 )
 
+REVISION_SCHEMA = {
+    "type": "object", "required": ["revisions"],
+    "properties": {"revisions": {"type": "array", "items": {
+        "type": "object", "required": ["index", "action", "reason"],
+        "properties": {"index": {"type": "integer"}, "action": {"type": "string", "enum": ["revise", "withdraw"]},
+                       "proposal": {"type": "object"}, "reason": {"type": "string"}}}}},
+}
+
+REVISER_SYSTEM = PROPOSER_SYSTEM + (
+    " You are now revising proposals after a blind critique and deterministic validation. For each proposal listed, "
+    "either revise it so every material finding is resolved, or withdraw it with the reason. Keep supporting_claim_ids "
+    "to claims that actually support the attribute. Do not add new proposals."
+)
+
+# Material failures on these checks send a proposal back for one revision; still failing afterwards, it is rejected.
+REVISION_CHECKS = ("objective_conformance", "evidence_support", "unit_applicability_consistency",
+                   "counter_evidence_considered", "candidate_symmetric_scrutiny")
+
 ATTRIBUTE_FIELDS = ("name", "definition", "measurement_kind", "unit", "direction", "acceptable_value_sources",
                     "aggregation", "evidence_request", "rationale")
 RULE_FIELDS = ("rule_kind", "predicate_form", "cutoff", "cutoff_basis", "on_missing", "on_inapplicable", "on_conflict")
@@ -169,6 +187,10 @@ def validate_proposal(proposal: dict[str, Any], *, claims_by_id: dict[str, dict[
     if not any(entry["capability"] == request.get("capability") and entry["question_kind"] == request.get("question_kind")
                for entry in catalog):
         problems.append("schema: evidence_request is not bound to a catalog entry")
+    if request.get("capability") == "literature_retrieval" and not (attribute.get("measurement_kind") == "quantitative"
+                                                                     and attribute.get("unit")):
+        problems.append("schema: literature evidence yields numbers with units; a literature-bound attribute must be "
+                        "quantitative with a unit")
     text = json.dumps({k: attribute.get(k) for k in ("name", "definition", "rationale")} | {"rule": rule}, ensure_ascii=False)
     if reference_labels and reading.names_entity(reference_labels, text):
         problems.append("reference_candidate_scan: a proposal names the disclosed reference outcome")
@@ -213,45 +235,99 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
         role="proposer", system=PROPOSER_SYSTEM, messages=[{"role": "user", "content": prompt}],
         response_schema=PROPOSAL_SCHEMA, max_tokens=12000, metadata={"question": "propose criteria"}), ids=ids, budget=budget)
     proposals = [_normalize_proposal(p) for p in proposer.data["proposals"]]
-    accepted, rejected = [], list(proposer.data["considered_and_rejected"])
-    validator = {i: validate_proposal(p, claims_by_id=claims_by_id, reference_labels=reference_labels, catalog=catalog)
-                 for i, p in enumerate(proposals)}
-    critique_input = [{"index": i, "attribute": p["attribute"], "rule": p["rule"], "supporting_claim_ids": p["supporting_claim_ids"],
-                       "falsification_test": p["falsification_test"]} for i, p in enumerate(proposals)]
-    cited = {c for p in proposals for c in p["supporting_claim_ids"] if c in claims_by_id}
-    critic = call_role(core, roster, stream_id, ModelRequest(
-        role="critic", system=CRITIC_SYSTEM, response_schema=CRITIQUE_SCHEMA, max_tokens=8000,
-        messages=[{"role": "user", "content": f"Objective: {context['objective_text']}\n\nProposals:\n"
-                   f"{json.dumps(critique_input, ensure_ascii=False, indent=1)}\n\nCited claims:\n"
-                   f"{_claims_block([claims_by_id[c] for c in sorted(cited)])}"}],
-        metadata={"question": "critique proposals"}), ids=ids, budget=budget)
-    findings = [f for f in critic.data["findings"] if f.get("referent")]
-    blocking = {f["proposal_index"] for f in findings if f["verdict"] == "fail" and f.get("severity", "material") == "blocking"}
+    rejected = list(proposer.data["considered_and_rejected"])
+
+    def run_validator(items: dict[int, dict[str, Any]]) -> dict[int, list[str]]:
+        return {i: validate_proposal(p, claims_by_id=claims_by_id, reference_labels=reference_labels, catalog=catalog)
+                for i, p in items.items()}
+
+    def run_critic(items: dict[int, dict[str, Any]], prior: list[dict[str, Any]] | None = None):
+        critique_input = [{"index": i, "attribute": p["attribute"], "rule": p["rule"],
+                           "supporting_claim_ids": p["supporting_claim_ids"], "falsification_test": p["falsification_test"]}
+                          for i, p in items.items()]
+        cited = {c for p in items.values() for c in p["supporting_claim_ids"] if c in claims_by_id}
+        revision_note = ("\n\nThis is a revision check. Your earlier findings on these proposals were:\n"
+                         + json.dumps(prior, ensure_ascii=False, indent=1)) if prior else ""
+        response = call_role(core, roster, stream_id, ModelRequest(
+            role="critic", system=CRITIC_SYSTEM, response_schema=CRITIQUE_SCHEMA, max_tokens=8000,
+            messages=[{"role": "user", "content": f"Objective: {context['objective_text']}\n\nProposals:\n"
+                       f"{json.dumps(critique_input, ensure_ascii=False, indent=1)}\n\nCited claims:\n"
+                       f"{_claims_block([claims_by_id[c] for c in sorted(cited)])}{revision_note}"}],
+            metadata={"question": "revision check" if prior else "critique proposals"}), ids=ids, budget=budget)
+        return response, [f for f in response.data["findings"] if f.get("referent")]
+
+    def classify(index: int, problems: list[str], findings: list[dict[str, Any]]) -> str:
+        mine = [f for f in findings if f["proposal_index"] == index and f["verdict"] == "fail"]
+        if problems or any(f.get("severity") == "blocking" for f in mine):
+            return "blocked"
+        if any(f["check"] in REVISION_CHECKS and f.get("severity", "material") == "material" for f in mine):
+            return "revise"
+        return "accept"
+
+    items = dict(enumerate(proposals))
+    validator = run_validator(items)
+    critic, findings = run_critic(items)
+    status = {i: classify(i, validator[i], findings) for i in items}
+    to_revise = {i: p for i, p in items.items() if status[i] in ("revise", "blocked")}
+    revision_record: list[dict[str, Any]] = []
+    if to_revise:
+        notes = [{"index": i, "attribute": p["attribute"], "rule": p["rule"],
+                  "supporting_claim_ids": p["supporting_claim_ids"], "expected_change": p["expected_change"],
+                  "falsification_test": p["falsification_test"], "validator_problems": validator[i],
+                  "critic_findings": [f for f in findings if f["proposal_index"] == i and f["verdict"] == "fail"]}
+                 for i, p in to_revise.items()]
+        reviser = call_role(core, roster, stream_id, ModelRequest(
+            role="proposer", system=REVISER_SYSTEM, response_schema=REVISION_SCHEMA, max_tokens=12000,
+            messages=[{"role": "user", "content": prompt + "\n\nProposals to revise or withdraw:\n"
+                       + json.dumps(notes, ensure_ascii=False, indent=1)}],
+            metadata={"question": "revise proposals"}), ids=ids, budget=budget)
+        revised: dict[int, dict[str, Any]] = {}
+        for revision in reviser.data["revisions"]:
+            index = revision["index"]
+            if index not in to_revise:
+                continue
+            revision_record.append({"index": index, "action": revision["action"], "reason": revision["reason"]})
+            if revision["action"] == "revise" and revision.get("proposal"):
+                merged = dict(to_revise[index], **revision["proposal"])
+                revised[index] = _normalize_proposal(merged)
+        for index in to_revise:
+            if index not in revised:
+                status[index] = "withdrawn"
+        if revised:
+            validator.update(run_validator(revised))
+            prior = [f for f in findings if f["proposal_index"] in revised and f["verdict"] == "fail"]
+            critic, recheck = run_critic(revised, prior)
+            findings = [f for f in findings if f["proposal_index"] not in revised] + recheck
+            for index, proposal in revised.items():
+                items[index] = proposal
+                after = classify(index, validator[index], findings)
+                status[index] = "accept" if after == "accept" else "unresolved_after_revision"
+    accepted = []
     who = make_actor("agent", f"proposer:{proposer.model_id}", "proposer", model_family=roster.adapter("proposer").record.provider_family)
-    refs = []
-    for index, proposal in enumerate(proposals):
-        problems = validator[index]
-        if problems or index in blocking:
-            rejected.append({"attribute": proposal["attribute"].get("name"), "validator": problems,
-                             "critic": [f for f in findings if f["proposal_index"] == index and f["verdict"] == "fail"],
-                             "rejection_reason": "validator" if problems else "critic_blocking"})
+    for index, proposal in items.items():
+        mine = [f for f in findings if f["proposal_index"] == index]
+        if status[index] != "accept":
+            rejected.append({"attribute": proposal["attribute"].get("name"), "validator": validator[index],
+                             "critic": [f for f in mine if f["verdict"] == "fail"], "rejection_reason": status[index]})
             continue
         attribute = dict(proposal["attribute"], rationale=proposal["attribute"].get("rationale", ""),
                          supporting_claim_refs=proposal["supporting_claim_ids"],
                          derived_from={"proposal_request": proposer.request_id, "critique_request": critic.request_id})
         rule = dict(proposal["rule"], expected_change=proposal["expected_change"],
-                    falsification_test=proposal["falsification_test"])
+                    falsification_test=proposal["falsification_test"],
+                    dissent=[f for f in mine if f["verdict"] == "fail"])
         attr_ref, rule_ref = criteria.propose(core, task_id, attribute, rule, by=who)
         accepted.append({"attribute_ref": attr_ref, "rule_ref": rule_ref, "name": attribute["name"],
-                         "critic_findings": [f for f in findings if f["proposal_index"] == index]})
-        refs.append(rule_ref)
+                         "rule_kind": rule["rule_kind"], "critic_findings": mine})
     record = {"task_id": task_id, "dimensions": [{k: e[k] for k in ("dimension", "documents_read", "saturated",
                                                                       "coverage_id", "manifest_id")}
                                                  | {"n_hints": len(e["hints"]), "n_claims": len(e["claims"])} for e in enumerations],
-              "accepted": accepted, "considered_and_rejected": rejected, "proposer_model": proposer.model_id,
+              "accepted": accepted, "considered_and_rejected": rejected, "revisions": revision_record,
+              "proposer_model": proposer.model_id,
               "critic_model": critic.model_id,
               "independence": {"proposer_family": roster.adapter("proposer").record.provider_family,
                                "critic_family": roster.adapter("critic").record.provider_family,
+                               "same_adapter": roster.roles.get("proposer") == roster.roles.get("critic"),
                                "saw_proposer_rationale": False}}
     record["artifact_id"] = core.artifacts.put("derivation_record", record)
     return record

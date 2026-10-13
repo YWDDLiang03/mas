@@ -26,9 +26,24 @@ def canonical_unit(unit: str | None) -> str | None:
     return UNIT_SYNONYMS.get(stripped.lower(), stripped)
 
 
-def _compare(value: float, comparator: str, cutoff: float) -> bool:
-    return {">=": value >= cutoff, "<=": value <= cutoff, ">": value > cutoff, "<": value < cutoff,
-            "==": value == cutoff}[comparator]
+def _compare(value, comparator: str, cutoff) -> bool:
+    if comparator in ("in", "not_in"):
+        categories = cutoff if isinstance(cutoff, list) else [cutoff]
+        member = _norm(value) in {_norm(c) for c in categories}
+        return member if comparator == "in" else not member
+    if comparator == "==":
+        return _norm(value) == _norm(cutoff)
+    return {">=": value >= cutoff, "<=": value <= cutoff, ">": value > cutoff, "<": value < cutoff}[comparator]
+
+
+def _norm(value):
+    return value.strip().lower() if isinstance(value, str) else value
+
+
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
 
 
 def usable_claims(claims: list[dict[str, Any]], attribute: dict[str, Any]) -> tuple[list[dict], list[dict]]:
@@ -45,6 +60,9 @@ def usable_claims(claims: list[dict[str, Any]], attribute: dict[str, Any]) -> tu
             reason = "evidence_kind_not_accepted"
         elif claim.get("determination_basis") not in accepted_bases:
             reason = "determination_basis_not_accepted"
+        elif attribute["measurement_kind"] == "categorical":
+            if claim.get("value") is None or isinstance(claim.get("value"), (dict, list)):
+                reason = "no_categorical_value"
         elif attribute["measurement_kind"] == "quantitative":
             if not isinstance(claim.get("value"), (int, float)) or isinstance(claim.get("value"), bool):
                 reason = "no_numeric_value"
@@ -71,8 +89,9 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
         verdict = "unknown_missing"
     else:
         cutoff = rule.get("cutoff")
-        values = [float(c["value"]) for c in usable]
-        aggregation = attribute.get("aggregation", "consensus")
+        categorical = attribute["measurement_kind"] == "categorical"
+        values = [c["value"] if categorical else float(c["value"]) for c in usable]
+        aggregation = "consensus" if categorical else attribute.get("aggregation", "consensus")
         if cutoff is None:
             if rule.get("predicate_form") == "ordering" and rule["rule_kind"] == "preference":
                 prefer_high = attribute.get("direction") != "lower_better"
@@ -87,11 +106,13 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
                 disposition = "found_and_unresolved"
                 value = None
             else:
-                value = max(values) if aggregation == "max" else min(values) if aggregation == "min" else values[0]
+                value = (max(values) if aggregation == "max" else min(values) if aggregation == "min"
+                         else _median(values) if aggregation == "median" else values[0])
                 verdict = "pass" if _compare(value, cutoff["comparator"], cutoff["value"]) else "fail"
             if len(sides) > 1 and aggregation != "consensus":
                 disposition = "found_and_outweighed"
-                conflicting = [c["claim_id"] for c in usable if _compare(float(c["value"]), cutoff["comparator"], cutoff["value"])
+                conflicting = [c["claim_id"] for c in usable
+                               if _compare(c["value"] if categorical else float(c["value"]), cutoff["comparator"], cutoff["value"])
                                != (verdict == "pass")]
         explicit_conflicts = [c["claim_id"] for c in usable if c.get("polarity") == "conflicts"]
         conflicting = sorted(set(conflicting) | set(explicit_conflicts))
@@ -114,7 +135,8 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
         "assessed_at": utc_now(), "tool_error_ref": tool_error_ref, "staleness": "current",
     }
     cutoff = rule.get("cutoff") or {}
-    statement_value = f"{value:g} {unit}" if isinstance(value, (int, float)) else "no usable value"
+    statement_value = (f"{value:g} {unit}" if isinstance(value, (int, float)) and not isinstance(value, bool)
+                       else str(value) if value is not None else "no usable value")
     reason = {
         "reason_id": f"rsn_{sha256_hex(assessment)[:16]}", "verdict_restated": verdict,
         "attribute_ref": attr_ref, "rule_ref": rule_ref, "evidence_refs": used_refs,

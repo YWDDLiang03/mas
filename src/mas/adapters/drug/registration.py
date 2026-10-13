@@ -11,7 +11,7 @@ from mas.adapters.literature.pubmed import PubMedSearch
 
 from .chembl import ChEMBLBioactivity, TargetCache
 from .pubchem import PubChemIdentity, PubChemProperty
-from .universe import UniverseIdentity
+from .universe import UniverseIdentity, UniverseRecordField
 
 ADAPTER = {"adapter_id": "drug_prioritization", "adapter_version": "1", "primary_scheme": "inchikey"}
 
@@ -22,6 +22,7 @@ CAPABILITY_BINDINGS = {
     "interaction_estimate": "relationship_estimate",
     "property_estimate": "attribute_estimate",
     "literature_retrieval": "source_retrieval",
+    "record_field_lookup": "attribute_estimate",
 }
 
 # Evidence kinds the adapter's sources produce (used in attributes' acceptable_value_sources).
@@ -33,6 +34,7 @@ def register(broker, *, literature: bool = True, universe_file: str | None = Non
     and target bioactivity is fetched once per target."""
     if universe_file:
         broker.register(UniverseIdentity(universe_file))
+        broker.register(UniverseRecordField(universe_file))
     for provider in (PubChemIdentity(), PubChemProperty(), ChEMBLBioactivity(TargetCache() if universe_file else None)):
         broker.register(provider)
     if literature:
@@ -60,6 +62,16 @@ EVIDENCE_CATALOG = [
      "evidence_kind": "peer_reviewed", "determination_basis": "measured",
      "note": "Reads the best open-access papers naming the candidate and extracts quote-checked claims."},
 ]
+
+EVIDENCE_CATALOG.append(
+    {"capability": "record_field_lookup", "question_kind": "record_field", "identifier_scheme": "inchikey",
+     "parameters": {"field": "<one of oral, parenteral, topical, black_box_warning, withdrawn_flag, first_approval, max_phase>"},
+     "units": {"oral": None, "parenteral": None, "topical": None, "black_box_warning": None, "withdrawn_flag": None,
+               "first_approval": "year", "max_phase": "phase"},
+     "evidence_kind": "database_entry", "determination_basis": "measured",
+     "note": "ChEMBL molecule record. Route flags and warnings are booleans (use measurement_kind categorical, unit null, "
+             "cutoff {comparator: '==', value: true or false}); they are often empty before approval, which gives unknown, "
+             "never fail. first_approval is a year; max_phase is 0-4 (quantitative)."})
 
 # Assessment dimensions offered to derivation; each is enumerated separately (design §8.3).
 DIMENSIONS = [

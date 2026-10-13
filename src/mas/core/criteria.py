@@ -14,9 +14,9 @@ DIRECTIONS = ("higher_better", "lower_better", "within_range", "target_value", "
 RULE_KINDS = ("hard_exclusion", "preference", "exploratory_consideration")
 CUTOFF_BASES = ("measured_distribution", "regulatory_or_standard_reference", "source_stated_value",
                 "expert_set", "none_evidence_insufficient")
-COMPARATORS = (">=", "<=", ">", "<", "==")
+COMPARATORS = (">=", "<=", ">", "<", "==", "in", "not_in")
 ON_STATE_POLICIES = ("unknown_no_penalty", "unknown_blocks_recommendation", "route_to_human", "exclude")
-AGGREGATIONS = ("max", "min", "consensus")
+AGGREGATIONS = ("max", "min", "median", "consensus")
 
 
 class InvariantViolation(ValueError):
@@ -66,6 +66,15 @@ def check_rule(rule: dict[str, Any], attr: dict[str, Any]) -> None:
     if not cutoff:
         raise InvariantViolation("schema", "rule needs a cutoff or cutoff_basis none_evidence_insufficient")
     _choice("comparator", cutoff.get("comparator"), COMPARATORS)
+    if rule.get("predicate_form") == "categorical_membership" or attr["measurement_kind"] == "categorical":
+        if cutoff["comparator"] not in ("in", "not_in", "=="):
+            raise InvariantViolation("schema", "a categorical rule uses in, not_in, or ==")
+        values = cutoff.get("value") if isinstance(cutoff.get("value"), list) else [cutoff.get("value")]
+        if not values or not all(isinstance(v, (str, bool)) for v in values):
+            raise InvariantViolation("schema", "a categorical cutoff lists categories (strings or booleans)")
+        return
+    if cutoff["comparator"] in ("in", "not_in"):
+        raise InvariantViolation("schema", "in and not_in are for categorical rules")
     if not isinstance(cutoff.get("value"), (int, float)) or isinstance(cutoff.get("value"), bool):
         raise InvariantViolation("schema", "cutoff value must be a number")
     if attr["measurement_kind"] == "quantitative" and cutoff.get("unit") != attr.get("unit"):

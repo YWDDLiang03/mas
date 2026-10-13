@@ -46,3 +46,45 @@ class UniverseIdentity:
                  "link_basis": basis if len(members) == 1 else "name_match_ambiguous"} for m in members]
         return ProviderResponse(values=[{"name": "identity", "value": h, "value_kind": "curated"} for h in hits],
                                 data_version=self.source)
+
+
+class UniverseRecordField:
+    """Molecule record fields from the universe file (ChEMBL): route flags, warnings, approval year.
+
+    A field ChEMBL leaves empty (common before approval) returns no value, so the cell is
+    unknown, never a failure.
+    """
+    FIELDS = {"oral": None, "parenteral": None, "topical": None, "black_box_warning": None, "withdrawn_flag": None,
+              "first_approval": "year", "max_phase": "phase"}
+    contract = ToolContract(
+        tool_id="tool_drug_universe_record_field", capability="record_field_lookup", capability_kind="attribute_estimate",
+        question_kinds=("record_field",), contract_version="1", implementation_version="universe-file-fields-1",
+        purpose_statement="Molecule record fields (route flags, black-box warning, withdrawal, first approval, phase)",
+        evidence_kind_produced="database_entry", claim_strength_ceiling="curated", identity_inputs=("identifier",),
+        required_inputs=("field",), execution_location="in_process", license_id="ChEMBL: CC BY-SA 3.0")
+
+    def __init__(self, path: str | Path):
+        record = json.loads(Path(path).read_text(encoding="utf-8"))
+        self.source = record["source"]
+        self.by_key = {m["inchikey"]: m for m in record["universe"]}
+
+    def invoke(self, question_kind: str, inputs: dict[str, Any]) -> ProviderResponse:
+        field = inputs["field"]
+        if field not in self.FIELDS:
+            from mas.core.broker import ToolError
+            raise ToolError("input_invalid", f"unsupported field {field}", retryable=False)
+        member = self.by_key.get(inputs["identifier"])
+        if member is None:
+            return ProviderResponse(values=[], data_version=self.source)
+        fields = member.get("fields") or {}
+        value = member.get("max_phase") if field == "max_phase" else fields.get(field)
+        if field in ("oral", "parenteral", "topical", "black_box_warning", "withdrawn_flag") and value is False \
+                and fields.get("first_approval") is None:
+            # ChEMBL sets these flags from approved-product records: every compound without an approval record
+            # reads False, so False is absence of a record, not evidence that the property is absent.
+            value = None
+        if value is None:
+            return ProviderResponse(values=[], data_version=self.source)
+        return ProviderResponse(values=[{"name": field, "value": value, "unit": self.FIELDS[field], "value_kind": "curated",
+                                         "source_record_ref": f"chembl_molecule_{member['chembl_id']}"}],
+                                data_version=self.source, upstream_refs=[f"chembl:{member['chembl_id']}"])

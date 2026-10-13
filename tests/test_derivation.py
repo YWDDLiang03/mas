@@ -67,6 +67,13 @@ def script(request):
         return {"claims": [{"passage_id": "sec1.p1", "quoted_span": "absolute oral bioavailability above 30% achieved adequate exposure",
                             "statement": "F above 30% gave adequate exposure", "determination_basis": "measured",
                             "polarity": "supports", "value": 30, "unit": "%", "attribute_hint": "oral bioavailability"}]}
+    if request.role == "proposer" and "revising proposals" in request.system:
+        claim_id = request.messages[0]["content"].split('"claim_id": "')[1].split('"')[0]
+        revised = dict(GOOD, supporting_claim_ids=[claim_id],
+                       attribute=dict(GOOD["attribute"], name="Exposure margin", definition="Oral bioavailability as exposure"))
+        return {"revisions": [{"index": 1, "action": "withdraw", "reason": "named a compound"},
+                              {"index": 2, "action": "withdraw", "reason": "citation did not exist"},
+                              {"index": 3, "action": "revise", "proposal": revised, "reason": "claim now matches"}]}
     if request.role == "proposer":
         claim_id = request.messages[0]["content"].split('"claim_id": "')[1].split('"')[0]
         good = dict(GOOD, supporting_claim_ids=[claim_id])
@@ -76,6 +83,10 @@ def script(request):
         blocked = dict(GOOD, supporting_claim_ids=[claim_id], attribute=dict(GOOD["attribute"], name="Exposure margin"))
         return {"proposals": [good, names_reference, invented, blocked], "considered_and_rejected": [
             {"name": "Color", "reason": "not measurable from sources"}]}
+    if request.role == "critic" and "revision check" in request.messages[0]["content"]:
+        assert "quote is about bioavailability" in request.messages[0]["content"]   # the critic sees its earlier findings
+        return {"findings": [{"proposal_index": 3, "check": "evidence_support", "verdict": "pass", "severity": "minor",
+                              "referent": "supporting_claim_ids", "finding": "now supported"}]}
     if request.role == "critic":
         return {"findings": [{"proposal_index": 3, "check": "evidence_support", "verdict": "fail", "severity": "blocking",
                               "referent": "supporting_claim_ids", "finding": "quote is about bioavailability, not exposure margin"},
@@ -101,18 +112,20 @@ def test_derivation_screens_proposals_and_queues_the_rest(core):
     roster = ModelRoster({"s": adapter}, {r: "s" for r in ("retriever", "reader", "proposer", "critic")})
     record = derivation.derive(core, broker, roster, task_id, dimensions=[{"dimension": "oral", "focus": "bioavailability"}],
                                catalog=EVIDENCE_CATALOG, by=OPERATOR)
-    assert [a["name"] for a in record["accepted"]] == ["Oral bioavailability"]
+    assert sorted(a["name"] for a in record["accepted"]) == ["Exposure margin", "Oral bioavailability"]
     reasons = {r.get("attribute"): r for r in record["considered_and_rejected"] if "rejection_reason" in r}
     assert any("reference_candidate_scan" in p for p in reasons["Similarity to refotinib"]["validator"])
-    assert reasons["Oral bioavailability"]["rejection_reason"] == "validator"          # the invented-citation copy
-    assert reasons["Exposure margin"]["rejection_reason"] == "critic_blocking"
+    assert reasons["Similarity to refotinib"]["rejection_reason"] == "withdrawn"
+    assert reasons["Oral bioavailability"]["rejection_reason"] == "withdrawn"          # the invented-citation copy
+    assert [r["action"] for r in record["revisions"]] == ["withdraw", "withdraw", "revise"]
     manifest = core.artifacts.payload(record["dimensions"][0]["manifest_id"])
     omitted = {e["omitted_reason"] for e in manifest["excluded"]}
     assert omitted == {"case_source_document", "evaluator_only_artifact"}
     assert review.items(core, [task_id]) == {}          # an evidence-sourced preference needs no expert (trigger table)
     criteria.confirm_rule_set(core, task_id, by=OPERATOR)
     rules = criteria.rule_set(core, task_id)
-    assert [(e["rule_ref"], e["confirmed_by"]) for e in rules["entries"]] == [("rule_oral-bioavailability@v1", "auto:trigger_table")]
+    assert [(e["rule_ref"], e["confirmed_by"]) for e in rules["entries"]] == [
+        ("rule_exposure-margin@v1", "auto:trigger_table"), ("rule_oral-bioavailability@v1", "auto:trigger_table")]
     assert rules["acceptance_label"] == "prespecified" and rules["pending"] == []
     proposer_request = next(r for r in adapter.requests if r.role == "proposer")
     critic_request = next(r for r in adapter.requests if r.role == "critic")

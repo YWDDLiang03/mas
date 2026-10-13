@@ -44,3 +44,17 @@ def test_target_cache_fetches_each_target_once(monkeypatch):
 def test_name_like_filters_search_labels():
     assert [a for a in ["Gleevec", "152459-95-5", "STI-571", "a very long chemical name with many words"] if name_like(a)] \
         == ["Gleevec", "STI-571"]
+
+
+def test_route_flags_without_an_approval_record_are_unknown_not_false(tmp_path):
+    from mas.adapters.drug.universe import UniverseRecordField
+    path = tmp_path / "u.json"
+    path.write_text(json.dumps({"source": "test", "retrieved_at": "2026-10-13", "universe": [
+        {"name": "A", "inchikey": "K-APPROVED", "chembl_id": "C1", "max_phase": 4.0,
+         "fields": {"oral": False, "parenteral": True, "first_approval": 2001}},
+        {"name": "B", "inchikey": "K-PHASE3", "chembl_id": "C2", "max_phase": 3.0,
+         "fields": {"oral": False, "parenteral": False, "first_approval": None}}]}))
+    provider = UniverseRecordField(path)
+    assert provider.invoke("record_field", {"identifier": "K-APPROVED", "field": "oral"}).values[0]["value"] is False
+    assert provider.invoke("record_field", {"identifier": "K-PHASE3", "field": "oral"}).values == []
+    assert provider.invoke("record_field", {"identifier": "K-PHASE3", "field": "max_phase"}).values[0]["value"] == 3.0
