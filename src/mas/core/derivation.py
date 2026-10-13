@@ -98,8 +98,23 @@ REVISER_SYSTEM = PROPOSER_SYSTEM + (
 REVISION_CHECKS = ("objective_conformance", "evidence_support", "unit_applicability_consistency",
                    "counter_evidence_considered", "candidate_symmetric_scrutiny")
 
+# WHY acceptable_determination_bases is in this list: it is a validated attribute field (`check_attribute`), and the
+# proposer is told to declare it when a bound source returns a basis the defaults exclude. Filtering it out here left
+# that instruction impossible to satisfy -- the attribute came back with the identical validator problem after every
+# revision, because the declaration was stripped before the check re-read it.
 ATTRIBUTE_FIELDS = ("name", "definition", "measurement_kind", "unit", "direction", "acceptable_value_sources",
-                    "aggregation", "evidence_request", "rationale")
+                    "acceptable_determination_bases", "aggregation", "evidence_request", "rationale")
+
+# WHY one shared constant: both prompt builders describe the rule schema, and when the description drifts from what
+# `check_rule` accepts a proposer spends revisions discovering the real contract. This listed two of the five
+# predicate forms and never said that ordering ranks candidates, so a non-ranking rule had no form to reach for.
+SCHEMA_BLOCK_FORMS = (
+    "Rule fields: rule_kind (hard_exclusion|preference|exploratory_consideration), predicate_form "
+    "(threshold|ordering|range_membership|categorical_membership|qualitative_judgment); an ordering predicate ranks "
+    "candidates, so it is only valid on a preference -- an exploratory_consideration uses qualitative_judgment "
+    "instead. cutoff {comparator (>=|<=|>|<|==), value, unit} or null, cutoff_basis "
+    "(source_stated_value|none_evidence_insufficient), on_missing/on_inapplicable/on_conflict "
+    "(unknown_no_penalty|unknown_blocks_recommendation|route_to_human).\n")
 RULE_FIELDS = ("rule_kind", "predicate_form", "cutoff", "cutoff_basis", "on_missing", "on_inapplicable", "on_conflict")
 
 
@@ -370,10 +385,10 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
               f"unit, direction (higher_better|lower_better|within_range|target_value|non_directional|undetermined), "
               f"acceptable_value_sources (evidence kinds: curated_measurement, database_entry, peer_reviewed, preprint, "
               f"reference_text, tertiary_reference, user_supplied_document), "
+              f"acceptable_determination_bases (defaults to measured and derived), "
               f"aggregation (max|min|consensus), evidence_request {{capability, question_kind, identifier_scheme, parameters}}, rationale.\n"
-              f"Rule fields: rule_kind (hard_exclusion|preference|exploratory_consideration), predicate_form (threshold|ordering), cutoff {{comparator (>=|<=|>|<|==), value, unit}} or null, "
-              f"cutoff_basis (source_stated_value|none_evidence_insufficient), on_missing/on_inapplicable/on_conflict "
-              f"(unknown_no_penalty|unknown_blocks_recommendation|route_to_human).\n\nClaims ({len(claims)}):\n{_claims_block(claims)}")
+              + SCHEMA_BLOCK_FORMS
+              + f"\nClaims ({len(claims)}):\n{_claims_block(claims)}")
     proposer = call_role(core, roster, stream_id, ModelRequest(
         role="proposer", system=PROPOSER_SYSTEM, messages=[{"role": "user", "content": prompt}],
         response_schema=PROPOSAL_SCHEMA, max_tokens=12000, metadata={"question": "propose criteria"}), ids=ids, budget=budget)

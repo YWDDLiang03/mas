@@ -31,6 +31,7 @@ from typing import Any
 from . import criteria
 from .assessor import canonical_unit
 from .derivation import (CRITIC_SYSTEM, CRITIQUE_SCHEMA, PROPOSAL_SCHEMA, PROPOSER_SYSTEM, REVISER_SYSTEM,
+                         SCHEMA_BLOCK_FORMS,
                          REVISION_CHECKS, REVISION_SCHEMA, _claims_block, _normalize_proposal, validate_proposal)
 from .ids import slug
 from .journal import actor as make_actor
@@ -135,11 +136,9 @@ class StageContext:
                 "non_directional|undetermined), acceptable_value_sources (evidence kinds: curated_measurement, "
                 "database_entry, peer_reviewed, preprint, reference_text (textbooks), tertiary_reference "
                 "(encyclopedias, wikis), user_supplied_document), aggregation (max|min|median|consensus), "
+                "acceptable_determination_bases (defaults to measured and derived), "
                 "evidence_request {capability, question_kind, identifier_scheme, parameters}, rationale.\n"
-                "Rule fields: rule_kind (hard_exclusion|preference|exploratory_consideration), predicate_form "
-                "(threshold|ordering), cutoff {comparator (>=|<=|>|<|==), value, unit} or null, cutoff_basis "
-                "(source_stated_value|none_evidence_insufficient), on_missing/on_inapplicable/on_conflict "
-                "(unknown_no_penalty|unknown_blocks_recommendation|route_to_human).\n")
+                + SCHEMA_BLOCK_FORMS)
 
     def cited_block(self, items: list[dict[str, Any]]) -> str:
         cited = sorted({c for item in items for c in item.get("supporting_claim_ids") or [] if c in self.claims_by_id})

@@ -295,6 +295,39 @@ def test_a_source_basis_the_attribute_does_not_accept_is_refused_not_silently_em
     assert not [p for p in validate_proposal(accepted, claims_by_id=claims, reference_labels=[],
                                              catalog=EVIDENCE_CATALOG) if "acceptable_determination_bases" in p]
 
+    # The pipeline normalises a reply before validating it, so the declaration has to survive that filter.
+    # It did not: `acceptable_determination_bases` was absent from ATTRIBUTE_FIELDS, so a proposer that followed
+    # the system prompt had its declaration stripped and got the same problem back on every revision.
+    from mas.core.derivation import _normalize_proposal
+    normalised = _normalize_proposal(accepted)
+    assert normalised["attribute"].get("acceptable_determination_bases") == ["curated"]
+    assert not [p for p in validate_proposal(normalised, claims_by_id=claims, reference_labels=[],
+                                             catalog=EVIDENCE_CATALOG) if "acceptable_determination_bases" in p]
+
+
+def test_an_exploratory_consideration_cannot_order_candidates_and_the_prompt_says_so():
+    """`check_rule` refuses an ordering predicate on anything but a preference -- ordering is how a rule
+    moves candidates up and down a board, which is what a preference is for. The schema block the proposer
+    reads has to state that, and the forms it offers have to be the forms the checker accepts; it listed
+    two of five, so a proposer needing a non-ranking form had to guess one."""
+    from mas.core.derivation import SCHEMA_BLOCK_FORMS
+
+    attribute = {"name": "Incidence of an on-target consequence", "definition": "share of patients reporting it",
+                 "measurement_kind": "quantitative", "unit": "% of patients", "direction": "lower_better",
+                 "acceptable_value_sources": ["peer_reviewed"], "aggregation": "max",
+                 "evidence_request": {"capability": "literature_retrieval", "question_kind": "reported_rate"},
+                 "rationale": "an anticipated consequence of engaging a required target"}
+    ordering = {"rule_kind": "exploratory_consideration", "predicate_form": "ordering", "cutoff": None,
+                "cutoff_basis": "none_evidence_insufficient"}
+    with pytest.raises(criteria.InvariantViolation, match="ordering rule ranks candidates"):
+        criteria.check_rule(ordering, attribute)
+    qualitative = dict(ordering, predicate_form="qualitative_judgment")
+    criteria.check_rule(qualitative, attribute)
+
+    for form in ("threshold", "ordering", "range_membership", "categorical_membership", "qualitative_judgment"):
+        assert form in SCHEMA_BLOCK_FORMS
+    assert "only valid on a preference" in SCHEMA_BLOCK_FORMS
+
 
 def test_merge_groups_need_the_same_route_unit_and_direction():
     from mas.core.derivation_stages import merge_groups
