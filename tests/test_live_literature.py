@@ -61,16 +61,27 @@ def test_live_bookshelf_relaxes_a_multi_term_dimension_query():
     library = bookshelf.BookshelfLibrary()
     if "NBK430685" not in library.synced():
         pytest.skip("StatPearls not synced (mas sources sync bookshelf --book NBK430685)")
+    query = "oral bioavailability absorption food effect tyrosine kinase inhibitor"
     reply = bookshelf.BookshelfSearch(library).invoke("search", {
-        "query": "oral bioavailability absorption food effect tyrosine kinase inhibitor",
-        "limit": 25, "cutoff_date": "2026-10-13"})
+        "query": query, "limit": 25, "cutoff_date": "2026-10-13"})
     hits = [v["value"] for v in reply.values]
     attempts = [r for r in reply.records if "attempt" in r]
     assert len(hits) >= 5, reply.records
     assert 1 < len(attempts) <= bookshelf.MAX_SEARCHES_PER_QUERY
     assert [len(a["terms"]) for a in attempts] == sorted((len(a["terms"]) for a in attempts), reverse=True)
     assert any(h["is_reference_entry"] for h in hits), [h["title"] for h in hits]
-    assert hits[0]["is_reference_entry"] or not any(h["is_reference_entry"] for h in hits)
+    # Ranking is query-aware: what the query names by title leads, and genre only breaks ties among
+    # those (the tie-break itself is pinned offline over a controlled corpus, in test_sources.py).
+    # So title matches occupy the leading ranks, and a drug entry the query names by nothing never
+    # reorders itself above them — which is why a topic chapter at rank 0 is correct, not a defect,
+    # for a query that no chapter title answers.
+    terms = bookshelf._leaf_words(bookshelf._parse(bookshelf._clean_query(query)))
+    levels = [bookshelf._title_match(h["title"], terms) for h in hits]
+    assert levels == sorted(levels, reverse=True), list(zip(levels, (h["title"] for h in hits)))
+    assert [h["title_matched_query"] for h in hits] == [bool(level) for level in levels]
+    overtaking = [h["title"] for index, h in enumerate(hits)
+                  if h["is_reference_entry"] and any(level > levels[index] for level in levels[index + 1:])]
+    assert not overtaking, overtaking
 
 
 @pytest.mark.parametrize("site", ["wikipedia", "wikibooks"])

@@ -20,7 +20,14 @@ AGGREGATIONS = ("max", "min", "median", "consensus")
 # Bases a value may be determined on. `predicted` is never mixed with the others inside one
 # attribute: a predicted value standing in for a measurement is a surrogate inside a verdict
 # (design §4.11), so a predicted quantity needs its own attribute and its own rule.
-DETERMINATION_BASES = ("measured", "derived", "predicted", "simulated")
+#
+# `curated` is an expert assertion a database carries with its references — ChEMBL's
+# mechanism-of-action table states that a compound engages a target, which is documented
+# rather than measured, and the tool declares that basis itself (`evidence.determination_basis`).
+# It is registered here so that an attribute *may* ask for it; it is deliberately absent from
+# `assessor.DEFAULT_DETERMINATION_BASES`, so an attribute that does not name it sees no curated
+# claim at all rather than counting an assertion as a measurement.
+DETERMINATION_BASES = ("measured", "derived", "predicted", "simulated", "curated")
 
 
 class InvariantViolation(ValueError):

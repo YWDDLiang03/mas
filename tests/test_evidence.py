@@ -145,3 +145,32 @@ def test_an_attribute_that_does_not_accept_curated_claims_gets_no_evidence(core)
 def test_an_unregistered_determination_basis_is_refused(core):
     with pytest.raises(vocab.VocabularyViolation):
         db_claims(core, [dict(MECHANISM_VALUE, determination_basis="asserted")])
+
+
+# The mechanism catalog entry instructs a proposer to write acceptable_determination_bases
+# ["curated"]; the registry has to accept that attribute, or the entry is unusable end to end.
+CURATED_ATTRIBUTE = dict(ENGAGEMENT_ATTRIBUTE, definition="Whether engagement with ABL1 is on curated record",
+                         direction="non_directional", aggregation="consensus",
+                         evidence_request={"capability": "interaction_evidence_lookup",
+                                           "question_kind": "mechanism_records", "identifier_scheme": "inchikey",
+                                           "parameters": {"target_chembl_id": "CHEMBL1862"}})
+
+
+def test_an_attribute_may_declare_the_curated_basis_and_mechanism_claims_then_become_usable(core):
+    from mas.core import assessor, criteria
+    from mas.adapters.drug.registration import EVIDENCE_CATALOG
+    entry = next(e for e in EVIDENCE_CATALOG if e["question_kind"] == "mechanism_records")
+    assert entry["determination_basis"] in criteria.DETERMINATION_BASES    # the catalog names a registered basis
+    declared = dict(CURATED_ATTRIBUTE, acceptable_determination_bases=[entry["determination_basis"]])
+    criteria.check_attribute(declared)                                     # the instructed attribute is accepted
+    criteria.propose(core, "task_curated", declared, {"rule_kind": "preference", "predicate_form": "categorical_membership",
+                                                      "cutoff": {"comparator": "==", "value": True, "unit": None},
+                                                      "cutoff_basis": "source_stated_value"}, by=WHO)
+    claims = db_claims(core, [MECHANISM_VALUE])
+    usable, set_aside = usable_claims(claims, declared)
+    assert [c["claim_id"] for c in usable] == [claims[0]["claim_id"]] and set_aside == []
+    # and the default still fails closed: an attribute that does not declare it sees no evidence
+    assert "curated" not in assessor.DEFAULT_DETERMINATION_BASES
+    criteria.check_attribute(CURATED_ATTRIBUTE)
+    usable, set_aside = usable_claims(claims, CURATED_ATTRIBUTE)
+    assert usable == [] and [c["set_aside_reason"] for c in set_aside] == ["determination_basis_not_accepted"]

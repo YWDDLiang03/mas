@@ -10,6 +10,9 @@
     mas review list [TASK] | review decide ITEM --decision D --reason TEXT --exposure E
     mas run start TASK [--seed N] [--limit N] [--tool-calls N] [--llm-turns N] | run show RUN | run resume RUN
     mas board show TASK [--all] | candidate show TASK CANDIDATE
+    mas candidate explain TASK [CANDIDATE] [--top N]
+                                               write the mechanism-of-action note for a shortlist (one model
+                                               call per candidate, on demand; never part of a score)
     mas score show TASK                        the ordering method: a fitted expression, its fit and its holdout test
     mas models show
     mas config show [--explain] | validate | save NAME | estimate [--dimensions N] [--candidates N]
@@ -32,7 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from mas.core import config as config_mod
-from mas.core import criteria, leaderboard, projection, review, sr_stage, task, vocab
+from mas.core import criteria, leaderboard, mechanism, projection, review, sr_stage, task, vocab
 from mas.core.broker import Broker
 from mas.core.controller import RunController, RunError
 from mas.core.journal import actor
@@ -439,16 +442,68 @@ def cmd_board(args) -> None:
             print(f"  … {len(snap['candidate_entries']) - args.top} more (show all with --all)")
 
 
+def _entry_for(snap: dict[str, Any], wanted: str) -> dict[str, Any] | None:
+    return next((e for e in snap["candidate_entries"] if e["candidate_ref"] == wanted
+                 or wanted.lower() in (e["identity_labels"][0] or "").lower()), None)
+
+
+def _print_mechanism(record: dict[str, Any]) -> None:
+    """The mechanism-of-action note with the claims each sentence rests on, and what the gate dropped."""
+    print(f"  mechanism of action: {record['explanation_status']}"
+          + (f" — {record['unexplained_reason']}" if record.get("unexplained_reason") else "")
+          + f"  ({len(record['claims_offered'])} admitted claim(s) with verified spans; not an input to the score)")
+    for sentence in record["sentences"]:
+        print(f"    {sentence['text']}")
+        for claim in sentence["claims"]:
+            print(f"      {claim['claim_id']}  {claim['determination_basis']:<9} {claim['source_ref']}"
+                  f"{' · ' + str(claim['locator']) if claim.get('locator') else ''}")
+            print(f"        “{(claim.get('quote') or '')[:120]}”")
+            for key, value in (claim.get("conditions") or {}).items():
+                print(f"        {key}: {value}")
+            for reference in claim["references"]:
+                print(f"        reference {reference.get('ref_type') or ''} {reference.get('ref_id') or ''} "
+                      f"{reference.get('ref_url') or ''}".rstrip())
+    for dropped in record["dropped_sentences"]:
+        problems = ", ".join(f"{p['reason']}{' ' + p['detail'] if p['detail'] else ''}" for p in dropped["problems"])
+        print(f"    dropped: {dropped['text'][:80]!r} — {problems}")
+
+
 def cmd_candidate(args) -> None:
     with _open(args) as core:
-        snap = leaderboard.snapshots(core, args.task)[-1]
-        entry = next((e for e in snap["candidate_entries"] if e["candidate_ref"] == args.candidate
-                      or args.candidate.lower() in (e["identity_labels"][0] or "").lower()), None)
+        shots = leaderboard.snapshots(core, args.task)
+        if not shots:
+            sys.exit("no snapshot yet")
+        snap = shots[-1]
+        if args.action == "explain":
+            if args.candidate:
+                entry = _entry_for(snap, args.candidate)
+                if entry is None:
+                    sys.exit("candidate not in the latest snapshot")
+                refs = [entry["candidate_ref"]]
+            else:
+                refs = [e["candidate_ref"] for e in snap["candidate_entries"] if e["position"]]
+                refs = refs[: args.top or _settings(args)["rank.top_n"]]
+                if not refs:
+                    sys.exit("nothing is ranked in the latest snapshot; name a candidate to explain")
+            roster = _roster(args)
+            for record in mechanism.explain_shortlist(core, roster, run_id=snap["run_id"], task_id=args.task,
+                                                      candidate_refs=refs, by=_person("operator")):
+                print(f"{record['candidate_ref']}  {(record['candidate_labels'] or [''])[0]}")
+                _print_mechanism(record)
+            return
+        if not args.candidate:
+            sys.exit("candidate show needs a candidate")
+        entry = _entry_for(snap, args.candidate)
         if entry is None:
             sys.exit("candidate not in the latest snapshot")
         print(f"{entry['candidate_ref']}  {entry['identity_labels'][0]}  {vocab.label('candidate', entry['state'])}"
               f"  position {entry['position']}  score {entry['preference_score']}")
         print(f"  reason: {entry['state_reason']}")
+        narrative = mechanism.narrative_of(core, snap["run_id"], entry["candidate_ref"])
+        if narrative is not None:
+            _print_mechanism(narrative)
+        else:
+            print("  mechanism of action: not written yet (`mas candidate explain TASK CANDIDATE`)")
         explained = sr_stage.rationale_of(core, snap["run_id"], entry["candidate_ref"])
         if explained:
             print(f"  score {explained['score']:.4f} · coverage {explained['coverage']:.2f} · "
@@ -702,9 +757,10 @@ def main(argv: list[str] | None = None) -> int:
     b.set_defaults(func=cmd_board)
 
     d = sub.add_parser("candidate")
-    d.add_argument("action", choices=("show",))
+    d.add_argument("action", choices=("show", "explain"))
     d.add_argument("task")
-    d.add_argument("candidate")
+    d.add_argument("candidate", nargs="?", help="explain: omit to cover the ranked shortlist")
+    d.add_argument("--top", type=int, help="explain: ranked candidates to cover (default: rank.top_n)")
     d.set_defaults(func=cmd_candidate)
 
     s = sub.add_parser("score")

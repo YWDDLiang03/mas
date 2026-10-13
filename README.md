@@ -39,6 +39,7 @@ Create a store and a model configuration, then work through a task:
     mas --store var/store run start TASK --seed 1
     mas --store var/store board show TASK
     mas --store var/store candidate show TASK NAME
+    mas --store var/store candidate explain TASK     # mechanism-of-action notes for the shortlist
     mas --store var/store score show TASK            # how the score was produced
 
 Expert decisions are confirmed on the terminal itself and cannot be scripted.
@@ -145,6 +146,39 @@ the ranking rule was chosen after seeing results — and raises a `rule_set_vers
 expert to confirm. Where a target has too few usable rows to fit, the model's cited
 coefficients are used directly and the expression is recorded as `expert_prior`; it faces the
 same holdout gate.
+
+### Mechanism of action
+
+A score says where a compound ranks, not how it acts. The mechanism-of-action note is a separate
+artifact per candidate and enters no score, verdict, rank, coverage figure or comparability key —
+nothing downstream reads it, and no module in the decision path can even import it.
+
+    mas candidate explain TASK            # the ranked shortlist (rank.top_n, or --top N)
+    mas candidate explain TASK NAME       # one candidate
+    mas candidate show TASK NAME          # prints the note once it exists; never writes one
+
+It runs **on demand for a shortlist**, not in the sweep: the sweep covers thousands of candidates
+and a model call each would be indefensible for a block no decision depends on — and because
+nothing depends on it, writing it later costs the run nothing. It is written once per candidate
+per run and is idempotent on a second pass: an existing note is returned with no model call.
+
+The `summarizer` is given only this candidate's claims that were *admitted* and had their *spans
+verified against the source*, and answers with sentences each carrying the claim ids it rests on.
+A deterministic gate then re-checks every sentence and **drops** — never repairs — any it cannot
+stand behind:
+
+- each cited claim must exist, be admitted, have a verified span, and tie that span to this
+  candidate (the quote names it, or, for a database record field whose quoted value names
+  nothing, the identifier the record was found by);
+- every mechanism word the sentence uses must appear in the text of a claim it cites;
+- a sentence that mentions a score, rank, coefficient or percentile is dropped whatever it cites.
+
+If no sentence survives, the block records `unexplained` rather than an empty or invented
+narrative, and every dropped sentence is kept with the reason it fell. Curated ChEMBL
+mechanism records ground sentences beside literature claims — their value is the categorical
+statement that engagement is documented, their action type and mechanism text come from the
+record's `conditions`, and their references (PubMed ids, FDA and EMA labels) are printed with the
+sentence so a reader can follow them.
 
 ### Evidence sources
 
