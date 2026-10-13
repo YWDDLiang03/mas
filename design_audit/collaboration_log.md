@@ -144,6 +144,46 @@ Trigger: the user restated the final goal: the reference candidate on the leader
 
 **Fixes (coordinator).** All eighteen findings and the three scoping gaps were fixed by one anchored script (122 edits in 15 files), with ADR-40, design §14.3, tasks T0.8 and T0.9, and `post_handoff_decisions.md` §6 updated. While fixing CR-02 the coordinator found the same contradiction in the C6 failure behaviour, which the reviewer had not listed, and fixed it there too. Checked by the coordinator with the consistency checker (exit 0), a table-column check, a stale-term scan, and a task-reference check, not by a further independent re-check.
 
+### 7.9 Iteration 2 build (13 October 2026, coordinator with subagents)
+
+Build slices after the first exploratory manuscript run, each committed and pushed to `main`:
+layered run settings with layer provenance and a bound config hash; a DeepSeek-capable
+OpenAI-compatible adapter with key files, thinking control and per-call spend accounting;
+a licence-gated evidence-source registry with NCBI Bookshelf (LitArch FTP), Wikipedia,
+Wikibooks, user uploads and IUPHAR/BPS curated affinities, plus breadth x depth research
+rounds; and the iterative criteria pool (propose, filter, distill, merge, refine, promote)
+as a continuable derivation run. Division of labour on the user's instruction: code and
+UI by Opus 5.5 subagents, biology by the coordinator at Opus 5.
+
+**Evidence-source coverage probe, and a strategy decision not taken.** The coordinator
+measured whether a second curated affinity source adds coverage over the case universe:
+of 3,177 universe compounds, 1,988 are identifiable in the IUPHAR/BPS data, and 36 carry
+an affinity row for at least one of the five required targets. That answered the
+capability question (an independent curation does add coverage), and the source had
+already been added to the evidence catalog on general grounds before the probe ran.
+
+A deeper probe that would have listed *which* compounds gain coverage was started and then
+deliberately stopped, and its per-compound output deleted unread. Ranking on this case is
+judged by where one disclosed reference compound lands, so choosing or weighting an
+evidence source after seeing which compounds it favours would make the scoring strategy
+outcome-informed (design §13.6) even if no number were tuned by hand. The source stays a
+catalog entry that the criteria proposer may or may not bind an attribute to; no scoring
+change was made on the strength of the probe.
+
+**Reader quality checks (coordinator, biology).** Textbook sources were checked against
+the four screening dimensions before use. Per-drug monograph chapters carry attributable
+quantitative pharmacokinetics (one chapter states an oral bioavailability of about 97% with
+a time to peak concentration of 0.5 to 3 hours); general topic chapters, after passage
+selection, carried no passage that both named a specific compound and reported a number
+with a unit, so they support criterion discovery but not per-candidate values. Bookshelf
+search recall was found to collapse as query length grows (six planner-style terms
+returned one chapter; one term returned twenty-five), because the upstream search ANDs
+every term; a bounded relaxation and a monograph preference were specified from these
+measurements. ChEMBL's curated mechanism table was found to need the parent-molecule
+filter (the obvious molecule filter silently returns nothing for a parent compound), and
+to record target engagement with references for compounds whose activity records are
+absent; it was added as a catalog entry that is explicitly not a potency surrogate.
+
 ## 8. What this log does not claim
 
 No agent executed repository code, started a server, ran a test suite, or performed a screening, ranking, or experiment. Literature reads are labelled by depth in each report; abstract-only reads are not presented as full text. Agent self-reports of their own time and reading are reproduced as given; the coordinator verified file existence, word counts, section order, hash checks, and the absence of code fences, not every claimed read.
