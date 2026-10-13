@@ -113,8 +113,17 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
         aggregation = "consensus" if categorical else attribute.get("aggregation", "consensus")
         if cutoff is None:
             if rule.get("predicate_form") == "ordering" and rule["rule_kind"] == "preference":
+                # WHY the declared aggregation governs here too: this path took the best of the usable values
+                # regardless of what the attribute asked for, and a maximum rises with the number of assays.
+                # Measured on the manuscript case: sorafenib carried 125 curated VEGFR2 measurements and was
+                # ranked on their maximum, 10.68, against surufatinib's 9.00 from two -- so the board rewarded
+                # having been studied often. The evidence catalog warns of exactly this and every one of the ten
+                # target attributes declared `median`; honouring it is what the attribute already said.
                 prefer_high = attribute.get("direction") != "lower_better"
-                value = (max(values) if prefer_high else min(values)) if aggregation != "consensus" else values[0]
+                value = (_median(values) if aggregation == "median"
+                         else max(values) if aggregation == "max" else min(values) if aggregation == "min"
+                         else (max(values) if prefer_high else min(values)) if aggregation != "consensus"
+                         else values[0])
                 verdict = "pass"  # value-bearing; an ordering rule ranks, it never fails
             else:
                 verdict = "unknown_missing"

@@ -145,6 +145,40 @@ def test_ordering_preferences_score_by_percentile_and_skip_missing():
     assert assessor.preference_scores(cells, rules, {})["a"] == (1.0, 1.0)
 
 
+def test_an_ordering_rule_uses_the_aggregation_the_attribute_declares(core=None):
+    """The cutoff-less ordering path took the best of the usable values whatever the attribute asked
+    for. A maximum rises with the number of assays, so the board rewarded having been studied often:
+    on the manuscript case sorafenib carried 125 curated VEGFR2 measurements and ranked on their
+    maximum against two for the reference compound. The evidence catalog warns of this and every
+    target attribute declared `median`."""
+    attribute = {"attribute_id": "attr_p", "version": 1, "name": "Curated potency", "definition": "d",
+                 "measurement_kind": "quantitative", "unit": "pChEMBL", "direction": "higher_better",
+                 "acceptable_value_sources": ["curated_measurement"], "aggregation": "median",
+                 "evidence_request": {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}}
+    rule = {"rule_id": "rule_p", "version": 1, "rule_kind": "preference", "predicate_form": "ordering",
+            "cutoff": None, "cutoff_basis": "none_evidence_insufficient"}
+
+    def claim(value, i):
+        return {"claim_id": f"c{i}", "admission_state": "admitted", "evidence_kind": "curated_measurement",
+                "determination_basis": "measured", "value": value, "unit": "pChEMBL"}
+
+    # one heavily assayed compound: a single outlying assay must not become its score
+    many = [claim(v, i) for i, v in enumerate([7.0, 7.1, 7.2, 7.3, 10.7])]
+    cell, _ = assessor.assess_cell(candidate={"candidate_id": "heavy"}, attribute=attribute, rule=rule,
+                                   rule_set_ref="rules@v1", claims=many, resolved=True)
+    assert cell["verdict"] == "pass" and cell["value"] == 7.2        # the median, not the 10.7 maximum
+
+    few = [claim(9.0, 0), claim(9.0, 1)]
+    cell, _ = assessor.assess_cell(candidate={"candidate_id": "light"}, attribute=attribute, rule=rule,
+                                   rule_set_ref="rules@v1", claims=few, resolved=True)
+    assert cell["value"] == 9.0      # two consistent measurements rank above the heavily assayed compound
+
+    for declared, expected in (("max", 10.7), ("min", 7.0)):
+        cell, _ = assessor.assess_cell(candidate={"candidate_id": "heavy"}, rule=rule, rule_set_ref="rules@v1",
+                                       attribute=dict(attribute, aggregation=declared), claims=many, resolved=True)
+        assert cell["value"] == expected, declared
+
+
 def test_task_mandated_criteria_come_from_scope_and_constraints_without_duplicates(core):
     from mas.adapters.drug.registration import objective_templates
     spec = dict(SPEC, scope_entities=[
