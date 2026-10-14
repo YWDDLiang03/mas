@@ -57,8 +57,25 @@ PROPOSER_SYSTEM = (
     "Work only from the objective, the constraints, and the claims provided (each has an id and a verbatim quote). "
     "Each proposal is one measurable attribute plus one rule. Rules are hard_exclusion (a candidate failing it is "
     "excluded) or preference (it ranks candidates). Prefer preference rules unless the objective or a constraint "
-    "makes the property a requirement. A cutoff must come from a cited claim (cutoff_basis source_stated_value, "
-    "and cite that claim) or be left empty with cutoff_basis none_evidence_insufficient; never invent a number. "
+    "makes the property a requirement. "
+    # WHY the threshold instruction is this insistent: the earlier wording offered
+    # `none_evidence_insufficient` as a co-equal option and the proposer took it every single time.
+    # Measured on the manuscript registry: 39 of 40 promoted rules carry no cutoff at all, and the one
+    # that does restates a task constraint, so the whole system held two literature-derived numbers --
+    # both transform bounds. A criteria set of unbounded orderings cannot express a requirement, and
+    # the thresholds it declines to state are exactly what a reviewer checks. The decision about
+    # whether a number is supported belongs to `bound_support`, which sees the claim; a proposer that
+    # pre-emptively declines to name one removes that judgement from the system entirely.
+    "SET A CUTOFF WHENEVER A CITED CLAIM STATES A NUMBER THAT COULD SERVE AS ONE. Read every claim for "
+    "quantities: a stated requirement, a reported range, a value an author calls optimal, adequate, "
+    "acceptable or excessive. If a claim gives such a number, propose the cutoff with cutoff_basis "
+    "source_stated_value, cite that claim, and declare a bound_support record saying which it is: "
+    "states_decision_threshold when the passage proposes the number as a requirement, reports_measurement "
+    "when it reports an observation, provides_heuristic when it offers a rule of thumb. Declaring it a "
+    "measurement or a heuristic is not a weaker answer -- it is the honest one, and the record is what "
+    "lets a reviewer judge the cutoff. Only use cutoff_basis none_evidence_insufficient when no cited "
+    "claim states any number you could threshold on, and then say which quantity was missing in the "
+    "rationale. Never invent a number that is not in a quote. "
     "A preference rule without a cited cutoff uses predicate_form ordering: candidates are ranked by the value in "
     "the attribute's direction. "
     "Bind each attribute's evidence_request to one entry of the evidence catalog and fill its parameters. "

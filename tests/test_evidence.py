@@ -143,8 +143,12 @@ def test_an_attribute_that_does_not_accept_curated_claims_gets_no_evidence(core)
 
 
 def test_an_unregistered_determination_basis_is_refused(core):
+    # The example used to be "asserted", which is now registered: the reader had always been
+    # offering it in its extraction enum while the registry had no word for it, so 60 of the
+    # manuscript task's 127 criterion-support claims carried a basis no attribute could accept.
+    # The invariant this test protects is unchanged -- a basis the registry does not know is refused.
     with pytest.raises(vocab.VocabularyViolation):
-        db_claims(core, [dict(MECHANISM_VALUE, determination_basis="asserted")])
+        db_claims(core, [dict(MECHANISM_VALUE, determination_basis="eyeballed")])
 
 
 # The mechanism catalog entry instructs a proposer to write acceptable_determination_bases

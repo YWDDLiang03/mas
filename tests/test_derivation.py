@@ -330,3 +330,32 @@ def test_counter_evidence_is_attributed_from_the_values_the_verdict_was_computed
     cell, _ = assessor.assess_cell(candidate={"candidate_id": "z"}, attribute=plain, rule=rule,
                                    rule_set_ref="rules@v1", claims=[claim(0, 2.0), claim(1, 50.0)], resolved=True)
     assert cell["verdict"] == "pass" and cell["conflicting_claim_refs"] == ["c0"]
+
+
+def test_an_attribute_may_accept_a_stated_claim_because_the_reader_writes_that_basis():
+    """F9. `reading.extract_claims` offers `asserted` in its extraction enum and the reader uses it,
+    but it was absent from `criteria.DETERMINATION_BASES`, so `check_attribute` refused any attribute
+    naming it and `usable_claims` set every such claim aside. Measured on the manuscript task: 60 of
+    the 127 claims behind registered criteria carry it, and no attribute could legally accept one.
+    It stays out of the defaults, so an attribute that does not ask for it still sees none."""
+    assert "asserted" in criteria.DETERMINATION_BASES
+    assert "asserted" not in assessor.DEFAULT_DETERMINATION_BASES
+
+    attribute = {"attribute_id": "attr_t", "version": 1, "name": "Reported tolerability", "definition": "d",
+                 "measurement_kind": "quantitative", "unit": "% of patients", "direction": "lower_better",
+                 "acceptable_value_sources": ["peer_reviewed_primary"], "aggregation": "median",
+                 "acceptable_determination_bases": ["asserted"],
+                 "evidence_request": {"capability": "literature_retrieval", "question_kind": "search",
+                                      "parameters": {"query_template": "({names}) AND tolerability",
+                                                     "relevance_terms": ["tolerability"], "search_limit": 10}}}
+    assert not criteria.check_attribute(attribute), "an attribute may now ask for a stated basis"
+
+    stated = {"claim_id": "c1", "admission_state": "admitted", "evidence_kind": "peer_reviewed_primary",
+              "determination_basis": "asserted", "value": 12.0, "unit": "% of patients"}
+    usable, set_aside = assessor.usable_claims([stated], attribute)
+    assert [c["claim_id"] for c in usable] == ["c1"], "the claim the reader wrote is now usable"
+
+    # an attribute that does not name it still sees nothing, so an assertion is never counted by omission
+    silent = dict(attribute); silent.pop("acceptable_determination_bases")
+    usable, set_aside = assessor.usable_claims([stated], silent)
+    assert usable == [] and [c["claim_id"] for c in set_aside] == ["c1"]

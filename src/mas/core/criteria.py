@@ -27,7 +27,17 @@ AGGREGATIONS = ("max", "min", "median", "consensus")
 # It is registered here so that an attribute *may* ask for it; it is deliberately absent from
 # `assessor.DEFAULT_DETERMINATION_BASES`, so an attribute that does not name it sees no curated
 # claim at all rather than counting an assertion as a measurement.
-DETERMINATION_BASES = ("measured", "derived", "predicted", "simulated", "curated")
+# `asserted` is the same shape of thing one step further out: a statement a paper makes without
+# reporting the measurement behind it ("the agent was well tolerated"). It is registered for the
+# same reason as `curated` -- so an attribute may ask for it -- and kept out of the defaults for the
+# same reason, so nothing counts an assertion as a measurement by omission. WHY it had to be added:
+# `reading.extract_claims` has always offered it in its extraction enum and the reader uses it, but
+# it was absent here, so `check_attribute` refused any attribute that named it and
+# `assessor.usable_claims` set every such claim aside. Measured on the manuscript task: 60 of the
+# 127 claims behind registered criteria carry `asserted`, and no attribute could legally accept one
+# -- the reader was writing evidence into a basis the registry had no word for. That falls hardest
+# on the 26 literature-bound criteria, whose evidence is largely stated rather than tabulated.
+DETERMINATION_BASES = ("measured", "derived", "predicted", "simulated", "curated", "asserted")
 # Deterministic transformations an attribute may declare between the value its bound source returns
 # and the quantity the attribute is about, with the parameters each one needs.
 #
