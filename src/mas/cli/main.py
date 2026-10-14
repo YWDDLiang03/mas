@@ -8,6 +8,12 @@
     mas criteria pool TASK [--all] [--trajectory]
                                                the criteria pool: states, versions, lineage; --trajectory
                                                prints what each stage added, pruned and merged, per iteration
+    mas criteria export TASK [--out DIR] [--at-seq N] [--no-board]
+                                               write the criteria review package (cards, canonical
+                                               records, manifest, count reconciliation) into the
+                                               repository, read-only and pinned to one journal
+                                               sequence, so a reviewer can read the criteria that
+                                               otherwise live only in the ignored store
     mas criteria dedupe TASK [--dry-run] [--withdraw CLP --reason TEXT]
                                                collapse promoted attributes that ask one question for one
                                                quantity into one attribute reading every route; no model
@@ -254,6 +260,8 @@ def cmd_task(args) -> None:
 
 
 def cmd_criteria(args) -> None:
+    if args.action == "export":
+        return _export_criteria(args)
     with _open(args) as core:
         if args.action == "propose":
             pairs = json.loads(Path(args.file).read_text(encoding="utf-8"))
@@ -367,6 +375,46 @@ def _dedupe(core: Core, args) -> None:
               f"labelled exploratory and says so.")
     else:
         print(f"collapsed nothing: all {len(result['refused'])} groups were refused, and every rule still scores.")
+
+
+def _export_criteria(args) -> None:
+    """Write the criteria review package for one task into the repository.
+
+    WHY this opens the store itself instead of taking `_open`'s core: `_open` takes the exclusive
+    root lock, so an export would wait behind a forty-minute sweep or refuse to start, and the whole
+    point of exporting is that a reviewer can read criteria while the pipeline runs. It also means
+    the command cannot write to the store it is reading from, which is the guarantee an export of a
+    historical baseline needs.
+    """
+    from mas.core import criteria_export
+    root = _store_dir(args)
+    try:
+        core = criteria_export.open_read_only(root)
+    except StoreError as error:
+        sys.exit(f"cannot open store: {error}")
+    with core:
+        try:
+            record = criteria_export.write(core, args.task, args.out or "design_audit", at_seq=args.at_seq,
+                                           with_board=not args.no_board, implementation=_implementation(),
+                                           exported_by=_person("operator"), store_root=str(root))
+        except criteria_export.ExportError as error:
+            sys.exit(str(error))
+    counts = record["counts"]
+    print(f"{record['baseline_label']}: {record['task']['task_context_ref']} at "
+          f"{record['journal_position']['task_stream']} seq {record['journal_position']['pinned_seq']}")
+    print(f"{counts['registered_criteria']['value']} registered criteria "
+          f"({counts['registered_from_pool']['value']} promoted from {counts['proposals_added_to_pool']['value']} "
+          f"proposals, {counts['registered_from_templates']['value']} from adapter templates); "
+          f"{counts['scoring_now']['value']} scoring on {record['latest_rule_set_ref']}, "
+          f"{counts['deferred_now']['value']} deferred, {counts['collapsed_away_now']['value']} collapsed away")
+    print(f"{counts['unresolved_disputes']['value']} unresolved proposer/critic disputes; "
+          f"{counts['expert_decisions']['value']} expert decisions; "
+          f"{counts['machine_adjudications']['value']} machine adjudications")
+    print(f"payload digest {record['payload_digest']['sha256']}")
+    for name, path in sorted(record["paths"].items()):
+        digest = record["file_digests"].get(name)
+        print(f"  {path}  {digest['bytes']} bytes  {digest['sha256']}" if digest
+              else f"  {path}  carries the digests of the other three")
 
 
 def _show_trajectory(core: Core, task_id: str) -> None:
@@ -862,8 +910,13 @@ def main(argv: list[str] | None = None) -> int:
     t.set_defaults(func=cmd_task)
 
     c = sub.add_parser("criteria")
-    c.add_argument("action", choices=("propose", "derive", "mandated", "pool", "dedupe"))
+    c.add_argument("action", choices=("propose", "derive", "mandated", "pool", "dedupe", "export"))
     c.add_argument("task")
+    c.add_argument("--out", metavar="DIR", help="export: where to write the package (default: design_audit)")
+    c.add_argument("--at-seq", type=int, metavar="N",
+                   help="export: pin the task stream at this journal sequence (default: its last)")
+    c.add_argument("--no-board", action="store_true",
+                   help="export: leave out the last published board and its measured coverage")
     c.add_argument("--dry-run", action="store_true", help="dedupe: print the plan and write nothing")
     c.add_argument("--withdraw", metavar="CLP", help="dedupe: undo this collapse, so its rules score again")
     c.add_argument("--reason", help="dedupe: why a collapse is being withdrawn")
