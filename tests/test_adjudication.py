@@ -676,7 +676,8 @@ def test_a_route_preview_over_the_two_manuscript_rule_shapes_names_the_definitio
         rule = criteria.load(core, item["subject"]["id"], task_id)
         assert (rule["rule_kind"], rule["predicate_form"], rule["cutoff"], rule["cutoff_basis"]) == \
                ("preference", "ordering", None, "none_evidence_insufficient")
-        assert criteria.needs_expert(rule) is False
+        # the authority table reads the whole decision-bearing object now, transform bounds included
+        assert criteria.needs_expert(rule, criteria.load(core, rule["attribute_ref"], task_id)) is False
         assert item["why_expert_required"] == QUEUE_TEXT
         preview = adjudication.route_preview(core, item)
         assert preview["route"] == "definition_restated", item["subject"]["id"]

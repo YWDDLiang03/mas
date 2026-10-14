@@ -263,7 +263,8 @@ def test_a_disputed_preference_scores_the_board_and_the_rule_set_says_so(core):
             "cutoff_basis": "none_evidence_insufficient"}
     _, rule_ref = criteria.propose(core, task_id, attribute, rule, by=OPERATOR,
                                    dispute={"finding": "the identifier mapping could not be checked"})
-    assert not criteria.needs_expert(dict(rule, rule_kind="preference"))      # the trigger table lets it through
+    # the trigger table lets it through, and it is read from the rule, the attribute and its bounds together
+    assert not criteria.needs_expert(dict(rule, rule_kind="preference"), attribute)
 
     with pytest.raises(criteria.InvariantViolation, match="unconfirmed"):
         criteria.confirm_rule_set(core, task_id, by=OPERATOR)                 # blocked without allow_pending

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import review, vocab
+from . import bound_support, review, vocab
 from .canonical import canonical_text, sha256_hex
 from .ids import slug
 from .runtime import Core
@@ -239,7 +239,8 @@ def _versions(core: Core, task_id: str, kind: str, base_id: str) -> list[dict[st
 
 def propose(core: Core, task_id: str, attribute: dict[str, Any], rule: dict[str, Any], *,
             by: dict[str, Any], derivation_configuration: str = "reference_disclosed",
-            dispute: dict[str, Any] | None = None) -> tuple[str, str]:
+            dispute: dict[str, Any] | None = None,
+            support: dict[str, Any] | None = None) -> tuple[str, str]:
     """Propose one attribute version and one rule version, and raise their confirmation item.
 
     Proposals enter as `proposed`; templates and people never pre-approve them.
@@ -274,13 +275,15 @@ def propose(core: Core, task_id: str, attribute: dict[str, Any], rule: dict[str,
                                                "attribute_ref": attr_ref},
                        why_expert_required="proposer and critic still disagree after one revision",
                        requested_by=by, inspection_bundle=dispute)
-    elif needs_expert(rule_record):
-        why = "hard_exclusion entering confirmed" if rule_record["rule_kind"] == "hard_exclusion" else "rule confirmation"
-        if rule_record["cutoff_basis"] == "expert_set":
-            why += "; cutoff_basis expert_set"
-        review.request(core, task_id, subject={"kind": "rule_version", "id": rule_ref, "version": rule_version,
-                                               "attribute_ref": attr_ref},
-                       why_expert_required=why, requested_by=by)
+    else:
+        # `support` is the bound-support report for this very attribute and rule when the caller has
+        # the claims to compute it (`core/bound_support.py`); without it the authority table still
+        # reads the rule, the attribute and the bounds inside the transform, which is what F3 was about.
+        owed = authority_requirements(rule_record, attr_record, support=support)
+        if owed:
+            review.request(core, task_id, subject={"kind": "rule_version", "id": rule_ref, "version": rule_version,
+                                                   "attribute_ref": attr_ref},
+                           why_expert_required="; ".join(r["detail"] for r in owed), requested_by=by)
     return attr_ref, rule_ref
 
 
@@ -308,10 +311,65 @@ def record_version(core: Core, task_id: str, kind: str, ref: str, record: dict[s
     return f"{base_id}@v{version}"
 
 
-def needs_expert(rule: dict[str, Any]) -> bool:
-    """Trigger table (design §12.1): hard exclusions and expert-set cutoffs need an `hd_`;
-    evidence-sourced preference rules proceed automatically, recorded and reversible."""
-    return rule["rule_kind"] == "hard_exclusion" or rule["cutoff_basis"] in ("expert_set", "task_constraint")
+def authority_requirements(rule: dict[str, Any], attribute: dict[str, Any], *,
+                           support: dict[str, Any] | None = None,
+                           weighting: dict[str, Any] | None = None) -> list[dict[str, str]]:
+    """Every reason this criterion needs a decision before it may score, from the whole object.
+
+    Trigger table (design §12.1), computed from the rule, the attribute, the bounds inside its
+    `value_transform` and the weighting policy that will rank with it -- not from the rule alone.
+
+    WHY the whole object: `needs_expert` read `rule["rule_kind"]` and `rule["cutoff_basis"]` and
+    nothing else, while `check_value_transform` accepts `basis: expert_set` for a bound that is read
+    on every cell the rule scores. Measured on this checkout, 14 October 2026: an ordering preference
+    whose transform bound carried `basis: expert_set` was registered with zero review items and
+    entered a confirmed set with `confirmed_by: auto:trigger_table` -- the authority requirement
+    disappeared because the number had moved out of the one field the table was reading. Moving a
+    number from a cutoff into a transform must not change what it needs (§6 F3).
+    """
+    out: list[dict[str, str]] = []
+    if rule.get("rule_kind") == "hard_exclusion":
+        out.append({"reason": "hard_exclusion",
+                    "detail": "a hard exclusion deletes candidates from the result"})
+    if rule.get("cutoff_basis") in bound_support.AUTHORITY_BASES:
+        out.append({"reason": f"cutoff_basis_{rule['cutoff_basis']}",
+                    "detail": f"the cutoff claims cutoff_basis {rule['cutoff_basis']}"})
+    transform = (attribute or {}).get("value_transform") or {}
+    if transform.get("basis") in bound_support.AUTHORITY_BASES:
+        out.append({"reason": f"transform_basis_{transform['basis']}",
+                    "detail": f"the {transform.get('kind')} bound inside value_transform claims basis "
+                              f"{transform['basis']}, which is the same claim a cutoff of that basis makes"})
+    for bound in (support or {}).get("bounds", []):
+        if bound["state"] in bound_support.REVIEW_STATES:
+            out.append({"reason": "bound_interpretation_added",
+                        "detail": f"{bound['parameter_path']} reads {bound['value']} as a decision line that its "
+                                  f"source does not state as one"})
+        elif bound["state"] in bound_support.BLOCKING_STATES:
+            out.append({"reason": "bound_unsupported",
+                        "detail": f"{bound['parameter_path']} reads {bound['value']} and its support does not "
+                                  f"establish that number"})
+    weights = (weighting or {}).get("weight_vector") or {}
+    rule_ref = f"{rule.get('rule_id')}@v{rule.get('version')}"
+    for key in (rule_ref, rule.get("rule_id"), attribute.get("attribute_ref") if attribute else None):
+        if key and key in weights and not (weighting or {}).get("weight_provenance"):
+            # A weight is a decision about how much this criterion counts, and §5.4 asks for the
+            # provenance of weights and weight groups like any other registered parameter.
+            out.append({"reason": "weight_without_provenance",
+                        "detail": f"the ordering method weights {key} at {weights[key]} and names no provenance "
+                                  f"for that weight"})
+            break
+    return out
+
+
+def needs_expert(rule: dict[str, Any], attribute: dict[str, Any], *, support: dict[str, Any] | None = None,
+                 weighting: dict[str, Any] | None = None) -> bool:
+    """Whether this criterion needs an `hd_` before it may score (`authority_requirements`).
+
+    The attribute is required rather than optional: a caller that cannot supply it cannot see the
+    bounds inside the transform, and an authority check that silently reads half the object is the
+    defect this signature exists to close (§6 F3).
+    """
+    return bool(authority_requirements(rule, attribute, support=support, weighting=weighting))
 
 
 def load(core: Core, ref: str, task_id: str) -> dict[str, Any]:
@@ -338,7 +396,8 @@ def chosen_after_results(ordering_method: dict[str, Any] | None) -> bool:
 def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_method: dict[str, Any] | None = None,
                      coverage_floor: float = 1.0, constants: list[dict[str, Any]] | None = None,
                      allow_pending: bool = False, defer_capabilities: tuple[str, ...] = (),
-                     defer_reason: str = "", preregistration_ref: str | None = None) -> str:
+                     defer_reason: str = "", preregistration_ref: str | None = None,
+                     require_bound_support: bool = False) -> str:
     """Assemble `rules@v<n>` from the rule proposals that may enter it.
 
     A rule needing an expert enters only with an `hd_` approving it; a preference rule the
@@ -351,6 +410,14 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     machine_adjudication` on its entry. One such rule makes the whole set `exploratory` with a
     reason naming the count, for the same reason a fitted ordering method does: the label is what a
     reader has to go on, and a set no person has confirmed must not read as a settled one.
+
+    A rule a number enters the board on must have that number supported: every cutoff and every
+    bound inside a `value_transform` is validated against the claims the criterion cites
+    (`core/bound_support.py`, design §5.4). A rule whose bound its own cited claims contradict is
+    held out and listed in `bounds_unsupported[]`; with `require_bound_support` a rule whose bounds
+    are not established as source-stated thresholds is held out too and listed in
+    `bounds_withheld[]`. Each entry carries the state of each of its bounds, so a reader can see
+    which numbers a source states and which the criterion interprets.
 
     A rule whose attribute a `collapse` merged away (`core/collapse.py`: several registrations of one
     quantity) does not enter at all and is listed in `collapsed_away[]`; a rule reading an attribute
@@ -377,6 +444,7 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
         if event.event_type == "criterion.version_proposed" and event.payload["kind"] == "rule":
             proposed[event.payload["id"]] = f"{event.payload['id']}@v{event.payload['version']}"   # latest version wins
     entries, deferred, machine_adjudicated, collapsed_away = [], [], [], []
+    bounds_unsupported, bounds_withheld, decisions_not_carried = [], [], []
     for rule_ref in sorted(proposed.values()):
         rule = load(core, rule_ref, task_id)
         merged_away = superseded.get(rule["attribute_ref"])
@@ -399,7 +467,36 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
             deferred.append({"rule_ref": rule_ref, "capability": held_out, "reason": defer_reason,
                              "authority": "machine_adjudication" if adjudication_record else None})
             continue
+        # Every number this rule compares a candidate against, and what stands behind it
+        # (`core/bound_support.py`, design §5.4). A bound whose support contradicts it never enters
+        # the set: 90 citing a claim that states 30 is not a rule awaiting an opinion, it is a rule
+        # whose own evidence says it is wrong.
+        support = bound_support.validate(attr, rule, claims=_claims_for(core, task_id, attr, rule))
+        if support["unsupported_paths"]:
+            bounds_unsupported.append({"rule_ref": rule_ref, "attribute_ref": rule["attribute_ref"],
+                                       "paths": support["unsupported_paths"],
+                                       "findings": bound_support.messages(support)})
+            continue
+        if require_bound_support and support["states"] and \
+                any(state != "sourced_threshold" for state in support["states"].values()):
+            # The strict gate a freeze or a published sourced set asks for (§6 F2: missing or
+            # invalid support stays visible and non-scoring). Off by default, because an already
+            # promoted criterion carries no support record at all and §9.2 asks that absent
+            # metadata be marked unknown rather than be given a passing status *or* a failing one.
+            bounds_withheld.append({"rule_ref": rule_ref, "attribute_ref": rule["attribute_ref"],
+                                    "states": support["states"]})
+            continue
         item = decided.get(rule_ref)
+        if item is not None and item["subject"].get("attribute_ref") not in (None, rule["attribute_ref"]):
+            # A decision is a decision about one version of one decision-bearing object. The rule
+            # version named in the subject may now read another attribute version -- a collapse or a
+            # machine adjudication writes one -- and approving the earlier pair said nothing about
+            # the parameters of the later one (§6 F3: approving one version does not approve
+            # materially changed parameters in another).
+            decisions_not_carried.append({"rule_ref": rule_ref, "decision_id": item["decision_id"],
+                                          "decided_attribute_ref": item["subject"].get("attribute_ref"),
+                                          "attribute_ref_now": rule["attribute_ref"]})
+            item = None
         if item is not None:
             if item["decision"] not in ("approve", "approve_with_edits"):
                 continue
@@ -407,7 +504,7 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
         elif adjudication_record is not None:
             confirmed_by, authority = adjudication_record["adjudication_id"], "machine_adjudication"
             machine_adjudicated.append(rule_ref)
-        elif not needs_expert(rule):
+        elif not needs_expert(rule, attr, support=support, weighting=ordering_method):
             confirmed_by, authority = "auto:trigger_table", "trigger_table"
         else:
             continue
@@ -420,9 +517,21 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                         "authority": vocab.require("decision_authority", authority),
                         "acceptable_value_sources": attr["acceptable_value_sources"],
                         "on_states": [rule["on_missing"], rule["on_inapplicable"], rule["on_conflict"]],
-                        "cutoff_basis": rule["cutoff_basis"], "disputed": rule_ref in set(open_refs)})
+                        "cutoff_basis": rule["cutoff_basis"], "disputed": rule_ref in set(open_refs),
+                        # One state per number this rule compares a candidate against, so a reader of
+                        # the set can see which of its bounds a source states and which it interprets.
+                        "bound_support": {"states": support["states"],
+                                          "needing_a_decision": support["review_paths"],
+                                          "claims_resolved": support["claims_resolved"],
+                                          # How each number is traced, and which of them is one end of a
+                                          # range its source states rather than a line that source draws.
+                                          "traces": {b["parameter_path"]: b["trace_kind"] for b in support["bounds"]},
+                                          "range_endpoints": sorted(b["parameter_path"] for b in support["bounds"]
+                                                                    if b["range_endpoint"])}})
     if not entries:
-        raise InvariantViolation("unconfirmed", "no rule version may enter the set yet")
+        held = len(bounds_unsupported) + len(bounds_withheld)
+        raise InvariantViolation("unconfirmed", "no rule version may enter the set yet"
+                                 + (f"; {held} were held out over bound support" if held else ""))
     existing = [e for e in core.journal.replay(task_id) if e.event_type == "criterion.version_approved"]
     version = len(existing) + 1
     admission_predicate = {"entries": [{k: e[k] for k in ("acceptable_value_sources", "on_states", "cutoff_basis")} for e in entries],
@@ -440,12 +549,21 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                        ([f"{len(collapsed_away)} rules are held out of this set because the software merged their "
                          f"attributes away: {', '.join(e['rule_ref'] for e in collapsed_away)}"]
                         if collapsed_away else [])
+    bound_reasons = ([f"{len(bounds_unsupported)} rules are held out of this set because a number they compare "
+                      f"candidates against is not supported by the claims they cite: "
+                      f"{', '.join(e['rule_ref'] for e in bounds_unsupported)}"] if bounds_unsupported else []) + \
+                    ([f"{len(bounds_withheld)} rules are held out because support records establishing their "
+                      f"bounds as source-stated thresholds are missing or incomplete: "
+                      f"{', '.join(e['rule_ref'] for e in bounds_withheld)}"] if bounds_withheld else []) + \
+                    ([f"{len(decisions_not_carried)} rules read an attribute version the decision on them did not "
+                      f"cover: {', '.join(e['rule_ref'] for e in decisions_not_carried)}"]
+                     if decisions_not_carried else [])
     acceptance_reasons = ([f"{len(open_refs)} rule proposals await an expert decision"] if open_refs else []) + \
                          ([f"{len(scoring_disputed)} of them score candidates while disputed: "
                            f"{', '.join(scoring_disputed)}"] if scoring_disputed else []) + \
                          ([f"{len(machine_adjudicated)} rules were adjudicated by an agent; no person has "
                            f"confirmed them: {', '.join(machine_adjudicated)}"] if machine_adjudicated else []) + \
-                         collapse_reasons + \
+                         collapse_reasons + bound_reasons + \
                          (["the ordering method was fitted on the results it ranks"] if fitted_ordering else [])
     record = {"rule_set_ref": f"rules@v{version}", "task_id": task_id, "entries": entries,
               "ordering_method": ordering_method or {"kind": "weighted_preference", "weight_vector": {}, "tie_break": "candidate_id"},
@@ -454,7 +572,8 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
               "confirmed_by": [e["confirmed_by"] for e in entries], "pending": open_refs,
               "pending_but_scoring": scoring_disputed, "machine_adjudicated": machine_adjudicated,
               "machine_collapsed": machine_collapsed, "collapsed_away": collapsed_away,
-              "deferred": deferred,
+              "deferred": deferred, "bounds_unsupported": bounds_unsupported, "bounds_withheld": bounds_withheld,
+              "decisions_not_carried": decisions_not_carried,
               "acceptance_label": vocab.require("acceptance_label", "exploratory" if acceptance_reasons else "prespecified"),
               "acceptance_reasons": acceptance_reasons, "preregistration_ref": preregistration_ref}
     artifact_id = core.artifacts.put("rule_set", record)
@@ -465,8 +584,22 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                         summary=f"confirmed {record['rule_set_ref']} ({len(entries)} rules, {len(open_refs)} pending "
                                 f"of which {len(scoring_disputed)} score anyway, {len(machine_adjudicated)} adjudicated "
                                 f"by an agent, {len(machine_collapsed)} reading a collapsed attribute, "
-                                f"{len(collapsed_away)} collapsed away, {len(deferred)} deferred)")
+                                f"{len(collapsed_away)} collapsed away, {len(deferred)} deferred, "
+                                f"{len(bounds_unsupported) + len(bounds_withheld)} held out over bound support)")
     return record["rule_set_ref"]
+
+
+def _claims_for(core: Core, task_id: str, attribute: dict[str, Any], rule: dict[str, Any]
+                ) -> list[dict[str, Any]] | None:
+    """The admitted claims a criterion cites, read only when it holds a number to check.
+
+    WHY the guard: confirming a rule set is a fold over the journal, and most rules of the live task
+    carry no cutoff at all (ordering preferences). Resolving citations for them would read the run
+    streams once per rule for nothing.
+    """
+    if not bound_support.bounds(attribute, rule):
+        return []
+    return bound_support.resolve_claims(core, task_id, attribute.get("supporting_claim_refs") or [])
 
 
 def rule_set(core: Core, task_id: str, ref: str | None = None) -> dict[str, Any]:

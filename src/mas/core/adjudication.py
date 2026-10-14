@@ -58,7 +58,7 @@ import json
 import re
 from typing import Any
 
-from . import criteria, ledger, review, vocab
+from . import bound_support, criteria, ledger, review, vocab
 from .clock import utc_now
 from .ids import new_id
 from .journal import actor as make_actor
@@ -111,7 +111,6 @@ ADJUDICATION_SCHEMA = {
 _WORDS = re.compile(r"[a-z0-9.]+")
 _STOP = {"the", "of", "a", "an", "in", "to", "and", "or", "for", "with", "by", "at", "on", "as", "is",
          "be", "must", "should", "only", "any", "all", "its", "it", "that", "this", "are", "was"}
-_NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
 
 
 class AdjudicationError(RuntimeError):
@@ -122,8 +121,11 @@ def _words(text: str) -> set[str]:
     return {w.strip(".") for w in _WORDS.findall((text or "").lower())} - _STOP - {""}
 
 
-def _numbers(text: str) -> set[str]:
-    return {n.rstrip("0").rstrip(".") if "." in n else n for n in _NUMBER.findall(text or "")}
+# WHY these two come from `bound_support`: "the number this text states" and "the cited claim that
+# states this bound" are one definition in the codebase now, so an audit, a machine adjudication and
+# a proposal validator cannot disagree about what a bound traces to (§9: one shared support helper).
+_numbers = bound_support.numbers
+_claims_stating = bound_support.claims_stating
 
 
 # --- route 1: does the task text itself state this cutoff? --------------------------------------
@@ -261,28 +263,6 @@ def stated_quantity(definition: str) -> dict[str, Any] | None:
     if reading["kind"] == "distance_outside_band" and reading["low"] >= reading["high"]:
         return None
     return reading
-
-
-def _claims_stating(bound: float | int, unit: str | None, claims: list[dict[str, Any]]) -> list[dict[str, str]]:
-    """The cited claims that state one bound, and how each states it.
-
-    Either the claim's own value is the bound in the attribute's unit, or the number appears in the
-    text the claim was read from -- the same two kinds of trace route 1 accepts against a
-    constraint's text. Recording which of the two it was keeps the declaration auditable: a number
-    matched inside a quote is a weaker trace than a claim whose value *is* the bound.
-    """
-    wanted = _numbers(str(bound))
-    out = []
-    for claim in claims:
-        value = claim.get("value")
-        read_from = " ".join(str(claim.get(field) or "") for field in ("normalized_statement", "claim_text")
-                             ) + " " + str((claim.get("location") or {}).get("quoted_span") or "")
-        if isinstance(value, (int, float)) and not isinstance(value, bool) and float(value) == float(bound) \
-                and (not unit or not claim.get("unit") or claim["unit"] == unit):
-            out.append({"claim_id": claim["claim_id"], "states_it": "claim_value"})
-        elif wanted and wanted <= _numbers(read_from):
-            out.append({"claim_id": claim["claim_id"], "states_it": "claim_quote"})
-    return out
 
 
 def _quantity_in_words(transform: dict[str, Any]) -> str:
@@ -527,15 +507,28 @@ def _dispute_view(attribute: dict[str, Any], rule: dict[str, Any]) -> dict[str, 
                            "expected_change": rule.get("expected_change")}}, 0, blind=True)
 
 
+def cited_claims(core: Core, task_id: str, item: dict[str, Any], attribute: dict[str, Any]) -> list[dict[str, Any]]:
+    """The admitted claims this criterion cites, from the task stream and the run the item names.
+
+    WHY beside `_cited_claims`: that one reads nothing unless the definition states a bound there
+    would be something to trace, which is what keeps `route_preview` cheap for the four routes that
+    cite no claim. A revision and a dispute need the claims whatever the definition says.
+    """
+    cited = set(attribute.get("supporting_claim_refs") or [])
+    if not cited:
+        return []
+    bundle = item.get("inspection_bundle") or {}
+    streams = [task_id] + ([bundle["derivation_run"]] if bundle.get("derivation_run") else [])
+    return [c for c in ledger.claims(core, streams) if c["claim_id"] in cited]
+
+
 def _adjudicate_dispute(core: Core, task_id: str, item: dict[str, Any], rule: dict[str, Any],
                         attribute: dict[str, Any], *, roster: ModelRoster, budget: Any = None) -> dict[str, Any]:
     from .derivation import _claims_block
 
     bundle = item.get("inspection_bundle") or {}
     marker = independence(roster)
-    streams = [task_id] + ([bundle["derivation_run"]] if bundle.get("derivation_run") else [])
-    cited = set(attribute.get("supporting_claim_refs") or [])
-    claims = [c for c in ledger.claims(core, streams) if c["claim_id"] in cited]
+    claims = cited_claims(core, task_id, item, attribute)
     view = _dispute_view(attribute, rule)
     content = (f"Objective: {task_mod.get(core, task_id)['objective_text']}\n\n"
                f"Criterion under dispute:\n{json.dumps(view, ensure_ascii=False, indent=1)}\n\n"
@@ -559,23 +552,73 @@ def _adjudicate_dispute(core: Core, task_id: str, item: dict[str, Any], rule: di
             "request_id": response.request_id}
 
 
-def _apply_revision(rule: dict[str, Any], revision: dict[str, Any], attribute: dict[str, Any]) -> tuple[dict[str, Any], str]:
-    """The revised rule, or the original with the reason the revision was refused.
+def _apply_revision(rule: dict[str, Any], revision: dict[str, Any], attribute: dict[str, Any], *,
+                    claims: list[dict[str, Any]] | None = None) -> tuple[dict[str, Any], str, dict[str, Any]]:
+    """The revised rule, or the original with the reason the revision was refused, and the diff of both.
 
-    A revision may only weaken: an agent that could revise a preference into a hard exclusion would
-    have acquired, through the dispute route, exactly the authority routes 2 and 3 deny it.
+    The whole revised object is revalidated: the fields a revision may set at all, how each change
+    relates to the original (`bound_support.revision_relation`), the registry invariants, the support
+    for every number the revised rule compares a candidate against, and the authority that object
+    then needs. Measured on this checkout: `>= 30` -> `>= 90` was applied with no refusal, having
+    passed a schema check and a rule-kind check that neither establish support for 90 nor say which
+    way the change points (R7).
+
+    What may be applied:
+      * weaker or neutral, and still supported and no more demanding of authority -- applied;
+      * stronger in rule kind or in an on-state policy -- refused, because an agent that could
+        revise a preference into a hard exclusion would have acquired through the dispute route
+        exactly the authority routes 2 and 3 deny it;
+      * stronger in the cutoff -- applied only where the cited claims state the number it moves to
+        and the authority requirement does not grow, which is the one sense in which a tightening
+        does not bypass the support and authority checks (§6 F4);
+      * not decidable as either -- refused, and the record says an explicit review is required
+        rather than guessing: a comparator that reverses, a unit the rule did not have, a relabelled
+        cutoff basis and a changed predicate are not two settings of one requirement.
     """
-    fields = ("predicate_form", "cutoff", "cutoff_basis", "on_missing", "on_inapplicable", "on_conflict")
-    revised = dict(rule, **{k: revision[k] for k in fields if k in revision})
+    unknown = sorted(set(revision) - set(bound_support.REVISABLE_FIELDS))
+    revised = dict(rule, **{k: revision[k] for k in bound_support.REVISABLE_FIELDS if k in revision})
+    relation = bound_support.revision_relation(rule, revised)
+    record = {"diff": relation["diff"], "relation": relation["relation"], "changes": relation["changes"],
+              "fields_refused": unknown, "requires_explicit_review": False, "refused": ""}
+
+    def refuse(reason: str, *, review_required: bool = False) -> tuple[dict[str, Any], str, dict[str, Any]]:
+        return rule, reason, dict(record, refused=reason, requires_explicit_review=review_required)
+
+    if unknown:
+        return refuse(f"a revision may not set {', '.join(unknown)}; those fields are not this rule's to change",
+                      review_required=True)
     if revision.get("rule_kind") == "hard_exclusion":
-        return rule, "a revision may not make a rule a hard exclusion"
+        return refuse("a revision may not make a rule a hard exclusion")
     if revised.get("cutoff_basis") == "expert_set":
-        return rule, "a revision may not claim an expert set the cutoff"
+        return refuse("a revision may not claim an expert set the cutoff")
+    stronger = [c for c in relation["changes"] if c["relation"] == "stronger"]
+    undecidable = [c for c in relation["changes"] if c["relation"] == "not_decidable"]
+    if undecidable:
+        return refuse("the revision is neither weaker nor stronger than the rule it revises, so a person has to "
+                      "judge it: " + "; ".join(c["why"] for c in undecidable), review_required=True)
+    if any(c["field"] != "cutoff" for c in stronger):
+        return refuse("a revision may only weaken a rule: "
+                      + "; ".join(c["why"] for c in stronger if c["field"] != "cutoff"))
     try:
         criteria.check_rule(revised, attribute)
     except criteria.InvariantViolation as violation:
-        return rule, f"the revised rule failed a registry invariant: {violation}"
-    return revised, ""
+        return refuse(f"the revised rule failed a registry invariant: {violation}")
+    support = bound_support.validate(attribute, revised, claims=claims)
+    record["bound_support"] = support["states"]
+    if support["blocking"]:
+        return refuse("the revised rule's bound is not supported by the claims the criterion cites: "
+                      + "; ".join(bound_support.messages(support)))
+    if stronger and not any(bound["trace"] for bound in support["bounds"]
+                            if bound["parameter_path"] == "rule.cutoff.value"):
+        return refuse("a revision may tighten a cutoff only to a number the cited claims state, and none of them "
+                      "states this one: " + "; ".join(c["why"] for c in stronger))
+    owed_before = {r["reason"] for r in criteria.authority_requirements(rule, attribute)}
+    owed_after = criteria.authority_requirements(revised, attribute, support=support)
+    added = [r for r in owed_after if r["reason"] not in owed_before]
+    if added:
+        return refuse("the revised rule would need an authority the rule it revises does not: "
+                      + "; ".join(r["detail"] for r in added), review_required=True)
+    return revised, "", record
 
 
 # --- adjudicating -----------------------------------------------------------------------------------
@@ -599,7 +642,7 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
     attribute = criteria.load(core, rule["attribute_ref"], task_id)
     route, restated = route_of(rule, attribute, context, item, _cited_claims(core, task_id, attribute, item))
     adjudication_id = new_id("adj")
-    by, dispute = MACHINE, None
+    by, dispute, revision = MACHINE, None, None
 
     if route == "dispute_adjudicated":
         if roster is None:
@@ -612,12 +655,14 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         if dispute["verdict"] == "uphold_proposal":
             resolution, reason = "approve", "the critic's findings do not stand against the claims the criterion cites"
         elif dispute["verdict"] == "revise":
-            revised, refused = _apply_revision(rule, dispute["revised_rule"] or {}, attribute)
+            revised, refused, revision = _apply_revision(rule, dispute["revised_rule"] or {}, attribute,
+                                                         claims=cited_claims(core, task_id, item, attribute))
             if refused:
                 resolution, reason = "demote_to_exploratory_consideration", refused
             else:
                 rule, resolution = revised, "approve"
-                reason = "the dispute was settled by a change to the rule"
+                reason = ("the dispute was settled by a change to the rule: "
+                          + "; ".join(c["why"] for c in revision["changes"]))
         elif dispute["verdict"] == "uphold_objection":
             resolution = "demote_to_exploratory_consideration"
             reason = "the critic's finding stands, so the criterion does not score as proposed"
@@ -695,6 +740,9 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         # own edits; empty for the four routes that change nothing but the rule's kind.
         "edits": edits,
         "scores_candidates": scores,
+        # Both versions and a field-level diff of the revision, applied or refused (§6 F4).
+        "revision": revision,
+        "requires_explicit_review": bool(revision and revision["requires_explicit_review"]),
         "verdict": dispute["verdict"] if dispute else None,
         "reasoning": dispute["reasoning"] if dispute else None,
         "cited_claim_ids": dispute["cited_claim_ids"] if dispute else [],

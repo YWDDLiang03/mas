@@ -28,7 +28,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import criteria
+from . import bound_support, criteria
 from .assessor import canonical_unit
 from .canonical import canonical_text
 from .derivation import (CRITIC_SYSTEM, CRITIQUE_SCHEMA, PROPOSAL_SCHEMA, PROPOSER_SYSTEM, REVISER_SYSTEM,
@@ -463,7 +463,11 @@ def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> 
         parents_claims = {c for e in group for c in e["item"]["supporting_claim_ids"]}
         parents_routes = {criteria.route_key(r) for e in group
                           for r in criteria.evidence_routes(e["item"]["attribute"])}
-        item = _item(decision["merged"], dimension=group[0]["item"].get("dimension"))
+        # A merged child inherits the largest repair count in its group, never a fresh budget: otherwise
+        # merging two items that had each been revised to their limit would hand the result an untouched
+        # allowance, and the cheapest way past `max_refines` would be to merge.
+        item = _item(decision["merged"], dimension=group[0]["item"].get("dimension"),
+                     refine_count=max(int(e["item"].get("refine_count") or 0) for e in group))
         child_routes = {criteria.route_key(r) for r in criteria.evidence_routes(item["attribute"])}
         problems = ctx.validate(item)
         if problems or not item["supporting_claim_ids"] or not set(item["supporting_claim_ids"]) <= parents_claims \
@@ -571,7 +575,14 @@ def promote(ctx: StageContext, *, by_proposer: dict[str, Any]) -> dict[str, Any]
         dispute = ({"open_critic_findings": blocking + material, "pool_criterion": entry["criterion_id"],
                     "derivation_run": ctx.run_id} if blocking or material else None)
         try:
-            attr_ref, rule_ref = criteria.propose(ctx.core, ctx.task_id, attribute, rule, by=by_proposer, dispute=dispute)
+            # The promotion site: the registry is told what stands behind each of this criterion's
+            # numbers, so the authority it needs is computed from the whole decision-bearing object
+            # rather than from the rule's two fields (`core/bound_support.py`, §6 F2/F3).
+            support = bound_support.validate(attribute, rule, claims=[ctx.claims_by_id[c] for c in
+                                                                      item["supporting_claim_ids"]
+                                                                      if c in ctx.claims_by_id])
+            attr_ref, rule_ref = criteria.propose(ctx.core, ctx.task_id, attribute, rule, by=by_proposer,
+                                                  dispute=dispute, support=support)
         except criteria.InvariantViolation as violation:
             pool.set_state(entry, "deferred_next_round", operation="defer", reason_kind="registry_invariant",
                            reason_text=str(violation))

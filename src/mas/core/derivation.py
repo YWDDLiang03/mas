@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from . import assessor, criteria, reading
+from . import assessor, bound_support, criteria, reading
 from .clock import utc_now
 from .journal import actor as make_actor
 from .models import ModelRequest, ModelRoster, call_role
@@ -106,9 +106,14 @@ REVISION_CHECKS = ("objective_conformance", "evidence_support", "unit_applicabil
 # proposer is told to declare it when a bound source returns a basis the defaults exclude. Filtering it out here left
 # that instruction impossible to satisfy -- the attribute came back with the identical validator problem after every
 # revision, because the declaration was stripped before the check re-read it.
+#
+# WHY `bound_support` is in this list: a support record is declared for the parameter path it
+# supports (§5.4), the proposer is asked for one, and the registry reads it when it computes what
+# the criterion needs before it may score. Stripped here, the declaration would never reach the
+# record -- a field the schema accepts and nothing downstream reads (§5.3).
 ATTRIBUTE_FIELDS = ("name", "definition", "measurement_kind", "unit", "direction", "acceptable_value_sources",
                     "acceptable_determination_bases", "aggregation", "value_transform", "evidence_request",
-                    "evidence_requests", "rationale")
+                    "evidence_requests", "rationale", "bound_support")
 
 # WHY one shared constant: both prompt builders describe the rule schema, and when the description drifts from what
 # `check_rule` accepts a proposer spends revisions discovering the real contract. This listed two of the five
@@ -119,8 +124,18 @@ SCHEMA_BLOCK_FORMS = (
     "candidates, so it is only valid on a preference -- an exploratory_consideration uses qualitative_judgment "
     "instead. cutoff {comparator (>=|<=|>|<|==), value, unit} or null, cutoff_basis "
     "(source_stated_value|none_evidence_insufficient), on_missing/on_inapplicable/on_conflict "
-    "(unknown_no_penalty|unknown_blocks_recommendation|route_to_human).\n")
-RULE_FIELDS = ("rule_kind", "predicate_form", "cutoff", "cutoff_basis", "on_missing", "on_inapplicable", "on_conflict")
+    "(unknown_no_penalty|unknown_blocks_recommendation|route_to_human).\n"
+    "Every number a candidate is compared against -- a rule cutoff, a bound inside a value_transform -- carries "
+    "one bound_support record, on the rule for its cutoff and on the attribute for a transform bound: "
+    "{parameter_path (rule.cutoff.value | attribute.value_transform.bound|low|high), claim_id, source_number, "
+    "source_unit, conversion {kind: identity|unit_conversion (factor, from_unit, to_unit)|explicit_derivation "
+    "(expression, result)}, statement_kind (states_decision_threshold when the passage states the number as a "
+    "requirement | reports_measurement when it reports a measured or observed value or range | provides_heuristic), "
+    "applicability_rationale (why it applies to this candidate population)}. The number, the unit and the "
+    "arithmetic are checked against the claim; statement_kind and applicability_rationale are your reading and are "
+    "recorded as such.\n")
+RULE_FIELDS = ("rule_kind", "predicate_form", "cutoff", "cutoff_basis", "on_missing", "on_inapplicable",
+               "on_conflict", "bound_support")
 
 
 def _excluded(hit: dict[str, Any], case_sources: list[dict[str, Any]]) -> bool:
@@ -294,11 +309,12 @@ def validate_proposal(proposal: dict[str, Any], *, claims_by_id: dict[str, dict[
         problems.append("evidence_support: no supporting claims cited")
     if missing:
         problems.append(f"evidence_support: cited claims not in the ledger {missing}")
-    if rule.get("cutoff_basis") == "source_stated_value":
-        values = [claims_by_id[c] for c in cited if c in claims_by_id
-                  and any(claims_by_id[c].get(k) is not None for k in ("value", "value_low", "value_high"))]
-        if not values:
-            problems.append("arbitrary_cutoff: source_stated_value cutoff without a cited claim carrying a value")
+    # Every number this proposal would compare a candidate against, against the claims it cites
+    # (`core/bound_support.py`, design §5.4). WHY it replaces the count of cited claims carrying *a*
+    # value: that check passed a `source_stated_value` cutoff of 90 whose cited claim stated 30 (R4),
+    # because the presence of a numeric claim is not support for a particular number.
+    support = bound_support.validate(attribute, rule, claims=[claims_by_id[c] for c in cited if c in claims_by_id])
+    problems += bound_support.messages(support)
     # Every route is bound and checked, not just the first: an attribute may read one quantity from
     # two databases, and an unbound second route would be a tool call nobody declared.
     routes = criteria.evidence_routes(attribute)
@@ -514,7 +530,11 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
         if status[index] == "unresolved_after_revision":
             dispute = {"open_critic_findings": [f for f in mine if f["verdict"] == "fail"],
                        "proposal_request": proposer.request_id, "critique_request": critic.request_id}
-        attr_ref, rule_ref = criteria.propose(core, task_id, attribute, rule, by=who, dispute=dispute)
+        attr_ref, rule_ref = criteria.propose(
+            core, task_id, attribute, rule, by=who, dispute=dispute,
+            support=bound_support.validate(attribute, rule, claims=[claims_by_id[c] for c in
+                                                                    proposal["supporting_claim_ids"]
+                                                                    if c in claims_by_id]))
         registered_keys.add(criteria.evidence_key(attribute))
         entry = {"attribute_ref": attr_ref, "rule_ref": rule_ref, "name": attribute["name"],
                  "rule_kind": rule["rule_kind"], "critic_findings": mine}

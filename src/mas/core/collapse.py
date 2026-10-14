@@ -45,7 +45,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from . import criteria, review, vocab
+from . import bound_support, criteria, review, vocab
 from .assessor import canonical_unit
 from .canonical import canonical_text
 from .clock import utc_now
@@ -193,8 +193,23 @@ def plan(core: Core, task_id: str) -> list[dict[str, Any]]:
     for members in groups.values():
         if len(members) < 2:
             continue
-        out.append(_group_plan(sorted(members, key=lambda m: (m["promoted_at"], m["attribute_ref"])),
-                               withdrawn, approved))
+        group = _group_plan(sorted(members, key=lambda m: (m["promoted_at"], m["attribute_ref"])),
+                            withdrawn, approved)
+        # A collapse writes a new attribute version and a new rule version, so it is a site that
+        # introduces decision-bearing numbers into the registry and the shared validator runs on
+        # what it would write (§6 F2). The numbers are the survivor's own -- the collapse re-declares
+        # routes and touches no bound -- so this refuses only a group whose survivor already carries
+        # a bound its cited claims contradict, which a new version would carry forward silently.
+        survivor = group["surviving"]
+        support = bound_support.validate(
+            survivor["attribute"], survivor["rule"],
+            claims=bound_support.resolve_claims(core, task_id,
+                                                survivor["attribute"].get("supporting_claim_refs") or []))
+        group["refused"] = group["refused"] + [
+            f"{survivor['rule_ref']} would carry an unsupported bound into the version this collapse writes: "
+            f"{message}" for message in bound_support.messages(support)]
+        group["bound_support"] = support["states"]
+        out.append(group)
     return sorted(out, key=lambda g: g["surviving"]["attribute_ref"])
 
 
@@ -307,8 +322,9 @@ def _apply(core: Core, task_id: str, group: dict[str, Any], *, by: dict[str, Any
     # under `criteria.propose`, so the item is raised again rather than letting a hard exclusion drop
     # silently out of the next confirmed set.
     rule_after = criteria.load(core, rule_ref_after, task_id)
+    attribute_after = criteria.load(core, attribute_ref_after, task_id)
     item_id = None
-    if rule_ref_after != survivor["rule_ref"] and criteria.needs_expert(rule_after):
+    if rule_ref_after != survivor["rule_ref"] and criteria.needs_expert(rule_after, attribute_after):
         item_id = review.request(core, task_id, subject={"kind": "rule_version", "id": rule_ref_after,
                                                          "version": rule_after["version"],
                                                          "attribute_ref": attribute_ref_after},
