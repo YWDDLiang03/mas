@@ -122,3 +122,32 @@ def test_pending_expert_items_block_the_rule_set_unless_explicitly_allowed(core)
     rules = criteria.rule_set(core, task_id, ref)
     assert [e["rule_ref"] for e in rules["entries"]] == ["rule_heavy-atoms@v1"]
     assert rules["pending"] == ["rule_molecular-weight@v1"] and rules["acceptance_label"] == "exploratory"
+
+
+def test_the_snapshot_says_which_candidates_cleared_the_hard_rules_and_what_blocked_the_rest(core):
+    """The selection is two steps: the hard rules choose who is eligible, the preferences rank the
+    eligible. `roll_up` computes both and only `state` reached the snapshot -- and `state` collapses
+    three different situations into `provisional`. Measured on the 14 October board: 9 candidates
+    cleared every hard rule while 1,262 were blocked on an absent oral-route record, and no field
+    told them apart, so the pass set could not be reported."""
+    from mas.core import assessor
+
+    def cells(hard_verdict, pref_verdict="pass"):
+        return [{"assessment_id": "asm_h", "attribute_ref": "attr_gate@v1", "rule_ref": "rule_gate@v1",
+                 "rule_kind": "hard_exclusion", "verdict": hard_verdict, "value": None,
+                 "value_kind": "curated", "conflicting_claim_refs": []},
+                {"assessment_id": "asm_p", "attribute_ref": "attr_rank@v1", "rule_ref": "rule_rank@v1",
+                 "rule_kind": "preference", "verdict": pref_verdict, "value": 1.0,
+                 "value_kind": "curated", "conflicting_claim_refs": []}]
+
+    passed = assessor.roll_up("c_pass", cells("pass"), coverage_floor=1.0, recommended_requires_hd=True)
+    blocked = assessor.roll_up("c_unknown", cells("unknown_missing"), coverage_floor=1.0,
+                               recommended_requires_hd=True)
+    failed = assessor.roll_up("c_fail", cells("fail"), coverage_floor=1.0, recommended_requires_hd=True)
+
+    # all three were indistinguishable by state alone: two of them are literally the same string
+    assert passed["state"] == blocked["state"] == "provisional" and failed["state"] == "rejected"
+    # the gate's own answer separates them
+    assert not passed["n_fail_hard"] and not passed["n_unknown_hard"]
+    assert blocked["n_unknown_hard"] == 1 and blocked["blocking_unknowns"] == ["attr_gate@v1"]
+    assert failed["n_fail_hard"] == 1

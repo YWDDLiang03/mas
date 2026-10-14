@@ -13,7 +13,9 @@ Two paths, chosen by the capabilities of the attribute's evidence routes
 from __future__ import annotations
 
 import re
-from typing import Any
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Callable
 
 from . import criteria, ledger, reading, vocab
 from .journal import actor as make_actor
@@ -109,12 +111,46 @@ def name_like(alias: str | None) -> bool:
 
 
 class LiteratureCache:
-    """Per-run memo of searches and documents, so one paper is read once per run."""
+    """Per-run memo of searches and documents, so one paper is read once per run.
+
+    The sweep hands one cache to cells it may assess concurrently, and `gather` reads one cell's
+    documents concurrently, so all three dicts are shared mutable state. `once` keeps the memo's
+    whole point - a (candidate, paper) pair costs one extraction - across threads: the first
+    caller produces under that key's gate while the others wait on it and then read the memo.
+
+    WHY a gate per key instead of one lock held across the call, which is how
+    `adapters/drug/pubchem.PropertyCache` solves the same shape: producing an entry here is a
+    reader tool call plus an extraction model call, around half a minute each on the measured
+    enumerate stage, so a single lock would serialize exactly the work the workers exist to
+    overlap. A gate is kept after use rather than discarded: discarding it reopens the window in
+    which a late thread builds a second gate for a key whose production is still in flight, and
+    one `threading.Lock` per key is nothing beside the documents the memo already holds.
+    """
 
     def __init__(self):
         self.searches: dict[str, list[dict[str, Any]]] = {}
         self.documents: dict[str, dict[str, Any] | None] = {}
         self.extractions: dict[tuple[str, str], list[dict[str, Any]]] = {}  # (candidate, paper) → claims for every attribute
+        self._lock = threading.Lock()
+        self._gates: dict[tuple[str, Any], threading.Lock] = {}
+
+    def once(self, memo_name: str, key: Any, produce: Callable[[], Any]) -> Any:
+        """The memoized entry, `produce` called at most once however many threads ask for it."""
+        memo = getattr(self, memo_name)
+        with self._lock:
+            if key in memo:
+                return memo[key]
+            gate = self._gates.setdefault((memo_name, key), threading.Lock())
+        with gate:
+            with self._lock:
+                if key in memo:
+                    return memo[key]
+            # A refusal (a spent budget, a provider error) memoizes nothing, so the retry a resumed
+            # run makes is a retry and not a replay of the failure.
+            value = produce()
+            with self._lock:
+                memo[key] = value
+            return value
 
 
 def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, Any], identity: dict[str, Any],
@@ -123,7 +159,7 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
            case_sources: list[dict[str, Any]] | None = None,
            reading_attributes: list[dict[str, Any]] | None = None,
            sources: list[str] | None = None, limit_per_query: int | None = None,
-           max_chars: int | None = None) -> tuple[list[dict], str | None, list[str]]:
+           max_chars: int | None = None, document_workers: int = 1) -> tuple[list[dict], str | None, list[str]]:
     """Gather claims for one cell. Returns (claims, tool_error_ref, source kinds searched)."""
     routes = criteria.evidence_routes(attribute)
     attr_ref = f"{attribute['attribute_id']}@v{attribute['version']}"
@@ -162,13 +198,16 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
     labels = [identity.get("preferred_label") or candidate.get("label")] + [a for a in aliases if name_like(a)][:4]
     labels = [l for l in dict.fromkeys(labels) if l]
     query = literature_query(attribute, labels)
-    if query not in cache.searches:
+
+    def run_search() -> list[dict[str, Any]]:
         hits, coverage_id = reading.search(core, broker, stream_id, [query], cutoff_date=cutoff_date,
                                            limit_per_query=limit_per_query or request.get("parameters", {}).get("search_limit", 10),
                                            ids=ids, budget=budget, sources=sources)
         if any(f["reason"] == "budget_exceeded" for f in core.artifacts.payload(coverage_id)["retrieval_failures"]):
             raise BudgetBlocked()
-        cache.searches[query] = hits
+        return hits
+
+    searched_hits = cache.once("searches", query, run_search)
     terms = (request.get("parameters") or {}).get("relevance_terms") or [attribute["name"]]
 
     def relevance(hit: dict[str, Any]) -> tuple:
@@ -177,17 +216,18 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
         term_hits = sum(reading.normalize_for_match(t) in reading.normalize_for_match(text) for t in terms)
         return (not names_candidate, -term_hits, not hit.get("pmcid"), hit.get("best_rank", 0))
 
-    hits = [h for h in sorted(cache.searches[query], key=relevance)
+    hits = [h for h in sorted(searched_hits, key=relevance)
             if reading.names_entity(labels, f"{h.get('title', '')} {h.get('abstract_html', '')}")
             and not reading.is_case_source(h, case_sources or [])]
-    claims: list[dict[str, Any]] = []
-    for hit in hits[:max_documents]:
+    selected = hits[:max_documents]
+
+    def read_one(hit: dict[str, Any]) -> tuple[list[dict[str, Any]], str | None, bool]:
+        """One document's claims, the model error that ended it, and whether the budget refused it."""
         key = (hit.get("doi") or hit.get("pmid") or hit.get("title") or "").lower()
-        if key not in cache.documents:
-            cache.documents[key] = reading.read(core, broker, stream_id, hit, ids=ids, budget=budget, cutoff_date=cutoff_date)
-        document = cache.documents[key]
+        document = cache.once("documents", key, lambda: reading.read(core, broker, stream_id, hit, ids=ids,
+                                                                     budget=budget, cutoff_date=cutoff_date))
         if document is None:
-            continue
+            return [], None, False
         candidate_spec = {"candidate_id": candidate["candidate_id"], "labels": labels}
         if reading_attributes:
             # one read of this paper for this candidate serves every literature attribute of the rule set
@@ -200,17 +240,42 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
                         "candidate": candidate_spec}
         try:
             if reading_attributes:
-                extraction_key = (candidate["candidate_id"], key)
-                if extraction_key not in cache.extractions:
-                    cache.extractions[extraction_key] = reading.extract_claims(core, roster, stream_id, document, question,
-                                                                               ids=ids, budget=budget, max_chars=max_chars)
-                claims.extend(c for c in cache.extractions[extraction_key] if c.get("attribute_ref") == attr_ref)
-            else:
-                claims.extend(reading.extract_claims(core, roster, stream_id, document, question, ids=ids, budget=budget,
-                                                     max_chars=max_chars))
+                extracted = cache.once("extractions", (candidate["candidate_id"], key),
+                                       lambda: reading.extract_claims(core, roster, stream_id, document, question,
+                                                                      ids=ids, budget=budget, max_chars=max_chars))
+                return [c for c in extracted if c.get("attribute_ref") == attr_ref], None, False
+            return list(reading.extract_claims(core, roster, stream_id, document, question, ids=ids, budget=budget,
+                                               max_chars=max_chars)), None, False
         except ModelError as error:
             if error.error_class == "quota_exhausted":
-                raise BudgetBlocked() from None
-            error_ref = f"model_error:{error.error_class}"
-            return claims, error_ref, ["literature_retrieval", "document_reading"]
+                return [], None, True
+            return [], f"model_error:{error.error_class}", False
+
+    # Positional collection, not completion order: the project replays runs and compares digests, so
+    # a cell's claim order may not depend on which worker finished first. The fold below then reads
+    # the outcomes in the documents' own order, which is what makes the result at N workers the same
+    # result the one-worker path produces -- including when reading ends early. At one worker nothing
+    # past the document that ended the cell is read at all; at N the later documents are already in
+    # flight when it fails, and their claims are dropped rather than appended out of sequence.
+    outcomes: list[tuple[list[dict[str, Any]], str | None, bool]] = []
+    if document_workers > 1 and len(selected) > 1:
+        with ThreadPoolExecutor(max_workers=min(document_workers, len(selected))) as pool:
+            pending = [pool.submit(read_one, hit) for hit in selected]
+        outcomes = [future.result() for future in pending]   # the pool has joined: every read finished
+    else:
+        for hit in selected:
+            outcome = read_one(hit)
+            outcomes.append(outcome)
+            if outcome[1] or outcome[2]:
+                break
+    claims: list[dict[str, Any]] = []
+    for extracted, model_error, blocked in outcomes:
+        if blocked:
+            # A refusal mid-flight must leave the cell `not_assessed`, never a short set of claims
+            # that reads like a complete one: the claims gathered so far are discarded with the
+            # exception, and the cell is re-gathered in full when the run resumes.
+            raise BudgetBlocked()
+        if model_error:
+            return claims, model_error, ["literature_retrieval", "document_reading"]
+        claims += extracted
     return claims, None, ["literature_retrieval", "document_reading"]

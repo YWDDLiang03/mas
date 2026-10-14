@@ -335,6 +335,7 @@ class RunController:
                 max_documents=st.settings.get("read.max_papers_per_candidate", 2),
                 limit_per_query=st.settings.get("search.results_per_query", 10),
                 max_chars=st.settings.get("read.max_content_chars"),
+                document_workers=st.settings.get("concurrency.read_workers", 1),
                 reading_attributes=[{"name": r["attribute"]["name"], "definition": r["attribute"]["definition"],
                                      "unit": r["attribute"].get("unit"),
                                      "ref": f"{r['attribute']['attribute_id']}@v{r['attribute']['version']}"}

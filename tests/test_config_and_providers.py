@@ -251,3 +251,25 @@ def test_call_role_records_spend_and_reports_thresholds_once(core, monkeypatch):
     assert [n["level"] for n in notes] == ["warn", "cap"] and notes[-1]["continues"] is True
     finished = [e.payload for e in core.journal.replay("run_test") if e.event_type == "agent.finished"]
     assert finished[0]["cost_usd"] == pytest.approx(0.9)
+
+
+def test_the_configured_stage_order_is_the_one_the_library_defaults_to():
+    """Two sources of truth for the pool's stage order, and they drifted.
+
+    `derivation_run.DEFAULT_STAGES` was corrected so that `merge` runs after `refine` -- otherwise
+    merge only sees the items `filter` happened not to flag. But the CLI passes
+    `stage_names=tuple(settings["criteria.stages"])`, so the settings list overrides the library
+    default, and that list still had `merge` third. The regression test for the fix called
+    `derive_iterative` directly without `stage_names`, so it passed while every real run through the
+    CLI kept the broken order: measured on the clean derivation of 14 October 2026, `filter` sent 49
+    of 59 items to `needs_refine` and `merge` then reported `{groups: 0, merged: 0}`.
+    """
+    from mas.core import config as config_mod
+    from mas.core.derivation_run import DEFAULT_STAGES
+
+    configured = config_mod.resolve()["criteria.stages"]
+    assert tuple(configured) == DEFAULT_STAGES, (
+        "the stage order a run actually uses comes from settings, so it must match the library "
+        "default rather than quietly diverging from it")
+    assert configured.index("merge") > configured.index("refine"), (
+        "merge must run after refine or it sees a pool whose repairable items are still unrepaired")

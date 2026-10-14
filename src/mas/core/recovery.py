@@ -522,8 +522,9 @@ def check_mapping(mapping: list[dict[str, Any]], *, intake: dict[str, Any],
                     else "category_contradicts_its_own_facets")
             problems.append({"code": code, "historical_item_ref": reference, "declared": declared,
                              "derived_from_facets": category, "differing_facets": differences,
-                             "detail": f"{reference} is declared {declared} while its own facet report makes it "
-                                       f"{category}" + (f" (differing: {', '.join(differences)})" if differences else "")})
+                             "detail": f"{reference} is declared {declared} while its own facet report makes "
+                                       f"it {category}"
+                                       + (f" (differing: {', '.join(differences)})" if differences else "")})
         if refs and shape in ("merged", "split") and not str(entry.get("covers_historical_meaning") or "").strip():
             problems.append({"code": "coverage_not_explicit", "historical_item_ref": reference, "mapping_shape": shape,
                              "detail": f"{reference} declares a {shape} mapping without stating which historical "
@@ -762,11 +763,11 @@ def compare(core: Core, task_id: str, *, by: dict[str, Any], roster: ModelRoster
         mapping, judged_by = propose_mapping(core, roster, task_id, intake=intake, derived=derived, budget=budget)
         route = "model_proposed"
     else:
-        judged_by, route = {"role": EVALUATOR_ROLE, "adapter_id": None, "model_id": None,
-                            "supplied_by": by, "distinct_from": None,
-                            "note": "proposed outside this process by the evaluator named in `supplied_by`; "
-                                    "it passed the same gate as a mapping this module requested"}, \
-            "supplied_by_the_evaluator"
+        route = "supplied_by_the_evaluator"
+        judged_by = {"role": EVALUATOR_ROLE, "adapter_id": None, "model_id": None,
+                     "supplied_by": by, "distinct_from": None,
+                     "note": "proposed outside this process by the evaluator named in `supplied_by`; it "
+                             "passed the same gate as a mapping this module requested"}
     gate = check_mapping(mapping, intake=intake, derived=derived)
     record = {
         "schema_version": SCHEMA_VERSION, "comparison_id": new_id("evr"), "task_id": task_id,
@@ -1098,7 +1099,9 @@ def render_markdown(report_record: dict[str, Any]) -> str:
     origins = report_record["origin_stratified"]
     lines += ["## Origin-stratified view", "", origins["statement"], "",
               f"- derived criteria by origin: {_inline(origins['derived_criteria_by_stratum'])}",
-              f"- recovered by origin: {_inline({s: {c: row[c] for c in CATEGORIES} for s, row in origins['recovered_by_stratum'].items()})}",
+              f"- recovered by origin: "
+              + _inline({stratum: {category: row[category] for category in CATEGORIES}
+                         for stratum, row in origins["recovered_by_stratum"].items()}),
               f"- independently derived only: exact "
               f"{origins['independently_derived_only']['exact_as_text']}, recovered "
               f"{origins['independently_derived_only']['recovered_as_text']}",

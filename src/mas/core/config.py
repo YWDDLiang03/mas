@@ -81,9 +81,20 @@ SETTINGS: dict[str, Setting] = {
     "read.max_content_chars": _s(60000, "characters of a document offered to the reader", minimum=1000,
                                  maximum=500000, unit="characters"),
     # criteria pool workflow
-    "criteria.inner_iterations": _s(3, "filter/distill/merge/refine passes within one round", minimum=1, maximum=10,
+    "criteria.inner_iterations": _s(3, "filter/distill/refine/merge passes within one round", minimum=1, maximum=10,
                                     unit="iterations", const_id="const_criteria_inner_iterations"),
-    "criteria.stages": _s(["filter", "distill", "merge", "refine"], "pool stages run each iteration, in order",
+    # WHY the order ends with merge, and why this default is the one that matters: `filter` moves every
+    # item with a validator or critic finding to `needs_refine`, `distill` and `merge` read only
+    # `candidate`, and `refine` is what returns a repaired item to `candidate`. With merge third it sees
+    # whatever filter happened not to flag. 2bc0abd corrected `derivation_run.DEFAULT_STAGES` for that
+    # reason -- but the CLI passes `stage_names=tuple(settings["criteria.stages"])`, so this list wins and
+    # this list still said `merge` third. Measured on the clean derivation of 14 October 2026, after that
+    # fix: `filter` sent 49 of 59 items to `needs_refine`, `merge` then reported
+    # `{groups: 0, merged: 0}`, and `refine` repaired 29 afterwards -- the defect the fix was supposed to
+    # remove, surviving in production because the regression test called `derive_iterative` directly and
+    # never went through the settings layer. `test_the_configured_stage_order_is_the_one_the_library_
+    # defaults_to` now pins the two together so they cannot drift apart again.
+    "criteria.stages": _s(["filter", "distill", "refine", "merge"], "pool stages run each iteration, in order",
                           item_type=str),
     "criteria.max_refines": _s(2, "refinement attempts before an item waits for the next round", minimum=1, maximum=5,
                                unit="attempts", const_id="const_criteria_max_refines"),
@@ -129,6 +140,14 @@ SETTINGS: dict[str, Setting] = {
     "budget.llm_turns": _s(0, "model calls allowed; 0 means no limit", minimum=0, maximum=1000000),
     "budget.tool_calls": _s(0, "tool calls allowed; 0 means no limit", minimum=0, maximum=1000000),
     # concurrency
+    # The clean derivation's enumerate stage spent roughly 10 minutes on 16 reader and 8 retriever
+    # calls, every one sequential, at a per-call price that made wall-clock the binding constraint
+    # rather than spend. A worker count carries no `const_id`: `evidence.gather` collects a cell's
+    # claims positionally and concatenates them in the documents' own order, so raising this cannot
+    # move a value, a verdict or a digest, and registering it as verdict-affecting would say it can.
+    # It multiplies with `assess.workers`: N cells each reading M documents is N*M calls in flight.
+    "concurrency.read_workers": _s(1, "documents read and claim-extracted at once within one cell",
+                                   minimum=1, maximum=16, unit="workers"),
     # interaction
     "interaction.mode": _s("checkpoint", "how often the run stops for a person",
                            choices=("autonomous", "checkpoint", "interactive")),

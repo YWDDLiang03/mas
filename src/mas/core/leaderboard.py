@@ -133,6 +133,22 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
             "preference_coverage": pref_coverage, "position": None,
             "per_criterion_refs": [c["assessment_id"] for c in candidate_cells],
             "coverage": summary["hard_rule_coverage"], "missing": summary["blocking_unknowns"],
+            # WHY the gate outcome is carried per candidate: the selection is two steps -- the hard
+            # rules choose which candidates are eligible at all, and the preferences rank the ones
+            # that are. `roll_up` computes both halves and only the state survived into the snapshot,
+            # and `state` collapses them: a candidate failing a hard rule, one blocked on an absent
+            # record, and one that clears every gate but carries no human signature all read
+            # `provisional`. Measured on the 14 October board: 9 candidates cleared every hard rule
+            # and 1,262 were blocked on an unknown oral-route record, and nothing in the entries told
+            # them apart, so the pass set could not be reported at all. `clears_hard_rules` is the
+            # gate's own answer; `gate_blocked_by` names what is missing when it is false.
+            # Absent counts read unknown, never pass: defaulting them to zero would make a summary
+            # that never reported them look like a candidate that cleared every gate (§9.2).
+            "clears_hard_rules": (None if summary.get("n_fail_hard") is None
+                                        or summary.get("n_unknown_hard") is None
+                                  else not summary["n_fail_hard"] and not summary["n_unknown_hard"]),
+            "n_fail_hard": summary.get("n_fail_hard"), "n_unknown_hard": summary.get("n_unknown_hard"),
+            "gate_blocked_by": summary.get("blocking_unknowns") or [],
             "counter_evidence_refs": sorted({r for c in candidate_cells for r in c["conflicting_claim_refs"]}),
             "measured_vs_predicted_counts": {kind: sum(c["value_kind"] == kind for c in candidate_cells)
                                              for kind in ("measured", "curated", "derived", "predicted")},

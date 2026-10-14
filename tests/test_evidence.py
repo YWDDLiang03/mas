@@ -1,10 +1,16 @@
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 
 from mas.core import assessor, identity, ledger, vocab
 from mas.core.assessor import usable_claims
 from mas.core.broker import Broker, ProviderResponse, ToolContract, ToolError, ToolResult
-from mas.core.evidence import claims_from_tool_result, gather
+from mas.core.budget import Budget
+from mas.core.evidence import BudgetBlocked, LiteratureCache, claims_from_tool_result, gather
 from mas.core.journal import actor
+from mas.core.models import ModelRoster, ScriptedAdapter
 from mas.core.runtime import Core
 from tests.fakes import AbsentProvider, FakeIdentity, FakeProperty
 
@@ -259,3 +265,187 @@ def test_a_route_that_errors_does_not_discard_what_the_other_route_returned(core
     cell, _ = assessor.assess_cell(candidate=CANDIDATE, attribute=POOLED_POTENCY, rule=ORDERING, rule_set_ref="rules@v1",
                                    claims=claims, resolved=True, tool_error_ref=error_ref, searched=searched)
     assert cell["verdict"] == "pass" and cell["value"] == 9.0 and cell["tool_error_ref"] == error_ref
+
+
+# --- reading one cell's documents concurrently (config `concurrency.read_workers`) ----------
+
+PAPERS = {"Alpha": 41, "Bravo": 52, "Charlie": 63, "Delta": 74}   # paper -> the bioavailability it reports
+# Extraction finishes in the reverse of the reading order, so a result assembled in completion
+# order would come back 74, 63, 52, 41 and the ordering assertions below would catch it.
+EXTRACTION_DELAY = {"Alpha": 0.06, "Bravo": 0.04, "Charlie": 0.02, "Delta": 0.0}
+
+BIOAVAILABILITY = {"attribute_id": "attr_oral-bioavailability", "version": 1, "name": "Oral bioavailability",
+                   "definition": "Fraction of an oral dose reaching systemic circulation",
+                   "measurement_kind": "quantitative", "unit": "%", "direction": "higher_better", "aggregation": "max",
+                   "acceptable_value_sources": ["peer_reviewed"],
+                   "evidence_request": {"capability": "literature_retrieval", "question_kind": "search",
+                                        "parameters": {"query_template": '({names}) AND "oral bioavailability"',
+                                                       "relevance_terms": ["bioavailability"]}}}
+HALF_LIFE = dict(BIOAVAILABILITY, attribute_id="attr_half-life", name="Elimination half-life",
+                 definition="Time for the plasma concentration to halve", unit="h")
+READING_ATTRIBUTES = [{"name": a["name"], "definition": a["definition"], "unit": a["unit"],
+                       "ref": f"{a['attribute_id']}@v{a['version']}"} for a in (BIOAVAILABILITY, HALF_LIFE)]
+
+
+class PaperSearch:
+    """One query, four hits: the shape a literature cell reads."""
+
+    contract = ToolContract(tool_id="tool_paper_search", capability="literature_retrieval",
+                            capability_kind="source_retrieval", question_kinds=("search",), contract_version="1",
+                            implementation_version="fake-1", purpose_statement="papers on one compound",
+                            evidence_kind_produced="peer_reviewed", claim_strength_ceiling="curated")
+
+    def invoke(self, question_kind, inputs):
+        hits = [{"pmcid": f"PMC_{name}", "doi": f"10.0/{name}", "title": f"{name}: Alphatinib pharmacokinetics",
+                 "abstract_html": "Alphatinib oral bioavailability in healthy volunteers",
+                 "identifiers": [{"scheme": "doi", "value": f"10.0/{name}"}]} for name in PAPERS]
+        return ProviderResponse(values=[{"name": "search_hit", "value": h, "value_kind": "curated"} for h in hits])
+
+
+class PaperReader:
+    contract = ToolContract(tool_id="tool_paper_reader", capability="document_reading",
+                            capability_kind="document_reading", question_kinds=("read",), contract_version="1",
+                            implementation_version="fake-1", purpose_statement="full text of one paper",
+                            evidence_kind_produced="peer_reviewed", claim_strength_ceiling="curated")
+
+    def __init__(self):
+        self.reads: list[str] = []
+
+    def invoke(self, question_kind, inputs):
+        name = inputs["pmcid"].split("_")[1]
+        self.reads.append(name)
+        quote = f"Alphatinib had an oral bioavailability of {PAPERS[name]}% in this cohort"
+        passages = [{"passage_id": "title", "kind": "title", "section_path": [],
+                     "text": f"{name}: Alphatinib pharmacokinetics"},
+                    {"passage_id": "sec1.p1", "kind": "paragraph", "section_path": ["Results"], "text": f"{quote}."}]
+        document = {"title": f"{name}: Alphatinib pharmacokinetics", "passages": passages,
+                    "access_state": "full_text_available", "reading_depth": "full_text",
+                    "source_hit": {"is_preprint": False}}
+        return ProviderResponse(values=[{"name": "document", "value": document, "value_kind": "curated"}])
+
+
+class ExtractionModel:
+    """The reader model, counting its calls and the calls that overlapped one another.
+
+    `highest_overlap` is what tells one worker from several without a timing assertion: at the
+    default of one it is 1, however slow the calls are.
+    """
+
+    def __init__(self, delay: dict[str, float] | None = None):
+        self.delay = delay or {}
+        self.calls: list[str] = []
+        self.highest_overlap = 0
+        self._running = 0
+        self._lock = threading.Lock()
+
+    def __call__(self, request):
+        text = request.messages[0]["content"]
+        name = next(n for n in PAPERS if f"{n}: Alphatinib pharmacokinetics" in text)
+        with self._lock:
+            self.calls.append(name)
+            self._running += 1
+            self.highest_overlap = max(self.highest_overlap, self._running)
+        try:
+            time.sleep(self.delay.get(name, 0.0))
+        finally:
+            with self._lock:
+                self._running -= 1
+        quote = f"Alphatinib had an oral bioavailability of {PAPERS[name]}% in this cohort"
+        claim = {"passage_id": "sec1.p1", "quoted_span": quote, "statement": quote, "determination_basis": "measured",
+                 "polarity": "supports", "value": PAPERS[name], "unit": "%"}
+        if "attribute_name" in request.response_schema["properties"]["claims"]["items"]["properties"]:
+            # one read of this paper serves every literature attribute the prompt lists
+            return {"claims": [dict(claim, attribute_name=a["name"]) for a in READING_ATTRIBUTES
+                               if f"- {a['name']}:" in text]}
+        return {"claims": [claim]}
+
+
+def literature_cell(core, *, delay=None):
+    broker = Broker(core, sleep=lambda s: None)
+    reader_tool = PaperReader()
+    broker.register(PaperSearch())
+    broker.register(reader_tool)
+    model = ExtractionModel(delay)
+    roster = ModelRoster({"s": ScriptedAdapter("s", model, model="scripted-reader")}, {"reader": "s"})
+    return broker, roster, model, reader_tool
+
+
+def read_cell(core, broker, roster, *, attribute=BIOAVAILABILITY, **kw):
+    return gather(core, broker, roster, "run_x", candidate=CANDIDATE, identity=RESOLVED, attribute=attribute,
+                  objective_text="rank by oral bioavailability", cutoff_date=None, max_documents=4, **kw)
+
+
+def test_reading_several_documents_concurrently_yields_exactly_the_claims_the_sequential_path_yields(tmp_path):
+    """Runs are replayed and their digests compared, so a cell's claims may not be ordered by which
+    worker finished first. The extraction delays here invert completion order against reading order."""
+    seen = []
+    for workers in (1, 4):
+        with Core.open(tmp_path / f"root{workers}") as core:
+            broker, roster, model, reader_tool = literature_cell(core, delay=EXTRACTION_DELAY)
+            claims, error_ref, searched = read_cell(core, broker, roster, document_workers=workers)
+            assert error_ref is None and searched == ["literature_retrieval", "document_reading"]
+            seen.append([(c["source_ref"], c["value"], c["location"]["quoted_span"]) for c in claims])
+            # the tool and model calls are made in whatever order the workers get to them; only the
+            # claims the cell returns are ordered, and they are ordered by the documents, not by them
+            assert sorted(reader_tool.reads) == sorted(model.calls) == sorted(PAPERS)
+            assert model.highest_overlap == 1 if workers == 1 else model.highest_overlap > 1
+    assert [value for _, value, _ in seen[0]] == list(PAPERS.values())     # the documents' own order
+    assert seen[0] == seen[1]
+
+
+def test_a_document_already_in_the_cache_is_not_read_twice_when_two_workers_want_it_at_once(core):
+    """Two cells of the same candidate, gathered at the same time over one cache: the memo exists so
+    that a (candidate, paper) pair costs one extraction, and a thread that arrives while the first
+    is still in the model call has to wait for it rather than pay for a second."""
+    broker, roster, model, reader_tool = literature_cell(core, delay=dict.fromkeys(PAPERS, 0.05))
+    cache = LiteratureCache()
+
+    def cell(attribute):
+        return read_cell(core, broker, roster, attribute=attribute, cache=cache, document_workers=4,
+                         reading_attributes=READING_ATTRIBUTES)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        both = [f.result() for f in [pool.submit(cell, BIOAVAILABILITY), pool.submit(cell, HALF_LIFE)]]
+
+    assert sorted(model.calls) == sorted(PAPERS)              # four papers, four extractions, not eight
+    assert sorted(reader_tool.reads) == sorted(PAPERS)
+    for claims, _, _ in both:
+        assert [c["value"] for c in claims] == list(PAPERS.values())
+    assert {c["attribute_ref"] for c in both[0][0]} == {"attr_oral-bioavailability@v1"}
+    assert {c["attribute_ref"] for c in both[1][0]} == {"attr_half-life@v1"}
+
+
+@pytest.mark.parametrize("workers", (1, 4))
+def test_a_budget_refusal_during_concurrent_reading_still_stops_the_run(core, workers):
+    """A refusal mid-flight must leave the cell unassessed. Returning the two documents that were
+    read before the cap, with no error reference, would be a cell scored on a third of its evidence
+    and indistinguishable from a complete one."""
+    broker, roster, model, _ = literature_cell(core)
+    with pytest.raises(BudgetBlocked):
+        read_cell(core, broker, roster, document_workers=workers, budget=Budget({"llm_turns": 2}))
+    assert len(model.calls) >= 2                              # the refusal came mid-flight, not before the cell
+
+
+def test_the_journals_hash_chain_verifies_after_concurrent_appends(core):
+    """Claims and tool events are appended from the workers; `Journal.append` serializes them under
+    the store write lock, so `seq` stays contiguous and every record hashes to what it was stored as."""
+    broker, roster, model, _ = literature_cell(core, delay=dict.fromkeys(PAPERS, 0.02))
+    claims, _, _ = read_cell(core, broker, roster, document_workers=4)
+    core.journal.verify("run_x")
+    admitted = [e for e in core.journal.replay("run_x") if e.event_type == "evidence.admitted"]
+    assert {e.payload["claim_id"] for e in admitted} == {c["claim_id"] for c in claims}
+    assert [e.seq for e in core.journal.replay("run_x")] == list(range(1, core.journal.last_seq("run_x") + 1))
+
+
+def test_the_default_worker_count_is_one_so_behaviour_is_unchanged_unless_the_setting_is_raised(core):
+    import inspect
+
+    from mas.core import config as config_mod
+
+    settings = config_mod.resolve(project_file=None, environ={})
+    assert settings["concurrency.read_workers"] == 1 and config_mod.SETTINGS["concurrency.read_workers"].minimum == 1
+    assert inspect.signature(gather).parameters["document_workers"].default == 1
+    broker, roster, model, reader_tool = literature_cell(core, delay=dict.fromkeys(PAPERS, 0.02))
+    claims, error_ref, _ = read_cell(core, broker, roster)        # no document_workers: the default path
+    assert model.highest_overlap == 1 and reader_tool.reads == list(PAPERS)
+    assert [c["value"] for c in claims] == list(PAPERS.values()) and error_ref is None
