@@ -105,8 +105,14 @@ and IUPHAR/BPS, computed descriptors from PubChem, literature from Europe PMC an
 quote-verified extraction. A full sweep assesses ~44,500 cells in roughly 40 minutes.
 
 **Honesty invariants that survive inspection.**
-- `new_id("hd")` appears in exactly one file (`core/review.py`). An expert decision requires a
-  human actor *and* interactive terminal entry; no agent can create one.
+- `new_id("hd")` appears in exactly one file (`core/review.py`), and that function requires
+  `actor.kind == "human"` with `entry == "interactive"`. **This is a code path, not an enforced
+  boundary, and an earlier version of this report overstated it.** Both fields are caller-supplied
+  strings: a direct non-interactive call to `review.decide` with a fabricated actor produced a
+  valid record carrying `approval_kind: human_scientific_approval`. The CLI does gate on `/dev/tty`,
+  so the claim holds for a person using the CLI; it does not hold against an agent that can call
+  Python or write the store. Either the deployment boundary is enforced (F7 / WP7) or the public
+  claim must be narrowed to restricted model outputs mediated by a trusted controller.
 - Absence is reported as absence. The system does not predict a missing measurement (ADR-49).
 - Scores do not reward completeness: a missing value leaves both numerator and denominator, and
   coverage is reported separately.
@@ -163,22 +169,32 @@ two promoted attributes sharing a quantity key; an attribute declaring `median` 
 takes a maximum; a definition naming a derived quantity with no transform declared. That gap —
 the agent not auditing its own run — is the clearest weakness in the design as built.
 
-### Methodological criticism
+### Methodological criticism, as the project owner framed it
 
 The defects above were found by looking at the reference compound's rank and asking why it was not
-higher. Each fix is individually defensible, the justification for each is stated without reference
-to any compound, and one candidate change was **declined** precisely because it was not
-(see §7). But the *search order* was driven by the answer, which is the failure mode the no-tuning
-rule exists to prevent. The project owner identified this, and the corrected order — validate the
-generator on its own terms, freeze, then rank — is what §9 schedules.
+higher. **An earlier version of this section called that the methodological defect; the project
+owner's standing instruction is that it is not.** Using a known answer to locate an implementation
+problem is ordinary debugging. The test of a repair is whether it has an independent technical or
+scientific justification and is applied consistently to every candidate -- not how many candidates
+it happens to help. A correct repair can benefit one candidate; a change touching many can still be
+unjustified.
 
----
+The real boundary is answer-directed adjustment without independent justification: choosing a
+scientific cutoff, an evidence substitution, a weight or a board because it delivers the desired
+reference rank. By that standard the orthologue substitution in §7 was correctly declined, but the
+reasoning given there was wrong -- the valid ground is species and endpoint mismatch, not that one
+candidate benefited.
+
+What does remain a real weakness is that the system raised none of these findings itself, although
+each was detectable from stored data alone: a configured stage that recorded no transitions, two
+promoted attributes sharing a quantity key, a declared aggregation the code ignored, a definition
+naming a derived quantity with no transform declared.
 
 ## 6. Outstanding problems
 
 | problem | measured detail | consequence |
 |---|---|---|
-| **no span is machine-verified** | every claim backing a criterion bound is `admission_state: admitted` but `verification_status: unverified` | the 500 g/mol and 2–4 bounds rest on quotes nothing checked against the source text |
+| **semantic support is never assessed** | every claim backing a criterion bound is `admitted` with `location.span_checked_against_source: true` and `quote_verified`, but `verification_status: unverified` | **an earlier version of this report conflated two separate checks.** Quote matching ran and passed; what was never run is any judgement that the passage *supports* the bound. Measured since: the 500 g/mol bound traces to one end of a range the source reports as observed practice (380–500 Da), so it cannot become a sourced threshold under the bound-support contract |
 | **coverage variance ignored in ranking** | compounds rank at coverage 0.50 (4 of 8 criteria) beside surufatinib at 0.88 | a mean over 4 criteria is compared to a mean over 7 as an equivalent point estimate; this currently *flatters* the reference compound |
 | **`recommended` unreachable for the reference compound** | ChEMBL records `oral: false, first_approval: null, max_phase: 3.0` for surufatinib; IUPHAR records `Approved: yes`. 229 of 3,177 universe compounds have this gap, 2 of the 34 ranked | surufatinib stays `provisional` on an unknown hard rule — ranked, never recommended |
 | **26 of 40 criteria never evaluated** | they are literature-bound; sweeps so far deferred `literature_retrieval` | includes the two receptor-coverage criteria, which are the legitimate route for CSF1R evidence |
