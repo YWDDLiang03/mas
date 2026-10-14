@@ -209,16 +209,25 @@ Surufatinib's missing CSF1R potency does exist in ChEMBL — on `CHEMBL5570` (*m
 IC50 79 nM, from a cellular RAW264.7 AKT-phosphorylation assay. Human CSF1R (`CHEMBL1844`) has
 zero activities for it. Widening the required-receptor binding to orthologues would fill that cell.
 
-Measured across the 34 ranked compounds, **exactly one gains a required-receptor cell from
-orthologue data: surufatinib, and no other compound.** A change that moves only the compound the
-acceptance case is about is tuning, whatever its scientific dress; and a mouse cellular IC50 does
-not belong in a median of human biochemical pIC50 values. **Declined, and recorded here rather
-than quietly dropped.**
+**It was declined on species and endpoint grounds.** Target species must stay separate from
+assay-host species, and a non-human orthologue measured in a cellular phenotypic assay does not
+answer a criterion about human biochemical potency. Human cellular engagement could legitimately
+support a separately *defined* cellular criterion; it cannot silently fill a missing human
+biochemical cell. **Declined, and recorded here rather than quietly dropped.**
 
-The approval-record gap in the table above is the opposite case and is scheduled: it affects 229
-compounds, and the genuinely unapproved Phase-III compounds (cediranib, motesanib, dovitinib,
-linifanib, brivanib, semaxanib, vatalanib, orantinib, lestaurtinib, sitravatinib) remain
-unapproved in both sources.
+An earlier version of this section argued instead that the change was illegitimate because, measured
+across the 34 ranked compounds, **exactly one gained a required-receptor cell from orthologue data:
+surufatinib and no other.** *That reasoning is retracted.* Beneficiary count is not a scientific
+test -- a correct repair may help exactly one candidate, and a change helping many can still be
+unjustified. The 1-of-34 measurement stays here as a fact about the evidence landscape, not as the
+reason for the decision.
+
+The approval-record gap in the table above was a different case and **has since been repaired**: the
+eligibility criterion asked for an *approved* oral product when the task admits an approved **or
+Phase III** compound, so it could never be satisfied by half the population the task declares
+eligible. The genuinely unapproved Phase-III compounds (cediranib, motesanib, dovitinib, linifanib,
+brivanib, semaxanib, vatalanib, orantinib, lestaurtinib, sitravatinib) remain unapproved in both
+sources, which is why adding a second status source does not launder them.
 
 ---
 
