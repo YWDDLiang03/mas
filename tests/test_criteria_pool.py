@@ -329,14 +329,42 @@ def test_an_exploratory_consideration_cannot_order_candidates_and_the_prompt_say
     assert "only valid on a preference" in SCHEMA_BLOCK_FORMS
 
 
-def test_merge_groups_need_the_same_route_unit_and_direction():
-    from mas.core.derivation_stages import merge_groups
+def test_merge_offers_a_unit_and_direction_bucket_to_the_adjudicator_rather_than_pairing_on_wording():
+    """A deliberate trade, and the reason the pool could not reduce.
+
+    Grouping used to need a name+definition Jaccard of at least 0.35. Measured: the pair this stage
+    exists for scores 0.14 on names and 0.10 with definitions, because one definition is terse and
+    the other verbose prose -- and the clean derivation of 14 October 2026 produced 59
+    literature-bound proposals of which merge grouped zero across every iteration. The design is
+    "deterministic pairing, then the adjudicator decides", and a pairing that strict means the
+    adjudicator is never asked, so many proposals can never become few quantities.
+
+    Grouping is therefore coarse on purpose: a shared canonical unit, direction and dimension is a
+    weak signal, which is why it is handed to a model that reads the definitions instead of merging
+    anything by itself. Different units and different directions still never meet, and every merge
+    the adjudicator proposes must validate, may cite only its parents' claims, and may not reach for
+    a route neither parent had. The cost of this trade is that a bad merge is now the adjudicator's
+    to make rather than impossible, which is why each one is recorded with its reasoning.
+    """
+    from mas.core.derivation_stages import merge_groups, MERGE_GROUP_MAX
+
     def entry(i, name, unit="%", direction="higher_better"):
-        return {"criterion_id": f"cri_{i}", "version": 1, "item": {"attribute": lit_attribute(name, unit, direction=direction)}}
+        return {"criterion_id": f"cri_{i}", "version": 1,
+                "item": {"attribute": lit_attribute(name, unit, direction=direction)}}
+
     groups = merge_groups([entry(1, "Oral bioavailability"), entry(2, "Absolute oral bioavailability"),
-                           entry(3, "Oral bioavailability", unit="h"), entry(4, "Oral bioavailability", direction="lower_better"),
+                           entry(3, "Oral bioavailability", unit="h"),
+                           entry(4, "Oral bioavailability", direction="lower_better"),
                            entry(5, "Plasma protein binding")])
-    assert [sorted(e["criterion_id"] for e in g) for g in groups] == [["cri_1", "cri_2"]]
+    # one bucket: same unit, same direction. The differently-united and differently-directed ones
+    # are alone and so are not offered at all.
+    assert [sorted(e["criterion_id"] for e in g) for g in groups] == [["cri_1", "cri_2", "cri_5"]]
+
+    # a bucket wider than one prompt is split rather than sent whole
+    wide = [entry(i, f"Reported quantity {i:02d}") for i in range(20)]
+    split = merge_groups(wide)
+    assert len(split) > 1 and all(len(g) <= MERGE_GROUP_MAX for g in split)
+    assert sum(len(g) for g in split) == len(wide)
 
 
 class RoundOneLateMerge(RoundOne):

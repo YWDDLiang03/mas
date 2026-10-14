@@ -89,6 +89,10 @@ ADJUDICATOR_SYSTEM = (
 )
 
 BATCH = {"critic": 30, "distill": 25, "refine": 20}
+# Members offered to the adjudicator as one merge group. A whole unit-and-direction bucket can run to
+# dozens of criteria, and a prompt that large is one no model reads carefully and no reviewer can
+# check; a bucket wider than this is split into several groups instead.
+MERGE_GROUP_MAX = 8
 _WORDS = re.compile(r"[a-z0-9]+")
 _STOP = {"the", "of", "a", "an", "in", "to", "and", "or", "for", "with", "by", "at", "on", "as", "is"}
 
@@ -485,12 +489,40 @@ def merge_groups(entries: list[dict[str, Any]], *, overlap: float = 0.35) -> lis
         for i, a in enumerate(members):
             for b in members[i + 1:]:
                 same_key = criteria.evidence_key(a["item"]["attribute"]) == criteria.evidence_key(b["item"]["attribute"])
-                if same_subject or same_key or _overlap(a["item"]["attribute"], b["item"]["attribute"]) >= overlap:
+                # WHY a subject-less bucket now groups on the bucket rather than on wording: for a
+                # literature-bound criterion the subject is empty -- a query template is a retrieval
+                # knob, not a subject -- so grouping fell through to a name+definition Jaccard of at
+                # least `overlap`. Measured: the pair this stage exists for scores 0.14 on names and
+                # 0.10 with definitions, because one definition is terse and the other is verbose
+                # prose, and the clean derivation of 14 October 2026 produced 59 literature-bound
+                # proposals of which merge grouped zero across every iteration. The design is
+                # "deterministic pairing, then the adjudicator decides", and a pairing this strict
+                # means the adjudicator is never asked: the reduction from many proposals to few
+                # quantities cannot happen at all. Sharing a canonical unit, a direction and a
+                # dimension is a weak signal on its own, which is exactly why it is handed to a model
+                # that reads the definitions rather than used to merge anything by itself. Every
+                # candidate merge still has to survive `ctx.validate`, may cite only its parents'
+                # claims and may not reach for a route neither parent had.
+                same_bucket = not same_subject and not same_key and \
+                    a["item"].get("dimension") == b["item"].get("dimension")
+                if same_subject or same_key or same_bucket \
+                        or _overlap(a["item"]["attribute"], b["item"]["attribute"]) >= overlap:
                     parent[find(a["criterion_id"])] = find(b["criterion_id"])
         clusters: dict[str, list[dict[str, Any]]] = {}
         for entry in members:
             clusters.setdefault(find(entry["criterion_id"]), []).append(entry)
-        groups += [c for c in clusters.values() if len(c) > 1]
+        for cluster in clusters.values():
+            if len(cluster) < 2:
+                continue
+            if len(cluster) <= MERGE_GROUP_MAX:
+                groups.append(cluster)
+                continue
+            # A bucket wider than one prompt is split, with the most similarly worded items adjacent
+            # so a split does not separate the pair most likely to be one quantity. Wording is a poor
+            # grouping test -- which is why it no longer gates grouping -- but it is a fair ordering.
+            ordered = sorted(cluster, key=lambda e: (e["item"]["attribute"].get("name") or "").lower())
+            groups += [ordered[i:i + MERGE_GROUP_MAX] for i in range(0, len(ordered), MERGE_GROUP_MAX)
+                       if len(ordered[i:i + MERGE_GROUP_MAX]) > 1]
     return groups
 
 

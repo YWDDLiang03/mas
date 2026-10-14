@@ -73,6 +73,18 @@ SETTINGS: dict[str, Setting] = {
     "search.saturation_stop": _s(0.10, "stop a dimension when the share of newly relevant records falls below this",
                                  minimum=0.0, maximum=1.0, unit="fraction", const_id="const_search_saturation_stop"),
     "search.date_to": _s("", "evidence cutoff date (YYYY-MM-DD, empty for no bound)"),
+    # WHY volume is named rather than numeric: the owner asked for a way to say how much to read, and
+    # the useful observation from the 14 October runs is that raising the document ceiling did nothing
+    # -- `--preset deep` allows 200 documents per dimension and enumerate made 19 reader calls, because
+    # each dimension stops when newly-relevant records fall below `search.saturation_stop`. Reading
+    # more means letting a dimension keep going past that point AND giving it more places to look, so
+    # these bands move the saturation threshold and the screening width together. They are ceilings
+    # and floors on effort, not targets: a dimension that saturates honestly stops early, and padding
+    # a run to reach a number buys documents nobody should be reading.
+    "search.volume": _s("mid", "how much literature a dimension reads before it stops",
+                        choices=("low", "mid", "high", "xhigh")),
+    "textbook.volume": _s("mid", "how many synced books a dimension draws on",
+                          choices=("low", "mid", "high", "xhigh")),
     # reading
     "read.max_papers_full_read": _s(40, "documents read in full per dimension", minimum=1, maximum=500,
                                     unit="documents", const_id="const_read_max_documents"),

@@ -179,15 +179,43 @@ DEFAULT_RESEARCH = {"breadth": 5, "depth": 1, "breadth_decay": 0.5, "results_per
                     "sources": None, "max_content_chars": 60_000}
 
 
+# WHY the bands move saturation and not only the ceiling: measured on 14 October 2026, `--preset deep`
+# allows 200 documents per dimension and enumerate made 19 reader calls. The ceiling was never the
+# constraint -- a dimension stops when the share of newly relevant records falls below
+# `search.saturation_stop` and when `saturation_k` consecutive documents add nothing. So a band has to
+# raise the patience as well as the cap, or asking for more literature changes nothing. They are
+# limits on effort, not quotas: a dimension whose evidence genuinely runs dry still stops early, which
+# is the point -- padding a run to hit a number buys documents nobody should read.
+#
+#   papers per dimension, roughly        books a dimension may draw on
+#   low    10-50     saturation 0.20     low    1-3
+#   mid    50-100    saturation 0.10     mid    3-5
+#   high   100-200   saturation 0.05     high   5-10
+#   xhigh  200+      saturation 0.02     xhigh  10+
+SEARCH_VOLUME = {
+    "low":   {"max_documents": 50,  "saturation_stop": 0.20, "saturation_k": 2, "max_records_screened": 300},
+    "mid":   {"max_documents": 100, "saturation_stop": 0.10, "saturation_k": 3, "max_records_screened": 600},
+    "high":  {"max_documents": 200, "saturation_stop": 0.05, "saturation_k": 5, "max_records_screened": 1200},
+    "xhigh": {"max_documents": 400, "saturation_stop": 0.02, "saturation_k": 8, "max_records_screened": 2500},
+}
+TEXTBOOK_VOLUME = {"low": 3, "mid": 5, "high": 10, "xhigh": 32}
+
+
 def research_params(settings) -> dict[str, Any]:
     """Research breadth and depth for derivation from resolved settings (core/config.py)."""
     if settings is None:
         return dict(DEFAULT_RESEARCH)
+    band = SEARCH_VOLUME[settings["search.volume"]]
     return {"breadth": settings["search.breadth"], "depth": settings["search.depth"],
+            "books_per_dimension": TEXTBOOK_VOLUME[settings["textbook.volume"]],
             "breadth_decay": settings["search.breadth_decay"], "results_per_query": settings["search.results_per_query"],
-            "max_records_screened": settings["search.max_records_screened"],
-            "max_documents": settings["read.max_papers_full_read"], "saturation_k": DEFAULT_RESEARCH["saturation_k"],
-            "saturation_stop": settings["search.saturation_stop"], "sources": list(settings["search.sources"]),
+            # An explicitly set ceiling still wins over the band, so `--preset deep` and an explicit
+            # `read.max_papers_full_read` are not silently overridden by a volume word.
+            "max_documents": max(settings["read.max_papers_full_read"], band["max_documents"]),
+            "saturation_k": band["saturation_k"],
+            "saturation_stop": min(settings["search.saturation_stop"], band["saturation_stop"]),
+            "max_records_screened": max(settings["search.max_records_screened"], band["max_records_screened"]),
+            "sources": list(settings["search.sources"]),
             "max_content_chars": settings["read.max_content_chars"]}
 
 

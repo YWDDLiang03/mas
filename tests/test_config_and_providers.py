@@ -273,3 +273,33 @@ def test_the_configured_stage_order_is_the_one_the_library_defaults_to():
         "default rather than quietly diverging from it")
     assert configured.index("merge") > configured.index("refine"), (
         "merge must run after refine or it sees a pool whose repairable items are still unrepaired")
+
+
+def test_the_literature_volume_bands_raise_patience_and_not_only_the_ceiling():
+    """Measured on 14 October 2026: `--preset deep` allows 200 documents per dimension and enumerate
+    made 19 reader calls. The ceiling was never the constraint -- a dimension stops when newly
+    relevant records fall below `search.saturation_stop` and when `saturation_k` consecutive
+    documents add nothing. A band that raised only the cap would change nothing, which is why these
+    move saturation too."""
+    from mas.core import config as config_mod
+    from mas.core import derivation
+
+    seen = []
+    for band in ("low", "mid", "high", "xhigh"):
+        v = config_mod.resolve(overrides={"search.volume": band, "textbook.volume": band})
+        r = derivation.research_params(v)
+        seen.append((r["max_documents"], r["saturation_stop"], r["saturation_k"],
+                     r["max_records_screened"], r["books_per_dimension"]))
+
+    docs = [s[0] for s in seen]
+    assert docs == sorted(docs) and docs[0] < docs[-1], "more volume must allow more documents"
+    stops = [s[1] for s in seen]
+    assert stops == sorted(stops, reverse=True), "more volume must mean a lower saturation floor"
+    ks = [s[2] for s in seen]
+    assert ks == sorted(ks) and ks[0] < ks[-1], "more volume must mean more patience before stopping"
+    books = [s[4] for s in seen]
+    assert books == sorted(books) and books[0] < books[-1], "more volume must allow more books"
+
+    # an explicitly raised ceiling is not silently lowered by a volume word
+    v = config_mod.resolve(overrides={"search.volume": "low", "read.max_papers_full_read": 500})
+    assert derivation.research_params(v)["max_documents"] == 500
