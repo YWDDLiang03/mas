@@ -456,3 +456,28 @@ def test_the_default_worker_count_is_one_so_behaviour_is_unchanged_unless_the_se
     claims, error_ref, _ = read_cell(core, broker, roster)        # no document_workers: the default path
     assert model.highest_overlap == 1 and reader_tool.reads == list(PAPERS)
     assert [c["value"] for c in claims] == list(PAPERS.values()) and error_ref is None
+
+
+def test_a_document_whose_claims_cannot_be_extracted_is_skipped_rather_than_ending_the_round(core):
+    """Measured on 14 October 2026 against DeepSeek: `reading.extract_claims` under
+    `derivation.enumerate_dimension` raised `parse_failed: no JSON value found in the model reply`
+    and killed a derivation after 1.5 hours and 312 admitted claims. The same class of failure in
+    `refine_stage` had killed the run before it. A reasoning provider that occasionally answers in
+    prose is a property of the provider, and a document whose claims cannot be extracted contributes
+    nothing -- which is exactly what an unreadable document already does. It is skipped and counted,
+    and the dimension reports it so a reader can tell "little evidence" from "evidence lost"."""
+    import inspect
+    from mas.core import derivation
+    from mas.core.models import ModelError
+
+    source = inspect.getsource(derivation.enumerate_dimension)
+    assert "except ModelError" in source, "the extraction call must be guarded"
+    assert "unreadable.append" in source
+    assert 'error.error_class == "quota_exhausted"' in source, (
+        "a budget refusal is the run being told to stop and must still propagate")
+    assert '"documents_unreadable": unreadable' in inspect.getsource(derivation), (
+        "a dimension must report the documents whose evidence was lost")
+
+    # and the repair budget that let a single prose reply through is now two, not one
+    from mas.core import models
+    assert inspect.signature(models.call_role).parameters["max_repairs"].default == 2

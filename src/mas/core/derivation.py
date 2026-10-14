@@ -23,7 +23,7 @@ from typing import Any
 from . import assessor, bound_support, criteria, reading
 from .clock import utc_now
 from .journal import actor as make_actor
-from .models import ModelRequest, ModelRoster, call_role
+from .models import ModelError, ModelRequest, ModelRoster, call_role
 from .runtime import Core
 
 PROPOSAL_SCHEMA = {
@@ -223,6 +223,7 @@ def enumerate_dimension(core: Core, broker, roster: ModelRoster, stream_id: str,
     hints: dict[str, list[str]] = {}
     claims: list[dict[str, Any]] = []
     read_count, rounds, stop_reason = 0, [], "depth_reached"
+    unreadable: list[dict[str, Any]] = []
     breadth = float(r["breadth"])
     for level in range(int(r["depth"])):
         queries = reading.plan_queries(core, roster, stream_id, objective_text=objective, focus=focus,
@@ -252,10 +253,24 @@ def enumerate_dimension(core: Core, broker, roster: ModelRoster, stream_id: str,
                 document = reading.read(core, broker, stream_id, hit, ids=ids, budget=budget, cutoff_date=cutoff_date)
                 if document is None:
                     continue
-                found = reading.extract_claims(core, roster, stream_id, document, {
-                    "purpose": "criterion_discovery", "objective_text": objective + (f" Scope: {scope}." if scope else ""),
-                    "dimensions": all_dimensions or [dimension], "attribute": None, "candidate": None}, ids=ids, budget=budget,
-                    max_chars=r["max_content_chars"])
+                try:
+                    found = reading.extract_claims(core, roster, stream_id, document, {
+                        "purpose": "criterion_discovery", "objective_text": objective + (f" Scope: {scope}." if scope else ""),
+                        "dimensions": all_dimensions or [dimension], "attribute": None, "candidate": None}, ids=ids, budget=budget,
+                        max_chars=r["max_content_chars"])
+                except ModelError as error:
+                    # WHY one document may fail without ending the round: a reasoning provider
+                    # occasionally answers in prose, and `call_role` raises once its repairs are
+                    # spent. Measured on 14 October 2026 against DeepSeek: this exact call killed a
+                    # derivation after 1.5 hours and 312 admitted claims, and the same class of
+                    # failure in `refine_stage` killed the run before it. A document whose claims
+                    # cannot be extracted is a document that contributes nothing -- which is what an
+                    # unreadable document already does two lines above -- so it is skipped and
+                    # counted. A budget refusal still propagates: that is the run being told to stop.
+                    if error.error_class == "quota_exhausted":
+                        raise
+                    unreadable.append({"key": key, "reason": f"{error.error_class}: {error}"[:160]})
+                    continue
                 if read_cache is not None:
                     read_cache[key] = found
             read_count += 1
@@ -293,6 +308,9 @@ def enumerate_dimension(core: Core, broker, roster: ModelRoster, stream_id: str,
     manifest_id = core.artifacts.put("visibility_manifest", manifest)
     return {"dimension": dimension["dimension"], "queries": all_queries, "coverage_id": coverage_ids[0] if coverage_ids else None,
             "coverage_ids": coverage_ids, "manifest_id": manifest_id, "documents_read": read_count,
+            # Documents whose claims could not be extracted, so a reader can tell a dimension that
+            # found little from one whose evidence was lost to a provider that answered in prose.
+            "documents_unreadable": unreadable,
             "saturated": stop_reason in ("saturated", "no_new_records"),
             "rounds": rounds, "stop_reason": stop_reason, "research": {k: v for k, v in r.items()},
             "hints": hints, "claims": claims}

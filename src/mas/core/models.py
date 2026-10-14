@@ -427,12 +427,20 @@ class ModelRoster:
 
 
 def call_role(core, roster: ModelRoster, stream_id: str, request: ModelRequest, *,
-              ids: dict[str, Any] | None = None, budget: Any = None, max_repairs: int = 1) -> ModelResponse:
+              ids: dict[str, Any] | None = None, budget: Any = None, max_repairs: int = 2) -> ModelResponse:
     """Call the adapter bound to `request.role`, journal it, and enforce the response schema.
 
     Raw input and output go to a trace artifact (visibility expert/auditor), never into
-    the default event summary. A reply that fails the schema is fed back once with the
-    problems listed (error-recovery contract); a second failure raises `parse_failed`.
+    the default event summary. A reply that fails the schema is fed back with the problems
+    listed (error-recovery contract); exhausting `max_repairs` raises `parse_failed`.
+
+    WHY the default is two repairs rather than one: a reasoning provider occasionally answers in
+    prose instead of json, and one repair was not enough to absorb it. Measured on 14 October 2026
+    against DeepSeek `deepseek-v4-flash`, which cost three derivation runs: twice in
+    `derivation_stages.refine_stage` and once in `reading.extract_claims` under
+    `derivation.enumerate_dimension`, each time `parse_failed: no JSON value found in the model
+    reply` after 1.5 hours of reading. A repair is one cheap call against the loss of a whole round,
+    and the reply that fails is already in the trace artifact either way.
     """
     from .journal import actor as make_actor
 
