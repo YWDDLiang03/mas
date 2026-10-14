@@ -74,9 +74,21 @@ to candidate identity structurally rather than by discipline.
 ## 5. The sparse-coverage ranking defect
 
 `assessor.preference_scores` averages over *evaluated* rules, so a candidate assessed on few cells is
-scored on its best-covered subset. Measured on the 9-criterion board: the top four were compounds with
-**1 of 5 required receptors measured**, including **mebendazole, an anthelmintic, at rank 4**, ahead of
-compounds assessed on all five. A coverage floor of 0.5 does not protect against it.
+scored on its best-covered subset. A coverage floor of 0.5 does not protect against it, because 4 of
+the 9 criteria are structural descriptors available for every compound.
+
+**Correction, recorded rather than quietly fixed.** An earlier draft of this section said "the top four
+were compounds with 1 of 5 required receptors measured, including mebendazole at rank 4". Those figures
+came from an offline re-score over freshly fetched ChEMBL activity tables and RDKit descriptors, not
+from any published snapshot in the store, and they were stated as though they were the board. On the
+published board `lb_task_01M4TD4MNYWDDVH3KWAE4Y1Q7R_4` mebendazole is at **rank 39**, not 4.
+
+The defect is nonetheless real and visible on that published board: **Pemigatinib (rank 6)** and
+**Crenolanib (rank 7)** each carry **1 of 5 required receptors**, placed above **Ponatinib (4 of 5)**,
+**Tivozanib (4 of 5)** and **Cediranib (5 of 5)**, with **Axitinib (5 of 5)** at rank 5. The
+answered-count distribution over that board's 6 mandated criteria is
+`{0: 1220, 1: 1877, 2: 33, 3: 13, 4: 9, 5: 16, 6: 9}`. Every one of the sparse-coverage candidates
+named is excluded once the floor below is applied.
 
 The fix is not to reinterpret anyone's criterion. An unknown on a *preference* is absence of
 information, not failure, and the mandated receptor criteria are `ordering` preferences precisely
@@ -104,6 +116,15 @@ selectively.
 
 `ordering_method.weight_vector` can weight the mandated receptors above derived preferences. It was
 left at equal weights: changing it now, knowing which direction helps, would be tuning.
+
+**Provenance of the table below, stated because it is not all the same.** These rows are **offline
+re-scores**, not published snapshots: they mirror `assessor.preference_scores` exactly (percentile over
+candidates with a value, in the attribute's direction, ties shared; threshold rules 1 for pass and 0
+for fail) over values fetched fresh from the ChEMBL activity tables, with RDKit standing in for
+PubChem's descriptors -- molecular weight is identical, logP and TPSA differ slightly. The harness
+reproduces the published board exactly on the baseline row, which is why it is trusted at all, but a
+re-score is not the system's own output and is not reported as one. The pipeline run that produces
+these numbers from the system is outstanding.
 
 | instrument | rankable | reference compound |
 |---|---|---|
