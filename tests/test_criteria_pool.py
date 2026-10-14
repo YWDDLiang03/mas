@@ -9,7 +9,7 @@ import json
 import pytest
 
 from mas.adapters.drug.registration import EVIDENCE_CATALOG
-from mas.core import criteria, derivation_run, derivation_stages, pool, task
+from mas.core import criteria, derivation_run, derivation_stages, pool, review, task
 from mas.core.broker import Broker, ProviderResponse, ToolContract
 from mas.core.budget import Budget
 from mas.core.controller import RunController, RunError
@@ -523,20 +523,26 @@ def merge_script(extra_route=None):
     return script
 
 
-def two_curations_pool(core, script, task_id="task_merge"):
-    """A pool holding the receptor's two attributes, and the stage context to merge them in."""
-    writer = pool.Pool(core, task_id, by=OPERATOR, run_id="run_merge").at("propose", 0)
+def pool_of(core, script, items, *, task_id, run_id):
+    """A pool holding one item per (claim id, attribute) pair, and the context to run a stage over it."""
+    writer = pool.Pool(core, task_id, by=OPERATOR, run_id=run_id).at("propose", 0)
     claims_by_id = {}
-    for claim_id, attribute in (("claim_chembl", CHEMBL_POTENCY), ("claim_gtopdb", GTOPDB_AFFINITY)):
+    for claim_id, attribute in items:
         claims_by_id[claim_id] = {"claim_id": claim_id, "source_ref": "src_db_1", "determination_basis": "measured",
                                   "location": {"quoted_span": f"a curated affinity at CSF1R ({claim_id})"},
                                   "value": 8.0, "unit": "pChEMBL"}
         writer.add(proposal(attribute, claim_id), reason_text="proposed for target_coverage")
     return derivation_stages.StageContext(
-        core=core, roster=roster_for(script), task_id=task_id, run_id="run_merge",
+        core=core, roster=roster_for(script), task_id=task_id, run_id=run_id,
         task_context={"objective_text": SPEC["objective_text"], "constraints": [],
                       "scope_entities": SPEC["scope_entities"]},
         catalog=EVIDENCE_CATALOG, claims_by_id=claims_by_id, reference_labels=[], pool=writer)
+
+
+def two_curations_pool(core, script, task_id="task_merge"):
+    """A pool holding the receptor's two attributes, and the stage context to merge them in."""
+    return pool_of(core, script, [("claim_chembl", CHEMBL_POTENCY), ("claim_gtopdb", GTOPDB_AFFINITY)],
+                   task_id=task_id, run_id="run_merge")
 
 
 def test_a_merge_may_pool_its_parents_routes_into_one_attribute(core):
@@ -551,11 +557,13 @@ def test_a_merge_may_pool_its_parents_routes_into_one_attribute(core):
 
 
 def test_a_merge_may_not_add_an_evidence_route_neither_parent_had(core):
-    """The merge gate already refuses a child citing a claim its parents did not; a child bound to a data
-    source neither parent was bound to is the same kind of reach, and it would make the merged criterion
-    measure something the pool never proposed."""
-    extra = {"capability": "property_estimate", "question_kind": "computed_property",
-             "identifier_scheme": "inchikey", "parameters": {"property": "MolecularWeight"}}
+    """The merge gate already refuses a child citing a claim its parents did not; a child asking a question
+    neither parent asked is the same kind of reach, and it would make the merged criterion measure
+    something the pool never proposed. The route used here reads a second receptor from a database a
+    parent already uses, which is the form that would otherwise pass unnoticed: every field of the child
+    validates, and only the question is new."""
+    extra = {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values",
+             "identifier_scheme": "inchikey", "parameters": {"target_chembl_id": "CHEMBL279"}}
     ctx = two_curations_pool(core, merge_script(extra_route=extra))
     stats = derivation_stages.merge_stage(ctx, 1)
     assert stats["refused"] == 1 and stats["merged"] == 0
@@ -563,3 +571,302 @@ def test_a_merge_may_not_add_an_evidence_route_neither_parent_had(core):
     # and nothing else about that child was wrong: the refusal is about the route it reached for
     invented = pooled(CHEMBL_POTENCY["evidence_request"], GTOPDB_AFFINITY["evidence_request"], extra)
     assert ctx.validate(proposal(invented, "claim_chembl")) == []
+
+
+# --- the registry already holds it ----------------------------------------------------------
+
+ORDERING = {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": None,
+            "cutoff_basis": "none_evidence_insufficient", "on_missing": "unknown_no_penalty"}
+
+
+def critic_passes_everything(request):
+    """A critic that faults nothing, so a filter pass turns only on the deterministic gates."""
+    assert request.metadata.get("question") == "critique pool", request.metadata
+    proposals = json.loads(request.messages[0]["content"].split("Proposals:\n", 1)[1].split("\n\nCited claims:")[0])
+    return {"findings": [{"proposal_index": p["index"], "check": "evidence_support", "verdict": "pass",
+                          "severity": "minor", "referent": "supporting_claim_ids", "finding": "supported"}
+                         for p in proposals]}
+
+
+def test_a_proposal_whose_only_route_a_registered_attribute_already_covers_is_refused_as_a_duplicate(core):
+    """`filter_stage` refused a proposal only when `evidence_key` matched, and that key hashes the whole
+    route set. So once a receptor's potency is registered as one attribute reading both curations, a
+    fresh single-route IUPHAR/BPS proposal did not match it and was promoted -- rebuilding the ten rules
+    for five quantities the registration template was changed to remove. `merge_groups` cannot catch it
+    either: it groups pool candidates, and the registered attribute is not one."""
+    task_id = "task_subset"
+    both = pooled(CHEMBL_POTENCY["evidence_request"], GTOPDB_AFFINITY["evidence_request"])
+    attr_ref, _ = criteria.propose(core, task_id, both, ORDERING, by=OPERATOR)
+    ctx = pool_of(core, critic_passes_everything, [("claim_gtopdb", GTOPDB_AFFINITY)],
+                  task_id=task_id, run_id="run_subset")
+
+    assert derivation_stages.filter_stage(ctx, 1) == {"filtered_out": 1, "to_refine": 0, "kept": 0}
+    (entry,) = pool.fold(core, task_id).values()
+    assert entry["state"] == "filtered_out"
+    last = entry["history"][-1]
+    assert last["reason_kind"] == "duplicate_of_registered"
+    # the reason has to name the attribute and which of its routes already cover the proposal: with a
+    # subset test, "already registered" no longer means the two attributes are identical
+    assert attr_ref in last["reason_text"] and "gtopdb_affinity" in last["reason_text"]
+    assert "pchembl_values" in last["reason_text"]
+    found = derivation_stages.duplicate_of_registered(GTOPDB_AFFINITY, criteria.registered_attributes(core, task_id))
+    assert found["attribute_ref"] == attr_ref and found["already_covered"] == ["gtopdb_affinity"]
+
+
+def test_a_proposal_offering_a_route_the_registered_attribute_lacks_is_not_refused(core):
+    """The mirror of the subset test, and the error that would be worse: the two-curation form of a
+    quantity asks a database the one-curation form never asks. Dropping it silently would lose the
+    evidence the collapse exists to pool, so it survives the filter and the registry ends up holding the
+    quantity twice -- which `core/collapse.py` then collapses."""
+    task_id = "task_superset"
+    attr_ref, _ = criteria.propose(core, task_id, CHEMBL_POTENCY, ORDERING, by=OPERATOR)
+    both = pooled(CHEMBL_POTENCY["evidence_request"], GTOPDB_AFFINITY["evidence_request"])
+    ctx = pool_of(core, critic_passes_everything, [("claim_both", both)], task_id=task_id, run_id="run_superset")
+
+    registered = criteria.registered_attributes(core, task_id)
+    assert derivation_stages.quantity_key(both) == derivation_stages.quantity_key(registered[0])
+    assert derivation_stages.duplicate_of_registered(both, registered) is None
+    assert derivation_stages.filter_stage(ctx, 1) == {"filtered_out": 0, "to_refine": 0, "kept": 1}
+    (entry,) = pool.fold(core, task_id).values()
+    assert entry["state"] == "candidate"
+    # and the single-route half of it, which asks nothing new, is still refused against the same registry
+    assert derivation_stages.duplicate_of_registered(CHEMBL_POTENCY, registered)["attribute_ref"] == attr_ref
+
+
+# --- collapsing a quantity the registry holds twice -----------------------------------------
+# The registry as the manuscript left it: `{receptor}-curated-potency` promoted first by the
+# task-mandated template, `{receptor}-affinity-on-the-independent-expert-curation` promoted after it
+# by the pool, both measuring one receptor's affinity on the pChEMBL scale.
+
+def promoted_pair(core, *, task_id="task_collapse", first=CHEMBL_POTENCY, second=GTOPDB_AFFINITY,
+                  first_rule=None, second_rule=None):
+    one = criteria.propose(core, task_id, first, first_rule or ORDERING, by=OPERATOR)
+    two = criteria.propose(core, task_id, second, second_rule or ORDERING, by=OPERATOR)
+    return task_id, one, two
+
+
+def test_two_promoted_attributes_for_one_quantity_collapse_to_one_declaring_both_routes(core):
+    """The registry is append-only and the pool's merge stage only groups pool candidates, so a
+    duplicate that has already been promoted was past the one stage that could have combined it.
+    Measured on the manuscript registry, 14 October 2026: ten promoted rules for five quantities, every
+    receptor scored twice and five quantities that do not exist in the coverage denominator."""
+    from mas.core import collapse
+
+    task_id, (attr_chembl, rule_chembl), (attr_gtopdb, rule_gtopdb) = promoted_pair(core)
+    before = criteria.rule_set(core, task_id, criteria.confirm_rule_set(core, task_id, by=OPERATOR))
+    assert sorted(e["rule_ref"] for e in before["entries"]) == sorted([rule_chembl, rule_gtopdb])
+
+    result = collapse.collapse(core, task_id, by=OPERATOR, dry_run=False)
+    (group,) = result["collapsed"]
+    assert result["refused"] == [] and group["collapse_id"].startswith("clp_")
+    (record,) = collapse.records(core, task_id)
+    assert record["surviving"]["attribute_ref_before"] == attr_chembl        # the earliest-promoted survives
+    assert [m["attribute_ref"] for m in record["superseded"]] == [attr_gtopdb]
+    surviving = criteria.load(core, record["surviving"]["attribute_ref_after"], task_id)
+    assert [r["question_kind"] for r in criteria.evidence_routes(surviving)] == ["pchembl_values", "gtopdb_affinity"]
+    assert surviving["definition"] == CHEMBL_POTENCY["definition"]           # the definition is left alone
+    assert "evidence_request" not in surviving                               # nothing names one route as *the* one
+    criteria.check_attribute(surviving)
+
+    after = criteria.rule_set(core, task_id, criteria.confirm_rule_set(core, task_id, by=OPERATOR))
+    assert [e["rule_ref"] for e in after["entries"]] == [record["surviving"]["rule_ref_after"]]
+    assert after["entries"][0]["attribute_ref"] == record["surviving"]["attribute_ref_after"]
+    assert [e["rule_ref"] for e in after["collapsed_away"]] == [rule_gtopdb]
+    assert after["collapsed_away"][0]["merged_into"] == record["surviving"]["attribute_ref_after"]
+    assert after["machine_collapsed"] == [record["surviving"]["rule_ref_after"]]
+    # the superseded lineage reads both ways, in the pool's own change-record vocabulary
+    changes = [e.payload for e in core.journal.replay(task_id)
+               if e.event_type == "criterion.change_recorded" and e.payload.get("collapse")]
+    assert {(c["criterion_id"], c["operation"], c["state"]) for c in changes} == {
+        (attr_gtopdb.split("@v")[0], "merge", "merged_away"),
+        (attr_chembl.split("@v")[0], "merge", "promoted")}
+    assert all(c["targets_out"] == [record["surviving"]["attribute_ref_after"]] for c in changes)
+    assert not any(c.get("pool") for c in changes)       # these are registry refs, not `cri_` lineages
+    # and a second run has nothing left to do, so the command is safe to repeat
+    assert collapse.collapse(core, task_id, by=OPERATOR, dry_run=False)["collapsed"] == []
+
+
+def test_the_surviving_attributes_rule_is_unchanged_by_the_collapse(core):
+    """A collapse is about the attribute: it pools the routes one quantity is read from and re-decides
+    nothing. The new rule version exists only because the sweep loads the attribute the *rule* names
+    (`controller` reads `entries[].attribute_ref`), so a new attribute version nothing points at would
+    leave every cell reading one database while the registry said the quantity read two."""
+    from mas.core import collapse
+
+    task_id, (_, rule_chembl), _ = promoted_pair(core)
+    collapse.collapse(core, task_id, by=OPERATOR, dry_run=False)
+    (record,) = collapse.records(core, task_id)
+    before = criteria.load(core, rule_chembl, task_id)
+    after = criteria.load(core, record["surviving"]["rule_ref_after"], task_id)
+
+    changed = {k for k in set(before) | set(after) if before.get(k) != after.get(k)}
+    assert changed == {"attribute_ref", "version", "supersedes", "collapsed_by"}
+    assert (after["rule_kind"], after["predicate_form"], after["cutoff"], after["cutoff_basis"]) == \
+           (before["rule_kind"], before["predicate_form"], before["cutoff"], before["cutoff_basis"])
+    assert after["supersedes"] == rule_chembl and after["collapsed_by"] == record["collapse_id"]
+    assert review.items(core, [task_id]) == {}       # an ordering preference needs no expert, before or after
+
+
+def test_a_group_whose_rules_disagree_on_cutoff_or_kind_is_refused_and_says_why(core):
+    """Two rules that score one quantity differently are a disagreement about how to score it, not a
+    duplicate registration of it, and the one authority this collapse has -- that the routes ask the
+    same question -- says nothing about which rule is right. So the group is refused whole, and both
+    rules keep scoring until a person settles it."""
+    from mas.core import collapse
+
+    threshold = {"rule_kind": "preference", "predicate_form": "threshold", "cutoff_basis": "source_stated_value",
+                 "cutoff": {"comparator": ">=", "value": 7.0, "unit": "pChEMBL"}}
+    task_id, (_, rule_chembl), (_, rule_gtopdb) = promoted_pair(
+        core, first_rule=threshold,
+        second_rule=dict(threshold, cutoff={"comparator": ">=", "value": 8.0, "unit": "pChEMBL"}))
+    result = collapse.collapse(core, task_id, by=OPERATOR, dry_run=False)
+
+    assert result["collapsed"] == [] and len(result["refused"]) == 1
+    (why,) = result["refused"][0]["refused"]
+    assert rule_gtopdb in why and rule_chembl in why and "cutoff" in why and "8.0" in why
+    assert collapse.records(core, task_id) == []            # a real disagreement writes nothing at all
+    rules = criteria.rule_set(core, task_id, criteria.confirm_rule_set(core, task_id, by=OPERATOR))
+    assert sorted(e["rule_ref"] for e in rules["entries"]) == sorted([rule_chembl, rule_gtopdb])
+    assert rules["machine_collapsed"] == [] and rules["collapsed_away"] == []
+
+    kinds_task, _, (_, demoted) = promoted_pair(
+        core, task_id="task_collapse_kinds", first_rule=ORDERING,
+        second_rule={"rule_kind": "exploratory_consideration", "predicate_form": "qualitative_judgment",
+                     "cutoff": None, "cutoff_basis": "none_evidence_insufficient"})
+    refusals = collapse.collapse(core, kinds_task, by=OPERATOR, dry_run=False)["refused"][0]["refused"]
+    assert any("rule_kind" in r and demoted in r for r in refusals)
+    assert any("predicate_form" in r for r in refusals)
+
+
+def test_a_collapsed_rule_set_cannot_read_as_prespecified(core):
+    """Nobody confirmed the collapse, and the acceptance label is what a reader has to go on. A rule set
+    whose attribute a machine rewrote must not read like one a person settled, for the same reason a
+    machine-adjudicated rule makes a set exploratory."""
+    from mas.core import collapse
+
+    task_id, _, _ = promoted_pair(core)
+    before = criteria.rule_set(core, task_id, criteria.confirm_rule_set(core, task_id, by=OPERATOR))
+    assert before["acceptance_label"] == "prespecified" and before["acceptance_reasons"] == []
+
+    collapse.collapse(core, task_id, by=OPERATOR, dry_run=False)
+    after = criteria.rule_set(core, task_id, criteria.confirm_rule_set(core, task_id, by=OPERATOR))
+    assert after["acceptance_label"] == "exploratory"
+    assert any("no person confirmed that" in reason for reason in after["acceptance_reasons"])
+    assert any("held out of this set because the software merged" in r for r in after["acceptance_reasons"])
+    (record,) = collapse.records(core, task_id)
+    assert record["approval_kind"] == "software_status" and record["confirmed_by_a_person"] is False
+    assert record["actor"] == {"kind": "system", "id": "criterion-collapse", "role": "registry"}
+    assert not [e for e in core.journal.replay(task_id) if e.event_type == "human.review_decided"]
+
+
+def test_a_dry_run_writes_nothing_to_the_journal(core):
+    """`collapse` defaults to the dry path, so the real run is the explicit absence of `--dry-run`: this
+    rewrites an append-only registry, and a caller that has not decided must not change it."""
+    from mas.core import collapse
+
+    task_id, (attr_chembl, _), (attr_gtopdb, _) = promoted_pair(core)
+    before = [(e.seq, e.event_id) for e in core.journal.replay(task_id)]
+
+    planned = collapse.collapse(core, task_id, by=OPERATOR)
+    assert planned["dry_run"] is True
+    assert [(e.seq, e.event_id) for e in core.journal.replay(task_id)] == before
+    assert collapse.records(core, task_id) == []
+    (group,) = planned["collapsed"]
+    assert group["collapse_id"] is None
+    assert group["surviving"]["attribute_ref"] == attr_chembl
+    assert [m["attribute_ref"] for m in group["superseded"]] == [attr_gtopdb]
+    assert group["routes_before"] == ["pchembl_values"] and group["routes_after"] == ["pchembl_values",
+                                                                                     "gtopdb_affinity"]
+    # the plan is the same whether or not it is applied, so the printed plan is what the real run does
+    applied = collapse.collapse(core, task_id, by=OPERATOR, dry_run=False)["collapsed"][0]
+    assert {k: v for k, v in applied.items() if k != "collapse_id"} == {k: v for k, v in group.items()
+                                                                       if k != "collapse_id"}
+
+
+def test_a_person_can_withdraw_a_collapse_and_the_merged_away_rule_scores_again(core):
+    """`adjudication.reopen` cannot serve: it needs a queue item folded to `machine_adjudicated`, which
+    only a `machine_adjudication` record produces, and it reverses nothing in the registry -- it
+    withdraws an agent's verdict and carries the subject back to a terminal. A collapse resolves no
+    queue item and is no verdict, and what has to come back is the supersession `confirm_rule_set`
+    reads. So the reversal is recorded in `reopen`'s shape: the collapse stays in the journal as what
+    the software did, and withdrawing is not deciding -- it leaves the duplication unresolved."""
+    from mas.core import adjudication, collapse
+
+    task_id, (_, rule_chembl), (_, rule_gtopdb) = promoted_pair(core)
+    collapse.collapse(core, task_id, by=OPERATOR, dry_run=False)
+    (record,) = collapse.records(core, task_id)
+    assert review.items(core, [task_id]) == {}       # there is no queue item for `reopen` to reopen
+    with pytest.raises(adjudication.AdjudicationError, match="not machine-adjudicated"):
+        adjudication.reopen(core, {"item_id": "q_absent", "state": None, "stream_id": task_id,
+                                   "subject": {"kind": "rule_version", "id": rule_chembl}},
+                            by=OPERATOR, reason_text="a pharmacologist is available now")
+
+    with pytest.raises(collapse.CollapseError, match="say why"):
+        collapse.withdraw(core, task_id, record["collapse_id"], by=OPERATOR, reason_text="   ")
+    assert collapse.withdraw(core, task_id, record["collapse_id"], by=OPERATOR,
+                             reason_text="the two curations disagree on this receptor") == [rule_gtopdb]
+    assert [r["withdrawn"] for r in collapse.records(core, task_id)] == [True]
+    with pytest.raises(collapse.CollapseError, match="already withdrawn"):
+        collapse.withdraw(core, task_id, record["collapse_id"], by=OPERATOR, reason_text="again")
+
+    rules = criteria.rule_set(core, task_id, criteria.confirm_rule_set(core, task_id, by=OPERATOR))
+    assert rule_gtopdb in [e["rule_ref"] for e in rules["entries"]] and rules["collapsed_away"] == []
+    # the withdrawal un-does the supersession, which is a fold; it cannot un-write the pooled attribute
+    # version the surviving rule reads, so the set still says a machine wrote it
+    assert rules["machine_collapsed"] == [record["surviving"]["rule_ref_after"]]
+    assert rules["acceptance_label"] == "exploratory"
+    assert any("the software wrote" in reason for reason in rules["acceptance_reasons"])
+    # the collapse is still on the record, and the pooled attribute version is not deleted: the quantity
+    # is registered twice again, which is the state the person is being asked about
+    assert record["collapse_id"] in {e.payload.get("collapse_id") for e in core.journal.replay(task_id)}
+    assert criteria.load(core, record["surviving"]["attribute_ref_after"], task_id)["collapsed_by"] \
+           == record["collapse_id"]
+    # and the next run of the command refuses the group rather than collapsing it again: a reversal a
+    # re-run quietly overturns is not a reversal
+    again = collapse.collapse(core, task_id, by=OPERATOR, dry_run=False)
+    assert again["collapsed"] == [] and record["collapse_id"] in again["refused"][0]["refused"][0]
+    assert "would overrule them" in again["refused"][0]["refused"][0]
+
+
+def test_a_collapse_will_not_stop_a_rule_an_expert_approved_from_scoring(core):
+    """The collapse holds the merged-away rules out of the confirmed set, and where a person approved
+    one of them that is the software overruling an expert decision. "The routes ask one question"
+    authorises pooling the routes; it authorises nothing about an `hd_`."""
+    from mas.core import collapse
+
+    hard = {"rule_kind": "hard_exclusion", "predicate_form": "threshold", "cutoff_basis": "source_stated_value",
+            "cutoff": {"comparator": ">=", "value": 7.0, "unit": "pChEMBL"}}
+    task_id, _, (_, rule_gtopdb) = promoted_pair(core, first_rule=hard, second_rule=hard)
+    item = next(i for i in review.items(core, [task_id]).values() if i["subject"]["id"] == rule_gtopdb)
+    review.decide(core, item, decision="approve", actor=OPERATOR, reason_text="", entry="interactive")
+
+    (group,) = collapse.collapse(core, task_id, by=OPERATOR, dry_run=False)["refused"]
+    assert any(rule_gtopdb in why and "a person has to collapse what a person confirmed" in why
+               for why in group["refused"])
+    assert collapse.records(core, task_id) == []
+
+
+def test_a_collapse_group_that_states_no_subject_is_refused_because_its_quantity_key_names_nothing(core):
+    """A quantity key is (capability set, unit, direction, subject parameters), and only the subject
+    identifies a measurement: `interaction_evidence_lookup` answers `pchembl_values`, `gtopdb_affinity`
+    and `mechanism_records` alike, so the capability is a transport. Measured on the fixtures in this
+    file: "Oral bioavailability" (%, higher_better) and "Plasma protein binding" (%, higher_better) have
+    the same key exactly. Collapsing on it would merge two different quantities and call it a duplicate.
+    """
+    from mas.core import collapse
+    task_id, _ = task.record_version(core, SPEC, by=OPERATOR)
+    bioavailability = lit_attribute("Oral bioavailability", "%")
+    binding = lit_attribute("Plasma protein binding", "%")
+    assert collapse.quantity_key(bioavailability) == collapse.quantity_key(binding)
+    assert not criteria.subject_parameters(bioavailability["evidence_request"])
+    rule = {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": None,
+            "cutoff_basis": "none_evidence_insufficient", "on_missing": "unknown_no_penalty"}
+    for attribute in (bioavailability, binding):
+        criteria.propose(core, task_id, dict(attribute, supporting_claim_refs=[]), dict(rule), by=OPERATOR)
+    groups = collapse.plan(core, task_id)
+    assert groups, "the two attributes do share a quantity key, so a group must be formed and then refused"
+    assert all(g["refused"] for g in groups)
+    assert any("no subject parameters" in reason for g in groups for reason in g["refused"])
+    before = len(core.journal.replay(task_id))
+    collapse.collapse(core, task_id, by=OPERATOR, dry_run=False)
+    assert len(core.journal.replay(task_id)) == before, "a refused group must write nothing"

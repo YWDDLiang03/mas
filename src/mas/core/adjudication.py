@@ -7,7 +7,8 @@ agent_verdict`, never `human_scientific_approval`; it folds the queue item into 
 machine_adjudication` into the rule set, its acceptance label and the board. `review.decide` is
 untouched by this module: an `hd_` is still created only by a person confirming at a terminal.
 
-Four routes, chosen by *why* the item needed an expert (`criteria.needs_expert`):
+Five routes: the first four chosen by *why* the item needed an expert (`criteria.needs_expert`), the
+fifth by what the subject attribute's own definition states, for an item that needed no expert at all:
 
   task_constraint_restated       the cutoff restates a constraint the task context itself states,
                                  so the authority is the user's own task text and no judgement is
@@ -22,11 +23,26 @@ Four routes, chosen by *why* the item needed an expert (`criteria.needs_expert`)
   dispute_adjudicated            proposer and critic still disagree after a revision. The
                                  `adjudicator` role decides, blind to the proposer's rationale and
                                  on a third model family where the roster has one.
+  definition_restated            the attribute's definition states a derived quantity -- an excess
+                                 above a bound, a distance outside a band -- that the attribute
+                                 never declared as a `value_transform`, so every cell carries the
+                                 raw value its source returns under the derived quantity's name and
+                                 direction. The authority is the definition already promoted into
+                                 the store and the claims it cites, exactly as route 1's authority
+                                 is the user's own task text: the route adds no judgement and only
+                                 writes structurally what that text already states. Deterministic,
+                                 no model call. Changes no rule kind and no cutoff.
 
 WHY a demotion is a new rule version rather than a field on the entry: the assessor reads
 `rule["rule_kind"]` from the rule record it loads (`assessor.assess_cell`, `roll_up`), so a demotion
 recorded only on the rule-set entry would leave a hard exclusion still excluding candidates while
 every surface said it had been demoted.
+
+WHY route 5 writes two versions: the sweep loads the attribute the *rule* names (`controller` reads
+`entries[].attribute_ref`, which `confirm_rule_set` copies from `rule["attribute_ref"]`), so a new
+attribute version nothing points at would leave every cell reading the raw value while the registry
+said the quantity had been declared. The rule version it writes changes that one field and nothing
+else: same kind, same predicate form, same cutoff, same basis.
 """
 
 from __future__ import annotations
@@ -43,18 +59,23 @@ from .models import ModelError, ModelRequest, ModelRoster, call_role
 from .runtime import Core
 from . import task as task_mod
 
-# One line per route, in the order `route_of` tries them: what the route does to the rule.
+# One line per route, numbered as the module docstring numbers them: what the route does to the
+# criterion. (`route_of` tries them in another order, most conservative outcome first.)
 ROUTE_EFFECT = {
     "task_constraint_restated": "approve the rule unchanged, citing the task-context field it restates",
     "no_authority_available": "demote the rule to an exploratory consideration, so it stops scoring",
     "irreversible_without_authority": "demote the hard exclusion to a preference, so no candidate is removed",
     "dispute_adjudicated": "put the dispute to the adjudicator, blind to the proposer's rationale",
+    "definition_restated": "declare the transformation the attribute's own definition states, so the cell "
+                           "carries the quantity it names",
 }
 ROUTES = tuple(ROUTE_EFFECT)
 VERDICTS = ("uphold_proposal", "uphold_objection", "revise", "cannot_resolve")
-# The rule kind each resolution leaves behind; `approve` leaves the kind the proposal had.
+# The rule kind each resolution leaves behind; `approve` and `declare_value_transform` leave the
+# kind the proposal had, the second because it changes the attribute and not the rule.
 RESOLUTIONS = {"approve": None, "demote_to_preference": "preference",
-               "demote_to_exploratory_consideration": "exploratory_consideration"}
+               "demote_to_exploratory_consideration": "exploratory_consideration",
+               "declare_value_transform": None}
 
 # The deterministic routes add no judgement of their own, so their actor is the software, not an agent.
 MACHINE = make_actor("system", "machine-adjudication", "adjudicator")
@@ -147,6 +168,148 @@ def restated_constraint(rule: dict[str, Any], attribute: dict[str, Any],
     return None
 
 
+# --- route 5: does the attribute's definition itself state a derived quantity? ------------------
+
+# One form per registered transform (`criteria.VALUE_TRANSFORMS`), each capturing the bound(s) that
+# kind needs. Every form demands the noun that *names* a derived quantity -- "excess", "shortfall",
+# "distance ... outside" -- and not merely a direction word, because "molecular weight above 500
+# g/mol" names a threshold while "the excess above 500 g/mol" names a quantity, and only the second
+# says the source's raw value is not what the attribute is about.
+#
+# One reading, or none: `[^.;]` keeps a match inside one sentence, and `[^.;,\d]` makes a one-sided
+# bound the first number after the direction word *in the same clause*, so "the excess above the
+# stated upper bound, with a tolerance of 10 g/mol" states no bound this can read rather than reading
+# the tolerance as the bound. A band is recognised by its structure ("<low> to <high>") instead,
+# which is why it may look past a comma.
+_QUANTITY_FORMS = (
+    ("distance_outside_band", ("low", "high"),
+     re.compile(r"(?:distance|deviation|departure|amount|extent)[^.;]{0,80}?outside[^.;]{0,40}?"
+                r"(-?\d+(?:\.\d+)?)\s*(?:to|and)\s+(-?\d+(?:\.\d+)?)")),
+    ("excess_above", ("bound",),
+     re.compile(r"(?:excess|exceedance|overshoot)[^.;]{0,40}?(?:above|over|beyond|exceeding|of)"
+                r"[^.;,\d]{0,30}(-?\d+(?:\.\d+)?)")),
+    ("shortfall_below", ("bound",),
+     re.compile(r"(?:shortfall|deficit|shortage)[^.;]{0,40}?(?:below|under|beneath|short of|of)"
+                r"[^.;,\d]{0,30}(-?\d+(?:\.\d+)?)")),
+)
+# A band is written "2-4" as often as "2 to 4", and `_NUMBER` reads the hyphen form as 2 and -4.
+_RANGE_DASH = re.compile(r"(?<=\d)\s*[‐-―−-]\s*(?=\d)")
+
+
+def _as_number(text: str) -> float | int:
+    return float(text) if "." in text else int(text)
+
+
+def stated_quantity(definition: str) -> dict[str, Any] | None:
+    """The transform kind and bound(s) an attribute's definition states, or None.
+
+    Conservative on purpose, in both directions. Only the three kinds `criteria.VALUE_TRANSFORMS`
+    registers are recognised, and only where the definition states the bounds numerically: a bound
+    inside a transformation is read on every cell the rule scores, so a wrong one silently changes
+    what the board measures. Anything that does not resolve to exactly one reading -- no bound, a
+    bound this cannot map to a registered kind, two readings of one sentence -- returns None, which
+    leaves the item on the queue for a person instead of guessing.
+    """
+    text = _RANGE_DASH.sub(" to ", (definition or "").lower())
+    found: list[dict[str, Any]] = []
+    for kind, parameters, pattern in _QUANTITY_FORMS:
+        for match in pattern.finditer(text):
+            reading = {"kind": kind, **dict(zip(parameters, (_as_number(g) for g in match.groups())))}
+            if reading not in found:
+                found.append(reading)
+    if len(found) != 1:
+        return None
+    reading = found[0]
+    # A band whose stated low is not below its stated high is a definition this cannot read, not one
+    # to repair by swapping the bounds: which end the writer meant is exactly what is unclear.
+    if reading["kind"] == "distance_outside_band" and reading["low"] >= reading["high"]:
+        return None
+    return reading
+
+
+def _claims_stating(bound: float | int, unit: str | None, claims: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """The cited claims that state one bound, and how each states it.
+
+    Either the claim's own value is the bound in the attribute's unit, or the number appears in the
+    text the claim was read from -- the same two kinds of trace route 1 accepts against a
+    constraint's text. Recording which of the two it was keeps the declaration auditable: a number
+    matched inside a quote is a weaker trace than a claim whose value *is* the bound.
+    """
+    wanted = _numbers(str(bound))
+    out = []
+    for claim in claims:
+        value = claim.get("value")
+        read_from = " ".join(str(claim.get(field) or "") for field in ("normalized_statement", "claim_text")
+                             ) + " " + str((claim.get("location") or {}).get("quoted_span") or "")
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and float(value) == float(bound) \
+                and (not unit or not claim.get("unit") or claim["unit"] == unit):
+            out.append({"claim_id": claim["claim_id"], "states_it": "claim_value"})
+        elif wanted and wanted <= _numbers(read_from):
+            out.append({"claim_id": claim["claim_id"], "states_it": "claim_quote"})
+    return out
+
+
+def _quantity_in_words(transform: dict[str, Any]) -> str:
+    if transform["kind"] == "distance_outside_band":
+        return f"the distance outside the band {transform['low']} to {transform['high']}"
+    bound = transform["bound"]
+    return f"the excess above {bound}" if transform["kind"] == "excess_above" else f"the shortfall below {bound}"
+
+
+def _restatable(attribute: dict[str, Any]) -> dict[str, Any] | None:
+    """The reading of this attribute's definition there would be something to trace, or None.
+
+    An attribute that already declares a transformation has nothing to restate, and one that is not
+    quantitative may not carry a transformation at all (`check_attribute`).
+    """
+    if attribute.get("value_transform") or attribute.get("measurement_kind") != "quantitative":
+        return None
+    return stated_quantity(attribute.get("definition", ""))
+
+
+def restated_definition(attribute: dict[str, Any], claims: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The transformation this attribute's own definition already describes, or None.
+
+    Returns None rather than a partial reading whenever the definition does not state a transform
+    this module can map to a registered kind, or when a bound it states is not traceable to a claim
+    the attribute already cites. An untraceable bound inside a transformation is the arbitrary cutoff
+    the rule registry refuses elsewhere, and `check_value_transform` says so in the same words.
+    """
+    reading = _restatable(attribute)
+    if reading is None:
+        return None
+    traces, refs = {}, []
+    for parameter in criteria.VALUE_TRANSFORMS[reading["kind"]]:
+        stating = _claims_stating(reading[parameter], attribute.get("unit"), claims)
+        if not stating:
+            return None
+        traces[parameter] = stating
+        refs.extend(trace["claim_id"] for trace in stating)
+    return {"field": "definition", "match": "definition_states_a_derived_quantity",
+            "definition_text": attribute.get("definition"), "quantity_text": _quantity_in_words(reading),
+            "bound_traces": traces, "claim_ids": sorted(set(refs)),
+            # `source_stated_value` and nothing else: the bound is traceable to a cited claim or this
+            # route does not fire, so the basis the transform carries is the one the trace supports.
+            "value_transform": dict(reading, basis="source_stated_value", source_refs=sorted(set(refs)))}
+
+
+def _cited_claims(core: Core, task_id: str, attribute: dict[str, Any], item: dict[str, Any]) -> list[dict[str, Any]]:
+    """The admitted claims an attribute cites, wherever the run that enumerated them recorded them.
+
+    A promoted criterion's claims were enumerated in a derivation run's own stream, and an item
+    raised outside a dispute names no run, so the run streams are read when the bundle does not name
+    one. Nothing is read at all unless the definition states a bound there would be something to
+    trace, which is what keeps `route_preview` cheap for the four routes that cite no claim.
+    """
+    cited = set(attribute.get("supporting_claim_refs") or [])
+    if not cited or _restatable(attribute) is None:
+        return []
+    bundle = item.get("inspection_bundle") or {}
+    streams = [task_id] + ([bundle["derivation_run"]] if bundle.get("derivation_run")
+                           else core.journal.streams("run_"))
+    return [c for c in ledger.claims(core, streams) if c["claim_id"] in cited]
+
+
 # --- route selection ----------------------------------------------------------------------------
 
 def _is_dispute(item: dict[str, Any]) -> bool:
@@ -154,13 +317,20 @@ def _is_dispute(item: dict[str, Any]) -> bool:
 
 
 def route_of(rule: dict[str, Any], attribute: dict[str, Any], context: dict[str, Any],
-             item: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
-    """The route that resolves this item, and the restated constraint when route 1 applies.
+             item: dict[str, Any], claims: list[dict[str, Any]] | None = None) -> tuple[str, dict[str, Any] | None]:
+    """The route that resolves this item, and what it cites (routes 1 and 5 cite something).
 
     Order matters where a rule qualifies for more than one route, and it runs from the most
     conservative outcome to the least: an `expert_set` hard exclusion is demoted to a
     non-scoring exploratory consideration rather than to a scoring preference, because the
     authority its cutoff claims (an expert's judgement) is the one thing missing.
+
+    Route 5 is tried last of the five and only ahead of the `no_authority_available` fallback. It is
+    the one route that leaves a rule scoring without an expert having said anything, so where a rule
+    also claims an authority it does not have -- an `expert_set` cutoff, a task constraint the task
+    text does not state, a hard exclusion -- the route that answers that claim wins and route 5 never
+    sees the item. What is left for it is the case it is for: a rule nothing is wrong with, whose
+    attribute measures something other than what it says it measures.
     """
     if _is_dispute(item):
         return "dispute_adjudicated", None
@@ -177,6 +347,9 @@ def route_of(rule: dict[str, Any], attribute: dict[str, Any], context: dict[str,
         return "no_authority_available", None
     if rule["rule_kind"] == "hard_exclusion":
         return "irreversible_without_authority", None
+    restated = restated_definition(attribute, claims or [])
+    if restated is not None:
+        return "definition_restated", restated
     return "no_authority_available", None
 
 
@@ -191,9 +364,10 @@ def route_preview(core: Core, item: dict[str, Any]) -> dict[str, Any]:
         context = task_mod.get(core, task_id)
         rule = criteria.load(core, item["subject"]["id"], task_id)
         attribute = criteria.load(core, rule["attribute_ref"], task_id)
+        claims = _cited_claims(core, task_id, attribute, item)
     except (KeyError, StopIteration):
         return dict(unknown, why_not="the rule or the task context this item names is not in this store root")
-    route, _restated = route_of(rule, attribute, context, item)
+    route, _restated = route_of(rule, attribute, context, item, claims)
     return {"route": route, "route_label": vocab.label("adjudication_route", route), "would": ROUTE_EFFECT[route],
             "why_not": None}
 
@@ -238,6 +412,30 @@ def _record_rule_version(core: Core, task_id: str, rule_ref: str, rule: dict[str
                         payload={"kind": "rule", "id": base_id, "version": version, "artifact_id": artifact_id,
                                  "adjudicated_by": adjudication_id},
                         artifact_links=[{"kind": "rule", "id": artifact_id, "version": version}],
+                        summary=summary)
+    return f"{base_id}@v{version}"
+
+
+def _record_attribute_version(core: Core, task_id: str, attribute_ref: str, attribute: dict[str, Any], *,
+                              by: dict[str, Any], adjudication_id: str, summary: str) -> str:
+    """Record a new version of an attribute, outside `criteria.propose` for the same reason as above.
+
+    `propose` writes an attribute and a rule together and then consults the trigger table about the
+    rule, so sending one edited attribute through it would propose the rule a second time and raise a
+    fresh item on it -- the item this adjudication is resolving.
+    """
+    base_id = attribute_ref.split("@v")[0]
+    criteria.check_attribute(attribute)
+    version = len([e for e in core.journal.replay(task_id)
+                   if e.event_type == "criterion.version_proposed" and e.payload["kind"] == "attribute"
+                   and e.payload["id"] == base_id]) + 1
+    record = dict(attribute, attribute_id=base_id, version=version, status="proposed", supersedes=attribute_ref,
+                  adjudicated_by=adjudication_id, approval_kind="agent_verdict")
+    artifact_id = core.artifacts.put("attribute", record)
+    core.journal.append(task_id, "criterion.version_proposed", actor=by, ids={"task_id": task_id},
+                        payload={"kind": "attribute", "id": base_id, "version": version, "artifact_id": artifact_id,
+                                 "adjudicated_by": adjudication_id},
+                        artifact_links=[{"kind": "attribute", "id": artifact_id, "version": version}],
                         summary=summary)
     return f"{base_id}@v{version}"
 
@@ -363,7 +561,7 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
     rule_ref = item["subject"]["id"]
     rule = criteria.load(core, rule_ref, task_id)
     attribute = criteria.load(core, rule["attribute_ref"], task_id)
-    route, restated = route_of(rule, attribute, context, item)
+    route, restated = route_of(rule, attribute, context, item, _cited_claims(core, task_id, attribute, item))
     adjudication_id = new_id("adj")
     by, dispute = MACHINE, None
 
@@ -394,6 +592,12 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         resolution = "approve"
         reason = (f"the cutoff restates {restated['field']} of {restated['task_context_ref']} "
                   f"({restated['constraint_text']!r}), which the task context states itself")
+    elif route == "definition_restated":
+        resolution = "declare_value_transform"
+        reason = (f"the attribute's definition states {restated['quantity_text']} and the attribute declared no "
+                  f"transformation, so every cell carried the raw value its source returns; the transformation is "
+                  f"declared as the definition already describes it, on a bound claims "
+                  f"{', '.join(restated['claim_ids'])} state, and the definition itself is unchanged")
     elif route == "irreversible_without_authority":
         resolution = "demote_to_preference"
         reason = ("a hard exclusion deletes candidates from the result; an agent may not do that on its own "
@@ -417,10 +621,24 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
 
     kind = RESOLUTIONS[resolution] or rule["rule_kind"]
     rewritten = _demoted(rule, kind)
+    attribute_ref_after, edits = rule["attribute_ref"], []
+    if resolution == "declare_value_transform":
+        declared = restated["value_transform"]
+        attribute_ref_after = _record_attribute_version(
+            core, task_id, rule["attribute_ref"], dict(attribute, value_transform=declared), by=by,
+            adjudication_id=adjudication_id,
+            summary=f"{rule['attribute_ref']} declares {declared['kind']} as its definition states it "
+                    f"({adjudication_id})")
+        # The definition is this route's whole authority, so it is the one field the edit may not
+        # touch: a rewritten definition would be the agent saying what the quantity is.
+        edits = [{"target": rule["attribute_ref"], "target_after": attribute_ref_after,
+                  "field": "value_transform", "from": None, "to": declared}]
+        rewritten = dict(rewritten, attribute_ref=attribute_ref_after)
     changed = rewritten != criteria.load(core, rule_ref, task_id)
     rule_ref_after = rule_ref if not changed else _record_rule_version(
         core, task_id, rule_ref, rewritten, by=by, adjudication_id=adjudication_id,
-        summary=f"{rule_ref} {rule['rule_kind']} -> {kind} by {adjudication_id} ({route})")
+        summary=(f"{rule_ref} reads {attribute_ref_after} after {adjudication_id} ({route})"
+                 if edits else f"{rule_ref} {rule['rule_kind']} -> {kind} by {adjudication_id} ({route})"))
     scores = rewritten["rule_kind"] == "preference"
 
     record = {
@@ -436,6 +654,10 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         "rule_ref_before": rule_ref, "rule_ref_after": rule_ref_after,
         "rule_kind_before": criteria.load(core, rule_ref, task_id)["rule_kind"],
         "rule_kind_after": criteria.load(core, rule_ref_after, task_id)["rule_kind"],
+        "attribute_ref_before": rule["attribute_ref"], "attribute_ref_after": attribute_ref_after,
+        # The edit this adjudication made to the criterion itself, in the shape an `hd_` records its
+        # own edits; empty for the four routes that change nothing but the rule's kind.
+        "edits": edits,
         "scores_candidates": scores,
         "verdict": dispute["verdict"] if dispute else None,
         "reasoning": dispute["reasoning"] if dispute else None,

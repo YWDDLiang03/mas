@@ -113,6 +113,13 @@ def evidence_routes(attribute: dict[str, Any]) -> list[dict[str, Any]]:
     return [request] if request else []
 
 
+def _as_route(request: Any) -> dict[str, Any]:
+    """One route, for reading. Anything that is not a route record reads as an empty one, so that a
+    model reply holding a malformed route is refused by `check_attribute` rather than crashing the
+    stage that is reading it (a provider's bad reply is a finding, never a crash)."""
+    return request if isinstance(request, dict) else {}
+
+
 def route_key(request: dict[str, Any]) -> str:
     """Canonical identity of one route: the question asked and the parameters it is asked with.
 
@@ -120,19 +127,20 @@ def route_key(request: dict[str, Any]) -> str:
     (that is how a catalog entry is bound), so two routes differing only in it ask one source one
     question and are the same route.
     """
-    return canonical_text({k: (request or {}).get(k) for k in ("capability", "question_kind", "parameters")})
+    route = _as_route(request)
+    return canonical_text({k: route.get(k) for k in ("capability", "question_kind", "parameters")})
 
 
 def subject_parameters(request: dict[str, Any]) -> dict[str, Any]:
     """The parameters identifying what a route is about, without the retrieval knobs."""
-    return {k: v for k, v in ((request or {}).get("parameters") or {}).items() if k not in RETRIEVAL_PARAMETERS}
+    return {k: v for k, v in (_as_route(request).get("parameters") or {}).items() if k not in RETRIEVAL_PARAMETERS}
 
 
 def is_literature_bound(attribute: dict[str, Any]) -> bool:
     """True when any route reads literature: that route needs the search-and-read path, so the
     attribute takes it. One route is enough because the path is a property of the cell, not of a
     route -- and `check_attribute` refuses an attribute that mixes the two kinds anyway."""
-    return any((route or {}).get("capability") == "literature_retrieval" for route in evidence_routes(attribute))
+    return any(_as_route(route).get("capability") == "literature_retrieval" for route in evidence_routes(attribute))
 
 
 def check_attribute(attr: dict[str, Any]) -> None:
@@ -276,6 +284,30 @@ def propose(core: Core, task_id: str, attribute: dict[str, Any], rule: dict[str,
     return attr_ref, rule_ref
 
 
+def record_version(core: Core, task_id: str, kind: str, ref: str, record: dict[str, Any], *,
+                   by: dict[str, Any], summary: str, extra: dict[str, Any] | None = None) -> str:
+    """Record one new version of an attribute or a rule, outside `propose`, and return its ref.
+
+    WHY outside `propose`: `propose` writes an attribute and a rule together and then consults the
+    trigger table about the rule, so sending one edited record through it would propose the other a
+    second time and raise a fresh confirmation item on a criterion nobody changed. The caller checks
+    the record (`check_attribute`, `check_rule`) and decides whether an item is owed.
+
+    `core/adjudication.py` keeps its own two private copies of this for the versions a machine
+    adjudication writes; they do the same thing and should fold into this one.
+    """
+    base_id = ref.split("@v")[0]
+    version = len(_versions(core, task_id, kind, base_id)) + 1
+    full = dict(record, **{f"{kind}_id": base_id}, version=version, status="proposed", supersedes=ref,
+                **(extra or {}))
+    artifact_id = core.artifacts.put(kind, full)
+    core.journal.append(task_id, "criterion.version_proposed", actor=by, ids={"task_id": task_id},
+                        payload={"kind": kind, "id": base_id, "version": version, "artifact_id": artifact_id,
+                                 **(extra or {})},
+                        artifact_links=[{"kind": kind, "id": artifact_id, "version": version}], summary=summary)
+    return f"{base_id}@v{version}"
+
+
 def needs_expert(rule: dict[str, Any]) -> bool:
     """Trigger table (design §12.1): hard exclusions and expert-set cutoffs need an `hd_`;
     evidence-sourced preference rules proceed automatically, recorded and reversible."""
@@ -319,11 +351,21 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     machine_adjudication` on its entry. One such rule makes the whole set `exploratory` with a
     reason naming the count, for the same reason a fitted ordering method does: the label is what a
     reader has to go on, and a set no person has confirmed must not read as a settled one.
+
+    A rule whose attribute a `collapse` merged away (`core/collapse.py`: several registrations of one
+    quantity) does not enter at all and is listed in `collapsed_away[]`; a rule reading an attribute
+    version that collapse wrote is listed in `machine_collapsed[]`. Either makes the set
+    `exploratory` on the same grounds. Holding a merged-away rule out rather than demoting it is the
+    point of the collapse: a demoted rule still costs a sweep pass and still counts in the hard-rule
+    coverage denominator, and that denominator -- five quantities counted as ten -- is what the
+    collapse exists to repair.
     """
-    from . import adjudication   # imported here: adjudication reads this module's records
+    from . import adjudication, collapse as collapse_mod   # imported here: both read this module's records
 
     queue = review.items(core, [task_id])
     adjudicated = adjudication.by_rule_version(core, task_id)
+    superseded = collapse_mod.superseded_attributes(core, task_id)
+    collapsed_surviving = collapse_mod.surviving_rules(core, task_id)
     decided = {i["subject"]["id"]: i for i in queue.values()
                if i["subject"]["kind"] == "rule_version" and i["state"] == "decided"}
     open_refs = sorted(i["subject"]["id"] for i in queue.values()
@@ -334,9 +376,16 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     for event in core.journal.replay(task_id):
         if event.event_type == "criterion.version_proposed" and event.payload["kind"] == "rule":
             proposed[event.payload["id"]] = f"{event.payload['id']}@v{event.payload['version']}"   # latest version wins
-    entries, deferred, machine_adjudicated = [], [], []
+    entries, deferred, machine_adjudicated, collapsed_away = [], [], [], []
     for rule_ref in sorted(proposed.values()):
         rule = load(core, rule_ref, task_id)
+        merged_away = superseded.get(rule["attribute_ref"])
+        if merged_away is not None:
+            collapsed_away.append({"rule_ref": rule_ref, "attribute_ref": rule["attribute_ref"],
+                                   "merged_into": merged_away["surviving"]["attribute_ref_after"],
+                                   "scored_by": merged_away["surviving"]["rule_ref_after"],
+                                   "collapse_id": merged_away["collapse_id"]})
+            continue
         adjudication_record = adjudicated.get(rule_ref)
         attr = load(core, rule["attribute_ref"], task_id)
         # WHY the *matching* route's capability is the one recorded: the deferral round-trips through
@@ -381,11 +430,22 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     fitted_ordering = chosen_after_results(ordering_method) and not preregistration_ref
     scoring_disputed = sorted(e["rule_ref"] for e in entries if e["disputed"])
     machine_adjudicated = sorted(machine_adjudicated)
+    machine_collapsed = sorted(e["rule_ref"] for e in entries if e["rule_ref"] in collapsed_surviving)
+    # Two separate facts, each stated only when it is true: a rule may read a collapsed attribute
+    # after the collapse was withdrawn (the version stays; the registry is append-only), and a pure
+    # duplicate may be merged away without any version being written for the survivor.
+    collapse_reasons = ([f"{len(machine_collapsed)} rules read an attribute version the software wrote when it "
+                         f"collapsed several registrations of one quantity; no person confirmed that: "
+                         f"{', '.join(machine_collapsed)}"] if machine_collapsed else []) + \
+                       ([f"{len(collapsed_away)} rules are held out of this set because the software merged their "
+                         f"attributes away: {', '.join(e['rule_ref'] for e in collapsed_away)}"]
+                        if collapsed_away else [])
     acceptance_reasons = ([f"{len(open_refs)} rule proposals await an expert decision"] if open_refs else []) + \
                          ([f"{len(scoring_disputed)} of them score candidates while disputed: "
                            f"{', '.join(scoring_disputed)}"] if scoring_disputed else []) + \
                          ([f"{len(machine_adjudicated)} rules were adjudicated by an agent; no person has "
                            f"confirmed them: {', '.join(machine_adjudicated)}"] if machine_adjudicated else []) + \
+                         collapse_reasons + \
                          (["the ordering method was fitted on the results it ranks"] if fitted_ordering else [])
     record = {"rule_set_ref": f"rules@v{version}", "task_id": task_id, "entries": entries,
               "ordering_method": ordering_method or {"kind": "weighted_preference", "weight_vector": {}, "tie_break": "candidate_id"},
@@ -393,6 +453,7 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
               "evidence_admission_predicate_hash": sha256_hex(admission_predicate),
               "confirmed_by": [e["confirmed_by"] for e in entries], "pending": open_refs,
               "pending_but_scoring": scoring_disputed, "machine_adjudicated": machine_adjudicated,
+              "machine_collapsed": machine_collapsed, "collapsed_away": collapsed_away,
               "deferred": deferred,
               "acceptance_label": vocab.require("acceptance_label", "exploratory" if acceptance_reasons else "prespecified"),
               "acceptance_reasons": acceptance_reasons, "preregistration_ref": preregistration_ref}
@@ -403,7 +464,8 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                         artifact_links=[{"kind": "rule_set", "id": artifact_id, "version": version}],
                         summary=f"confirmed {record['rule_set_ref']} ({len(entries)} rules, {len(open_refs)} pending "
                                 f"of which {len(scoring_disputed)} score anyway, {len(machine_adjudicated)} adjudicated "
-                                f"by an agent, {len(deferred)} deferred)")
+                                f"by an agent, {len(machine_collapsed)} reading a collapsed attribute, "
+                                f"{len(collapsed_away)} collapsed away, {len(deferred)} deferred)")
     return record["rule_set_ref"]
 
 

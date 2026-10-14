@@ -129,8 +129,8 @@ class StageContext:
         return validate_proposal(item, claims_by_id=self.claims_by_id, reference_labels=self.reference_labels,
                                  catalog=self.catalog)
 
-    def registered_keys(self) -> set[str]:
-        return {criteria.evidence_key(a) for a in criteria.registered_attributes(self.core, self.task_id)}
+    def registered(self) -> list[dict[str, Any]]:
+        return criteria.registered_attributes(self.core, self.task_id)
 
     def base_prompt(self) -> str:
         c = self.task_context
@@ -202,6 +202,69 @@ def propose(ctx: StageContext, dimension: dict[str, str], claims: list[dict[str,
 
 # --- FILTER ----------------------------------------------------------------------------------
 
+def duplicate_of_registered(attribute: dict[str, Any],
+                            registered: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The registered attribute that already asks everything this proposal asks about one quantity.
+
+    Two tests, and a proposal that fails neither survives:
+
+      * `criteria.evidence_key` equality -- the registry invariant that two attributes asking the
+        same tools the same questions are one attribute.
+      * the same `quantity_key` and a route set that is a *subset* of the registered attribute's.
+
+    WHY the subset test had to be added: `evidence_key` hashes the whole route set, so once a
+    receptor's potency is registered as one attribute reading both curations
+    (`{pchembl_values, gtopdb_affinity}`), a fresh single-route proposal for the IUPHAR/BPS half of
+    it does not match and is promoted. That rebuilds exactly the duplication the registration
+    template was changed to remove -- measured on the manuscript registry, 14 October 2026: ten
+    promoted rules for five quantities, each receptor scored twice. `merge_groups` cannot catch it
+    either, because it groups pool candidates and the registered attribute is not one, so the group
+    has a single member and is dropped.
+
+    WHY a subset and not an overlap: a proposal offering a route the registered attribute does *not*
+    have asks something the registry never asks. That is new evidence, and dropping it silently
+    would be the opposite error and the worse one, so it survives and the pool may promote it; the
+    pair is then one quantity registered twice, which `core/collapse.py` collapses.
+
+    Literature-bound attributes keep `evidence_key`'s own identity (name and unit) and are left out
+    of the subset test: their route parameters are a query template, a retrieval knob rather than a
+    subject, so two attributes about different quantities can share one route and route coverage
+    says nothing about which quantity is meant.
+    """
+    asked = {criteria.route_key(r) for r in criteria.evidence_routes(attribute)}
+    key, literature = quantity_key(attribute), criteria.is_literature_bound(attribute)
+    for other in registered:
+        routes = criteria.evidence_routes(other)
+        covered = sorted({_route_name(r) for r in routes if criteria.route_key(r) in asked})
+        if criteria.evidence_key(attribute) == criteria.evidence_key(other):
+            why = "it asks the same tools the same questions"
+        elif not literature and quantity_key(other) == key and asked <= {criteria.route_key(r) for r in routes}:
+            why = f"every route this proposal asks is one of its own ({', '.join(covered)})"
+        else:
+            continue
+        return {"attribute_ref": f"{other.get('attribute_id')}@v{other.get('version')}", "name": other.get("name"),
+                "why": why, "already_covered": covered,
+                "asks": sorted({_route_name(r) for r in routes})}
+    return None
+
+
+def _route_name(route: dict[str, Any]) -> str:
+    route = route if isinstance(route, dict) else {}
+    return route.get("question_kind") or route.get("capability") or "?"
+
+
+def duplicate_reason(found: dict[str, Any]) -> str:
+    """Why a proposal was refused as a duplicate, for the change record and the pool trajectory.
+
+    It names the registered attribute, which of the two tests matched, and what that attribute asks,
+    because `duplicate_of_registered` is now a subset test: "already registered" no longer means the
+    two attributes are identical, and a reader of the trajectory has no other way to tell which of
+    the registry's questions this proposal was asking again.
+    """
+    return (f"{found['attribute_ref']} ({found['name']}) already asks this quantity: {found['why']}; "
+            f"it asks {', '.join(found['asks'])}")
+
+
 def _critique(ctx: StageContext, entries: list[dict[str, Any]], question: str) -> None:
     """Blind critique of entries not yet critiqued at their current version; results kept per (id, version)."""
     todo = [e for e in entries if (e["criterion_id"], e["version"]) not in ctx.critiques]
@@ -224,14 +287,16 @@ def _failures(findings: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], lis
 
 def filter_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
     pool = ctx.pool.at("filter", iteration)
-    registered = ctx.registered_keys()
+    registered = ctx.registered()
     stats = {"filtered_out": 0, "to_refine": 0, "kept": 0}
     survivors = []
     for entry in active(pool.fold(), ("candidate", "needs_refine")):
         item = entry["item"]
         cited = [c for c in item.get("supporting_claim_ids") or [] if c in ctx.claims_by_id]
-        if criteria.evidence_key(item["attribute"]) in registered:
-            pool.set_state(entry, "filtered_out", operation="remove", reason_kind="duplicate_of_registered")
+        duplicate = duplicate_of_registered(item["attribute"], registered)
+        if duplicate is not None:
+            pool.set_state(entry, "filtered_out", operation="remove", reason_kind="duplicate_of_registered",
+                           reason_text=duplicate_reason(duplicate))
             stats["filtered_out"] += 1
         elif not cited:
             pool.set_state(entry, "filtered_out", operation="remove", reason_kind="no_supporting_claim",
@@ -474,14 +539,16 @@ def _ids_for(ctx: StageContext, entry: dict[str, Any]) -> tuple[str, str]:
 
 def promote(ctx: StageContext, *, by_proposer: dict[str, Any]) -> dict[str, Any]:
     pool = ctx.pool.at("promote", 0)
-    registered = ctx.registered_keys()
+    registered = ctx.registered()
     candidates = active(pool.fold(), ("candidate", "needs_refine"))
     _critique(ctx, [e for e in candidates if not ctx.validate(e["item"])], "final check before promotion")
     out = {"accepted": [], "disputed": [], "deferred": [], "duplicates": []}
     for entry in candidates:
         item = entry["item"]
-        if criteria.evidence_key(item["attribute"]) in registered:
-            pool.set_state(entry, "filtered_out", operation="remove", reason_kind="duplicate_of_registered")
+        duplicate = duplicate_of_registered(item["attribute"], registered)
+        if duplicate is not None:
+            pool.set_state(entry, "filtered_out", operation="remove", reason_kind="duplicate_of_registered",
+                           reason_text=duplicate_reason(duplicate))
             out["duplicates"].append(item["attribute"].get("name"))
             continue
         problems = ctx.validate(item)
@@ -511,7 +578,9 @@ def promote(ctx: StageContext, *, by_proposer: dict[str, Any]) -> dict[str, Any]
             out["deferred"].append({"criterion_id": entry["criterion_id"], "name": item["attribute"].get("name"),
                                     "problems": [str(violation)]})
             continue
-        registered.add(criteria.evidence_key(attribute))
+        # The freshly registered attribute joins the set this loop tests against, so a second pool
+        # item measuring the same quantity is refused in this same promotion pass.
+        registered.append(dict(attribute, version=int(attr_ref.split("@v")[1])))
         pool.set_state(entry, "promoted", operation="promote", reason_kind="disputed" if dispute else "accepted",
                        extra={"promoted_as": {"attribute_ref": attr_ref, "rule_ref": rule_ref}})
         record = {"criterion_id": entry["criterion_id"], "attribute_ref": attr_ref, "rule_ref": rule_ref,

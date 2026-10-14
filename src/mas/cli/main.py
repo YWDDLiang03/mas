@@ -8,6 +8,11 @@
     mas criteria pool TASK [--all] [--trajectory]
                                                the criteria pool: states, versions, lineage; --trajectory
                                                prints what each stage added, pruned and merged, per iteration
+    mas criteria dedupe TASK [--dry-run] [--withdraw CLP --reason TEXT]
+                                               collapse promoted attributes that ask one question for one
+                                               quantity into one attribute reading every route; no model
+                                               call, no expert decision, and the rule set says a machine
+                                               did it. --dry-run prints the plan and writes nothing
     mas rules confirm TASK [--allow-pending] | rules show TASK
     mas review list [TASK] | review decide ITEM --decision D --reason TEXT --exposure E
     mas review adjudicate [TASK] [--item ITEM]  resolve open items without a person, as machine adjudications
@@ -264,6 +269,8 @@ def cmd_criteria(args) -> None:
                 _show_trajectory(core, args.task)
             else:
                 _show_pool(core, args.task, show_all=args.all)
+        elif args.action == "dedupe":
+            _dedupe(core, args)
         else:
             from mas.adapters.drug.registration import DIMENSIONS, EVIDENCE_CATALOG, objective_templates
             from mas.core import derivation, derivation_run
@@ -309,6 +316,57 @@ def cmd_criteria(args) -> None:
             print(f"  next: {record['continuation_decision']['decision']}"
                   + (f" (continue with --continues {record['run_id']})" if record['continuation_decision']['decision']
                      == "continue_next_round" else ""))
+
+
+def _dedupe(core: Core, args) -> None:
+    """Collapse registrations of one quantity, or withdraw a collapse.
+
+    `--dry-run` is what a reader of the plan gets; the real run is the explicit absence of it, and
+    `collapse.collapse` defaults to the dry path so a caller that has not decided writes nothing.
+    """
+    from mas.core import collapse as collapse_mod
+    if args.withdraw:
+        if not args.reason:
+            sys.exit("--reason is required: say why the collapse is being withdrawn")
+        try:
+            reinstated = collapse_mod.withdraw(core, args.task, args.withdraw, by=_person("operator"),
+                                               reason_text=args.reason)
+        except collapse_mod.CollapseError as error:
+            sys.exit(str(error))
+        print(f"withdrew {args.withdraw}; {len(reinstated)} rules score again: {', '.join(reinstated)}")
+        print("    the quantity is registered more than once again; confirm a rule set to see it")
+        return
+    result = collapse_mod.collapse(core, args.task, by=_person("operator"), dry_run=args.dry_run)
+    for group in result["collapsed"] + result["refused"]:
+        quantity = group["quantity"]
+        # The member lines are nouns, not verbs: a refused or dry-run group has survived nothing and
+        # merged nothing away, and the header is where what happened is stated.
+        state = (f"collapsed as {group['collapse_id']}" if group.get("collapse_id")
+                 else "REFUSED" if group["refused"] else "would be collapsed")
+        print(f"quantity  {', '.join(quantity['capabilities'])}  {quantity['unit'] or '-'}  {quantity['direction']}  "
+              f"{', '.join(quantity['subject']) or 'no subject parameter'}  [{state}]")
+        for label, member in [("survivor", group["surviving"])] + [("duplicate", m) for m in group["superseded"]]:
+            print(f"  {label:<10} {member['attribute_ref']:<44} {member['rule_ref']:<40} {member['name']}")
+        print(f"  routes     {', '.join(group['routes_before'])} -> {', '.join(group['routes_after'])}")
+        shared = group["definition_shares_words_with_one_route"]
+        if shared:
+            print(f"  note       the survivor's definition says {', '.join(shared['words'])}, a word only its "
+                  f"{shared['route']} route carries; nothing rewrote the definition -- read it yourself")
+        for refusal in group["refused"]:
+            print(f"  why not    {refusal}")
+        if group.get("collapse_id"):
+            print(f"  undo       mas criteria dedupe {args.task} --withdraw {group['collapse_id']} --reason TEXT")
+    if not result["collapsed"] and not result["refused"]:
+        print("no quantity is registered more than once")
+        return
+    counted = f"{len(result['collapsed'])} of {len(result['collapsed']) + len(result['refused'])} groups"
+    if args.dry_run:
+        print(f"dry run: nothing was written. {counted} would be collapsed. Run it again without --dry-run to apply.")
+    elif result["collapsed"]:
+        print(f"collapsed {counted}; no person confirmed any of it. Every rule set built from them is "
+              f"labelled exploratory and says so.")
+    else:
+        print(f"collapsed nothing: all {len(result['refused'])} groups were refused, and every rule still scores.")
 
 
 def _show_trajectory(core: Core, task_id: str) -> None:
@@ -366,6 +424,13 @@ def cmd_rules(args) -> None:
         print(f"{rules['rule_set_ref']}  acceptance: {rules['acceptance_label']}  pending: {rules['pending']}")
         for item in rules.get("deferred", []):
             print(f"  deferred {item['rule_ref']} ({item['capability']}): {item['reason']}")
+        for item in rules.get("collapsed_away", []):
+            # A rule held out of the set by a machine has to be visible here, not only in the journal:
+            # a reader counting the rules would otherwise see one quantity where two were registered.
+            print(f"  collapsed away {item['rule_ref']}: its attribute was merged into {item['merged_into']} "
+                  f"by {item['collapse_id']} and is scored by {item['scored_by']}")
+        for reason in rules.get("acceptance_reasons", []):
+            print(f"  why {rules['acceptance_label']}: {reason}")
         for entry in rules["entries"]:
             rule = criteria.load(core, entry["rule_ref"], args.task)
             attribute = criteria.load(core, entry["attribute_ref"], args.task)
@@ -797,8 +862,11 @@ def main(argv: list[str] | None = None) -> int:
     t.set_defaults(func=cmd_task)
 
     c = sub.add_parser("criteria")
-    c.add_argument("action", choices=("propose", "derive", "mandated", "pool"))
+    c.add_argument("action", choices=("propose", "derive", "mandated", "pool", "dedupe"))
     c.add_argument("task")
+    c.add_argument("--dry-run", action="store_true", help="dedupe: print the plan and write nothing")
+    c.add_argument("--withdraw", metavar="CLP", help="dedupe: undo this collapse, so its rules score again")
+    c.add_argument("--reason", help="dedupe: why a collapse is being withdrawn")
     c.add_argument("--continues", metavar="RUN", help="derive: continue the pool from this earlier derivation round")
     c.add_argument("--single-pass", action="store_true", help="derive: one propose/critique/revise pass, no pool")
     c.add_argument("--all", action="store_true", help="pool: include merged, withdrawn and filtered items")

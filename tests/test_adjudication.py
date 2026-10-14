@@ -370,6 +370,231 @@ def test_a_dispute_with_no_adjudicator_to_call_is_left_open_rather_than_resolved
     assert _item(core, task_id, rule_ref)["state"] == "open"
 
 
+# --- route 5: the attribute's own definition --------------------------------------------------------
+
+# The two criteria as the manuscript registry holds them: a definition that names a derived quantity,
+# a rule the trigger table never gated (a preference with an ordering predicate, no cutoff and
+# `none_evidence_insufficient`), and no `value_transform` -- so the cell carried surufatinib's raw
+# 480.6 g/mol and its raw XLogP of 3.4 under the derived quantities' names and `lower_better`.
+EXCESS = {"attribute_id": "attr_molecular-weight-in-excess-of-the-stated-upper-bound",
+          "name": "Molecular weight in excess of the stated upper bound",
+          "definition": "the excess in g/mol above 500, zero at or below it",
+          "measurement_kind": "quantitative", "unit": "g/mol", "direction": "lower_better",
+          "aggregation": "median", "acceptable_value_sources": ["database_entry"],
+          "acceptable_determination_bases": ["derived"],
+          "evidence_request": {"capability": "property_estimate", "question_kind": "computed_property",
+                               "parameters": {"property": "MolecularWeight"}}}
+BAND = dict(EXCESS, attribute_id="attr_distance-of-computed-lipophilicity-outside-the-stated-band",
+            name="Distance of computed lipophilicity outside the stated band",
+            definition="the distance of the computed lipophilicity outside the stated 2-4 band, zero inside it",
+            unit="log units",
+            evidence_request={"capability": "property_estimate", "question_kind": "computed_property",
+                              "parameters": {"property": "XLogP"}})
+ORDERING = {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": None,
+            "cutoff_basis": "none_evidence_insufficient"}
+QUEUE_TEXT = ("the attribute's definition describes a derived quantity but the cell carries the raw value its "
+              "source returns; a registered criterion changes only by expert decision")
+
+
+def _bound_claim(core, task_id: str, *, claim_id: str, quote: str, value, unit: str) -> str:
+    """One admitted claim stating a bound, of the kind an attribute cites for its own definition."""
+    return ledger.record_claim(core, task_id, {
+        "claim_id": claim_id, "source_ref": "src_doi_10.1-c", "attribute_ref": "attr_bounds@v1",
+        "location": {"location_kind": "paragraph", "locator_value": "sec2.p3", "section_path": ["Methods"],
+                     "quoted_span": quote, "span_checked_against_source": True},
+        "claim_text": quote, "claim_text_marker": "paraphrase", "normalized_statement": quote,
+        "claim_type": "literature_extracted", "evidence_kind": "peer_reviewed", "determination_basis": "measured",
+        "value": value, "unit": unit, "polarity": "supports", "scope_match": "direct", "reading_depth": "full_text"},
+        by=AGENT, admission_state="admitted", admission_reasons=["quote_verified"])
+
+
+def _queued(core, task_id: str, attribute: dict, *, cites: list[str]) -> dict:
+    """Propose one criterion and raise the item the manuscript run raised on it.
+
+    `criteria.propose` raises nothing here: the trigger table lets a preference with no cutoff
+    through, so `needs_expert` is False and none of the first four routes is about this item. It is
+    on the queue because the attribute measures something other than what its definition says, which
+    is what its queue text states -- verbatim, so that a change to the wording does not change the
+    case this test pins.
+    """
+    attr_ref, rule_ref = criteria.propose(core, task_id, dict(attribute, supporting_claim_refs=cites),
+                                          ORDERING, by=AGENT)
+    item_id = review.request(core, task_id, subject={"kind": "rule_version", "id": rule_ref, "version": 1,
+                                                     "attribute_ref": attr_ref},
+                             why_expert_required=QUEUE_TEXT, requested_by=AGENT)
+    return review.items(core, [task_id])[item_id]
+
+
+def _but_for(attribute: dict) -> dict:
+    """Everything an attribute version holds except what a new version necessarily changes."""
+    return {k: v for k, v in attribute.items()
+            if k not in ("version", "value_transform", "supersedes", "adjudicated_by", "approval_kind")}
+
+
+def test_an_attribute_whose_definition_states_an_upper_bound_gains_the_transform_the_definition_already_describes(core):
+    """The definition is the authority, so the definition is the one field the edit may not touch."""
+    task_id = _task(core)
+    claim_id = _bound_claim(core, task_id, claim_id="claim_mw_bound", value=500, unit="g/mol",
+                            quote="an upper bound of 500 g/mol on molecular weight for oral exposure")
+    record = adjudication.adjudicate(core, _queued(core, task_id, EXCESS, cites=[claim_id]))
+
+    assert record["route"] == "definition_restated" and record["resolution"] == "declare_value_transform"
+    assert record["attribute_ref_after"] == "attr_molecular-weight-in-excess-of-the-stated-upper-bound@v2"
+    after = criteria.load(core, record["attribute_ref_after"], task_id)
+    before = criteria.load(core, record["attribute_ref_before"], task_id)
+    assert after["value_transform"] == {"kind": "excess_above", "bound": 500,
+                                        "basis": "source_stated_value", "source_refs": [claim_id]}
+    assert before.get("value_transform") is None
+    assert after["definition"] == before["definition"] == EXCESS["definition"]
+    assert _but_for(after) == _but_for(before), "only the transformation was declared"
+    assert record["edits"] == [{"target": record["attribute_ref_before"], "field": "value_transform",
+                                "target_after": record["attribute_ref_after"], "from": None,
+                                "to": after["value_transform"]}]
+
+    # the rule is re-versioned only to read the new attribute: the sweep loads the attribute the rule names
+    assert record["rule_ref_after"] == "rule_molecular-weight-in-excess-of-the-stated-upper-bound@v2"
+    rule_after = criteria.load(core, record["rule_ref_after"], task_id)
+    assert rule_after["attribute_ref"] == record["attribute_ref_after"]
+    assert (rule_after["rule_kind"], rule_after["predicate_form"], rule_after["cutoff"],
+            rule_after["cutoff_basis"]) == ("preference", "ordering", None, "none_evidence_insufficient")
+    assert record["rule_kind_before"] == record["rule_kind_after"] == "preference"
+    assert record["scores_candidates"] is True
+
+    # the measured defect, on the compound it was measured on: surufatinib's 480.6 g/mol is inside
+    # the bound, so the cell is zero rather than a rank that rewards being small inside the band
+    def cell_value(attribute):
+        claims = [{"claim_id": "c1", "admission_state": "admitted", "evidence_kind": "database_entry",
+                   "determination_basis": "derived", "value": 480.6, "unit": "g/mol"}]
+        cell, _ = assessor.assess_cell(candidate={"candidate_id": "surufatinib"}, attribute=attribute,
+                                       rule=rule_after, rule_set_ref="rules@v1", claims=claims, resolved=True)
+        return cell["value"]
+
+    assert cell_value(before) == 480.6 and cell_value(after) == 0.0
+
+
+def test_the_transforms_bound_is_traceable_to_a_claim_the_attribute_already_cites_and_one_that_is_not_is_refused(core):
+    """An untraceable bound inside a transformation is the arbitrary cutoff the registry refuses
+    elsewhere: it is read on every cell the rule scores, and nothing says where the number came from."""
+    task_id = _task(core)
+    claim_id = _bound_claim(core, task_id, claim_id="claim_mw_bound", value=500, unit="g/mol",
+                            quote="an upper bound of 500 g/mol on molecular weight for oral exposure")
+    record = adjudication.adjudicate(core, _queued(core, task_id, EXCESS, cites=[claim_id]))
+    assert record["cites"]["claim_ids"] == [claim_id] and record["cites"]["field"] == "definition"
+    assert record["cites"]["bound_traces"] == {"bound": [{"claim_id": claim_id, "states_it": "claim_value"}]}
+    assert claim_id in record["reason_text"]
+
+    untraceable = _queued(core, task_id, dict(
+        EXCESS, attribute_id="attr_molecular-weight-in-excess-of-450",
+        name="Molecular weight in excess of 450 g per mol",
+        definition="the excess in g/mol above 450, zero at or below it"), cites=[claim_id])
+    refused = adjudication.adjudicate(core, untraceable)
+    assert refused["route"] == "no_authority_available" and refused["edits"] == []
+    assert refused["attribute_ref_after"] == refused["attribute_ref_before"] \
+        == "attr_molecular-weight-in-excess-of-450@v1"
+
+    uncited = _queued(core, task_id, dict(EXCESS, attribute_id="attr_molecular-weight-in-excess-uncited",
+                                          name="Molecular weight in excess of the bound, citing nothing"), cites=[])
+    assert adjudication.adjudicate(core, uncited)["route"] == "no_authority_available"
+
+
+def test_a_definition_that_states_no_bound_is_not_given_a_transform_and_the_item_falls_through(core):
+    """A definition that names the raw quantity states no transformation to restate, so the item
+    reaches the route it reached before: nothing is invented to fill the gap."""
+    task_id = _task(core)
+    claim_id = _bound_claim(core, task_id, claim_id="claim_mw_bound", value=500, unit="g/mol",
+                            quote="an upper bound of 500 g/mol on molecular weight for oral exposure")
+    item = _queued(core, task_id, dict(EXCESS, attribute_id="attr_molecular-weight",
+                                       name="Molecular weight of the parent compound",
+                                       definition="Molecular weight of the parent compound"), cites=[claim_id])
+    assert adjudication.route_preview(core, item)["route"] == "no_authority_available"
+    record = adjudication.adjudicate(core, item)
+    assert record["route"] == "no_authority_available" and record["cites"] == {} and record["edits"] == []
+    with pytest.raises(KeyError):
+        criteria.load(core, "attr_molecular-weight@v2", task_id)
+    assert adjudication.stated_quantity("Molecular weight of the parent compound") is None
+    # a quantity stated in words with no number is a bound nobody can check, so it is not one
+    assert adjudication.stated_quantity("the excess above the stated upper bound, zero at or below it") is None
+
+
+def test_a_definition_stating_a_band_yields_distance_outside_band_with_both_bounds_the_right_way_round(core):
+    task_id = _task(core)
+    claim_id = _bound_claim(core, task_id, claim_id="claim_lp_band", value=None, unit="log units",
+                            quote="oral drugs cluster in a lipophilicity window of 2 to 4 log units")
+    record = adjudication.adjudicate(core, _queued(core, task_id, BAND, cites=[claim_id]))
+
+    assert record["route"] == "definition_restated"
+    transform = criteria.load(core, record["attribute_ref_after"], task_id)["value_transform"]
+    assert transform == {"kind": "distance_outside_band", "low": 2, "high": 4,
+                         "basis": "source_stated_value", "source_refs": [claim_id]}
+    assert record["cites"]["bound_traces"]["low"] == [{"claim_id": claim_id, "states_it": "claim_quote"}]
+    assert record["cites"]["bound_traces"]["high"] == [{"claim_id": claim_id, "states_it": "claim_quote"}]
+    # surufatinib's XLogP of 3.4 is inside the band: zero, not a rank
+    assert criteria.apply_value_transform(3.4, transform) == 0.0
+    assert criteria.apply_value_transform(1.2, transform) == pytest.approx(0.8)
+    assert criteria.apply_value_transform(5.1, transform) == pytest.approx(1.1)
+    # which end is the low one is the definition's to say, and a definition that says it backwards
+    # is one this route cannot read rather than one to repair by swapping the bounds
+    assert adjudication.stated_quantity("the distance outside the stated 4 to 2 band") is None
+    assert adjudication.stated_quantity("the distance outside the stated 2 to 4 band") == {
+        "kind": "distance_outside_band", "low": 2, "high": 4}
+
+
+def test_restating_a_definition_calls_no_model(core):
+    """The authority is text already promoted into the store, so there is nothing to ask anyone.
+
+    Asserted on the adapters rather than by withholding the roster: the route must stay deterministic
+    even in a run that has models available, because a model asked what a definition means would be
+    the judgement this route claims not to add.
+    """
+    task_id = _task(core)
+    claim_id = _bound_claim(core, task_id, claim_id="claim_mw_bound", value=500, unit="g/mol",
+                            quote="an upper bound of 500 g/mol on molecular weight for oral exposure")
+    item = _queued(core, task_id, EXCESS, cites=[claim_id])
+    roster = _roster(lambda request: pytest.fail(f"route 5 asked the {request.role} a question"))
+
+    preview = adjudication.route_preview(core, item)
+    record = adjudication.adjudicate(core, item, roster=roster)
+    assert preview["route"] == record["route"] == "definition_restated"
+    assert all(adapter.requests == [] for adapter in roster.adapters.values())
+    assert record["actor"] == adjudication.MACHINE and record["actor"]["kind"] == "system"
+    assert record["verdict"] is None and record["independence"] is None and record["cited_claim_ids"] == []
+    assert record["approval_kind"] == "agent_verdict" and record["confirmed_by_a_person"] is False
+    assert not core.artifacts.of_kind("expert_decision")
+
+
+def test_a_route_preview_over_the_two_manuscript_rule_shapes_names_the_definition_route(core):
+    """The measured mis-route, pinned on the field values it was measured from.
+
+    `route_preview` over the twelve open items of the manuscript task returned
+    `no_authority_available` for these two -- "demote the rule to an exploratory consideration, so it
+    stops scoring". Neither is an expert-set cutoff: both are preferences with an ordering predicate,
+    no cutoff and `cutoff_basis: none_evidence_insufficient`, so `needs_expert` is False for both and
+    nothing an expert set is missing. What was missing is the transformation their own definitions
+    describe, which is why demoting them answered a question nobody had asked.
+    """
+    task_id = _task(core)
+    mw = _queued(core, task_id, EXCESS, cites=[_bound_claim(
+        core, task_id, claim_id="claim_mw_bound", value=500, unit="g/mol",
+        quote="an upper bound of 500 g/mol on molecular weight for oral exposure")])
+    lipophilicity = _queued(core, task_id, BAND, cites=[_bound_claim(
+        core, task_id, claim_id="claim_lp_band", value=None, unit="log units",
+        quote="oral drugs cluster in a lipophilicity window of 2 to 4 log units")])
+
+    assert [item["subject"]["id"] for item in (mw, lipophilicity)] == [
+        "rule_molecular-weight-in-excess-of-the-stated-upper-bound@v1",
+        "rule_distance-of-computed-lipophilicity-outside-the-stated-band@v1"]
+    for item in (mw, lipophilicity):
+        rule = criteria.load(core, item["subject"]["id"], task_id)
+        assert (rule["rule_kind"], rule["predicate_form"], rule["cutoff"], rule["cutoff_basis"]) == \
+               ("preference", "ordering", None, "none_evidence_insufficient")
+        assert criteria.needs_expert(rule) is False
+        assert item["why_expert_required"] == QUEUE_TEXT
+        preview = adjudication.route_preview(core, item)
+        assert preview["route"] == "definition_restated", item["subject"]["id"]
+        assert preview["route_label"] == "restates the attribute's own definition"
+        assert "declare the transformation" in preview["would"] and preview["why_not"] is None
+
+
 # --- what the rule set, the board and the pages then say ------------------------------------------------
 
 def test_a_rule_set_containing_any_machine_adjudication_is_exploratory_and_says_so(core):

@@ -17,6 +17,7 @@ PREFIXES = frozenset({
     "cri",   # criterion lineage in the derivation pool (iteration 2)
     "expr",  # registered scoring expression (iteration 2)
     "adj",   # machine adjudication of a review queue item (core/adjudication.py); never an `hd_`
+    "clp",   # collapse of several registrations of one quantity (core/collapse.py); never an `hd_`
 })
 
 

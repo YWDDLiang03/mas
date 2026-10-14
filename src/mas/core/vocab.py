@@ -101,6 +101,7 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
         no_authority_available=("no authority available; demoted, stops scoring", "attention"),
         irreversible_without_authority=("too irreversible for an agent; demoted to a preference", "attention"),
         dispute_adjudicated=("proposer/critic dispute adjudicated by an agent", "attention"),
+        definition_restated=("restates the attribute's own definition", "neutral"),
     ),
     "adjudication_verdict": _labelled(
         uphold_proposal=("the proposal stands", "neutral"), uphold_objection=("the objection stands", "attention"),

@@ -127,14 +127,26 @@ def objective_templates(task_context: dict) -> list[dict]:
         label = entity.get("label") or entity["identifier"]
         items.append({
             "source_field": f"scope_entities[{index}]",
+            # WHY both curations on one attribute: a required receptor's potency is one quantity, and binding the
+            # mandated attribute to ChEMBL alone left the pool to notice IUPHAR/BPS separately and propose a second
+            # attribute for it. Measured on the manuscript registry: ten promoted rules for five quantities, with
+            # identical unit, direction, aggregation, acceptable sources and target id, differing only in which
+            # database answered. Every receptor was therefore scored twice, a compound well covered by one curation
+            # got double credit, and five quantities that do not exist inflated the coverage denominator -- 34 of
+            # 3,177 compounds cleared the ranking floor where 99 clear it once each receptor is one quantity. Both
+            # routes declare `curated_measurement` on the pChEMBL scale, so `median` aggregates them as one set.
             "attribute": {"name": f"{label} curated potency", "measurement_kind": "quantitative", "unit": "pChEMBL",
                           "definition": f"Median pChEMBL value over curated point measurements against {label} "
-                                        f"({entity['identifier']})",
+                                        f"({entity['identifier']}), across every available expert curation",
                           "direction": "higher_better", "acceptable_value_sources": ["curated_measurement"],
                           "aggregation": "median",
-                          "evidence_request": {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values",
-                                               "identifier_scheme": "inchikey",
-                                               "parameters": {"target_chembl_id": entity["identifier"]}},
+                          "evidence_requests": [
+                              {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values",
+                               "identifier_scheme": "inchikey",
+                               "parameters": {"target_chembl_id": entity["identifier"]}},
+                              {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity",
+                               "identifier_scheme": "inchikey",
+                               "parameters": {"target_chembl_id": entity["identifier"]}}],
                           "rationale": f"{label} is a required target of the task"},
             "rule": {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": None,
                      "cutoff_basis": "none_evidence_insufficient", "on_missing": "unknown_no_penalty"}})
