@@ -60,3 +60,27 @@ def test_parallel_literature_cells_give_the_same_board(tmp_path):
             results.append([(e["candidate_ref"], e["state"], e["position"]) for e in snapshot["candidate_entries"]])
             core.journal.verify(run_id)
     assert results[0] == results[1]
+
+
+def test_the_sweep_hands_every_literature_cell_the_configured_read_worker_count(tmp_path, monkeypatch):
+    """Through the seam a run goes through, not past it. `concurrency.read_workers` is read off the
+    bound settings by their dotted key, so a key that does not match the one `config.SETTINGS`
+    registers would leave every cell reading sequentially while the setting said otherwise -- and
+    `.get(key, 1)` cannot report that, it can only default."""
+    from mas.core import config as config_mod, evidence
+
+    asked = []
+    gather = evidence.gather
+
+    def spy(*args, **kwargs):
+        asked.append(kwargs.get("document_workers"))
+        return gather(*args, **kwargs)
+
+    monkeypatch.setattr(evidence, "gather", spy)
+    with Core.open(tmp_path / "root") as core:
+        task_id = setup_task(core)
+        settings = config_mod.resolve(project_file=None, environ={}, overrides={"concurrency.read_workers": 4})
+        controller = make_controller(core)
+        run_id = controller.start(task_id, by=OPERATOR, sweep_seed=3, settings=settings)
+        assert controller.current_state(run_id) == "completed"
+    assert asked and set(asked) == {4}

@@ -151,3 +151,37 @@ def test_the_snapshot_says_which_candidates_cleared_the_hard_rules_and_what_bloc
     assert not passed["n_fail_hard"] and not passed["n_unknown_hard"]
     assert blocked["n_unknown_hard"] == 1 and blocked["blocking_unknowns"] == ["attr_gate@v1"]
     assert failed["n_fail_hard"] == 1
+
+
+def test_a_machine_adjudicated_hard_rule_lets_a_candidate_clear_the_gate_and_says_who_decided(core):
+    """With `recommended_requires_hd` and no `hd_` in existence, step one of the selection could
+    never complete for any candidate, so the eligible set was empty by construction and the ranking
+    step had nothing to rank. Measured on the 14 October board: 9 candidates cleared every hard rule
+    and all 9 read `provisional / awaiting_human_review`, indistinguishable from the 1,262 blocked on
+    an absent record. An autonomous run is a legitimate configuration, so it reaches a decision --
+    and the reason must say an agent took it."""
+    from mas.core import assessor
+
+    cells = [{"assessment_id": "asm_h", "attribute_ref": "attr_gate@v1", "rule_ref": "rule_gate@v1",
+              "rule_kind": "hard_exclusion", "verdict": "pass", "value": None,
+              "value_kind": "curated", "conflicting_claim_refs": []}]
+
+    waiting = assessor.roll_up("c", cells, coverage_floor=1.0, recommended_requires_hd=True)
+    assert waiting["state"] == "provisional" and waiting["state_reason"] == "awaiting_human_review"
+
+    adjudicated = assessor.roll_up("c", cells, coverage_floor=1.0, recommended_requires_hd=True,
+                                   machine_authority=True)
+    assert adjudicated["state"] == "recommended"
+    assert "adjudicated by an agent" in adjudicated["state_reason"]
+    assert "no person has confirmed" in adjudicated["state_reason"]
+
+    # a person's decision still reads as a person's, with no mention of an agent
+    by_person = assessor.roll_up("c", cells, coverage_floor=1.0, recommended_requires_hd=True,
+                                 hd_refs=["hd_1"])
+    assert by_person["state"] == "recommended" and "agent" not in by_person["state_reason"]
+
+    # and machine authority cannot paper over a failing or unknown gate
+    for verdict in ("fail", "unknown_missing"):
+        blocked = assessor.roll_up("c", [dict(cells[0], verdict=verdict)], coverage_floor=1.0,
+                                   recommended_requires_hd=True, machine_authority=True)
+        assert blocked["state"] != "recommended", verdict

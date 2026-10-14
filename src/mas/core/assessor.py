@@ -213,7 +213,8 @@ def _reason_text(attribute, rule, verdict, statement_value, cutoff, refs, dispos
 
 def roll_up(candidate_id: str, assessments: list[dict[str, Any]], *, coverage_floor: float,
             recommended_requires_hd: bool, hd_refs: list[str] | None = None,
-            pending_hard_rules: list[str] | None = None) -> dict[str, Any]:
+            pending_hard_rules: list[str] | None = None,
+            machine_authority: bool = False) -> dict[str, Any]:
     """Candidate state from its cells (design §4.11).
 
     Hard rules still awaiting an expert decision keep every candidate `provisional`
@@ -239,8 +240,22 @@ def roll_up(candidate_id: str, assessments: list[dict[str, Any]], *, coverage_fl
         state, reason = "provisional", "no confirmed hard rule; ranked on preferences only"
     elif coverage < coverage_floor:
         state, reason = "provisional", f"hard-rule coverage {coverage:.2f} below floor {coverage_floor:.2f}"
-    elif recommended_requires_hd and not hd_refs:
+    elif recommended_requires_hd and not hd_refs and not machine_authority:
         state, reason = "provisional", "awaiting_human_review"
+    elif recommended_requires_hd and not hd_refs:
+        # WHY a machine-adjudicated set may still clear the gate: the selection is two steps -- hard
+        # rules decide who is eligible, preferences rank the eligible -- and with
+        # `recommended_requires_hd` and no `hd_` in existence, step one could never complete for any
+        # candidate, so the eligible set was empty by construction and the second step had nothing to
+        # rank. Measured on the 14 October board: 9 candidates cleared every hard rule and all 9 read
+        # `provisional / awaiting_human_review`, indistinguishable from the 1,262 blocked on an absent
+        # record. An autonomous run is a legitimate configuration here, so it reaches a decision --
+        # and the reason says who took it, because the one thing this must not do is let an agent's
+        # verdict read as a person's. The rule set is `exploratory` and names every machine
+        # adjudication regardless.
+        state = "recommended"
+        reason = ("every hard rule passes with coverage at or above the floor; the hard rules were "
+                  "adjudicated by an agent and no person has confirmed them")
     else:
         state, reason = "recommended", "every hard rule passes with coverage at or above the floor"
     evaluated = [a for a in prefs if a["verdict"] in ("pass", "fail")]

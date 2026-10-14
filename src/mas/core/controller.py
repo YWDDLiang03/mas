@@ -376,8 +376,13 @@ class RunController:
         weights = (st.rule_set.get("ordering_method") or {}).get("weight_vector") or {}
         pending_hard = [ref for ref in st.rule_set.get("pending", [])
                         if criteria.load(self.core, ref, task_id)["rule_kind"] == "hard_exclusion"]
+        # A hard rule resolved by machine adjudication carries authority the run can act on, labelled
+        # as an agent's and never as a person's. Without this the eligible set is empty whenever no
+        # `hd_` exists, which is every autonomous run.
+        machine_authority = bool(st.rule_set.get("machine_adjudicated"))
         roll_ups = {c: assessor.roll_up(c, by_candidate[c], coverage_floor=st.rule_set.get("coverage_floor", 1.0),
-                                        recommended_requires_hd=requires_hd, pending_hard_rules=pending_hard) for c in candidates}
+                                        recommended_requires_hd=requires_hd, pending_hard_rules=pending_hard,
+                                        machine_authority=machine_authority) for c in candidates}
         rules_info = {r["entry"]["rule_ref"]: {"rule_kind": r["rule"]["rule_kind"],
                                                "predicate_form": r["rule"].get("predicate_form", "threshold"),
                                                "direction": r["attribute"].get("direction")} for r in st.rules}

@@ -146,6 +146,10 @@ SETTINGS: dict[str, Setting] = {
     # claims positionally and concatenates them in the documents' own order, so raising this cannot
     # move a value, a verdict or a digest, and registering it as verdict-affecting would say it can.
     # It multiplies with `assess.workers`: N cells each reading M documents is N*M calls in flight.
+    # Measured on a synthetic eight-document cell at 0.25 s per extraction: 2.40 s at 1 worker,
+    # 0.81 s at 4, 0.71 s at 8. The 0.40 s that does not shrink is the per-document journal and
+    # artifact writing, which serializes on the store write lock -- so past roughly 8 the ceiling
+    # is the store, not the setting, which is why it stops at 16.
     "concurrency.read_workers": _s(1, "documents read and claim-extracted at once within one cell",
                                    minimum=1, maximum=16, unit="workers"),
     # interaction

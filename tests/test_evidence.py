@@ -327,12 +327,14 @@ class PaperReader:
 class ExtractionModel:
     """The reader model, counting its calls and the calls that overlapped one another.
 
-    `highest_overlap` is what tells one worker from several without a timing assertion: at the
-    default of one it is 1, however slow the calls are.
+    A `barrier` is how a test proves concurrency without a timing threshold: every call waits for
+    the others, so sequential reading times the wait out and fails the test instead of passing by
+    luck, and `highest_overlap` is then the number of parties rather than whatever the host's load
+    allowed. `delay` runs after the wait, so completion order can be set against reading order.
     """
 
-    def __init__(self, delay: dict[str, float] | None = None):
-        self.delay = delay or {}
+    def __init__(self, delay: dict[str, float] | None = None, barrier: threading.Barrier | None = None):
+        self.delay, self.barrier = delay or {}, barrier
         self.calls: list[str] = []
         self.highest_overlap = 0
         self._running = 0
@@ -346,6 +348,8 @@ class ExtractionModel:
             self._running += 1
             self.highest_overlap = max(self.highest_overlap, self._running)
         try:
+            if self.barrier is not None:
+                self.barrier.wait(timeout=20)
             time.sleep(self.delay.get(name, 0.0))
         finally:
             with self._lock:
@@ -360,12 +364,12 @@ class ExtractionModel:
         return {"claims": [claim]}
 
 
-def literature_cell(core, *, delay=None):
+def literature_cell(core, *, delay=None, barrier=None):
     broker = Broker(core, sleep=lambda s: None)
     reader_tool = PaperReader()
     broker.register(PaperSearch())
     broker.register(reader_tool)
-    model = ExtractionModel(delay)
+    model = ExtractionModel(delay, barrier)
     roster = ModelRoster({"s": ScriptedAdapter("s", model, model="scripted-reader")}, {"reader": "s"})
     return broker, roster, model, reader_tool
 
@@ -379,16 +383,17 @@ def test_reading_several_documents_concurrently_yields_exactly_the_claims_the_se
     """Runs are replayed and their digests compared, so a cell's claims may not be ordered by which
     worker finished first. The extraction delays here invert completion order against reading order."""
     seen = []
-    for workers in (1, 4):
+    for workers in (1, len(PAPERS)):
+        barrier = threading.Barrier(workers) if workers > 1 else None
         with Core.open(tmp_path / f"root{workers}") as core:
-            broker, roster, model, reader_tool = literature_cell(core, delay=EXTRACTION_DELAY)
+            broker, roster, model, reader_tool = literature_cell(core, delay=EXTRACTION_DELAY, barrier=barrier)
             claims, error_ref, searched = read_cell(core, broker, roster, document_workers=workers)
             assert error_ref is None and searched == ["literature_retrieval", "document_reading"]
             seen.append([(c["source_ref"], c["value"], c["location"]["quoted_span"]) for c in claims])
             # the tool and model calls are made in whatever order the workers get to them; only the
             # claims the cell returns are ordered, and they are ordered by the documents, not by them
             assert sorted(reader_tool.reads) == sorted(model.calls) == sorted(PAPERS)
-            assert model.highest_overlap == 1 if workers == 1 else model.highest_overlap > 1
+            assert model.highest_overlap == workers
     assert [value for _, value, _ in seen[0]] == list(PAPERS.values())     # the documents' own order
     assert seen[0] == seen[1]
 
@@ -399,9 +404,11 @@ def test_a_document_already_in_the_cache_is_not_read_twice_when_two_workers_want
     is still in the model call has to wait for it rather than pay for a second."""
     broker, roster, model, reader_tool = literature_cell(core, delay=dict.fromkeys(PAPERS, 0.05))
     cache = LiteratureCache()
+    together = threading.Barrier(2)
 
     def cell(attribute):
-        return read_cell(core, broker, roster, attribute=attribute, cache=cache, document_workers=4,
+        together.wait(timeout=20)      # both cells enter the shared cache at once, not one after the other
+        return read_cell(core, broker, roster, attribute=attribute, cache=cache, document_workers=len(PAPERS),
                          reading_attributes=READING_ATTRIBUTES)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -423,7 +430,7 @@ def test_a_budget_refusal_during_concurrent_reading_still_stops_the_run(core, wo
     broker, roster, model, _ = literature_cell(core)
     with pytest.raises(BudgetBlocked):
         read_cell(core, broker, roster, document_workers=workers, budget=Budget({"llm_turns": 2}))
-    assert len(model.calls) >= 2                              # the refusal came mid-flight, not before the cell
+    assert len(model.calls) == 2                               # the refusal came mid-flight, not before the cell
 
 
 def test_the_journals_hash_chain_verifies_after_concurrent_appends(core):
