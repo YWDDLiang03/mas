@@ -81,7 +81,31 @@ def usable_claims(claims: list[dict[str, Any]], attribute: dict[str, Any]) -> tu
             elif canonical_unit(claim.get("unit")) != unit:
                 reason = "unit_unresolved"
         (set_aside if reason else usable).append(claim if not reason else dict(claim, set_aside_reason=reason))
-    return usable, set_aside
+    # WHY one observation is counted once: nothing collapsed identical extractions, so a value the
+    # reader emitted twice entered an aggregate twice and weighted it twice. Measured on the clean
+    # derivation of 14 October 2026: 388 claims came from 15 distinct documents and 18 (document,
+    # quoted span) pairs were extracted more than once -- one table row about a marketed inhibitor
+    # seven times from a single paper. A median over seven copies of one number is that number, so
+    # this is a bias in the aggregate, not only wasted reading. Two extractions of one span are one
+    # observation; the duplicates stay in the ledger, which is the record of what was read, and are
+    # set aside here, which is the record of what was counted. Deliberately narrow: same document,
+    # same span and same value, so a table and a sentence reporting the same figure separately are
+    # still two reports, and the cross-source experiment deduplication that §7.2 asks for is a
+    # wider question this does not pretend to answer.
+    seen, unique = {}, []
+    for claim in usable:
+        fingerprint = (claim.get("source_ref"),
+                       ((claim.get("location") or {}).get("quoted_span") or "").strip(),
+                       _norm(claim.get("value")), _norm(claim.get("value_low")),
+                       _norm(claim.get("value_high")), canonical_unit(claim.get("unit")))
+        first = seen.get(fingerprint)
+        if first is None:
+            seen[fingerprint] = claim
+            unique.append(claim)
+        else:
+            set_aside.append(dict(claim, set_aside_reason="duplicate_observation",
+                                  duplicate_of=first.get("claim_id")))
+    return unique, set_aside
 
 
 def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: dict[str, Any], rule_set_ref: str,

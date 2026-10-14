@@ -402,3 +402,41 @@ def test_a_rule_set_cannot_call_itself_prespecified_on_a_registration_that_does_
     ref = criteria.confirm_rule_set(core, task_id, by=OPERATOR, coverage_floor=0.5, preregistration_ref=real)
     rs = criteria.rule_set(core, task_id, ref)
     assert rs["preregistration_ref"] == real and rs["acceptance_label"] == "prespecified"
+
+
+def test_one_observation_counted_once_however_many_times_the_reader_emitted_it():
+    """Measured on the clean derivation of 14 October 2026: 388 claims came from 15 distinct
+    documents, and 18 (document, quoted span) pairs had been extracted more than once -- one table
+    row about a marketed inhibitor seven times from a single paper. Nothing collapsed them, so each
+    copy entered the aggregate as an independent value. A median over seven copies of one number is
+    that number, so this biases the aggregate, not just the reading cost."""
+    attribute = {"attribute_id": "attr_p", "version": 1, "name": "Curated potency", "definition": "d",
+                 "measurement_kind": "quantitative", "unit": "pChEMBL", "direction": "higher_better",
+                 "acceptable_value_sources": ["curated_measurement"], "aggregation": "median",
+                 "evidence_request": {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}}
+    rule = {"rule_id": "rule_p", "version": 1, "rule_kind": "preference", "predicate_form": "ordering",
+            "cutoff": None, "cutoff_basis": "none_evidence_insufficient"}
+
+    def claim(cid, value, span, source="src_doi_10.1/a"):
+        return {"claim_id": cid, "admission_state": "admitted", "evidence_kind": "curated_measurement",
+                "determination_basis": "measured", "value": value, "unit": "pChEMBL",
+                "source_ref": source, "location": {"quoted_span": span}}
+
+    # the real shape: one span repeated, plus two genuinely different observations
+    claims = [claim(f"c{i}", 9.5, "Sunitinib | VEGFR1-3, KIT, CSF1R") for i in range(7)]
+    claims += [claim("d1", 7.0, "a different sentence reporting 7.0"),
+               claim("d2", 7.2, "another paper's figure", source="src_doi_10.1/b")]
+
+    usable, set_aside = assessor.usable_claims(claims, attribute)
+    assert [c["claim_id"] for c in usable] == ["c0", "d1", "d2"], "the repeat is one observation"
+    dupes = [c for c in set_aside if c.get("set_aside_reason") == "duplicate_observation"]
+    assert len(dupes) == 6 and all(c["duplicate_of"] == "c0" for c in dupes)
+
+    cell, _ = assessor.assess_cell(candidate={"candidate_id": "x"}, attribute=attribute, rule=rule,
+                                   rule_set_ref="rules@v1", claims=claims, resolved=True)
+    assert cell["value"] == 7.2, "median of 9.5, 7.0, 7.2 -- not of seven 9.5s"
+
+    # a table and a sentence reporting the same figure separately are still two reports
+    two_reports = [claim("e1", 8.0, "table row: 8.0"), claim("e2", 8.0, "the text says 8.0")]
+    usable, set_aside = assessor.usable_claims(two_reports, attribute)
+    assert len(usable) == 2 and not [c for c in set_aside if c.get("set_aside_reason") == "duplicate_observation"]
