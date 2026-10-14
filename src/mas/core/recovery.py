@@ -40,6 +40,7 @@ from typing import Any
 
 from . import criteria, criteria_export, vocab
 from .canonical import canonical_bytes, sha256_hex
+from .derivation_stages import quantity_key
 from .clock import utc_now
 from .ids import new_id
 from .models import ModelRequest, ModelRoster, call_role
@@ -63,8 +64,9 @@ DERIVING_ROLES = frozenset({"planner", "proposer", "critic", "adjudicator", "ret
                             "summarizer", "reflector", "operator", "coordinator"})
 
 # Exactly these three, exclusive and exhaustive over the historical items, so the counts sum to the
-# number of items supplied (§12.2). `extra` is a derived-side label and is deliberately not here.
-CATEGORIES = ("exact", "near_equivalent", "missed")
+# number of items supplied (§12.2). The `recovery_category` domain also registers `extra`, which is a
+# label for the derived side and never a category a historical item can take.
+CATEGORIES = tuple(value for value in vocab.DOMAINS["recovery_category"] if value != "extra")
 FACETS = ("operational_quantity", "applicability", "decision_semantics", "threshold")
 # How a facet difference is reported in the three words §12.2 uses. A quantity or a semantics
 # difference is a difference in expression; a narrower or wider population is scope; a cutoff is a
@@ -298,6 +300,26 @@ def access_log(core: Core, task_id: str) -> list[dict[str, Any]]:
 
 # --- the frozen derived set ------------------------------------------------------------------
 
+def _confirming_decisions(core: Core, task_id: str, at_seq: int) -> dict[str, dict[str, Any]]:
+    """Every expert decision recorded on this task up to the pin, by decision id.
+
+    WHY folded here rather than read from the export: `review.items` carries a decision's id and its
+    verdict onto the queue item but not the `historical_list_exposure` the decision declared, so the
+    export's per-criterion exposure field has no declaration to report. The declaration lives on the
+    decision event, which is what this reads -- and the exposure rule needs it per criterion, because
+    it is the confirming person, not the deriving agent, who may have seen the list.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for event in core.journal.replay(task_id, to_seq=at_seq):
+        if event.event_type == "human.review_decided":
+            out[event.payload["decision_id"]] = {
+                "decision": event.payload.get("decision"),
+                "historical_list_exposure": event.payload.get("historical_list_exposure"),
+                "decided_by": (event.payload.get("actor") or {}).get("id"),
+                "decided_at": event.payload.get("decided_at")}
+    return out
+
+
 def derived_set(core: Core, task_id: str, *, at_seq: int | None = None) -> dict[str, Any]:
     """The derived criteria a mapping may cite, read from the criteria export's own facets.
 
@@ -307,39 +329,59 @@ def derived_set(core: Core, task_id: str, *, at_seq: int | None = None) -> dict[
     reading of the same records would be a second answer to "what was derived", and the comparison
     would then be against neither of them.
 
-    `meaning_key` is the registry's own duplicate identity (`criteria.evidence_key`): two attributes
-    that ask the same tools the same questions are two readings of one quantity however differently
-    they are named. The gate counts meanings, which is what stops repeated variants from inflating
+    `meaning_key` is `derivation_stages.quantity_key`, the registry's own measurement identity:
+    capability set, canonical unit, direction, subject parameters and declared transform. The gate
+    counts meanings rather than criteria, which is what stops repeated variants from inflating
     recovery (§12.2).
+
+    WHY not `criteria.evidence_key`, which is the other hash on the card: that one is a *retrieval*
+    identity -- capability, question kind and parameters -- and `question_kind` names which database
+    answers. A receptor's curated potency from ChEMBL and the same affinity from IUPHAR are one
+    quantity with two retrieval identities, so keying on retrieval would let one meaning be spent on
+    two historical items unchallenged; and a quantity derived from a measurement by a declared
+    transform shares its source's retrieval identity while measuring something else, so keying on
+    retrieval would also refuse a mapping that correctly matched both. That is F5's separation
+    applied here: retrieval identity for caching, measurement identity for whether two criteria
+    estimate the same thing.
     """
     payload = criteria_export.snapshot(core, task_id, at_seq=at_seq, with_board=False)
     cards = {card["identity"]["attribute_ref"]: card for card in payload["criteria"]}
-    decisions = {item["decision_id"]: item for item in payload["review_queue"] if item.get("decision_id")}
+    decisions = _confirming_decisions(core, task_id, payload["journal_position"]["pinned_seq"])
+    # One replay for every attribute record, because `quantity_key` reads fields the card does not
+    # carry and loading them one at a time would replay a 140,000-event stream once per criterion.
+    pinned_core, _ = criteria_export.pinned(core, task_id, at_seq)
+    records = {entry["ref"]: entry["record"] for entry in criteria_export._registry(pinned_core, task_id).values()
+               if entry["kind"] == "attribute"}
     entries = []
     for included in payload["recovery_comparison_set"]["included"]:
         card = cards[included["attribute_ref"]]
-        edited = [d for d in card["authority"]["expert_decisions"]
-                  if decisions.get(d, {}).get("decision") == "approve_with_edits"]
+        confirming = [d for d in card["authority"]["expert_decisions"] if d in decisions]
+        edited = [d for d in confirming if decisions[d]["decision"] == "approve_with_edits"]
+        declared = sorted({decisions[d]["historical_list_exposure"] for d in confirming
+                           if decisions[d]["historical_list_exposure"]})
         origin = card["origin"]["kind"]
         entries.append({
             "attribute_ref": card["identity"]["attribute_ref"], "rule_ref": card["identity"]["rule_ref"],
             "name": card["name"],
             "origin_kind": origin,
             "stratum": "expert_modified" if edited else _STRATUM_OF_ORIGIN.get(origin, "origin_not_recorded"),
-            "expert_edits": edited,
+            "expert_edits": edited, "confirming_decisions": confirming,
             "status": card["use"]["status"],
-            "meaning_key": card["computation"]["evidence_key_sha256"],
+            "meaning_key": sha256_hex(list(quantity_key(records[card["identity"]["attribute_ref"]]))),
+            "retrieval_identity_sha256": card["computation"]["evidence_key_sha256"],
             "measurement_identity_sha256": card["matching_facets"]["measurement_identity_sha256"],
             "decision_identity_sha256": card["matching_facets"]["decision_identity_sha256"],
             "facets": {facet: card["matching_facets"][facet] for facet in FACETS},
             "comparable_from_fields": card["matching_facets"]["comparable_from_fields"],
             "gaps": card["matching_facets"]["gaps"],
-            "declared_exposure": card["authority"]["exposure"]["historical_list_exposure"],
+            "declared_exposure": declared, "confirmed_by_a_person": bool(confirming),
             "derivation_configuration": card["origin"]["derivation_configuration"],
         })
     meanings: dict[str, list[str]] = {}
     for entry in entries:
         meanings.setdefault(entry["meaning_key"], []).append(entry["attribute_ref"])
+    for entry in entries:
+        entry["same_meaning_as"] = sorted(set(meanings[entry["meaning_key"]]) - {entry["attribute_ref"]})
     strata: dict[str, list[str]] = {}
     for entry in entries:
         strata.setdefault(entry["stratum"], []).append(entry["attribute_ref"])
@@ -449,6 +491,19 @@ def check_mapping(mapping: list[dict[str, Any]], *, intake: dict[str, Any],
             problems.append({"code": "unknown_category", "historical_item_ref": reference,
                              "detail": f"{reference} declares category {declared!r}; the exclusive categories are "
                                        f"{', '.join(CATEGORIES)}"})
+        basis = entry.get("match_basis")
+        if basis is not None:
+            try:
+                vocab.require("recovery_match_basis", basis)
+            except vocab.VocabularyViolation as error:
+                problems.append({"code": "unknown_match_basis", "historical_item_ref": reference,
+                                 "detail": str(error)})
+        for kind in entry.get("difference_kinds") or []:
+            try:
+                vocab.require("recovery_difference_kind", kind)
+            except vocab.VocabularyViolation as error:
+                problems.append({"code": "unknown_difference_kind", "historical_item_ref": reference,
+                                 "detail": str(error)})
         if not str(entry.get("rationale") or "").strip():
             problems.append({"code": "rationale_missing", "historical_item_ref": reference,
                              "detail": f"{reference} carries no mapping rationale; §12.2 reports one per item"})
@@ -460,7 +515,7 @@ def check_mapping(mapping: list[dict[str, Any]], *, intake: dict[str, Any],
                                  "detail": f"{reference} cites no derived criterion but declares shape {shape!r}"})
         else:
             differences, facet_problems = _facet_differences(entry, item)
-            category = "exact" if not differences else "near_equivalent"
+            category = vocab.require("recovery_category", "exact" if not differences else "near_equivalent")
         problems.extend(facet_problems)
         if declared is not None and declared in CATEGORIES and declared != category:
             code = ("exact_claimed_over_a_reported_difference" if declared == "exact"
@@ -648,7 +703,10 @@ def exposure_declaration(core: Core, task_id: str, *, intake: dict[str, Any],
     before_freeze = [read for read in log if read["read_at"] < frozen_at]
     by_deriving = [read for read in log if (read["role"] or "") in DERIVING_ROLES]
     declared: dict[str, list[str]] = {}
+    unconfirmed = []
     for entry in derived["criteria"]:
+        if not entry["declared_exposure"]:
+            unconfirmed.append(entry["attribute_ref"])
         for value in entry["declared_exposure"]:
             declared.setdefault(value, []).append(entry["attribute_ref"])
     # `undeclared` is treated as exposed by design §8.6, so a criterion whose confirmation declared
@@ -670,6 +728,11 @@ def exposure_declaration(core: Core, task_id: str, *, intake: dict[str, Any],
         "reads_by_a_deriving_role": by_deriving,
         "reads_logged": len(log),
         "declared_on_confirming_decisions": {value: sorted(refs) for value, refs in sorted(declared.items())},
+        "criteria_with_no_confirming_decision": sorted(unconfirmed),
+        "criteria_with_no_confirming_decision_note":
+            "no person declared an exposure for these because no person confirmed them: they entered on "
+            "the trigger table, a machine adjudication or a collapse, so there is no human exposure "
+            "path to declare. That is not the same statement as a declaration of `not_exposed`.",
         "criteria_in_the_assisted_view": assisted_refs,
         "criteria_in_the_independent_view": sorted({entry["attribute_ref"] for entry in derived["criteria"]}
                                                    - set(assisted_refs)),
@@ -692,12 +755,18 @@ def compare(core: Core, task_id: str, *, by: dict[str, Any], roster: ModelRoster
     derived = derived_set(core, task_id, at_seq=pinned_at)
     if mapping is None:
         if roster is None:
-            raise RecoveryError("no_evaluator", "a comparison needs either a model roster or a supplied mapping")
+            raise RecoveryError("no_evaluator",
+                                f"no comparison is recorded for {task_id} and nothing can make one: bind an "
+                                f"adapter to the {EVALUATOR_ROLE!r} role (`mas init`, or --models), or supply a "
+                                f"mapping an outside evaluator proposed (--mapping)")
         mapping, judged_by = propose_mapping(core, roster, task_id, intake=intake, derived=derived, budget=budget)
         route = "model_proposed"
     else:
         judged_by, route = {"role": EVALUATOR_ROLE, "adapter_id": None, "model_id": None,
-                            "supplied_by": by}, "supplied_by_the_evaluator"
+                            "supplied_by": by, "distinct_from": None,
+                            "note": "proposed outside this process by the evaluator named in `supplied_by`; "
+                                    "it passed the same gate as a mapping this module requested"}, \
+            "supplied_by_the_evaluator"
     gate = check_mapping(mapping, intake=intake, derived=derived)
     record = {
         "schema_version": SCHEMA_VERSION, "comparison_id": new_id("evr"), "task_id": task_id,
@@ -825,6 +894,14 @@ def report(core: Core, task_id: str, *, by: dict[str, Any], comparison: dict[str
     """The full, evaluator-only recovery report: counts, rates, mappings, origins and exposure."""
     if comparison is None:
         comparison = latest_comparison(core, task_id)
+        if comparison is not None and mapping is not None:
+            # Refused rather than quietly ignored: a second mapping over the same sealed list is not
+            # another independent recovery (§12.4), and a caller who supplied one is asking for a
+            # measurement this command cannot honestly produce.
+            raise RecoveryError("comparison_already_recorded",
+                                f"{comparison['comparison_id']} already compared this frozen set against "
+                                f"{comparison['intake_id']}; a second mapping over a list that has been opened "
+                                f"cannot be reported as another independent recovery")
     if comparison is None:
         comparison = compare(core, task_id, by=by, roster=roster, mapping=mapping, at_seq=at_seq, budget=budget)
     intake = read_intake(core, task_id, by=by, purpose="recovery_report")
@@ -833,6 +910,12 @@ def report(core: Core, task_id: str, *, by: dict[str, Any], comparison: dict[str
                             f"comparison {comparison['comparison_id']} was made against a different intake "
                             f"content hash; a report may not restate counts over a list it did not compare")
     derived = derived_set(core, task_id, at_seq=comparison["derived_set_pinned_seq"])
+    # Reported rather than refused: the criteria are pinned at a task sequence, so no later criterion
+    # version can move them, but the export also folds the claim records their bounds cite, and those
+    # live in run streams the pin does not clamp. A later admission therefore moves the digest without
+    # changing a single criterion, and refusing the report over that would block the measurement for a
+    # reason that is not about the criteria.
+    drift = derived["payload_digest"] != comparison["derived_set_digest"]
     counts = _counts(comparison["comparisons"], intake, derived)
     items = {item["item_ref"]: item for item in intake["items"]}
     mappings = [dict(record,
@@ -850,7 +933,7 @@ def report(core: Core, task_id: str, *, by: dict[str, Any], comparison: dict[str
         "schema_version": SCHEMA_VERSION, "report_kind": REPORT_KIND,
         "visibility": vocab.require("field_visibility", "evaluator_only"),
         "visibility_statement": (
-            "Evaluator-only. The mappings and rationales below restate the historical items, so this "
+            "**Evaluator-only.** The mappings and rationales below restate the historical items, so this "
             "surface is sealed with the list itself. The counts, rates, origin strata and exposure "
             "declaration carry no historical content and are published separately in "
             f"`{COUNTS_JSON}` and `{COUNTS_MARKDOWN}`."),
@@ -861,10 +944,16 @@ def report(core: Core, task_id: str, *, by: dict[str, Any], comparison: dict[str
                                           "completeness_attestation", "item_count", "content_sha256",
                                           "recorded_at", "recorded_by", "ambiguities")},
         "freeze": intake["freeze"],
-        "derived_set": {k: derived[k] for k in ("statement", "criteria_count", "pinned_seq", "rule_set_refs",
-                                                "by_stratum", "repeated_variants",
-                                                "excluded_as_a_repeated_variant",
-                                                "excluded_as_pruned_pool_items", "payload_digest")},
+        "derived_set": dict(
+            {k: derived[k] for k in ("statement", "criteria_count", "pinned_seq", "rule_set_refs",
+                                     "by_stratum", "repeated_variants", "excluded_as_a_repeated_variant",
+                                     "excluded_as_pruned_pool_items", "payload_digest")},
+            digest_when_compared=comparison["derived_set_digest"],
+            unchanged_since_the_comparison=not drift,
+            drift_note=None if not drift else
+            "the export payload folds differently than when the comparison was judged; the criteria "
+            "themselves are pinned at the task sequence above, so a difference here comes from records "
+            "outside that pin, such as a claim admitted after the comparison"),
         "counts": counts,
         "mappings": mappings,
         "origin_stratified": _origin_view(comparison["comparisons"], derived, counts),
@@ -899,7 +988,8 @@ def public_counts(report_record: dict[str, Any]) -> dict[str, Any]:
         "task_id": report_record["task_id"], "task_context_ref": report_record["task_context_ref"],
         "comparison_id": report_record["comparison_id"], "route": report_record["route"],
         "judged_by": {k: report_record["judged_by"].get(k) for k in ("role", "adapter_id", "model_id",
-                                                                     "provider_family", "distinct_from")},
+                                                                     "provider_family", "distinct_from",
+                                                                     "supplied_by", "note")},
         "gate": {"ok": report_record["gate"]["ok"], "checks": report_record["gate"]["checks"]},
         "intake": {k: report_record["intake"][k] for k in ("intake_id", "item_count", "content_sha256",
                                                            "provenance_form", "completeness_attestation",
@@ -940,6 +1030,13 @@ def public_counts(report_record: dict[str, Any]) -> dict[str, Any]:
 
 # --- rendering and writing -------------------------------------------------------------------
 
+def _judged(judged_by: dict[str, Any], route: str) -> str:
+    if route == "supplied_by_the_evaluator":
+        return f"proposed outside this process by {_inline((judged_by.get('supplied_by') or {}).get('id'))}"
+    return (f"{_inline(judged_by.get('model_id'))} in role `{judged_by.get('role')}`"
+            f" (adapter {_inline(judged_by.get('adapter_id'))})")
+
+
 def _inline(value: Any) -> str:
     if value is None or value == [] or value == {}:
         return "_none_"
@@ -956,10 +1053,9 @@ def render_markdown(report_record: dict[str, Any]) -> str:
     """The evaluator-only report: every mapping with its rationale and its reported differences."""
     counts, exposure = report_record["counts"], report_record["exposure"]
     lines = [f"# Primary CQA recovery — {report_record['task_context_ref']}", "",
-             f"> **Evaluator-only.** {report_record['visibility_statement']}", "",
-             f"- comparison `{report_record['comparison_id']}` ({report_record['route']}), judged by "
-             f"{_inline(report_record['judged_by'].get('model_id'))} in role "
-             f"`{report_record['judged_by'].get('role')}`",
+             f"> {report_record['visibility_statement']}", "",
+             f"- comparison `{report_record['comparison_id']}`: "
+             f"{_judged(report_record['judged_by'], report_record['route'])}",
              f"- intake `{report_record['intake']['intake_id']}`: {report_record['intake']['item_count']} items, "
              f"{report_record['intake']['provenance_form']}, completeness "
              f"{report_record['intake']['completeness_attestation']}, sha256 "
@@ -1015,7 +1111,9 @@ def render_markdown(report_record: dict[str, Any]) -> str:
               f"- logged reads: {exposure['reads_logged']} "
               f"({len(exposure['reads_before_the_freeze'])} before the freeze, "
               f"{len(exposure['reads_by_a_deriving_role'])} by a deriving role)",
-              f"- declared on the confirming decisions: {_inline(exposure['declared_on_confirming_decisions'])}", "",
+              f"- declared on the confirming decisions: {_inline(exposure['declared_on_confirming_decisions'])}",
+              f"- no person confirmed, so no declaration exists: "
+              f"{_inline(exposure['criteria_with_no_confirming_decision'])}", "",
               "## Limits", ""] + [f"- {limit}" for limit in report_record["limits"]] + [""]
     return "\n".join(lines)
 
@@ -1026,8 +1124,7 @@ def render_counts(summary: dict[str, Any]) -> str:
     return "\n".join([
         f"# Primary CQA recovery — counts ({summary['task_context_ref']})", "",
         f"> {summary['visibility_statement']}", "",
-        f"- comparison `{summary['comparison_id']}` ({summary['route']}), judged in role "
-        f"`{summary['judged_by']['role']}` by {_inline(summary['judged_by']['model_id'])}; "
+        f"- comparison `{summary['comparison_id']}`: {_judged(summary['judged_by'], summary['route'])}; "
         f"deriving roles bound to {_inline(summary['judged_by']['distinct_from'])}",
         f"- intake `{summary['intake']['intake_id']}`: {summary['intake']['item_count']} items, sha256 "
         f"`{summary['intake']['content_sha256'][:16]}…`, recorded {summary['intake']['recorded_at']}",
@@ -1035,7 +1132,7 @@ def render_counts(summary: dict[str, Any]) -> str:
         f"{summary['freeze']['frozen_at_seq']}; acceptance "
         f"{_inline([s['acceptance_label'] for s in summary['freeze_acceptance']])}",
         f"- derived set: {summary['derived_set']['criteria_count']} criteria by origin "
-        f"{_inline(summary['derived_set']['by_stratum'] and {k: len(v) for k, v in summary['derived_set']['by_stratum'].items()})}",
+        f"{_inline({k: len(v) for k, v in summary['derived_set']['by_stratum'].items()})}",
         "", "## Recovery", "",
         f"- **exact**: {summary['rates']['exact']['as_text']}",
         f"- **exact or near-equivalent**: {summary['rates']['exact_or_near_equivalent']['as_text']}",
@@ -1043,8 +1140,8 @@ def render_counts(summary: dict[str, Any]) -> str:
         f"(partition: {_inline(summary['categories_partition_the_historical_items'])})",
         f"- extra on the derived side: {summary['extra']['count_by_meaning']} meanings, "
         f"{summary['extra']['count_by_criterion']} criteria; {summary['extra']['statement']}",
-        f"- derived meanings matched: {summary['derived_meanings_matched']}; repeated variants in the "
-        f"derived set: {_inline(summary['repeated_variants_in_the_derived_set'])}",
+        f"- derived meanings matched: {summary['derived_meanings_matched']}; registered more than once "
+        f"as one quantity: {_inline(list(summary['repeated_variants_in_the_derived_set'].values()))}",
         "", "## Origin-stratified view", "", origins["statement"], "",
         f"- derived criteria by origin: {_inline(origins['derived_criteria_by_stratum'])}",
         f"- recovered by origin: {_inline(origins['recovered_by_stratum'])}",
@@ -1057,6 +1154,8 @@ def render_counts(summary: dict[str, Any]) -> str:
         f"- logged reads: {_inline(summary['exposure_reads'])}",
         f"- declared on the confirming decisions: "
         f"{_inline(summary['exposure']['declared_on_confirming_decisions'])}",
+        f"- no person confirmed, so no declaration exists: "
+        f"{_inline(summary['exposure']['criteria_with_no_confirming_decision'])}",
         "", "## Limits", ""] + [f"- {limit}" for limit in summary["limits"]] + [""])
 
 
@@ -1077,8 +1176,8 @@ def manifest(report_record: dict[str, Any], summary: dict[str, Any], *, store_ro
         "counts": summary["categories"], "rates": summary["rates"],
         "recovery_view": summary["exposure"]["recovery_view"],
         "gate": {"ok": report_record["gate"]["ok"], "checks": report_record["gate"]["checks"]},
-        "file_visibility": {name: ("evaluator_only" if name in EVALUATOR_ONLY_FILES else "agent_visible")
-                            for name in digests},
+        "file_visibility": {**{name: ("evaluator_only" if name in EVALUATOR_ONLY_FILES else "agent_visible")
+                               for name in digests}, MANIFEST_JSON: "agent_visible"},
         "file_digests": digests,
         "payload_digest": {"sha256": sha256_hex(summary),
                            "over": "the published counts payload, which carries no historical item"},

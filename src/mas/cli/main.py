@@ -914,7 +914,9 @@ def cmd_recovery(args) -> None:
         if isinstance(mapping, dict):
             mapping = mapping.get("mapping")
         try:
-            report = recovery.report(core, args.task, by=who, roster=_roster(args, required=mapping is None),
+            # The roster is resolved but not required: a report over a comparison already recorded
+            # needs no model call, and `recovery.report` says so itself when one is missing.
+            report = recovery.report(core, args.task, by=who, roster=_roster(args, required=False),
                                      mapping=mapping, at_seq=args.at_seq)
         except recovery.GateRefusal as error:
             print(f"the proposed mapping is refused ({len(error.problems)} check(s) failed):", file=sys.stderr)

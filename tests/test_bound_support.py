@@ -343,8 +343,17 @@ def test_an_unaudited_bound_is_marked_unaudited_rather_than_passed_or_failed(cor
                                       "traces": {"rule.cutoff.value": "claim_value"}, "range_endpoints": []}
     assert rules["bounds_unsupported"] == [] and rules["bounds_withheld"] == []
 
-    with pytest.raises(criteria.InvariantViolation, match="held out over bound support"):
-        criteria.confirm_rule_set(core, task_id, by=OPERATOR, require_bound_support=True)
+    # Under the strict gate the *cutoff* is withheld, not the criterion: the number is unaudited, so
+    # it may not act as a threshold, but the measurement behind it still ranks candidates in the
+    # attribute's declared direction, which asserts no bound. See
+    # `test_a_preference_whose_cutoff_is_withheld_still_ranks_on_the_measurement_behind_it`.
+    strict = criteria.rule_set(core, task_id, criteria.confirm_rule_set(
+        core, task_id, by=OPERATOR, require_bound_support=True))
+    (withheld,) = strict["bounds_withheld"]
+    assert withheld["fallback"] == "ranked_without_the_withheld_cutoff"
+    (strict_entry,) = strict["entries"]
+    assert strict_entry["rule_ref"] == entry["rule_ref"]
+    assert strict["acceptance_label"] == "exploratory"
 
 
 def test_a_rule_whose_cited_claims_contradict_its_cutoff_is_held_out_of_the_confirmed_set(core):
@@ -617,3 +626,57 @@ def test_a_transform_bound_on_a_basis_that_states_no_number_is_supported_is_refu
     report = bound_support.validate(attribute, ORDERING_RULE, claims=[])
     assert report["states"] == {"attribute.value_transform.bound": "unsupported"}
     assert any("which states that no number is supported" in m for m in bound_support.messages(report))
+
+
+def test_a_preference_whose_cutoff_is_withheld_still_ranks_on_the_measurement_behind_it(core):
+    """Withholding a cutoff and withholding a measurement are different acts, and only the first is
+    what the support contract establishes.
+
+    Measured on the clean derivation of 14 October 2026: all 33 cutoff-bearing proposals declared a
+    support record, and the proposer declared 29 `reports_measurement` and 4 `provides_heuristic` --
+    none `states_decision_threshold`, because the literature reports measurements and rules of thumb
+    and does not state screening cutoffs. The strict gate therefore withholds every derived
+    threshold, and dropping the criteria with them would discard sourced measurements the task cares
+    about. Ranking by the measured value asserts no cutoff, which is the unsupported part.
+    """
+    task_id = _task(core)
+    stated = claim(core, task_id, claim_id="claim_f58", quote=F_QUOTE, value=30, unit="%")
+    _, rule_ref = criteria.propose(
+        core, task_id, dict(BIOAVAILABILITY, supporting_claim_refs=[stated]),
+        dict(THRESHOLD_RULE, rule_id="rule_reported_f",
+             cutoff={"comparator": ">=", "value": 30, "unit": "%"},
+             bound_support=[record("rule.cutoff.value", claim_id=stated, number=30, unit="%",
+                                   statement_kind="reports_measurement")]),
+        by=AGENT)
+
+    rules = criteria.rule_set(core, task_id, criteria.confirm_rule_set(
+        core, task_id, by=OPERATOR, require_bound_support=True))
+    (withheld,) = rules["bounds_withheld"]
+    assert withheld["rule_ref"] == rule_ref
+    assert withheld["fallback"] == "ranked_without_the_withheld_cutoff"
+    # the criterion keeps the board, ranking on the measurement, asserting no threshold
+    assert [e["rule_ref"] for e in rules["entries"]] == [rule_ref]
+    assert rules["acceptance_label"] == "exploratory"
+
+
+def test_a_hard_exclusion_whose_cutoff_is_withheld_does_not_fall_back_to_a_nudge(core):
+    """An exclusion with no defensible cutoff has nothing left to do, and demoting it to a ranking
+    would quietly turn a requirement into a preference -- the one direction a repair must not go."""
+    task_id = _task(core)
+    stated = claim(core, task_id, claim_id="claim_f_hard", quote=F_QUOTE, value=30, unit="%")
+    _, rule_ref = criteria.propose(
+        core, task_id, dict(BIOAVAILABILITY, supporting_claim_refs=[stated]),
+        dict(THRESHOLD_RULE, rule_id="rule_hard_f", rule_kind="hard_exclusion",
+             cutoff={"comparator": ">=", "value": 30, "unit": "%"},
+             bound_support=[record("rule.cutoff.value", claim_id=stated, number=30, unit="%",
+                                   statement_kind="provides_heuristic")]),
+        by=AGENT)
+    criteria.propose(core, task_id, dict(BIOAVAILABILITY, attribute_id="attr_half_life",
+                                         name="Terminal half-life", unit="h",
+                                         definition="terminal half-life after one oral dose"),
+                     ORDERING_RULE, by=AGENT)
+    rules = criteria.rule_set(core, task_id, criteria.confirm_rule_set(
+        core, task_id, by=OPERATOR, allow_pending=True, require_bound_support=True))
+    (withheld,) = rules["bounds_withheld"]
+    assert withheld["rule_ref"] == rule_ref and withheld["fallback"] is None
+    assert not [e for e in rules["entries"] if e["rule_ref"] == rule_ref]

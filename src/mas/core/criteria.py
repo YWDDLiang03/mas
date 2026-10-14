@@ -494,8 +494,36 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
             # promoted criterion carries no support record at all and §9.2 asks that absent
             # metadata be marked unknown rather than be given a passing status *or* a failing one.
             bounds_withheld.append({"rule_ref": rule_ref, "attribute_ref": rule["attribute_ref"],
-                                    "states": support["states"]})
-            continue
+                                    "states": support["states"], "fallback": None})
+            # WHY a preference may fall back to ranking instead of leaving the set: withholding the
+            # *cutoff* and withholding the *measurement* are different acts, and only the first is
+            # what the support contract establishes. Measured on the clean derivation of 14 October
+            # 2026: all 33 cutoff-bearing proposals declared a support record, and the proposer
+            # declared 29 of them `reports_measurement` and 4 `provides_heuristic` -- none
+            # `states_decision_threshold`, because the literature reports measurements and rules of
+            # thumb and does not state screening cutoffs. So the strict gate withholds every derived
+            # threshold, and dropping the criteria with them would discard sourced measurements the
+            # task does care about. Ranking candidates by a measured value in the attribute's
+            # declared direction asserts no cutoff, which is precisely what is unsupported here.
+            # A hard exclusion gets no such fallback: an exclusion with no defensible cutoff has
+            # nothing left to do, and demoting it would quietly turn a requirement into a nudge.
+            # Only a withheld *cutoff* can fall back. A withheld transform bound is not removed by
+            # dropping the predicate: the transform still computes the cell from that number, so the
+            # unsupported value would go on scoring under a different predicate form. Dropping the
+            # transform instead would change which quantity the attribute is about, which is not a
+            # repair this may make on its own.
+            unsourced = [path for path, state in support["states"].items() if state != "sourced_threshold"]
+            if rule["rule_kind"] != "preference" or not attr.get("direction") \
+                    or attr.get("direction") == "non_directional" \
+                    or not all(path.startswith("rule.cutoff") for path in unsourced):
+                continue
+            rule = dict(rule, predicate_form="ordering", cutoff=None,
+                        cutoff_basis="none_evidence_insufficient")
+            bounds_withheld[-1]["fallback"] = "ranked_without_the_withheld_cutoff"
+            # Re-validated against the rule as it will now score: the authority a bound owed is owed
+            # by the bound, and this rule no longer carries one. Reusing the earlier report would
+            # keep demanding a decision about a cutoff that has just been removed.
+            support = bound_support.validate(attr, rule, claims=_claims_for(core, task_id, attr, rule))
         item = decided.get(rule_ref)
         if item is not None and item["subject"].get("attribute_ref") not in (None, rule["attribute_ref"]):
             # A decision is a decision about one version of one decision-bearing object. The rule
