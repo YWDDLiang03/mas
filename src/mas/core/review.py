@@ -71,7 +71,26 @@ def items(core: Core, stream_ids: list[str]) -> dict[str, dict[str, Any]]:
 def decide(core: Core, item: dict[str, Any], *, decision: str, actor: dict[str, Any], reason_text: str,
            entry: str, edits: list[dict[str, Any]] | None = None,
            historical_list_exposure: str = "undeclared", confidence_qualifier: str = "not_stated") -> dict[str, Any]:
-    """Record one expert decision. Only interactive entry by a human may create an `hd_` (design §2.4)."""
+    """Record one expert decision. Only interactive entry by a human may create an `hd_` (design §2.4).
+
+    WHAT THIS DOES AND DOES NOT ENFORCE (F7). `actor` and `entry` are supplied by the caller and are
+    not authenticated: a direct non-interactive call passing `{"kind": "human"}` and
+    `entry="interactive"` produces a valid record carrying `approval_kind:
+    human_scientific_approval`. That was demonstrated, not hypothesised. So the guard below is a
+    **process boundary, not a security boundary**, and the project must not claim otherwise:
+
+      * It holds for a person at the CLI, which reads the confirmation from `/dev/tty`
+        (`cli.main._confirm_on_terminal`) and cannot be satisfied by piped input.
+      * It holds for a model whose output is restricted data handed to a trusted controller, because
+        the model never reaches this function.
+      * It does NOT hold against anything that can execute Python in this process or write the
+        journal -- which includes an agent with shell access to this repository.
+
+    Making it a real boundary needs an authenticated principal the agent cannot impersonate: a
+    separate service, or a signature verified against a key the agent cannot read. A signature whose
+    private key sits in the agent's filesystem adds nothing. Until then the honest claim is the
+    narrow one, and `adjudication` exists so an autonomous run never needs to reach for this at all.
+    """
     vocab.require("hd_decision", decision)
     if actor.get("kind") != "human":
         raise ReviewError("rejected_unauthorized", "expert decisions are made by people, never by agents")

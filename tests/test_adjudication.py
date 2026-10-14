@@ -869,3 +869,35 @@ def test_withdrawing_an_agents_verdict_needs_a_reason(core):
     adjudication.adjudicate(core, _item(core, task_id, rule_ref))
     with pytest.raises(adjudication.AdjudicationError, match="say why"):
         adjudication.reopen(core, _item(core, task_id, rule_ref), by=OPERATOR, reason_text="  ")
+
+
+def test_the_expert_decision_guard_is_a_process_boundary_and_not_a_security_boundary(core):
+    """F7, pinned as a known limitation rather than left as an unexamined claim.
+
+    The project repeatedly asserted that no agent can create an expert decision. The guard in
+    `review.decide` does reject a non-human actor and non-interactive entry, and that is what stops
+    a model's structured output becoming an approval. But both fields are caller-supplied strings,
+    so anything able to call this function can satisfy them. This test asserts BOTH halves, so the
+    day someone enforces an authenticated principal it fails and has to be rewritten -- which is
+    the point of writing it down.
+    """
+    from mas.core import review
+    task_id, _ = task.record_version(core, SPEC, by=OPERATOR)
+    item = {"item_id": "q_f7", "state": "open", "stream_id": task_id,
+            "subject": {"kind": "rule_version", "id": "rule_anything@v1"}}
+
+    # the half that holds: an agent actor, and a human actor without interactive entry
+    with pytest.raises(review.ReviewError, match="never by agents"):
+        review.decide(core, item, decision="approve", actor=actor("agent", "proposer", "proposer"),
+                      reason_text="", entry="interactive")
+    with pytest.raises(review.ReviewError, match="interactive confirmation"):
+        review.decide(core, item, decision="approve", actor=OPERATOR, reason_text="", entry="scripted")
+
+    # the half that does not hold: the fields are unauthenticated, so a direct call satisfies them
+    forged = review.decide(core, item, decision="approve",
+                           actor={"id": "not-a-person", "kind": "human", "role": "expert"},
+                           reason_text="", entry="interactive")
+    assert forged["approval_kind"] == "human_scientific_approval"
+    assert forged["decision_id"].startswith("hd_"), (
+        "a direct caller can still mint an expert decision; the guard is a process boundary, and "
+        "the public claim must stay narrow until an authenticated principal replaces it")
