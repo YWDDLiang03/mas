@@ -394,6 +394,22 @@ ORDERING = {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": N
             "cutoff_basis": "none_evidence_insufficient"}
 QUEUE_TEXT = ("the attribute's definition describes a derived quantity but the cell carries the raw value its "
               "source returns; a registered criterion changes only by expert decision")
+# The two definitions the manuscript task's own attributes carry, verbatim down to the punctuation of
+# the clause that decomposes the band, because the readings these sentences yield are the whole of
+# what route 5 decides on: a paraphrase that tidied "the shortfall below 2 ... and the excess above 4"
+# into one clause would stop being the case that was measured. Both are quoted to the end of a
+# sentence, and every form in `_QUANTITY_FORMS` matches inside one sentence, so the elided remainder
+# of each definition cannot take a reading away from what is pinned here.
+LIPOPHILICITY_DEFINITION = (
+    "The computed octanol-water partition coefficient of the neutral species, expressed as its distance "
+    "in log units outside the band of approximately 2 to 4 that the cited source states as optimal for "
+    "this inhibitor class: zero inside the band, the shortfall below 2 for a more polar molecule, and "
+    "the excess above 4 for a more lipophilic one. Lower is better by construction.")
+MOLECULAR_WEIGHT_DEFINITION = (
+    "The computed molecular weight of the molecule, expressed as its excess in g/mol above 500 g/mol, "
+    "the upper end of the band that the cited source states for this inhibitor class and describes as "
+    "close to the upper limit compatible with efficient passive diffusion: zero for a molecule at or "
+    "below 500 g/mol, and the difference above 500 g/mol for a heavier one.")
 
 
 def _bound_claim(core, task_id: str, *, claim_id: str, quote: str, value, unit: str) -> str:
@@ -537,6 +553,79 @@ def test_a_definition_stating_a_band_yields_distance_outside_band_with_both_boun
     assert adjudication.stated_quantity("the distance outside the stated 4 to 2 band") is None
     assert adjudication.stated_quantity("the distance outside the stated 2 to 4 band") == {
         "kind": "distance_outside_band", "low": 2, "high": 4}
+
+
+def test_the_real_lipophilicity_definition_states_one_band_although_it_spells_out_both_of_its_sides(core):
+    """The measured mis-route, pinned on the definition text it was measured from.
+
+    Three readings come out of this one sentence: `distance_outside_band {2, 4}` from the band, and
+    `shortfall_below {2}` plus `excess_above {4}` from the clause that decomposes it for the reader.
+    Refusing the set sent the item to `no_authority_available` -- demote the rule, stop scoring --
+    over a definition whose readings agree: the band's low IS the shortfall's bound, its high IS the
+    excess's, and all three readings would have written the same number into the same cells.
+    """
+    assert adjudication.stated_quantity(LIPOPHILICITY_DEFINITION) == {
+        "kind": "distance_outside_band", "low": 2, "high": 4}
+
+    task_id = _task(core)
+    claim_id = _bound_claim(core, task_id, claim_id="claim_lp_band", value=None, unit="log units",
+                            quote="oral drugs cluster in a lipophilicity window of 2 to 4 log units")
+    item = _queued(core, task_id, dict(BAND, definition=LIPOPHILICITY_DEFINITION), cites=[claim_id])
+    assert adjudication.route_preview(core, item)["route"] == "definition_restated"
+    record = adjudication.adjudicate(core, item)
+    assert record["route"] == "definition_restated" and record["resolution"] == "declare_value_transform"
+    assert criteria.load(core, record["attribute_ref_after"], task_id)["value_transform"] == {
+        "kind": "distance_outside_band", "low": 2, "high": 4,
+        "basis": "source_stated_value", "source_refs": [claim_id]}
+
+
+def test_the_real_molecular_weight_definition_still_states_its_one_excess_and_names_no_band(core):
+    """The other manuscript definition, unchanged by the reconciliation: its only reading stands alone.
+
+    It says "band" and it says "below", twice, and neither adds a reading: the forms demand a noun
+    that *names* a derived quantity, so "at or below 500 g/mol" is a threshold rather than a
+    shortfall, and the band it mentions is never written as "<low> to <high>". So there is nothing
+    here to reconcile and nothing that needs reconciling -- the route reads it as it always did.
+    """
+    assert adjudication.stated_quantity(MOLECULAR_WEIGHT_DEFINITION) == {"kind": "excess_above", "bound": 500}
+
+    task_id = _task(core)
+    claim_id = _bound_claim(core, task_id, claim_id="claim_mw_bound", value=500, unit="g/mol",
+                            quote="an upper bound of 500 g/mol on molecular weight for oral exposure")
+    item = _queued(core, task_id, dict(EXCESS, definition=MOLECULAR_WEIGHT_DEFINITION), cites=[claim_id])
+    assert adjudication.route_preview(core, item)["route"] == "definition_restated"
+    record = adjudication.adjudicate(core, item)
+    assert criteria.load(core, record["attribute_ref_after"], task_id)["value_transform"] == {
+        "kind": "excess_above", "bound": 500, "basis": "source_stated_value", "source_refs": [claim_id]}
+
+
+def test_readings_that_do_not_reconcile_to_one_band_are_refused_as_they_were_before():
+    """Each way two readings can disagree, and each one still leaves the item for a person.
+
+    The reconciliation is exact and only inward: a band the definition restates side by side is one
+    quantity, and everything else here states two. A bound inside a transformation is read on every
+    cell the rule scores, so a definition this cannot be sure of must not be guessed at.
+    """
+    # two bands: which pair of numbers every cell is measured against is exactly what is unstated
+    assert adjudication.stated_quantity(
+        "the distance outside the stated 2 to 4 band, and the distance outside the 1 to 5 band") is None
+    # a one-sided bound that is not the band's own end on that side -- 1 is not the band's low, and a
+    # cell scored against the wrong one is wrong by that whole difference
+    assert adjudication.stated_quantity(
+        "the distance outside the stated 2 to 4 band: the shortfall below 1 for a more polar molecule") is None
+    assert adjudication.stated_quantity(
+        "the distance outside the stated 2 to 4 band: the excess above 7 for a more lipophilic molecule") is None
+    # two one-sided kinds and no band to reconcile them into: calling 2 and 4 the ends of one band
+    # would be this module's reading of the definition rather than the definition's own statement
+    assert adjudication.stated_quantity(
+        "the shortfall below 2 for a more polar molecule, and the excess above 4 for a more lipophilic one") is None
+    # more than one bound for the same one-sided kind: at most one of them can be the band's low
+    assert adjudication.stated_quantity(
+        "the distance outside the stated 2 to 4 band: the shortfall below 2, or the shortfall below 1") is None
+    assert adjudication.stated_quantity("the shortfall below 2, or the shortfall below 1") is None
+    # a band back to front is still unreadable once reconciled, which is where that refusal now runs
+    assert adjudication.stated_quantity(
+        "the distance outside the stated 4 to 2 band: the shortfall below 4, and the excess above 2") is None
 
 
 def test_restating_a_definition_calls_no_model(core):

@@ -30,8 +30,15 @@ fifth by what the subject attribute's own definition states, for an item that ne
                                  direction. The authority is the definition already promoted into
                                  the store and the claims it cites, exactly as route 1's authority
                                  is the user's own task text: the route adds no judgement and only
-                                 writes structurally what that text already states. Deterministic,
-                                 no model call. Changes no rule kind and no cutoff.
+                                 writes structurally what that text already states. It refuses a
+                                 definition it can read two *different* quantities out of, and reads
+                                 several readings as one only where they reconcile exactly: the
+                                 manuscript's lipophilicity definition states a 2 to 4 band and then
+                                 spells out each side for the reader ("the shortfall below 2 ... and
+                                 the excess above 4"), which parses as three readings of the one
+                                 band. Two one-sided bounds with no band of their own stay refused --
+                                 no text says they are the two ends of one band. Deterministic, no
+                                 model call. Changes no rule kind and no cutoff.
 
 WHY a demotion is a new rule version rather than a field on the entry: the assessor reads
 `rule["rule_kind"]` from the rule record it loads (`assessor.assess_cell`, `roll_up`), so a demotion
@@ -200,15 +207,44 @@ def _as_number(text: str) -> float | int:
     return float(text) if "." in text else int(text)
 
 
+def _one_quantity_decomposed(found: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The single band that every one of these readings is a reading of, or None.
+
+    WHY several readings are not always several quantities: the lipophilicity attribute of the
+    manuscript task states its band once and then decomposes it for the reader -- "outside the band
+    of approximately 2 to 4 ...: zero inside the band, the shortfall below 2 for a more polar
+    molecule, and the excess above 4 for a more lipophilic one" -- which the forms read as three
+    readings whose bounds are the same two numbers: the band's `low` IS the shortfall's bound and
+    its `high` IS the excess's. That is one quantity written out twice, not the case the refusal is
+    for, which is readings that disagree about what every cell would then carry.
+
+    Exactly, and only inward: a one-sided bound that is not the band's own end on that side stays
+    refused, because which number the writer meant is then precisely what is unclear, and so do two
+    one-sided readings with no band -- a band assembled out of them would be this module's
+    invention rather than the definition's statement.
+    """
+    bands = [reading for reading in found if reading["kind"] == "distance_outside_band"]
+    if len(bands) != 1:
+        return None
+    band = bands[0]
+    side_of = {"shortfall_below": band["low"], "excess_above": band["high"]}
+    for reading in found:
+        if reading is not band and reading.get("bound") != side_of.get(reading["kind"]):
+            return None
+    return band
+
+
 def stated_quantity(definition: str) -> dict[str, Any] | None:
     """The transform kind and bound(s) an attribute's definition states, or None.
 
     Conservative on purpose, in both directions. Only the three kinds `criteria.VALUE_TRANSFORMS`
     registers are recognised, and only where the definition states the bounds numerically: a bound
     inside a transformation is read on every cell the rule scores, so a wrong one silently changes
-    what the board measures. Anything that does not resolve to exactly one reading -- no bound, a
-    bound this cannot map to a registered kind, two readings of one sentence -- returns None, which
-    leaves the item on the queue for a person instead of guessing.
+    what the board measures. Anything that does not resolve to exactly one quantity -- no bound, a
+    bound this cannot map to a registered kind, two readings that disagree about the quantity or
+    about a bound of it -- returns None, which leaves the item on the queue for a person instead of
+    guessing. Several readings are one quantity only where they reconcile exactly, which is a band
+    the definition also spells out one side at a time (`_one_quantity_decomposed`).
     """
     text = _RANGE_DASH.sub(" to ", (definition or "").lower())
     found: list[dict[str, Any]] = []
@@ -217,9 +253,9 @@ def stated_quantity(definition: str) -> dict[str, Any] | None:
             reading = {"kind": kind, **dict(zip(parameters, (_as_number(g) for g in match.groups())))}
             if reading not in found:
                 found.append(reading)
-    if len(found) != 1:
+    reading = found[0] if len(found) == 1 else _one_quantity_decomposed(found)
+    if reading is None:
         return None
-    reading = found[0]
     # A band whose stated low is not below its stated high is a definition this cannot read, not one
     # to repair by swapping the bounds: which end the writer meant is exactly what is unclear.
     if reading["kind"] == "distance_outside_band" and reading["low"] >= reading["high"]:
