@@ -134,6 +134,10 @@ SETTINGS: dict[str, Setting] = {
                            choices=("autonomous", "checkpoint", "interactive")),
     "interaction.checkpoints": _s(["criteria_final", "pre_rank"], "points at which a checkpoint run pauses",
                                   item_type=str),
+    "interaction.autonomous_adjudication": _s(False, "let `mas review adjudicate` resolve review queue items "
+                                                     "without a person (recorded as machine adjudications, never "
+                                                     "as expert decisions); interaction.mode = autonomous turns "
+                                                     "it on"),
     # run
     "run.seed": _s(0, "sweep seed; also seeds the symbolic-regression splits", minimum=0, maximum=2**31 - 1),
 }
@@ -328,6 +332,12 @@ def resolve(*, preset: str = "standard", project_file: str | os.PathLike | None 
         apply(_flatten({k: v for k, v in table.items() if k not in ("providers", "roles")}), layer)
     apply(_env_overrides(environ if environ is not None else dict(os.environ)), "environment")
     apply(dict(overrides or {}), "override")
+    if values["interaction.mode"] == "autonomous" and sources["interaction.autonomous_adjudication"] == "default":
+        # Choosing the autonomous mode is choosing to run with nobody to ask, so the switch that lets
+        # the queue be resolved without a person follows it. It is implied, never forced: a layer that
+        # sets it explicitly keeps its value, including `false` alongside the autonomous mode.
+        values["interaction.autonomous_adjudication"] = True
+        sources["interaction.autonomous_adjudication"] = sources["interaction.mode"]
 
     config = Config(values, sources, providers, roles, preset=preset, profile=profile)
     validate(config)
@@ -347,6 +357,11 @@ def validate(config: Config) -> None:
     if v["interaction.mode"] == "autonomous" and v["interaction.checkpoints"]:
         raise ConfigError("interaction.mode = autonomous cannot list checkpoints; clear interaction.checkpoints "
                           "or choose the checkpoint mode")
+    if v["interaction.autonomous_adjudication"] and v["interaction.checkpoints"]:
+        raise ConfigError("interaction.autonomous_adjudication cannot be on while interaction.checkpoints lists "
+                          f"{v['interaction.checkpoints']}: a run that stops for a person at a checkpoint has a "
+                          "person to ask, and resolving the queue without asking them would make the checkpoint "
+                          "a formality; clear interaction.checkpoints or turn the setting off")
     from mas.adapters.literature import registry
     try:
         registry.resolve(v["search.sources"])

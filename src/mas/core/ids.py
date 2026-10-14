@@ -16,6 +16,7 @@ PREFIXES = frozenset({
     "const", "bind", "ops", "ses", "cmd", "chain", "grp", "case",
     "cri",   # criterion lineage in the derivation pool (iteration 2)
     "expr",  # registered scoring expression (iteration 2)
+    "adj",   # machine adjudication of a review queue item (core/adjudication.py); never an `hd_`
 })
 
 

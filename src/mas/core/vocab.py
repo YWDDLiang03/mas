@@ -86,6 +86,26 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
     "queue_item_state": _labelled(
         open=("open", "neutral"), in_review=("in review", "attention"), decided=("decided", "positive"),
         deferred=("deferred", "muted"), expired=("expired", "muted"), withdrawn=("withdrawn (run continued)", "muted"),
+        # A machine adjudication resolves an item without a person, so it is its own state rather than
+        # `decided`: a surface that showed the two alike would read as though an expert had answered.
+        machine_adjudicated=("resolved by an agent (no person confirmed it)", "attention"),
+    ),
+    # Who stands behind a rule that entered a confirmed set (core/adjudication.py).
+    "decision_authority": _labelled(
+        human_scientific_approval=("confirmed by an expert", "positive"),
+        machine_adjudication=("adjudicated by an agent; no person confirmed it", "attention"),
+        trigger_table=("admitted automatically by the trigger table", "neutral"),
+    ),
+    "adjudication_route": _labelled(
+        task_constraint_restated=("restates the task's own constraint", "neutral"),
+        no_authority_available=("no authority available; demoted, stops scoring", "attention"),
+        irreversible_without_authority=("too irreversible for an agent; demoted to a preference", "attention"),
+        dispute_adjudicated=("proposer/critic dispute adjudicated by an agent", "attention"),
+    ),
+    "adjudication_verdict": _labelled(
+        uphold_proposal=("the proposal stands", "neutral"), uphold_objection=("the objection stands", "attention"),
+        revise=("settled by a change to the rule", "neutral"),
+        cannot_resolve=("not settled; the rule stops scoring", "attention"),
     ),
     "hd_decision": _domain(
         "approve", "approve_with_edits", "reject", "defer_more_evidence", "escalate", "abstain",

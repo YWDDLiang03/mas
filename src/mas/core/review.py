@@ -1,4 +1,11 @@
-"""Human Review Queue (C18): queue items and expert decision records `hd_` (design §12)."""
+"""Human Review Queue (C18): queue items and expert decision records `hd_` (design §12).
+
+An `hd_` is created by a person confirming at a terminal and by nothing else; `decide` refuses any
+other actor and any non-interactive entry. An item may instead be resolved without a person by a
+`machine_adjudication` (`core/adjudication.py`), which is a separate record with a separate id, a
+separate queue state and `approval_kind: agent_verdict`; `items` folds it, and this module never
+creates one.
+"""
 
 from __future__ import annotations
 
@@ -46,6 +53,18 @@ def items(core: Core, stream_ids: list[str]) -> dict[str, dict[str, Any]]:
                 item = out.get(event.payload["item_id"])
                 if item is not None:
                     item["state"] = "withdrawn"
+            elif event.event_type == "decision.recorded" and event.payload.get("adjudication_id"):
+                # A machine adjudication (core/adjudication.py) resolves an item without a person. It is
+                # folded into its own state, never `decided`, so nothing downstream -- the rule set, the
+                # board, the queue page -- can read it as an expert having answered. `decide` still
+                # refuses the item afterwards, because its state is not open: an `hd_` stays a person's.
+                item = out.get(event.payload["queue_item_ref"])
+                if item is not None:
+                    item.update(state="machine_adjudicated", adjudication_id=event.payload["adjudication_id"],
+                                adjudication_route=event.payload["route"],
+                                adjudication_resolution=event.payload["resolution"],
+                                adjudication_reason=event.payload["reason_text"],
+                                authority=event.payload["authority"])
     return out
 
 

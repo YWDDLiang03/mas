@@ -240,8 +240,17 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     trigger table lets proceed automatically enters with `confirmed_by: auto:trigger_table`.
     Proposals still awaiting a decision block the set unless `allow_pending` is given (for
     exploratory runs); they are then listed in `pending[]`, never silently dropped.
+
+    A rule whose item was resolved by a `machine_adjudication` instead enters with that `adj_` as
+    its `confirmed_by`, is listed in `machine_adjudicated[]`, and carries `authority:
+    machine_adjudication` on its entry. One such rule makes the whole set `exploratory` with a
+    reason naming the count, for the same reason a fitted ordering method does: the label is what a
+    reader has to go on, and a set no person has confirmed must not read as a settled one.
     """
+    from . import adjudication   # imported here: adjudication reads this module's records
+
     queue = review.items(core, [task_id])
+    adjudicated = adjudication.by_rule_version(core, task_id)
     decided = {i["subject"]["id"]: i for i in queue.values()
                if i["subject"]["kind"] == "rule_version" and i["state"] == "decided"}
     open_refs = sorted(i["subject"]["id"] for i in queue.values()
@@ -252,20 +261,27 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     for event in core.journal.replay(task_id):
         if event.event_type == "criterion.version_proposed" and event.payload["kind"] == "rule":
             proposed[event.payload["id"]] = f"{event.payload['id']}@v{event.payload['version']}"   # latest version wins
-    entries, deferred = [], []
+    entries, deferred, machine_adjudicated = [], [], []
     for rule_ref in sorted(proposed.values()):
         rule = load(core, rule_ref, task_id)
+        adjudication_record = adjudicated.get(rule_ref)
         capability = load(core, rule["attribute_ref"], task_id)["evidence_request"]["capability"]
         if capability in defer_capabilities:
-            deferred.append({"rule_ref": rule_ref, "capability": capability, "reason": defer_reason})
+            # A deferred rule carries its authority too, but it stays out of `machine_adjudicated`:
+            # that list is what the set rests on, and a rule held out of this run rests on nothing.
+            deferred.append({"rule_ref": rule_ref, "capability": capability, "reason": defer_reason,
+                             "authority": "machine_adjudication" if adjudication_record else None})
             continue
         item = decided.get(rule_ref)
         if item is not None:
             if item["decision"] not in ("approve", "approve_with_edits"):
                 continue
-            confirmed_by = item["decision_id"]
+            confirmed_by, authority = item["decision_id"], "human_scientific_approval"
+        elif adjudication_record is not None:
+            confirmed_by, authority = adjudication_record["adjudication_id"], "machine_adjudication"
+            machine_adjudicated.append(rule_ref)
         elif not needs_expert(rule):
-            confirmed_by = "auto:trigger_table"
+            confirmed_by, authority = "auto:trigger_table", "trigger_table"
         else:
             continue
         attr = load(core, rule["attribute_ref"], task_id)
@@ -274,7 +290,9 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
         # while also appearing in `pending[]`, which on its own reads as "did not enter the set". The entry says
         # which it is, so a snapshot cannot present a disputed rule as a settled one.
         entries.append({"attribute_ref": rule["attribute_ref"], "rule_ref": rule_ref, "rule_kind": rule["rule_kind"],
-                        "confirmed_by": confirmed_by, "acceptable_value_sources": attr["acceptable_value_sources"],
+                        "confirmed_by": confirmed_by,
+                        "authority": vocab.require("decision_authority", authority),
+                        "acceptable_value_sources": attr["acceptable_value_sources"],
                         "on_states": [rule["on_missing"], rule["on_inapplicable"], rule["on_conflict"]],
                         "cutoff_basis": rule["cutoff_basis"], "disputed": rule_ref in set(open_refs)})
     if not entries:
@@ -285,16 +303,20 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                            "coverage_floor": coverage_floor, "constants": constants or []}
     fitted_ordering = chosen_after_results(ordering_method) and not preregistration_ref
     scoring_disputed = sorted(e["rule_ref"] for e in entries if e["disputed"])
+    machine_adjudicated = sorted(machine_adjudicated)
     acceptance_reasons = ([f"{len(open_refs)} rule proposals await an expert decision"] if open_refs else []) + \
                          ([f"{len(scoring_disputed)} of them score candidates while disputed: "
                            f"{', '.join(scoring_disputed)}"] if scoring_disputed else []) + \
+                         ([f"{len(machine_adjudicated)} rules were adjudicated by an agent; no person has "
+                           f"confirmed them: {', '.join(machine_adjudicated)}"] if machine_adjudicated else []) + \
                          (["the ordering method was fitted on the results it ranks"] if fitted_ordering else [])
     record = {"rule_set_ref": f"rules@v{version}", "task_id": task_id, "entries": entries,
               "ordering_method": ordering_method or {"kind": "weighted_preference", "weight_vector": {}, "tie_break": "candidate_id"},
               "coverage_floor": coverage_floor,
               "evidence_admission_predicate_hash": sha256_hex(admission_predicate),
               "confirmed_by": [e["confirmed_by"] for e in entries], "pending": open_refs,
-              "pending_but_scoring": scoring_disputed, "deferred": deferred,
+              "pending_but_scoring": scoring_disputed, "machine_adjudicated": machine_adjudicated,
+              "deferred": deferred,
               "acceptance_label": vocab.require("acceptance_label", "exploratory" if acceptance_reasons else "prespecified"),
               "acceptance_reasons": acceptance_reasons, "preregistration_ref": preregistration_ref}
     artifact_id = core.artifacts.put("rule_set", record)
@@ -303,7 +325,8 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                                  "hash": record["evidence_admission_predicate_hash"], "pending": open_refs},
                         artifact_links=[{"kind": "rule_set", "id": artifact_id, "version": version}],
                         summary=f"confirmed {record['rule_set_ref']} ({len(entries)} rules, {len(open_refs)} pending "
-                                f"of which {len(scoring_disputed)} score anyway, {len(deferred)} deferred)")
+                                f"of which {len(scoring_disputed)} score anyway, {len(machine_adjudicated)} adjudicated "
+                                f"by an agent, {len(deferred)} deferred)")
     return record["rule_set_ref"]
 
 

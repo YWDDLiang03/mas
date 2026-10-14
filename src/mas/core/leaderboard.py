@@ -96,6 +96,22 @@ def _changes(previous: dict[str, Any] | None, entries: list[dict[str, Any]]) -> 
     return changes
 
 
+def _review_summary(rule_set: dict[str, Any]) -> dict[str, Any]:
+    """Who stands behind the rules this board was built on.
+
+    A board carries its own answer to "did a person agree to this?", because the rule set is a
+    separate record a reader may never open. Rules resolved by a `machine_adjudication` are named,
+    not counted away: the count alone would not say which exclusion stopped excluding.
+    """
+    machine = list(rule_set.get("machine_adjudicated") or [])
+    expert = sorted(e["rule_ref"] for e in rule_set.get("entries", [])
+                    if e.get("authority") == "human_scientific_approval")
+    return {"recommended_requires_hd": True, "expert_confirmed_rules": expert, "expert_confirmed_n": len(expert),
+            "machine_adjudicated_rules": machine, "machine_adjudicated_n": len(machine),
+            "note": (f"{len(machine)} of this board's rules were adjudicated by an agent; no person has "
+                     f"confirmed them" if machine else None)}
+
+
 def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id: str, round_id: str, rule_set: dict[str, Any],
                    evidence_snapshot_id: str | None, roll_ups: dict[str, dict[str, Any]],
                    cells: dict[str, list[dict[str, Any]]], scores: dict[str, tuple[float | None, float]],
@@ -175,7 +191,7 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
                             "ranking_coverage_floor": ranking_coverage_floor,
                             "unranked_for_coverage": sum(1 for e in entries if "rank_note" in e),
                             "budget": budget},
-        "interaction_estimate_provider": "none", "human_review_summary": {"recommended_requires_hd": True},
+        "interaction_estimate_provider": "none", "human_review_summary": _review_summary(rule_set),
         "published_at": utc_now(),
     }
     return snapshot

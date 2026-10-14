@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
-from mas.core import criteria, leaderboard, ledger, mechanism, projection, sr_stage, vocab
+from mas.core import adjudication, criteria, leaderboard, ledger, mechanism, projection, sr_stage, vocab
 from mas.core import pool as pool_mod, review as review_mod, task as task_mod
 from mas.core.clock import utc_now
 from mas.core.config import Config
@@ -28,6 +28,8 @@ from mas.core.runtime import Core
 READ_ONLY = "read-only: this surface records nothing; runs are started and expert decisions made on the terminal"
 FRESHNESS = "static: this page is one fold of the journal, taken when it was rendered; reload to fold again"
 TERMINAL_DECISION = "the decision is made on the terminal, not here"
+NO_PERSON_CONFIRMED = ("these items were resolved by an agent so the run could proceed; no person confirmed them, "
+                       "and every rule set and board they reach says so")
 SECRET_MARK = "api_key"
 MAX_ROWS = 200
 POOL_ORDER = ("promoted", "candidate", "needs_refine", "deferred_next_round", "merged_away", "withdrawn", "filtered_out")
@@ -176,6 +178,11 @@ def board(core: Core, task_id: str, *, snapshot_id: str | None = None, top: int 
         "acceptance_label": rules.get("acceptance_label"),
         "acceptance_label_shown": _label("acceptance_label", rules.get("acceptance_label")),
         "acceptance_reasons": rules.get("acceptance_reasons") or [],
+        "human_review_summary": snapshot.get("human_review_summary") or {},
+        "machine_adjudicated_rules": [{"rule_ref": entry["rule_ref"], "rule_kind": entry["rule_kind"],
+                                       "authority": _label("decision_authority", entry.get("authority"))}
+                                      for entry in rules.get("entries", [])
+                                      if entry.get("authority") == "machine_adjudication"],
         "ordering_method": {key: method.get(key) for key in ("kind", "expression_text", "provenance",
                                                              "expression_ref", "tie_break", "fitter_version")},
         "rankable_set_size": len(ranked), "members_compared": len(entries),
@@ -323,23 +330,40 @@ def _review_row(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def review_queue(core: Core) -> dict[str, Any]:
-    """The queue as it stands: shown here, decided on the terminal, never from a page (§9, §15.2.7)."""
+    """The queue as it stands: shown here, decided on the terminal, never from a page (§9, §15.2.7).
+
+    An item a machine adjudication resolved is listed apart from the ones an expert decided, with the
+    route that resolved it and the plain statement that no person confirmed it, because the two are
+    the same shape of row and only the authority behind them differs.
+    """
     items = review_mod.items(core, core.journal.streams("task_") + core.journal.streams("run_"))
-    pending, decided, withdrawn = [], [], []
+    pending, decided, adjudicated, withdrawn = [], [], [], []
     for item in sorted(items.values(), key=lambda item: item["created_at"]):
         row = _review_row(item)
         if item["state"] in ("open", "in_review"):
-            pending.append(dict(row, decided_where=TERMINAL_DECISION,
+            pending.append(dict(row, decided_where=TERMINAL_DECISION, **adjudication.route_preview(core, item),
                                 decide_with=f"mas review decide {item['item_id']} --decision DECISION "
                                             f"--reason TEXT --exposure DECLARATION"))
         elif item["state"] == "decided":
             decided.append(dict(row, decision=_label("hd_decision", item["decision"]),
-                                decision_id=item["decision_id"]))
+                                decision_id=item["decision_id"],
+                                authority=_label("decision_authority", "human_scientific_approval")))
+        elif item["state"] == "machine_adjudicated":
+            adjudicated.append(dict(row, adjudication_id=item["adjudication_id"],
+                                    route=item["adjudication_route"],
+                                    route_label=_label("adjudication_route", item["adjudication_route"]),
+                                    resolution=item["adjudication_resolution"],
+                                    reason=item["adjudication_reason"],
+                                    authority=_label("decision_authority", item["authority"]),
+                                    confirmed_by_a_person=False))
         else:
             withdrawn.append(row)
     return _frame("review queue", {
         "decisions_are_made": TERMINAL_DECISION, "pending": pending, "pending_n": len(pending),
-        "blocking_n": sum(1 for row in pending if row["blocking"]), "decided": decided, "withdrawn": withdrawn})
+        "blocking_n": sum(1 for row in pending if row["blocking"]), "decided": decided,
+        "machine_adjudicated": adjudicated, "machine_adjudicated_n": len(adjudicated),
+        "machine_adjudication_note": NO_PERSON_CONFIRMED if adjudicated else None,
+        "withdrawn": withdrawn})
 
 
 def criteria_pool(core: Core, task_id: str) -> dict[str, Any]:

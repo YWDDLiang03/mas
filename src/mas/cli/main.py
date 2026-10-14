@@ -10,6 +10,8 @@
                                                prints what each stage added, pruned and merged, per iteration
     mas rules confirm TASK [--allow-pending] | rules show TASK
     mas review list [TASK] | review decide ITEM --decision D --reason TEXT --exposure E
+    mas review adjudicate [TASK] [--item ITEM]  resolve open items without a person, as machine adjudications
+                                               (never expert decisions); needs interaction.autonomous_adjudication
     mas run start TASK [--seed N] [--limit N] [--tool-calls N] [--llm-turns N] | run show RUN | run resume RUN
     mas board show TASK [--all] | candidate show TASK CANDIDATE
     mas candidate explain TASK [CANDIDATE] [--top N]
@@ -39,7 +41,7 @@ from pathlib import Path
 from typing import Any
 
 from mas.core import config as config_mod
-from mas.core import criteria, leaderboard, mechanism, projection, review, sr_stage, task, vocab
+from mas.core import adjudication, criteria, leaderboard, mechanism, projection, review, sr_stage, task, vocab
 from mas.core.broker import Broker
 from mas.core.controller import RunController, RunError
 from mas.core.journal import actor
@@ -378,8 +380,14 @@ def cmd_review(args) -> None:
         items = review.items(core, streams)
         if args.action == "list":
             for item in items.values():
-                if item["state"] in ("open", "in_review"):
-                    print(f"{item['item_id']}  {item['subject']['kind']:<14} {item['subject']['id']:<40} {item['why_expert_required']}")
+                if item["state"] not in ("open", "in_review"):
+                    continue
+                route = adjudication.route_preview(core, item)
+                print(f"{item['item_id']}  {item['subject']['kind']:<14} {item['subject']['id']:<40} {item['why_expert_required']}")
+                print(f"    without a person: {route['route'] or 'not resolvable'} — {route['would'] or route['why_not']}")
+            return
+        if args.action == "adjudicate":
+            cmd_review_adjudicate(args, core)
             return
         item = items.get(args.item)
         if item is None:
@@ -394,6 +402,39 @@ def cmd_review(args) -> None:
         except review.ReviewError as error:
             sys.exit(f"{vocab.label('command_outcome', error.code)}: {error}")
         print(f"{vocab.label('command_outcome', 'applied')}: {decision['decision_id']}")
+
+
+def cmd_review_adjudicate(args, core: Core) -> None:
+    """Resolve open items without a person, printing what each route did.
+
+    It refuses unless `interaction.autonomous_adjudication` is on: the whole point of the record it
+    writes is that someone chose to run with nobody to ask, so the choice is a setting and not a flag
+    on the command that does it.
+    """
+    settings = _settings(args)
+    if not settings["interaction.autonomous_adjudication"]:
+        sys.exit("interaction.autonomous_adjudication is off: adjudicating without a person is a choice about the "
+                 "run, not about this command. Turn it on with --set interaction.mode=autonomous (which also clears "
+                 "the checkpoints) or --set interaction.autonomous_adjudication=true.")
+    results = adjudication.adjudicate_open(core, args.task, roster=_roster(args, required=False),
+                                           only_item=args.only_item)
+    if not results:
+        print("no open review item to resolve")
+        return
+    for record in results:
+        if record.get("route") is None:
+            print(f"{record['queue_item_ref']}  {record['subject']['id']:<40} left open: {record['left_open_because']}")
+            continue
+        effect = {"hard_exclusion": "excludes candidates", "preference": "scores candidates",
+                  "exploratory_consideration": "neither excludes nor scores"}[record["rule_kind_after"]]
+        print(f"{record['adjudication_id']}  {record['subject']['id']:<40} {record['route']}")
+        print(f"    {record['rule_kind_before']} -> {record['rule_kind_after']} ({effect}); {record['reason_text']}")
+        if record["verdict"]:
+            print(f"    verdict {record['verdict']}; claims {', '.join(record['cited_claim_ids']) or 'none'}; "
+                  f"adjudicator family {record['independence']['adjudicator_family']}")
+    resolved = [r for r in results if r.get("route")]
+    print(f"{len(resolved)} items resolved by an agent; no person confirmed any of them. "
+          f"Every rule set built from them is labelled exploratory and says so.")
 
 
 def cmd_run(args) -> None:
@@ -767,9 +808,10 @@ def main(argv: list[str] | None = None) -> int:
     r.set_defaults(func=cmd_rules)
 
     v = sub.add_parser("review")
-    v.add_argument("action", choices=("list", "decide"))
-    v.add_argument("item", nargs="?")
+    v.add_argument("action", choices=("list", "decide", "adjudicate"))
+    v.add_argument("item", nargs="?", help="decide: the queue item; adjudicate: the task")
     v.add_argument("--task")
+    v.add_argument("--item", dest="only_item", help="adjudicate: resolve this one item instead of every open one")
     v.add_argument("--decision", choices=sorted(vocab.DOMAINS["hd_decision"]))
     v.add_argument("--reason")
     v.add_argument("--exposure", default="undeclared", choices=sorted(vocab.DOMAINS["historical_list_exposure"]))
@@ -833,6 +875,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "run":
         args.task = args.run = args.task_or_run
+    if args.command == "review" and args.action == "adjudicate":
+        args.task = args.task or args.item
     args.func(args)
     return 0
 

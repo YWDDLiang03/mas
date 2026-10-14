@@ -35,6 +35,7 @@ Create a store and a model configuration, then work through a task:
     mas --store var/store criteria derive TASK       # literature → criteria (LLM roles)
     mas --store var/store review list                # hard exclusions need an expert decision
     mas --store var/store review decide ITEM --decision approve --reason "..." --exposure not_exposed
+    mas --store var/store review adjudicate TASK     # or: resolve the queue with nobody to ask
     mas --store var/store rules confirm TASK         # add --allow-pending for an exploratory run
     mas --store var/store run start TASK --seed 1
     mas --store var/store board show TASK
@@ -44,11 +45,37 @@ Create a store and a model configuration, then work through a task:
 
 Expert decisions are confirmed on the terminal itself and cannot be scripted.
 
+### Running with nobody to ask
+
+`mas review adjudicate` resolves open queue items without a person, so a run is not blocked by a
+queue nobody will answer. It never produces an expert decision: an `hd_` is still written only by a
+person confirming at a terminal, and what this writes instead is a *machine adjudication* (`adj_`)
+with its own id, its own queue state and `approval_kind: agent_verdict`. It needs
+`interaction.autonomous_adjudication`, which is off until `interaction.mode = autonomous` turns it
+on and which cannot be on while `interaction.checkpoints` lists a checkpoint.
+
+Which route resolves an item depends on *why* it needed an expert; `mas review list` labels every
+open item with the route that would resolve it.
+
+| why the item was raised | what happens | basis recorded |
+|---|---|---|
+| the cutoff restates a constraint the task context states itself | approved unchanged, citing the task-context field and version; deterministic, no model call | `task_constraint_restated` |
+| `cutoff_basis: expert_set` | never approved: the rule becomes an `exploratory_consideration` and stops scoring | `no_authority_available` |
+| a hard exclusion the task text does not state | demoted to a preference, so it keeps measuring and stops deleting candidates | `irreversible_without_authority` |
+| proposer and critic still disagree after a revision | the `adjudicator` role decides -- blind to the proposer's rationale, on a model family neither the proposer nor the critic used where the roster has one | `dispute_adjudicated` |
+
+The two routes that would hand an agent an expert's authority are closed, and they compose: an
+upheld proposal that is still a hard exclusion is demoted anyway, and a revision may only weaken a
+rule. A rule set holding any machine adjudication is `exploratory` whatever else is confirmed, its
+acceptance reasons name the count ("N rules were adjudicated by an agent; no person has confirmed
+them"), each entry carries its authority, and the board and the browser queue say the same.
+
 A rule set records what entered it and what did not. `entries` are the rules that score the
-board; `pending` are the proposals still awaiting an expert decision; `deferred` are rules kept
-out of this run on purpose, by capability. A preference rule the trigger table admits can be in
-`entries` while its critic finding is still open -- that rule is also listed in
-`pending_but_scoring`, and the set's `acceptance_label` is `exploratory` with a reason naming it,
+board, each naming the authority behind it; `pending` are the proposals still awaiting an expert
+decision; `machine_adjudicated` are the rules an agent resolved with no person confirming them;
+`deferred` are rules kept out of this run on purpose, by capability. A preference rule the trigger
+table admits can be in `entries` while its critic finding is still open -- that rule is also listed
+in `pending_but_scoring`, and the set's `acceptance_label` is `exploratory` with a reason naming it,
 so a board built on unconfirmed rules says so rather than reading as settled.
 
 Deferring a capability is how a large universe is screened honestly. One document read serves
