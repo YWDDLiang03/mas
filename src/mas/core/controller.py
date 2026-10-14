@@ -441,7 +441,10 @@ class RunController:
             return out_of_budget
         return assessor.assess_cell(candidate=candidate, attribute=attribute, rule=rule,
                                     rule_set_ref=st.rule_set["rule_set_ref"], claims=claims, resolved=True,
-                                    tool_error_ref=error_ref, searched=searched)
+                                    tool_error_ref=error_ref, searched=searched,
+                                    # The only one of the three `assess_cell` calls in this method that
+                                    # scores claims; the other two carry none and are refusals already.
+                                    min_source_documents=st.settings.get("evidence.min_source_documents", 1))
 
     def _cell_refs_hash(self, st: RunState) -> str:
         """The checkpoint's digest of what is assessed so far, read without a writer mid-insert.

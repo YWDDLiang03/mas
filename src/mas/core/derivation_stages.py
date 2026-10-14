@@ -12,7 +12,8 @@ gate, not the model, decides what enters the pool's next state:
   DISTILL  proposer: sharpen each candidate (operational definition, most informative
            measurable quantity, justified direction); revisions are re-validated.
   MERGE    deterministic pairing (same evidence route, unit and direction, overlapping
-           wording), then the adjudicator decides; a merge may cite only its parents' claims.
+           wording), then the adjudicator decides; a reduction may cite only its parents' claims, and
+           inherits the quantity its group already agreed on instead of restating it.
   REFINE   proposer with the reviser prompt fixes validator problems and critic
            findings; after `max_refines` attempts an item waits for the next round.
   PROMOTE  a final blind check, then criteria.propose: clean items are registered as
@@ -29,7 +30,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import bound_support, criteria, vocab
-from .assessor import canonical_unit, family_aggregation_execution
+from .assessor import DEFAULT_DETERMINATION_BASES, canonical_unit, family_aggregation_execution
 from .canonical import canonical_text
 from .derivation import (CRITIC_SYSTEM, CRITIQUE_SCHEMA, PROPOSAL_SCHEMA, PROPOSER_SYSTEM, REVISER_SYSTEM,
                          SCHEMA_BLOCK_FORMS,
@@ -101,8 +102,19 @@ ADJUDICATOR_SYSTEM = (
     "when its members measure the same quantity, in the same unit and direction, for the same purpose; the merged "
     "criterion keeps the clearest definition and cites the claims (from the members' citations only) that support "
     "it. Otherwise keep the members separate and say what distinguishes them. Never name a specific candidate "
-    "compound. A merged criterion has the same fields as the members: attribute, rule, supporting_claim_ids, "
-    "expected_change, falsification_test. "
+    "compound. "
+    "A reduction states only what it decides: a `name` of its own, a `definition`, the `rule`, "
+    "`supporting_claim_ids`, `expected_change`, `falsification_test`, the `evidence_requests` it keeps, and, for a "
+    "consolidation, `members`, `shared_property` and `family_aggregation`. The name is required and no member's "
+    "name can stand in for it -- a family named after one of its endpoints misdescribes itself -- so name the "
+    "quantity the child measures. "
+    "What the group already settled is filled in for you and is not yours to restate: `unit`, `direction`, "
+    "`value_transform`, `measurement_kind`, `acceptable_value_sources` and `acceptable_determination_bases` come "
+    "from the members, which are in one group because they agree on them. Write none of those six. A value that "
+    "contradicts what the members agree on refuses the reduction rather than overriding them; and where the "
+    "members do not agree on one of the six -- on what evidence may answer them, or on what kind of value "
+    "answers them -- the reduction is refused rather than rescoping a member's evidence silently, so consolidate "
+    "the members that agree and leave the others out. "
     "Members may differ only in which database answers the same question -- the same measurement curated by two "
     "sources. That is one quantity: merge them and give the merged attribute evidence_requests, the list of the "
     "members' evidence routes to keep, so the merged criterion reads both sources and pools their values under its "
@@ -117,9 +129,10 @@ ADJUDICATOR_SYSTEM = (
     "refused, so name the substance; and `family_aggregation`, how the family reduces to one number, one of "
     + "|".join(FAMILY_AGGREGATIONS) +
     ". Those are the reductions that are computed rather than merely recorded, so nothing else is accepted: "
-    "`worst_member` scores the least favourable member, which is the largest value when the attribute's "
-    "direction is lower_better and the smallest when it is higher_better, and so needs one of those two "
-    "directions; `median_of_members` scores the median and works under any direction. Your choice sets the "
+    "`worst_member` scores the least favourable member, which is the largest value when the direction is "
+    "lower_better and the smallest when it is higher_better, and so is open only to a group whose members "
+    "declare one of those two -- read it off them, as it is the group's direction the child inherits; "
+    "`median_of_members` scores the median and works under any direction. Your choice sets the "
     "consolidated attribute's own `aggregation` -- do not try to coordinate the two yourself, and expect the "
     "aggregation you write on a consolidated attribute to be replaced by the one your family reduction "
     "implies. "
@@ -236,6 +249,98 @@ def _item(proposal: dict[str, Any], **extra) -> dict[str, Any]:
             "supporting_claim_ids": list(p.get("supporting_claim_ids") or []),
             "expected_change": p.get("expected_change", ""), "falsification_test": p.get("falsification_test", ""),
             **extra}
+
+
+# WHY a stage that rebuilds an item has to be told what to carry over: `_item` keeps the five fields a model
+# authors plus whatever `**extra` names, while `pool.ITEM_FIELDS` persists five more -- so every field the pool
+# keeps and a model does not write is dropped unless the rebuilding stage hands it back. That has now been the
+# shape of two defects: `refine_count`, which `_record` dropped so the repair budget reset on every fold, and
+# `consolidation`, which `distill_stage` and `refine_stage` dropped so a revised consolidated criterion kept
+# the `aggregation` its consolidation chose and lost the list of endpoints it subsumed -- the one thing a
+# reviewer can object to an abstraction with.
+#
+# Carried over here, because each is a fact about the lineage rather than about the text a reviser rewrites:
+#   `dimension`      a revision sharpens a criterion; it does not move it to another dimension.
+#   `refine_count`   the repair budget is cumulative, so a revision does not earn back an attempt.
+#   `consolidation`  the record of what this abstraction replaced -- carried only when it is still true.
+# Deliberately *not* carried over, and listed so that the absence reads as a decision: `validator_problems`,
+# which every revising stage recomputes against the revised item before it stores one, and `critic_findings`,
+# which are findings against the version the revision supersedes. `filter_stage` re-critiques each version and
+# `promote` critiques the version it promotes, so neither is lost by being cleared -- while carrying either
+# forward would make the pool and the criterion card state an objection to text that no longer exists.
+#
+# The attribute fields that fix *what* is measured, as opposed to how well it is worded. Compared
+# case- and whitespace-insensitively, and with the routes keyed on `_source_key`, so sharpening a literature
+# query -- a retrieval knob, the same one a consolidation is allowed to rewrite for the family it now stands
+# for -- is not a change of quantity, while reaching for another source or subject is. `name` counts because
+# `criteria.evidence_key` identifies a literature-bound attribute by its name and unit, and every consolidated
+# family so far is literature-bound; `value_transform` counts for the reason `quantity_key` carries it (F5), a
+# transform being what makes "molecular weight" and "the excess above 500 g/mol" two quantities. The fields
+# that say which evidence may answer the question (`acceptable_value_sources`,
+# `acceptable_determination_bases`) are deliberately absent: they change what counts as an answer, not what
+# was asked, and the family was never a claim about either.
+_MEASURED_BY = ("name", "definition", "unit", "direction", "measurement_kind")
+
+
+def _measured_as(attribute: dict[str, Any]) -> dict[str, Any]:
+    """What this attribute measures: the quantity it names, the scale it is on, the reduction over its
+    claims, and the source and subject of every route that answers it."""
+    measured = {field: " ".join(str(attribute.get(field) or "").lower().split()) for field in _MEASURED_BY}
+    # `criteria.check_attribute` reads a missing aggregation as `consensus`, so the two spellings of the
+    # default are one value here and only a real change of reduction counts as one.
+    measured["aggregation"] = attribute.get("aggregation") or "consensus"
+    measured["value_transform"] = canonical_text(attribute.get("value_transform"))
+    measured["routes"] = sorted({_source_key(route) for route in criteria.evidence_routes(attribute)})
+    return measured
+
+
+def _measures_differently(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
+    """Which of those fields a revision changed, named so a refusal can say which it was."""
+    was, now = _measured_as(before), _measured_as(after)
+    return [field for field in sorted(was) if was[field] != now[field]]
+
+
+def _revised(entry: dict[str, Any], proposal: dict[str, Any], *,
+             refine_count: int) -> tuple[dict[str, Any] | None, str | None]:
+    """The item a revision of `entry` produces, or the reason it is refused; exactly one of the two.
+
+    WHY a revision of a *consolidated* criterion can be refused rather than carried forward or stripped:
+    `consolidation.subsumes` is a claim about the criterion as it stands -- that these specific endpoints are
+    what this one screening criterion now stands for -- and the gate that admitted it checked the family
+    against that criterion's unit, direction, dimension and family reduction (`_consolidation`). The
+    distiller and the reviser see neither the family nor the record: `_view` hands them the abstraction's own
+    fields, so neither can judge whether those endpoints still share the property under a redefinition.
+    Of the three things that can happen to the list, the commitment the pool is reported under -- every
+    criteria count published together with its consolidations and what each one subsumed -- rules out two:
+    carrying it onto a criterion that now measures something else states as reviewed a fact nobody checked,
+    and dropping it leaves a reduced pool unauditable exactly where the headline count rests. So the earlier
+    version stands, the refusal is recorded in the stage result, and the pool keeps a consolidation that is
+    still true of the criterion carrying it. Nothing is stuck: a consolidated criterion that should measure
+    something else can be consolidated again by the adjudicator, which is shown the members and has its
+    shared property and its reduction re-checked, and a revision that only sharpens the wording, the rule,
+    the expected change or the falsification test applies as it always did.
+    """
+    item = _item(proposal, dimension=entry["item"].get("dimension"), refine_count=refine_count)
+    consolidation = (entry["item"] or {}).get("consolidation")
+    if not consolidation:
+        return item, None
+    changed = _measures_differently(entry["item"].get("attribute") or {}, item["attribute"])
+    if changed:
+        return None, (f"this criterion consolidates {len(consolidation.get('subsumes') or [])} endpoint(s) on "
+                      f"the shared property {str(consolidation.get('shared_property'))[:120]!r}, and the "
+                      f"revision changes what it measures ({', '.join(changed)}), which that family was never "
+                      f"checked against; v{entry['version']} stands and the family may be consolidated again")
+    return dict(item, consolidation=consolidation), None
+
+
+def _not_revised(stats: dict[str, Any], entry: dict[str, Any], reason: str) -> None:
+    """A revision the gate did not apply. Nothing is written to the pool, because nothing about the lineage
+    changed; the reason travels in the stage result, which is where `merge_stage` already records the
+    reductions it refused and which `_stage_recorder` journals and stores as a `derivation_stage`."""
+    stats["refused"] = stats.get("refused", 0) + 1
+    stats.setdefault("not_revised", []).append({"criterion_id": entry["criterion_id"], "version": entry["version"],
+                                                "name": (entry["item"].get("attribute") or {}).get("name"),
+                                                "reason": reason[:500]})
 
 
 def _view(entry: dict[str, Any], index: int, *, blind: bool = False) -> dict[str, Any]:
@@ -422,7 +527,7 @@ def filter_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
 
 def distill_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
     pool = ctx.pool.at("distill", iteration)
-    stats = {"revised": 0, "kept": 0, "withdrawn": 0, "to_refine": 0}
+    stats: dict[str, Any] = {"revised": 0, "kept": 0, "withdrawn": 0, "to_refine": 0, "refused": 0}
     for batch in _chunks(active(pool.fold(), ("candidate",)), BATCH["distill"]):
         try:
             views = [_view(e, i) for i, e in enumerate(batch)]
@@ -438,8 +543,11 @@ def distill_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
                                    reason_text=decision["reason"])
                     stats["withdrawn"] += 1
                 elif decision["action"] == "revise" and decision.get("proposal"):
-                    item = _item(dict(entry["item"], **decision["proposal"]), dimension=entry["item"].get("dimension"),
-                                 refine_count=entry["item"].get("refine_count", 0))
+                    item, refused = _revised(entry, dict(entry["item"], **decision["proposal"]),
+                                             refine_count=int(entry["item"].get("refine_count") or 0))
+                    if refused:
+                        _not_revised(stats, entry, refused)
+                        continue
                     if set(item["supporting_claim_ids"]) - set(entry["item"]["supporting_claim_ids"]):
                         stats["kept"] += 1   # distilling may not reach for new evidence; the earlier version stands
                         continue
@@ -674,6 +782,163 @@ def _source_key(route: Any) -> str:
     return canonical_text([route.get("capability"), route.get("question_kind"), criteria.subject_parameters(route)])
 
 
+# WHY a reduction's child inherits instead of restating: `merge_groups` forms a group only from items whose
+# `quantity_key` agrees, so the group has already established the quantity and the scale before the
+# adjudicator is asked anything. Asking it for those fields again asks it to restate a finding, and refusing
+# the reduction when it does not makes the gate -- not the judgement -- decide what the pool reduces to.
+# Measured on the merge of 14 October 2026, the first time this project ever reached the adjudicator: of 9
+# groups over 75 repaired candidates it proposed a reduction for 4 and kept 5 separate with specific
+# pharmacological reasons, and all 4 reductions were refused here. Three consolidations because the child
+# omitted `direction`, so `worst_member` had no end of the scale to call worst, while every member of each of
+# those groups declared one (`lower_better` in two of them, `higher_better` in the bioavailability one); one
+# merge because the child omitted `name` and `acceptable_value_sources`, which left two
+# `literature_retrieval/search` routes returning `peer_reviewed` claims the attribute no longer admitted,
+# while both members declared `["peer_reviewed"]`. Replayed against those nine groups, the inheritance below
+# compiles all three consolidations (`worst_member` as `max`, `max` and `min`) into attributes that satisfy
+# the registry invariants.
+#
+# The split, and why it is where it is:
+#   `_FIXED_BY_GROUPING`   the fields `quantity_key` groups on. Members cannot disagree on them, and a subset
+#                          of a group agrees exactly as the group does, so they are inherited before a
+#                          consolidation's `members` are resolved -- which is what the three refused
+#                          consolidations needed, `_consolidation` reading the direction to compile
+#                          `worst_member`.
+#   `_AGREED_BY_MEMBERS`   the fields that say which evidence may answer the question and what a value must
+#                          look like. Not keyed, so they are inherited only where every member the reduction
+#                          actually folds in says the same thing, measured over those members and not over
+#                          the group: a consolidation names the subset it subsumes, so a member whose
+#                          evidence policy differs can be left out instead of refusing the whole family.
+# Still the adjudicator's, because the group settles none of them: the name, the definition, the rule, which
+# of the members' claims support the child, which of their routes it keeps, and -- for a consolidation --
+# the members, the shared property and the family reduction (whose `aggregation` `merge_stage` derives).
+#
+# Where the members disagree the reduction is refused rather than the gate picking an answer: all three of
+# those fields decide which claims `assessor.usable_claims` keeps, so admitting a kind a member did not
+# accept scores that member's cell on evidence it refused, dropping a kind every member accepted empties a
+# cell that then reads as "no data" rather than as a narrowing, and the measurement kind decides whether a
+# claim's value counts as a value at all. None of that is the adjudicator's to decide for a member it is
+# retiring, and a consolidation can still fold in the subset that does agree. Measured over every lineage
+# this store holds (802 candidate versions, 27 groups `merge_groups` forms over them): members disagree on
+# the value sources in 2 groups, on the effective determination bases in 1, and on the measurement kind in 2
+# (both unitless, mixing ordinal with qualitative and qualitative with categorical members) -- and on none of
+# the three in any of the 9 groups of the live merge, so the refusal costs no reduction that has ever been
+# proposed while the completion rescues 4.
+_FIXED_BY_GROUPING = ("unit", "direction", "value_transform")
+_AGREED_BY_MEMBERS = ("measurement_kind", "acceptable_value_sources", "acceptable_determination_bases")
+
+
+def _acts_as(attribute: dict[str, Any], field: str) -> Any:
+    """What an attribute really acts under for one inherited field, so two spellings of one answer are one
+    answer: an absent `acceptable_determination_bases` is the assessor's default pair (which is what the
+    cell is scored under), a unit is its canonical form, a transform its canonical text."""
+    value = attribute.get(field)
+    if field == "acceptable_determination_bases":
+        return tuple(sorted(value or DEFAULT_DETERMINATION_BASES))
+    if field == "acceptable_value_sources":
+        return tuple(sorted(value or ()))
+    if field == "unit":
+        return canonical_unit(value)
+    if field == "value_transform":
+        return canonical_text(value)
+    return value or None
+
+
+def _determined(members: list[dict[str, Any]], fields: tuple[str, ...]) -> tuple[dict[str, Any], str | None]:
+    """What these members have already settled among `fields`, or the reason they settle nothing.
+
+    The literal value is what is handed on, not the canonical form: `%` and `percent` are one unit here but
+    `criteria.check_rule` compares the attribute's unit with the cutoff's literally, so inventing a spelling
+    no member wrote would be a change of its own.
+    """
+    attributes = [e["item"]["attribute"] for e in members]
+    determined = {}
+    for field in fields:
+        answers = {_acts_as(attribute, field) for attribute in attributes}
+        if len(answers) > 1:
+            return {}, (f"the members do not agree on {field} "
+                        f"({' vs '.join(sorted({str(a.get(field)) for a in attributes}))}), so the reduction has "
+                        f"nothing to inherit and any single answer would change what at least one member's "
+                        f"cell is scored on; consolidate the members that agree instead")
+        if attributes[0].get(field) is not None:
+            determined[field] = attributes[0][field]
+    return determined, None
+
+
+def _cutoff_restated(attribute: dict[str, Any], rule: dict[str, Any]) -> dict[str, Any]:
+    """The rule with its cutoff written in the attribute's own spelling of the group's unit.
+
+    WHY the gate restates it: `criteria.check_rule` compares the two literally, while `assessor.UNIT_SYNONYMS`
+    maps spellings one to one and converts nothing (`percent` *is* `%`, `hr` *is* `h`), so a cutoff written in
+    a synonym of the inherited unit -- or a number left without one, which can only be in the attribute's unit
+    -- would be refused for a spelling, and refused by the inheritance rather than by anything the child got
+    wrong. A cutoff in a canonically different unit is a number compared against the wrong scale, and
+    `check_rule` still refuses it.
+    """
+    cutoff = rule.get("cutoff")
+    if not isinstance(cutoff, dict) or not attribute.get("unit") or cutoff.get("unit") == attribute["unit"]:
+        return rule
+    if cutoff.get("unit") and canonical_unit(cutoff["unit"]) != canonical_unit(attribute["unit"]):
+        return rule
+    return dict(rule, cutoff=dict(cutoff, unit=attribute["unit"]))
+
+
+def _inherited_from(members: list[dict[str, Any]], fields: tuple[str, ...],
+                    proposal: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+    """`proposal` completed with what `members` settled among `fields`, or the reason this reduction is
+    refused -- the members disagreeing, or the child contradicting what they agree on.
+
+    A field the child states is never overwritten: a child declaring another direction, or another set of
+    admissible sources, is asserting something about the quantity its group was formed on, and completing
+    silently over it would hide exactly the claim a reviewer would want refused.
+    """
+    determined, problem = _determined(members, fields)
+    if problem:
+        return proposal, problem
+    attribute = dict(proposal.get("attribute") or {})
+    for field, settled in determined.items():
+        if attribute.get(field) in (None, "", [], {}):
+            attribute[field] = settled
+        elif _acts_as(attribute, field) != _acts_as({field: settled}, field):
+            return proposal, (f"the child declares {field} {attribute[field]!r} while the members it reduces agree "
+                              f"on {settled!r}; a reduction inherits what its group measures rather than "
+                              f"restating it")
+    return dict(proposal, attribute=attribute, rule=_cutoff_restated(attribute, proposal.get("rule") or {})), None
+
+
+def _merged_consolidation(parents: list[dict[str, Any]],
+                          item: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    """The consolidation record a merged child inherits from its parents, or why this merge is refused.
+
+    WHY a merge has to answer this at all: a `merge` claims its members were one quantity all along, so a
+    member that stands for a family of endpoints hands that family to the child -- and the child is a new
+    lineage whose item is built from the adjudicator's declaration, which carries no consolidation. Dropped,
+    the family disappears from the surviving criterion's card while the consolidated parent sits in
+    `merged_away` and is counted nowhere: the audit line vanishes at the one point the pool got smaller.
+
+    Two merges are refused rather than guessed at:
+
+      * more than one consolidated member -- the child would have to state two shared properties and two
+        family reductions, and a family of families is a `consolidate` over them, which recomputes both;
+      * a child measuring differently from its consolidated parent -- the family was never checked against
+        the quantity the child declares, which is the reasoning in `_revised`: a merge is not the place to
+        redefine what an abstraction stands for.
+    """
+    inherited = [(p, (p["item"] or {}).get("consolidation")) for p in parents if (p["item"] or {}).get("consolidation")]
+    if not inherited:
+        return None, None
+    if len(inherited) > 1:
+        return None, (f"{len(inherited)} members are consolidations, each standing for its own family; one "
+                      f"merged criterion cannot state both shared properties, and a family of families is a "
+                      f"consolidation over them rather than a merge")
+    parent, consolidation = inherited[0]
+    changed = _measures_differently(parent["item"].get("attribute") or {}, item["attribute"])
+    if changed:
+        return None, (f"the merged criterion would inherit {parent['criterion_id']}@v{parent['version']}'s "
+                      f"consolidation of {len(consolidation.get('subsumes') or [])} endpoint(s) while measuring "
+                      f"something else ({', '.join(changed)}), which that family was never checked against")
+    return dict(consolidation, carried_from=f"{parent['criterion_id']}@v{parent['version']}"), None
+
+
 def _reach_beyond_parents(item: dict[str, Any], parents_claims: set[str], parents_routes: set[str],
                           child_routes: set[str]) -> str | None:
     """What this child asks for that its parents did not have, named so the refusal record says which it was."""
@@ -735,6 +1000,13 @@ def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> 
         if action not in ("merge", "consolidate") or not declared:
             not_reduced(decision["group"], "kept_separate", action, decision.get("reason") or "")
             continue
+        # The quantity and its scale, inherited before anything reads them: `_consolidation` needs the
+        # child's direction to know which end of the scale `worst_member` scores, and that is where the
+        # three consolidations of 14 October 2026 were refused for a direction all their members declared.
+        declared, problem = _inherited_from(group, _FIXED_BY_GROUPING, declared)
+        if problem:
+            not_reduced(decision["group"], "refused", action, problem)
+            continue
         parents = group
         consolidation = None
         if action == "consolidate":
@@ -774,11 +1046,28 @@ def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> 
         item = _item(declared, dimension=parents[0]["item"].get("dimension"),
                      refine_count=max(int(e["item"].get("refine_count") or 0) for e in parents),
                      **({"consolidation": consolidation} if consolidation else {}))
+        # The rest of the inheritance, measured over the members this reduction folds in rather than over
+        # the whole group: a consolidation names its subset, so what counts as an answer is what that
+        # subset accepts, and a member whose evidence policy differs is left out instead of refusing the
+        # family. Before `ctx.validate`, so a child silent about an agreed field is completed, not refused.
+        item, problem = _inherited_from(parents, _AGREED_BY_MEMBERS, item)
+        if problem:
+            not_reduced(decision["group"], "refused", action, problem)
+            continue
         if consolidation:
             # Written before the validator and before the pool, so what is stored, scored and exported is one
             # value: the declared reduction and the executed aggregation cannot drift apart afterwards
             # because only one of them was ever authored.
             item["attribute"]["aggregation"] = consolidation["executes_as_aggregation"]
+        else:
+            # A merge over a group that contains a consolidated member carries that member's family forward
+            # or is refused; it may not quietly retire the record of what the abstraction replaced.
+            inherited, problem = _merged_consolidation(parents, item)
+            if problem:
+                not_reduced(decision["group"], "refused", action, problem)
+                continue
+            if inherited:
+                item["consolidation"] = inherited
         child_routes = {route_key(r) for r in criteria.evidence_routes(item["attribute"])}
         # An invalid child, one citing evidence its parents did not, or one reaching for a data source no
         # parent was bound to, is not applied: a reduction combines what the pool already has, and that holds
@@ -802,7 +1091,7 @@ def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> 
 
 def refine_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
     pool = ctx.pool.at("refine", iteration)
-    stats = {"revised": 0, "withdrawn": 0, "still_failing": 0, "deferred": 0}
+    stats: dict[str, Any] = {"revised": 0, "withdrawn": 0, "still_failing": 0, "deferred": 0, "refused": 0}
     for batch in _chunks(active(pool.fold(), ("needs_refine",)), BATCH["refine"]):
         try:
             notes = [dict(_view(e, i), validator_problems=e["item"].get("validator_problems") or [],
@@ -820,8 +1109,14 @@ def refine_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
                                    reason_text=revision["reason"])
                     stats["withdrawn"] += 1
                     continue
-                item = _item(dict(entry["item"], **revision["proposal"]), dimension=entry["item"].get("dimension"),
-                             refine_count=count)
+                item, refused = _revised(entry, dict(entry["item"], **revision["proposal"]), refine_count=count)
+                if refused:
+                    # The attempt is not charged to `refine_count`: the budget bounds how often one proposal
+                    # is rewritten, and a rewrite that was never applied is not one of those times. The item
+                    # keeps `needs_refine`, so a later iteration may repair it without redefining it, and
+                    # `promote` defers it if its validator problems are still open.
+                    _not_revised(stats, entry, refused)
+                    continue
                 problems = ctx.validate(item)
                 if not problems:
                     pool.revise(entry, dict(item, validator_problems=[]), state="candidate", reason_kind="refined",

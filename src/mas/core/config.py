@@ -92,6 +92,18 @@ SETTINGS: dict[str, Setting] = {
                                         maximum=50, unit="documents", const_id="const_read_max_candidate_documents"),
     "read.max_content_chars": _s(60000, "characters of a document offered to the reader", minimum=1000,
                                  maximum=500000, unit="characters"),
+    # how much a value has to rest on before it is scored
+    # WHY this is a setting and not a fixed rule: it buys support by discarding evidence, and which of the
+    # two a run needs is the operator's call. One admitted claim is enough for a literature cell today, so a
+    # single unrefused mis-extraction still decides a value -- measured on the two-candidate run of 14
+    # October 2026, where the attribution guard refuses 48% of numeric literature claims and 9 of the 13
+    # cells that still carry a value rest on one document, one of them on the comparator arm of a two-arm
+    # comparison inside a span-verified quote. At 2 that run keeps 4 of those 13 cells, all 4 on the same
+    # candidate. The default is 1 so that nothing changes until someone decides to pay that price
+    # (`assessor.source_document_shortfall`).
+    "evidence.min_source_documents": _s(1, "distinct source documents a literature criterion needs before its "
+                                           "cell carries a value", minimum=1, maximum=10, unit="documents",
+                                        const_id="const_evidence_min_source_documents"),
     # criteria pool workflow
     "criteria.inner_iterations": _s(3, "filter/distill/refine/merge passes within one round", minimum=1, maximum=10,
                                     unit="iterations", const_id="const_criteria_inner_iterations"),

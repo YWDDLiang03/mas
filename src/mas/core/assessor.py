@@ -90,6 +90,36 @@ def family_aggregation_execution(family_aggregation: str, direction: str | None)
     return aggregation, None
 
 
+# WHY a literature cell may be asked for more than one document before it scores: quote verification
+# establishes that the words exist in the source, not that the number answers the question. Measured on the
+# two-candidate run of 14 October 2026 (`run_smoke_lit_1792002118`, 26 literature criteria x 2 candidates),
+# re-assessed from the claim union with the attribution guard applied: the guard refuses 48% of the numeric
+# literature claims it reads, and of the 13 cells that still carry a value 9 rest on a single document and 7
+# on a single claim -- among them a value that was the comparator arm of a two-arm comparison inside a
+# span-verified quote. One unrefused mis-extraction therefore still decides a cell. A second document cannot
+# detect a mis-reading on its own, but it makes the cell's value the agreement of two readings of two texts,
+# which is the cheapest check this path does not already perform.
+#
+# Off by default (`minimum` of 1), because it buys that check by discarding evidence: at 2 that same run keeps
+# 4 of its 13 value-bearing cells, and all 4 belong to one of the two candidates -- every value the comparator
+# had rested on one document, so the floor would leave it unrankable rather than less certain. Raising it is a
+# deliberate trade of coverage for support, so it is an operator setting and a registered constant
+# (`config.evidence.min_source_documents`), not a decision taken here.
+#
+# Database routes are exempt because the floor would mean something else there: a curated measurement comes
+# from one database record by construction, and `evidence.gather` already pools every declared route, so a
+# floor of 2 would refuse single-source curated quantities rather than ask for corroboration.
+def source_document_shortfall(usable: list[dict[str, Any]], attribute: dict[str, Any], minimum: int) -> str | None:
+    """Why this cell's usable claims are too thin a base to score on, or None when they are enough."""
+    if minimum <= 1 or not usable or not criteria.is_literature_bound(attribute):
+        return None
+    documents = {claim.get("source_ref") for claim in usable}
+    if len(documents) >= minimum:
+        return None
+    return (f"{len(usable)} usable claim(s) from {len(documents)} source document(s); a literature criterion "
+            f"carries a value here only with claims from at least {minimum} distinct documents")
+
+
 def declares_predicted(attribute: dict[str, Any]) -> bool:
     """True when the attribute is the one that carries predicted values, rather than measurements."""
     return "predicted" in (attribute.get("acceptable_determination_bases") or DEFAULT_DETERMINATION_BASES)
@@ -149,11 +179,20 @@ def usable_claims(claims: list[dict[str, Any]], attribute: dict[str, Any]) -> tu
 def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: dict[str, Any], rule_set_ref: str,
                 claims: list[dict[str, Any]], resolved: bool, tool_error_ref: str | None = None,
                 searched: list[str] | None = None, not_assessed_reason: str | None = None,
-                evidence_snapshot_id: str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+                evidence_snapshot_id: str | None = None, min_source_documents: int = 1,
+                ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Return (assessment, reason) records for one cell. Pure: no I/O."""
     attr_ref = f"{attribute['attribute_id']}@v{attribute['version']}"
     rule_ref = f"{rule['rule_id']}@v{rule['version']}"
     usable, set_aside = usable_claims(claims, attribute) if resolved and not not_assessed_reason else ([], claims)
+    # Applied before any verdict is computed, so the floor decides whether this cell may be scored at all --
+    # including whether it may declare a conflict, which is as much a decision about a candidate as a value
+    # is. The claims are set aside rather than dropped: they stay in the ledger, and `set_aside_claims` names
+    # every one of them with this reason, so the evidence is visible and only the scoring is refused.
+    shortfall = source_document_shortfall(usable, attribute, min_source_documents)
+    if shortfall:
+        set_aside = set_aside + [dict(c, set_aside_reason="below_min_source_documents") for c in usable]
+        usable = []
     value, unit, value_kind, determination_basis = None, attribute.get("unit"), "missing", "absent"
     conflicting, disposition = [], "none_found"
     if not_assessed_reason or not resolved:
@@ -249,20 +288,25 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
                                                         "tool_error_ref": tool_error_ref},
         "value_and_unit_as_used": statement_value, "applicability_statement": "applicable (no applicability conditions declared)",
         "counter_evidence_disposition": disposition, "cutoff_basis": rule["cutoff_basis"],
-        "uncertainty_statement": f"{len(used_refs)} usable claim(s); aggregation {attribute.get('aggregation', 'consensus')}",
+        "uncertainty_statement": f"{len(used_refs)} usable claim(s); aggregation {attribute.get('aggregation', 'consensus')}"
+                                 + (f"; not scored: {shortfall}" if shortfall else ""),
     }
     reason["reason_text"] = _reason_text(attribute, rule, verdict, statement_value, cutoff, used_refs, disposition,
-                                         not_assessed_reason, tool_error_ref)
+                                         not_assessed_reason, tool_error_ref, shortfall)
     assessment["reason_ref"] = reason["reason_id"]
     return assessment, reason
 
 
-def _reason_text(attribute, rule, verdict, statement_value, cutoff, refs, disposition, not_assessed_reason, tool_error_ref) -> str:
+def _reason_text(attribute, rule, verdict, statement_value, cutoff, refs, disposition, not_assessed_reason,
+                 tool_error_ref, shortfall=None) -> str:
     name = attribute["name"]
     if verdict == "not_assessed":
         return f"{name}: not assessed ({not_assessed_reason})."
     if verdict == "unknown_missing":
-        cause = "a tool error" if tool_error_ref else "no admitted claim from an accepted source"
+        # The shortfall is named here rather than left as "no admitted claim": the cell did find admitted
+        # claims, and a reason that said it found none would be false about the evidence it set aside.
+        cause = ("a tool error" if tool_error_ref else shortfall if shortfall
+                 else "no admitted claim from an accepted source")
         return f"{name}: unknown — {cause}; this is not a failure."
     if verdict == "unknown_conflicted":
         return f"{name}: unknown — {len(refs)} admitted claims fall on both sides of the cutoff; conflict open."

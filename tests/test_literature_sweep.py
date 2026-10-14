@@ -752,3 +752,113 @@ def test_a_claim_the_attribution_guard_refuses_is_set_aside_with_its_reason_and_
                                                "candidate_named_in_quote", "attribution_ambiguous"}
     assert claim["attribution_check"]["rule"] == "arm_comparison"
     assert "does not name Alpha" in claim["attribution_check"]["note"]
+
+
+# --- how many documents a value has to rest on ------------------------------------------------
+# The measured state of the path after the two repairs above, on the real two-candidate run
+# (`run_smoke_lit_1792002118`, 26 literature criteria x 2 candidates, re-assessed from the claim
+# union with the attribution guard applied): 13 cells carry a value, 9 of them on a single document
+# and 7 on a single claim. Quote verification says the words are in the source; it does not say the
+# number answers the question, and the arm-comparison claim above is what a lone unrefused
+# mis-extraction looks like. `evidence.min_source_documents` is the floor that makes a scored cell
+# the agreement of two readings of two texts -- off by default, because on that run it would have
+# kept 4 of the 13 cells and all 4 belonged to one of the two candidates.
+
+def floor_claims(*sources: str) -> list[dict]:
+    """One admitted hypertension claim per named source document."""
+    return [{"claim_id": f"c{index}", "admission_state": "admitted", "evidence_kind": "peer_reviewed",
+             "determination_basis": "measured", "value": 20.0 + index, "unit": HYPERTENSION["unit"],
+             "source_ref": source, "location": {"quoted_span": f"hypertension in {source}"}}
+            for index, source in enumerate(sources)]
+
+
+def floor_cell(claims: list[dict], minimum: int, attribute: dict = HYPERTENSION) -> tuple[dict, dict]:
+    return assessor.assess_cell(candidate={"candidate_id": "cand_alpha"},
+                                attribute=dict(attribute, attribute_id="attr_x", version=1),
+                                rule=dict(ORDERING, rule_id="rule_x", version=1), rule_set_ref="rules@v1",
+                                claims=claims, resolved=True, searched=["literature_retrieval"],
+                                min_source_documents=minimum)
+
+
+def test_a_literature_cell_scores_on_one_document_unless_the_floor_is_raised_above_one():
+    """The default changes nothing: one admitted claim from one paper still carries a value, which is
+    what every run so far has scored on."""
+    cell, reason = floor_cell(floor_claims("src_doi_10.0/A1"), 1)
+    assert cell["verdict"] == "pass" and cell["value"] == 20.0 and cell["set_aside_claims"] == []
+    assert "1 usable claim(s)" in reason["uncertainty_statement"]
+    # two claims out of one paper are two claims and still one document
+    cell, _ = floor_cell(floor_claims("src_doi_10.0/A1") + floor_claims("src_doi_10.0/A1")[:1], 1)
+    assert cell["verdict"] == "pass"
+
+
+def test_a_literature_cell_below_the_document_floor_is_unknown_with_its_claims_set_aside_and_named():
+    """Below the floor the cell does not score, and says why. The claims are not hidden: each one is
+    in `set_aside_claims` under its own reason, so the evidence stays readable and only the scoring
+    is refused -- and the reason text may not say "no admitted claim", because claims were found."""
+    claims = floor_claims("src_doi_10.0/A1", "src_doi_10.0/A1")
+    cell, reason = floor_cell(claims, 2)
+    assert cell["verdict"] == "unknown_missing" and cell["value"] is None
+    assert cell["value_source_claim_refs"] == []
+    assert [entry["reason"] for entry in cell["set_aside_claims"]] == \
+        ["below_min_source_documents", "below_min_source_documents"]
+    assert "2 usable claim(s) from 1 source document(s)" in reason["reason_text"]
+    assert "at least 2 distinct documents" in reason["reason_text"]
+    assert "no admitted claim" not in reason["reason_text"]
+    assert "not scored" in reason["uncertainty_statement"]
+
+
+def test_a_literature_cell_at_the_document_floor_scores_on_the_agreement_of_two_documents():
+    """At the floor the value is the attribute's own aggregation over both documents' claims -- the
+    floor decides whether a cell may be scored, it does not change how it is scored."""
+    claims = floor_claims("src_doi_10.0/A1", "src_doi_10.0/B1")
+    cell, _ = floor_cell(claims, 2)
+    assert cell["verdict"] == "pass" and cell["value"] == 20.5      # the declared median of 20 and 21
+    assert len(cell["value_source_claim_refs"]) == 2 and cell["set_aside_claims"] == []
+    # and a conflict is a decision about a candidate too, so the floor is applied before any verdict
+    threshold = {"rule_kind": "hard_exclusion", "cutoff": {"comparator": "<=", "value": 20.5,
+                                                           "unit": HYPERTENSION["unit"]},
+                 "cutoff_basis": "expert_set"}
+    one_document = assessor.assess_cell(
+        candidate={"candidate_id": "cand_alpha"}, attribute=dict(HYPERTENSION, attribute_id="attr_x", version=1,
+                                                                 aggregation="consensus"),
+        rule=dict(threshold, rule_id="rule_x", version=1), rule_set_ref="rules@v1",
+        claims=floor_claims("src_doi_10.0/A1", "src_doi_10.0/A1"), resolved=True, min_source_documents=2)[0]
+    assert one_document["verdict"] == "unknown_missing", "a one-document conflict is not a conflict found"
+
+
+def test_the_document_floor_asks_nothing_of_a_criterion_that_reads_a_database():
+    """A curated measurement comes from one database record by construction, and `evidence.gather`
+    already pools every route an attribute declares, so a floor applied here would refuse
+    single-source curated quantities rather than ask anyone for corroboration."""
+    assert not criteria.is_literature_bound(MW)
+    claims = [{"claim_id": "c0", "admission_state": "admitted", "evidence_kind": "database_entry",
+               "determination_basis": "derived", "value": 300.0, "unit": "g/mol", "source_ref": "src_pubchem"}]
+    cell, _ = floor_cell(claims, 2, attribute=MW)
+    assert cell["verdict"] == "pass" and cell["value"] == 300.0
+
+
+def test_the_sweep_hands_every_literature_cell_the_configured_document_floor(core):
+    """Through the seam a run goes through, not past it: the floor is read off the bound settings by
+    its dotted key, and `.get(key, 1)` cannot report a key that does not match the one
+    `config.SETTINGS` registers -- it can only quietly default to the old behaviour.
+
+    Every paper in this fixture reports each attribute once, so at a floor of two no cell scores:
+    the six values the default run carries are exactly the six single-document values this refuses.
+    """
+    from mas.core import config as config_mod
+
+    assert config_mod.SETTINGS["evidence.min_source_documents"].default == 1
+    settings = config_mod.resolve(project_file=None, environ={},
+                                  # the fake search tool answers for every source, as it does when a run
+                                  # binds no settings at all; only the floor is under test here
+                                  overrides={"evidence.min_source_documents": 2, "search.sources": []})
+    assert ("const_evidence_min_source_documents", 2, "documents") in settings.registered_constants()
+    controller, _, reader = make_controller(core, ReaderModel())
+    run_id = controller.start(setup_task(core), by=OPERATOR, sweep_seed=3, settings=settings)
+    assert controller.current_state(run_id) == "completed"
+    assert sorted(reader.reads) == ["A1", "A2", "B1", "B2"], "the reading is unchanged; the scoring is not"
+    cells = literature_cells(core, run_id)
+    assert {cell["verdict"] for cell in cells.values()} == {"unknown_missing"}
+    assert {entry["reason"] for cell in cells.values() for entry in cell["set_aside_claims"]} == \
+        {"below_min_source_documents"}
+    assert len(ledger.claims(core, [run_id])) == 6, "the evidence is in the ledger, it is just not scored on"
