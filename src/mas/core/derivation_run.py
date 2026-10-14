@@ -27,7 +27,12 @@ from .models import ModelError, ModelRoster
 from .runtime import Core
 
 CONTROLLER = make_actor("controller", "derivation-controller", "controller")
-DEFAULT_STAGES = ("filter", "distill", "merge", "refine")
+# WHY merge runs last: `filter` moves every item with a validator or critic finding to `needs_refine`, and
+# `distill` and `merge` read only `candidate`, while `refine` is what returns a repaired item to `candidate`.
+# With merge before refine the pool it reads is whatever filter happened not to flag -- on the manuscript case
+# that was nothing, so across two iterations the merge stage grouped 0 items and the adjudicator role was never
+# called once. Merging after refine lets the stage see the repaired pool, which is the pool promotion will use.
+DEFAULT_STAGES = ("filter", "distill", "refine", "merge")
 
 
 class DerivationError(RuntimeError):
@@ -114,7 +119,7 @@ def derive_iterative(core: Core, broker, roster: ModelRoster, task_id: str, *, d
                                                             "input_pool_hash": before, "output_pool_hash": after})
         _emit(core, run_id, "stage.closed", ids=ids, state_to="completed",
               payload={"stage": name, "iteration": iteration, "stage_key": key, "result_artifact_id": result_id,
-                       "pool_changed": before != after}, summary=f"{name} {iteration}: {result}")
+                       "pool_changed": before != after, "result": result}, summary=f"{name} {iteration}: {result}")
         return result
 
     record: dict[str, Any] = {"task_id": task_id, "run_id": run_id, "chain_id": binding["chain_id"],

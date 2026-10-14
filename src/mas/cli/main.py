@@ -5,7 +5,9 @@
     mas criteria propose TASK --from FILE.json  propose attribute+rule pairs written by a person
     mas criteria derive TASK [--dimension D ...] [--continues RUN] [--single-pass]
                                                derive criteria from literature: a round of the pool workflow
-    mas criteria pool TASK [--all]             the criteria pool: states, versions, lineage
+    mas criteria pool TASK [--all] [--trajectory]
+                                               the criteria pool: states, versions, lineage; --trajectory
+                                               prints what each stage added, pruned and merged, per iteration
     mas rules confirm TASK [--allow-pending] | rules show TASK
     mas review list [TASK] | review decide ITEM --decision D --reason TEXT --exposure E
     mas run start TASK [--seed N] [--limit N] [--tool-calls N] [--llm-turns N] | run show RUN | run resume RUN
@@ -255,7 +257,10 @@ def cmd_criteria(args) -> None:
             from mas.core import derivation
             _print(derivation.objective_criteria(core, args.task, templates=objective_templates, by=_person("operator")))
         elif args.action == "pool":
-            _show_pool(core, args.task, show_all=args.all)
+            if args.trajectory:
+                _show_trajectory(core, args.task)
+            else:
+                _show_pool(core, args.task, show_all=args.all)
         else:
             from mas.adapters.drug.registration import DIMENSIONS, EVIDENCE_CATALOG, objective_templates
             from mas.core import derivation, derivation_run
@@ -301,6 +306,21 @@ def cmd_criteria(args) -> None:
             print(f"  next: {record['continuation_decision']['decision']}"
                   + (f" (continue with --continues {record['run_id']})" if record['continuation_decision']['decision']
                      == "continue_next_round" else ""))
+
+
+def _show_trajectory(core: Core, task_id: str) -> None:
+    from mas.core import pool as pool_mod
+    steps = pool_mod.trajectory(core, task_id)
+    if not steps:
+        sys.exit("the criteria pool is empty; run `mas criteria derive TASK`")
+    rounds = {run: i + 1 for i, run in enumerate(dict.fromkeys(step["round_run_id"] for step in steps))}
+    print(f'{"round":>5} {"it":>3} {"stage":<9} {"+new":>5} {"revised":>8} {"reinstated":>11} '
+          f'{"merged":>7} {"dropped":>8} {"promoted":>9} {"live":>6}  why')
+    for step in steps:
+        why = ", ".join(f"{k} {v}" for k, v in sorted(step["reasons"].items(), key=lambda kv: -kv[1])[:3])
+        print(f'{rounds[step["round_run_id"]]:>5} {step["iteration"]:>3} {step["stage"]:<9} {step["added"] or "":>5} '
+              f'{step["revised"] or "":>8} {step["reinstated"] or "":>11} {step["merged_away"] or "":>7} '
+              f'{step["removed"] or "":>8} {step["promoted"] or "":>9} {step["live_after"]:>6}  {why[:64]}')
 
 
 def _show_pool(core: Core, task_id: str, *, show_all: bool) -> None:
@@ -729,6 +749,7 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--continues", metavar="RUN", help="derive: continue the pool from this earlier derivation round")
     c.add_argument("--single-pass", action="store_true", help="derive: one propose/critique/revise pass, no pool")
     c.add_argument("--all", action="store_true", help="pool: include merged, withdrawn and filtered items")
+    c.add_argument("--trajectory", action="store_true", help="pool: per-stage growth, pruning and merging instead of the end state")
     c.add_argument("--from", dest="file")
     c.add_argument("--dimension", action="append")
     c.add_argument("--cutoff", help="evidence cutoff date YYYY-MM-DD")

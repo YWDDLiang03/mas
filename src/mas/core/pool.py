@@ -141,3 +141,46 @@ class Pool:
                 targets_in=parent_refs, targets_out=[_ref(child, 1)],
                 source_refs=list(item.get("supporting_claim_ids") or []))
         return child
+
+
+# WHY a trajectory report: the pool's whole point is that it grows, is pruned and is merged, and `fold` only
+# shows where every lineage ended up. Reading the end state, a reviewer cannot tell whether 34 criteria are the
+# survivors of 72 proposals or the only 34 ever written -- which is the difference between a pool and a list.
+# This replays the same change records per (stage, iteration) so the sequence is on the record, not inferred.
+STAGE_ORDER = ("propose", "filter", "distill", "refine", "merge", "promote")
+
+
+def trajectory(core: Core, task_id: str) -> list[dict[str, Any]]:
+    """Per (round, iteration, stage): what entered the pool, what left it, and the live count after."""
+    steps: dict[tuple[str, int, str], dict[str, Any]] = {}
+    live: set[str] = set()
+    order: list[tuple[str, int, str]] = []
+    for event in core.journal.replay(task_id):
+        if event.event_type != "criterion.change_recorded" or not event.payload.get("pool"):
+            continue
+        change = event.payload
+        stage = (change.get("stage") or "?").split(":")[0]
+        key = (change.get("round_run_id") or "?", int(change.get("iteration") or 0), stage)
+        if key not in steps:
+            steps[key] = {"round_run_id": key[0], "iteration": key[1], "stage": stage, "added": 0, "revised": 0,
+                          "merged_away": 0, "removed": 0, "reinstated": 0, "promoted": 0, "reasons": {}}
+            order.append(key)
+        step = steps[key]
+        operation, state = change["operation"], change["state"]
+        step["added" if operation == "add" else
+             "merged_away" if state == "merged_away" else
+             "removed" if state in ("withdrawn", "filtered_out") else
+             "promoted" if state == "promoted" else
+             "reinstated" if operation == "reinstate" else "revised"] += 1
+        if change.get("reason_kind"):
+            step["reasons"][change["reason_kind"]] = step["reasons"].get(change["reason_kind"], 0) + 1
+        if state in ("withdrawn", "filtered_out", "merged_away"):
+            live.discard(change["criterion_id"])
+        else:
+            live.add(change["criterion_id"])
+        step["live_after"] = len(live)
+    # `propose` and `promote` both carry iteration 0 but bracket the iterations, so they sort by phase first.
+    phase = {"propose": -1, "promote": 1}
+    return [steps[k] for k in sorted(order, key=lambda k: (k[0], phase.get(k[2], 0), k[1],
+                                                           STAGE_ORDER.index(k[2]) if k[2] in STAGE_ORDER
+                                                           else len(STAGE_ORDER)))]

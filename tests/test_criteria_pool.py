@@ -337,3 +337,73 @@ def test_merge_groups_need_the_same_route_unit_and_direction():
                            entry(3, "Oral bioavailability", unit="h"), entry(4, "Oral bioavailability", direction="lower_better"),
                            entry(5, "Plasma protein binding")])
     assert [sorted(e["criterion_id"] for e in g) for g in groups] == [["cri_1", "cri_2"]]
+
+
+class RoundOneLateMerge(RoundOne):
+    """Like RoundOne, but the critic faults the mergeable pair on first sight.
+
+    This is the real shape of a derivation round: `filter` finds something to say about almost every
+    fresh proposal, so the items a merge would group are in `needs_refine` until `refine` repairs them.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.seen: set[str] = set()
+
+    def __call__(self, request):
+        question = request.metadata.get("question", "")
+        if question == "critique pool":
+            self.calls.append((request.role, question))
+            proposals = json.loads(request.messages[0]["content"].split("Proposals:\n", 1)[1]
+                                   .split("\n\nCited claims:")[0])
+            findings = []
+            for p in proposals:
+                name = p["attribute"]["name"]
+                first = name not in self.seen
+                self.seen.add(name)
+                if first and "bioavailability" in name.lower():
+                    findings.append({"proposal_index": p["index"], "check": "unit_applicability_consistency",
+                                     "verdict": "fail", "severity": "material", "referent": "attribute.definition",
+                                     "finding": "say whether absolute or relative bioavailability is meant"})
+                else:
+                    findings.append({"proposal_index": p["index"], "check": "evidence_support", "verdict": "pass",
+                                     "severity": "minor", "referent": "supporting_claim_ids", "finding": "supported"})
+            return {"findings": findings}
+        return super().__call__(request)
+
+
+def test_a_pair_the_critic_faulted_is_still_merged_in_the_iteration_that_repaired_it(core):
+    """Regression: merge used to run before refine, so within an iteration it saw only unfaulted items.
+
+    A second iteration would have caught the pair, which is why this pins `inner_iterations=1`: a round that
+    stops -- on its iteration budget, a stall or a budget refusal -- leaves the merge undone. On the manuscript
+    case it stopped after two iterations having grouped 0 items, the adjudicator role was never called once,
+    and the registry kept both descriptions of a quantity the pool had the evidence to combine.
+    """
+    task_id, broker = setup(core)
+    script = RoundOneLateMerge()
+    derivation_run.derive_iterative(core, broker, roster_for(script), task_id, dimensions=DIMENSIONS,
+                                    catalog=EVIDENCE_CATALOG, by=OPERATOR, inner_iterations=1, stall_rounds=1)
+    folded = pool.fold(core, task_id)
+    merged = [e for e in folded.values() if e["parents"]]
+    assert len(merged) == 1 and len(merged[0]["parents"]) == 2, "the refined pair was never merged"
+    parents = [folded[ref.split("@v")[0]] for ref in merged[0]["parents"]]
+    # each parent was faulted, repaired, and only then merged away -- the order the stages must run in
+    for parent in parents:
+        operations = [h["operation"] for h in parent["history"]]
+        stages_seen = [h["stage"] for h in parent["history"]]
+        assert "revise" in operations and stages_seen[-1] == "merge" and parent["state"] == "merged_away"
+        assert stages_seen.index("refine") < len(stages_seen) - 1
+    assert ("adjudicator", "adjudicate merges") in script.calls
+
+
+def test_the_trajectory_shows_the_pool_growing_then_being_pruned(core):
+    task_id, broker = setup(core)
+    derivation_run.derive_iterative(core, broker, roster_for(RoundOne()), task_id, dimensions=DIMENSIONS,
+                                    catalog=EVIDENCE_CATALOG, by=OPERATOR, inner_iterations=4, stall_rounds=1)
+    steps = pool.trajectory(core, task_id)
+    assert [s["stage"] for s in steps][0] == "propose" and [s["stage"] for s in steps][-1] == "promote"
+    assert steps[0]["added"] == 4 and steps[0]["live_after"] == 4          # the reference-like item never entered
+    assert any(s["stage"] == "merge" and s["merged_away"] for s in steps)
+    assert any(s["removed"] for s in steps) and steps[-1]["promoted"] == 2
+    assert steps[-1]["live_after"] < steps[0]["live_after"], "the pool must end smaller than it started"
