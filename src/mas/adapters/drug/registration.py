@@ -155,8 +155,19 @@ def objective_templates(task_context: dict) -> list[dict]:
         if constraint.get("hardness") == "hard" and constraint.get("kind") == "route" and "oral" in text:
             items.append({
                 "source_field": f"constraints[{index}]",
-                "attribute": {"name": "Approved oral route on record", "measurement_kind": "categorical", "unit": None,
-                              "definition": "Whether an approved product of the compound is recorded with an oral route",
+                # WHY the name and definition no longer say "approved": the task admits an approved OR a
+                # Phase III compound, and a Phase III compound has no approved product by definition, so a
+                # criterion asking for an approved oral route can never be satisfied by half the population
+                # the task declares eligible -- it asked a stricter question than the user did. Measured on
+                # the manuscript universe: 1,262 of 3,177 candidates have no approval record at all, so this
+                # cell is unknown for them and its `unknown_blocks_recommendation` policy held every one of
+                # them at `provisional`. The remedy is not to weaken the constraint -- oral administration is
+                # stated as hard -- but to ask about the route itself and let the companion criterion below
+                # answer it for compounds no approval register covers. ChEMBL's route flags are derived from
+                # approved-product records and are the only route field in the catalog, so for a Phase III
+                # compound the database genuinely cannot answer and the literature is the only source.
+                "attribute": {"name": "Oral route on record", "measurement_kind": "categorical", "unit": None,
+                              "definition": "Whether a product or trial record of the compound states an oral route",
                               "direction": "non_directional", "acceptable_value_sources": ["database_entry"],
                               "aggregation": "consensus",
                               "evidence_request": {"capability": "record_field_lookup", "question_kind": "record_field",
@@ -166,4 +177,29 @@ def objective_templates(task_context: dict) -> list[dict]:
                 "rule": {"rule_kind": "hard_exclusion", "predicate_form": "categorical_membership",
                          "cutoff": {"comparator": "==", "value": True, "unit": None}, "cutoff_basis": "task_constraint",
                          "on_missing": "unknown_blocks_recommendation"}})
+            # The companion that can answer for a compound no approval register covers. It is a separate
+            # criterion rather than a second route on the one above because `check_attribute` refuses an
+            # attribute that mixes a literature route with a database route: the two take different code
+            # paths and pooling a read passage with a record field under one aggregation needs a policy
+            # nobody has set. Contextual, not a second hard gate, so one requirement is not scored twice.
+            items.append({
+                "source_field": f"constraints[{index}]",
+                "attribute": {"name": "Oral administration reported in the clinical literature",
+                              "measurement_kind": "categorical", "unit": None,
+                              "definition": "Whether a clinical report of the compound states that it was "
+                                            "administered by mouth",
+                              "direction": "non_directional",
+                              "acceptable_value_sources": ["peer_reviewed_primary"], "aggregation": "consensus",
+                              "acceptable_determination_bases": ["asserted", "measured"],
+                              "evidence_request": {
+                                  "capability": "literature_retrieval", "question_kind": "search",
+                                  "identifier_scheme": None,
+                                  "parameters": {"query_template": "({names}) AND (oral OR orally OR \"by mouth\")",
+                                                 "relevance_terms": ["oral", "orally", "capsule", "tablet"],
+                                                 "search_limit": 10}},
+                              "rationale": "the task admits a Phase III compound, whose route no approval "
+                                           "register records; the trial literature states it"},
+                "rule": {"rule_kind": "exploratory_consideration", "predicate_form": "qualitative_judgment",
+                         "cutoff": None, "cutoff_basis": "none_evidence_insufficient",
+                         "on_missing": "unknown_no_penalty"}})
     return items

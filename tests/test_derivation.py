@@ -241,12 +241,24 @@ def test_task_mandated_criteria_come_from_scope_and_constraints_without_duplicat
         {"entity_kind": "target", "identifier": "CHEMBL2", "identifier_scheme": "chembl_target", "label": "T2", "role": "optional"}])
     task_id, _ = task.record_version(core, spec, by=OPERATOR)
     added = derivation.objective_criteria(core, task_id, templates=objective_templates, by=OPERATOR)
-    assert [a["name"] for a in added] == ["T1 curated potency", "Approved oral route on record"]
+    # The route constraint yields two criteria: the hard gate on a recorded oral route, and a
+    # contextual companion the literature can answer for a Phase III compound, whose route no
+    # approval register records. The gate no longer says "approved", because the task admits a
+    # Phase III compound and an approved-product criterion can never be satisfied by one.
+    assert [a["name"] for a in added] == ["T1 curated potency", "Oral route on record",
+                                          "Oral administration reported in the clinical literature"]
     assert derivation.objective_criteria(core, task_id, templates=objective_templates, by=OPERATOR) == []
-    (item,) = review.items(core, [task_id]).values()                    # the hard route constraint needs an expert
-    assert item["subject"]["id"].startswith("rule_approved-oral-route-on-record")
+    (item,) = review.items(core, [task_id]).values()                    # only the hard gate needs an expert
+    assert item["subject"]["id"].startswith("rule_oral-route-on-record")
     ref = criteria.confirm_rule_set(core, task_id, by=OPERATOR, allow_pending=True)
-    assert [e["rule_ref"] for e in criteria.rule_set(core, task_id, ref)["entries"]] == ["rule_t1-curated-potency@v1"]
+    entries = criteria.rule_set(core, task_id, ref)["entries"]
+    # the hard gate is held out pending its decision; the companion enters the set but is
+    # contextual, so `preference_scores` passes over it and one requirement is not scored twice
+    assert sorted(e["rule_ref"] for e in entries) == [
+        "rule_oral-administration-reported-in-the-clinical-literature@v1", "rule_t1-curated-potency@v1"]
+    kinds = {e["rule_ref"]: e["rule_kind"] for e in entries}
+    assert kinds["rule_oral-administration-reported-in-the-clinical-literature@v1"] == "exploratory_consideration"
+    assert [r for r, k in kinds.items() if k == "preference"] == ["rule_t1-curated-potency@v1"]
 
 
 def test_a_disputed_preference_scores_the_board_and_the_rule_set_says_so(core):
