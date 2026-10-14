@@ -546,6 +546,20 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     version = len(existing) + 1
     admission_predicate = {"entries": [{k: e[k] for k in ("acceptable_value_sources", "on_states", "cutoff_basis")} for e in entries],
                            "coverage_floor": coverage_floor, "constants": constants or []}
+    # WHY a registration reference has to resolve: `prespecified` is the label that says this rule set was
+    # fixed before it saw results, and it was emitted purely because nothing else had gone wrong --
+    # `preregistration_ref` was an unvalidated parameter a caller could leave null or fill with any string,
+    # and a synthetic confirmation produced `acceptance_label: prespecified` with `preregistration_ref: null`.
+    # A claim about when a decision was taken cannot rest on a field nobody checks, so an unresolvable
+    # reference is now a reason the set is exploratory, and an absent one keeps the label it already had.
+    registration_missing = []
+    if preregistration_ref is not None:
+        try:
+            core.artifacts.payload(preregistration_ref)
+        except KeyError:
+            registration_missing = [f"the registration {preregistration_ref} this set names does not resolve, "
+                                    f"so nothing establishes that it was fixed before seeing results"]
+            preregistration_ref = None
     fitted_ordering = chosen_after_results(ordering_method) and not preregistration_ref
     scoring_disputed = sorted(e["rule_ref"] for e in entries if e["disputed"])
     machine_adjudicated = sorted(machine_adjudicated)
@@ -573,7 +587,7 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                            f"{', '.join(scoring_disputed)}"] if scoring_disputed else []) + \
                          ([f"{len(machine_adjudicated)} rules were adjudicated by an agent; no person has "
                            f"confirmed them: {', '.join(machine_adjudicated)}"] if machine_adjudicated else []) + \
-                         collapse_reasons + bound_reasons + \
+                         collapse_reasons + bound_reasons + registration_missing + \
                          (["the ordering method was fitted on the results it ranks"] if fitted_ordering else [])
     record = {"rule_set_ref": f"rules@v{version}", "task_id": task_id, "entries": entries,
               "ordering_method": ordering_method or {"kind": "weighted_preference", "weight_vector": {}, "tie_break": "candidate_id"},

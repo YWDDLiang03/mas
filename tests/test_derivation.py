@@ -371,3 +371,34 @@ def test_an_attribute_may_accept_a_stated_claim_because_the_reader_writes_that_b
     silent = dict(attribute); silent.pop("acceptable_determination_bases")
     usable, set_aside = assessor.usable_claims([stated], silent)
     assert usable == [] and [c["claim_id"] for c in set_aside] == ["c1"]
+
+
+def test_a_rule_set_cannot_call_itself_prespecified_on_a_registration_that_does_not_resolve(core):
+    """F6. `acceptance_label` was `prespecified` whenever nothing else had gone wrong, and
+    `preregistration_ref` was an unvalidated parameter: a confirmation produced
+    `prespecified` with `preregistration_ref: null`. The label asserts *when* the set was fixed, so
+    it cannot rest on a field nobody checks."""
+    task_id, _ = task.record_version(core, SPEC, by=OPERATOR)
+    attribute = {"attribute_id": "attr_q", "version": 1, "name": "Quantity", "definition": "d",
+                 "measurement_kind": "quantitative", "unit": "u", "direction": "higher_better",
+                 "acceptable_value_sources": ["curated_measurement"], "aggregation": "median",
+                 "evidence_request": {"capability": "interaction_evidence_lookup",
+                                      "question_kind": "pchembl_values", "parameters": {"target_chembl_id": "C1"}}}
+    rule = {"rule_id": "rule_q", "version": 1, "rule_kind": "preference", "predicate_form": "ordering",
+            "cutoff": None, "cutoff_basis": "none_evidence_insufficient", "on_missing": "unknown_no_penalty",
+            "on_inapplicable": "unknown_no_penalty", "on_conflict": "unknown_no_penalty"}
+    criteria.propose(core, task_id, attribute, rule, by=OPERATOR)
+
+    # a reference to an artifact that does not exist cannot buy the label
+    ref = criteria.confirm_rule_set(core, task_id, by=OPERATOR, coverage_floor=0.5,
+                                    preregistration_ref="pre_does_not_exist")
+    rs = criteria.rule_set(core, task_id, ref)
+    assert rs["acceptance_label"] == "exploratory"
+    assert rs["preregistration_ref"] is None
+    assert any("does not resolve" in r for r in rs["acceptance_reasons"])
+
+    # a registration that does resolve is honoured
+    real = core.artifacts.put("preregistration", {"task_id": task_id, "note": "fixed before results"})
+    ref = criteria.confirm_rule_set(core, task_id, by=OPERATOR, coverage_floor=0.5, preregistration_ref=real)
+    rs = criteria.rule_set(core, task_id, ref)
+    assert rs["preregistration_ref"] == real and rs["acceptance_label"] == "prespecified"

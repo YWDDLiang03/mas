@@ -478,10 +478,16 @@ def test_a_fitted_ordering_method_forces_the_exploratory_label(core):
     assert fitted["acceptance_label"] == "exploratory"
     assert fitted["acceptance_reasons"] == ["the ordering method was fitted on the results it ranks"]
     assert criteria.chosen_after_results(fitted_method) and not criteria.chosen_after_results({"kind": "weighted_preference"})
+    # The registration has to be a record that resolves: this test used to pass a bare string, which
+    # is the hole F6 names -- a claim about *when* a method was fixed cannot rest on an unchecked field.
+    registration = core.artifacts.put("preregistration", {"task_id": task_id, "ordering_method": fitted_method})
     preregistered = criteria.rule_set(core, task_id, criteria.confirm_rule_set(
-        core, task_id, by=OPERATOR, ordering_method=fitted_method, preregistration_ref="proto_sr_1"))
+        core, task_id, by=OPERATOR, ordering_method=fitted_method, preregistration_ref=registration))
     assert preregistered["acceptance_label"] == "prespecified"      # declared before the results, so not exploratory
-    assert preregistered["preregistration_ref"] == "proto_sr_1"
+    assert preregistered["preregistration_ref"] == registration
+    unresolvable = criteria.rule_set(core, task_id, criteria.confirm_rule_set(
+        core, task_id, by=OPERATOR, ordering_method=fitted_method, preregistration_ref="proto_sr_1"))
+    assert unresolvable["acceptance_label"] == "exploratory"
 
 
 def test_the_comparability_key_includes_the_member_set(core):
