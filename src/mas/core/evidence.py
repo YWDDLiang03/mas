@@ -1,9 +1,11 @@
 """Evidence gathering for one candidate × attribute (design §8.1, §9 step 3).
 
-Two routes, chosen by the attribute's `evidence_request.capability`:
+Two paths, chosen by the capabilities of the attribute's evidence routes
+(`criteria.evidence_routes`: one `evidence_request`, or several under `evidence_requests`):
 
-* a database capability (any tool capability other than literature): one broker call;
-  each returned value becomes a claim located at the source record field;
+* database capabilities (any tool capability other than literature): one broker call per
+  declared route; each returned value becomes a claim located at the source record field,
+  and the cell's claims are the union over the routes;
 * `literature_retrieval`: a query built from the attribute's query template and the
   candidate's labels, then reading of the best hits and checked claim extraction.
 """
@@ -94,7 +96,7 @@ def claims_from_tool_result(core: Core, stream_id: str, result, *, candidate: di
 
 def literature_query(attribute: dict[str, Any], labels: list[str]) -> str:
     names = " OR ".join(f'"{label}"' if " " in label or "-" in label else label for label in labels if label)
-    template = attribute["evidence_request"].get("parameters", {}).get("query_template", "({names})")
+    template = (criteria.evidence_routes(attribute)[0].get("parameters") or {}).get("query_template", "({names})")
     return template.replace("{names}", names)
 
 
@@ -123,24 +125,38 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
            sources: list[str] | None = None, limit_per_query: int | None = None,
            max_chars: int | None = None) -> tuple[list[dict], str | None, list[str]]:
     """Gather claims for one cell. Returns (claims, tool_error_ref, source kinds searched)."""
-    request = attribute["evidence_request"]
+    routes = criteria.evidence_routes(attribute)
     attr_ref = f"{attribute['attribute_id']}@v{attribute['version']}"
     who = make_actor("agent", "evidence-retriever", "retriever")
-    if request["capability"] != "literature_retrieval":
-        inputs = dict(request.get("parameters", {}))
-        inputs.update({"identifier": next((i["value"] for i in identity["identifiers"] if i["scheme"] == request.get("identifier_scheme")), None)
-                       if request.get("identifier_scheme") else identity.get("candidate_id"),
-                       "identifiers": identity["identifiers"]})
-        result = broker.call(stream_id, request["capability"], request["question_kind"], inputs, requesting_actor=who,
-                             ids=ids, budget=budget)
-        if result.absence_reason == "budget_exceeded":
-            raise BudgetBlocked()
-        error_ref = result.result_id if result.outcome in ("failed", "unknown_outcome") else None
-        contract = next((c for c in broker.contracts() if c.tool_id == result.invocation["tool_id"]), None)
-        claims = claims_from_tool_result(core, stream_id, result, candidate=candidate, attribute_ref=attr_ref,
-                                         evidence_kind=contract.evidence_kind_produced if contract else "database_entry",
-                                         link_basis=identity["identity_link_basis"], ids=ids) if result.ok else []
-        return claims, error_ref, [request["capability"]]
+    if not criteria.is_literature_bound(attribute):
+        # Every route of one attribute is asked, and the cell's claims are the union: the attribute
+        # names one quantity, and `assessor.assess_cell` already aggregates all of an attribute's
+        # claims under its declared aggregation, so two databases answering become one median rather
+        # than two cells. A route that fails does not discard what another route returned -- the
+        # error reference is kept so the cell says a source errored, with the claims it did get.
+        claims, error_ref, searched = [], None, []
+        for request in routes:
+            inputs = dict(request.get("parameters", {}))
+            inputs.update({"identifier": next((i["value"] for i in identity["identifiers"] if i["scheme"] == request.get("identifier_scheme")), None)
+                           if request.get("identifier_scheme") else identity.get("candidate_id"),
+                           "identifiers": identity["identifiers"]})
+            result = broker.call(stream_id, request["capability"], request["question_kind"], inputs, requesting_actor=who,
+                                 ids=ids, budget=budget)
+            if result.absence_reason == "budget_exceeded":
+                # The cell is not assessed rather than assessed on the routes that fit in the budget:
+                # a quantity scored from one of its two declared sources is not that quantity, and
+                # the cell is re-gathered in full when the run resumes.
+                raise BudgetBlocked()
+            if request["capability"] not in searched:
+                searched.append(request["capability"])
+            error_ref = error_ref or (result.result_id if result.outcome in ("failed", "unknown_outcome") else None)
+            if result.ok:
+                contract = next((c for c in broker.contracts() if c.tool_id == result.invocation["tool_id"]), None)
+                claims += claims_from_tool_result(core, stream_id, result, candidate=candidate, attribute_ref=attr_ref,
+                                                  evidence_kind=contract.evidence_kind_produced if contract else "database_entry",
+                                                  link_basis=identity["identity_link_basis"], ids=ids)
+        return claims, error_ref, searched
+    request = routes[0]
     cache = cache or LiteratureCache()
     aliases = [a.get("alias") if isinstance(a, dict) else a for a in identity.get("aliases", [])]
     labels = [identity.get("preferred_label") or candidate.get("label")] + [a for a in aliases if name_like(a)][:4]
@@ -153,7 +169,7 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
         if any(f["reason"] == "budget_exceeded" for f in core.artifacts.payload(coverage_id)["retrieval_failures"]):
             raise BudgetBlocked()
         cache.searches[query] = hits
-    terms = attribute["evidence_request"].get("parameters", {}).get("relevance_terms") or [attribute["name"]]
+    terms = (request.get("parameters") or {}).get("relevance_terms") or [attribute["name"]]
 
     def relevance(hit: dict[str, Any]) -> tuple:
         text = f"{hit.get('title', '')} {hit.get('abstract_html', '')}"

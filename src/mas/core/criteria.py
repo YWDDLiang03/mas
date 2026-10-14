@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import review, vocab
-from .canonical import sha256_hex
+from .canonical import canonical_text, sha256_hex
 from .ids import slug
 from .runtime import Core
 
@@ -88,8 +88,55 @@ def _choice(name: str, value: Any, allowed: tuple[str, ...]) -> None:
         raise InvariantViolation("schema", f"{name} must be one of {allowed}, got {value!r}")
 
 
+# Parameters that say how hard to look for a quantity rather than which quantity is meant. A target
+# id names the measurement; a query template, its relevance terms and a result limit are retrieval
+# knobs, and two attributes whose templates differ can still be about one quantity.
+RETRIEVAL_PARAMETERS = ("query_template", "relevance_terms", "search_limit")
+
+
+def evidence_routes(attribute: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every evidence route an attribute declares, whether it declared one (`evidence_request`)
+    or several (`evidence_requests`).
+
+    WHY an attribute may declare several: measured on the manuscript registry, 14 October 2026, the
+    ten promoted rules covered five quantities. For each required receptor two attributes carried the
+    same measurement -- same unit, direction, aggregation, acceptable sources and `target_chembl_id`,
+    differing only in the `question_kind` that names which database answers. Each receptor was
+    therefore scored twice and the coverage denominator counted five quantities that do not exist:
+    34 of 3,177 compounds cleared the 0.5 ranking coverage floor where 96 clear it once the five are
+    one quantity each. One quantity read from two databases is one attribute with two routes.
+    """
+    declared = attribute.get("evidence_requests")
+    if declared:
+        return list(declared)
+    request = attribute.get("evidence_request")
+    return [request] if request else []
+
+
+def route_key(request: dict[str, Any]) -> str:
+    """Canonical identity of one route: the question asked and the parameters it is asked with.
+
+    `identifier_scheme` is left out on purpose: it follows from the capability and question kind
+    (that is how a catalog entry is bound), so two routes differing only in it ask one source one
+    question and are the same route.
+    """
+    return canonical_text({k: (request or {}).get(k) for k in ("capability", "question_kind", "parameters")})
+
+
+def subject_parameters(request: dict[str, Any]) -> dict[str, Any]:
+    """The parameters identifying what a route is about, without the retrieval knobs."""
+    return {k: v for k, v in ((request or {}).get("parameters") or {}).items() if k not in RETRIEVAL_PARAMETERS}
+
+
+def is_literature_bound(attribute: dict[str, Any]) -> bool:
+    """True when any route reads literature: that route needs the search-and-read path, so the
+    attribute takes it. One route is enough because the path is a property of the cell, not of a
+    route -- and `check_attribute` refuses an attribute that mixes the two kinds anyway."""
+    return any((route or {}).get("capability") == "literature_retrieval" for route in evidence_routes(attribute))
+
+
 def check_attribute(attr: dict[str, Any]) -> None:
-    for field in ("name", "definition", "measurement_kind", "direction", "acceptable_value_sources", "evidence_request"):
+    for field in ("name", "definition", "measurement_kind", "direction", "acceptable_value_sources"):
         if not attr.get(field):
             raise InvariantViolation("schema", f"attribute needs {field}")
     _choice("measurement_kind", attr["measurement_kind"], MEASUREMENT_KINDS)
@@ -111,9 +158,35 @@ def check_attribute(attr: dict[str, Any]) -> None:
             # (design §4.11): a predicted quantity is its own attribute, with its own rule.
             raise InvariantViolation("schema", f"attribute {attr['name']!r} accepts predicted values alongside "
                                               f"{sorted(set(bases) - {'predicted'})}; give predicted values their own attribute")
-    request = attr["evidence_request"]
-    if not request.get("capability") or not request.get("question_kind"):
-        raise InvariantViolation("schema", "evidence_request needs capability and question_kind")
+    routes = evidence_routes(attr)
+    if not routes:
+        raise InvariantViolation("schema", "attribute needs evidence_request")
+    if attr.get("evidence_requests") and attr.get("evidence_request") and \
+            route_key(attr["evidence_request"]) not in {route_key(r) for r in routes}:
+        raise InvariantViolation("schema", f"attribute {attr['name']!r} declares evidence_requests and a separate "
+                                          f"evidence_request that is not among them; nothing would ever ask it")
+    seen: set[str] = set()
+    for request in routes:
+        if not isinstance(request, dict) or not request.get("capability") or not request.get("question_kind"):
+            raise InvariantViolation("schema", "evidence_request needs capability and question_kind")
+        if route_key(request) in seen:
+            raise InvariantViolation("schema", f"attribute {attr['name']!r} declares the same evidence route twice; "
+                                              f"the second asks nothing new and its values would be aggregated twice")
+        seen.add(route_key(request))
+    literature = [r for r in routes if r["capability"] == "literature_retrieval"]
+    if literature and len(literature) != len(routes):
+        # The two kinds take different code paths (a broker call per route against a record source;
+        # a search, a read and checked extraction for literature), and pooling a claim read from a
+        # paper with a claim from a database record under one aggregation needs a policy no one has set.
+        raise InvariantViolation("schema", f"attribute {attr['name']!r} mixes a literature route with "
+                                          f"{sorted({r['capability'] for r in routes if r['capability'] != 'literature_retrieval'})}; "
+                                          f"give the literature quantity its own attribute")
+    if len(literature) > 1:
+        # One query per attribute is what the reading path builds (`evidence.literature_query`), so a
+        # second template would never be used -- and an instruction the pipeline then undoes is worse
+        # than no instruction (ADR-48).
+        raise InvariantViolation("schema", f"attribute {attr['name']!r} declares {len(literature)} literature "
+                                          f"routes; the reading path builds one query per attribute")
 
 
 def check_rule(rule: dict[str, Any], attr: dict[str, Any]) -> None:
@@ -265,11 +338,16 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     for rule_ref in sorted(proposed.values()):
         rule = load(core, rule_ref, task_id)
         adjudication_record = adjudicated.get(rule_ref)
-        capability = load(core, rule["attribute_ref"], task_id)["evidence_request"]["capability"]
-        if capability in defer_capabilities:
+        attr = load(core, rule["attribute_ref"], task_id)
+        # WHY the *matching* route's capability is the one recorded: the deferral round-trips through
+        # this field (`sr_stage` rebuilds `defer_capabilities` from it), so for an attribute with
+        # several routes, recording another of its capabilities would quietly un-defer the rule on
+        # the next confirmation.
+        held_out = next((r["capability"] for r in evidence_routes(attr) if r["capability"] in defer_capabilities), None)
+        if held_out:
             # A deferred rule carries its authority too, but it stays out of `machine_adjudicated`:
             # that list is what the set rests on, and a rule held out of this run rests on nothing.
-            deferred.append({"rule_ref": rule_ref, "capability": capability, "reason": defer_reason,
+            deferred.append({"rule_ref": rule_ref, "capability": held_out, "reason": defer_reason,
                              "authority": "machine_adjudication" if adjudication_record else None})
             continue
         item = decided.get(rule_ref)
@@ -284,7 +362,6 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
             confirmed_by, authority = "auto:trigger_table", "trigger_table"
         else:
             continue
-        attr = load(core, rule["attribute_ref"], task_id)
         # WHY `disputed` is recorded on the entry: the trigger table admits a preference rule without an expert, and
         # it does that whether or not a critic finding about that rule is still open. Such a rule scores candidates
         # while also appearing in `pending[]`, which on its own reads as "did not enter the set". The entry says
@@ -348,8 +425,13 @@ def registered_attributes(core: Core, task_id: str) -> list[dict[str, Any]]:
 
 
 def evidence_key(attribute: dict[str, Any]) -> str:
-    """Two attributes asking the same tool the same question are duplicates (registry invariant)."""
-    request = attribute.get("evidence_request") or {}
-    return sha256_hex({k: request.get(k) for k in ("capability", "question_kind", "parameters")}
-                      if request.get("capability") != "literature_retrieval"
-                      else {"name": (attribute.get("name") or "").strip().lower(), "unit": attribute.get("unit")})
+    """Two attributes asking the same tools the same questions are duplicates (registry invariant).
+
+    Keyed on the whole set of routes rather than on one of them, so that two attributes reading one
+    quantity from the same two databases are duplicates, while the one-database and the two-database
+    form of a quantity are not: the second asks something the first never asks, and the merge that
+    produces it has to be able to enter a registry the first one is already in.
+    """
+    if is_literature_bound(attribute):
+        return sha256_hex({"name": (attribute.get("name") or "").strip().lower(), "unit": attribute.get("unit")})
+    return sha256_hex(sorted(route_key(r) for r in evidence_routes(attribute)))

@@ -12,6 +12,7 @@
     mas review list [TASK] | review decide ITEM --decision D --reason TEXT --exposure E
     mas review adjudicate [TASK] [--item ITEM]  resolve open items without a person, as machine adjudications
                                                (never expert decisions); needs interaction.autonomous_adjudication
+    mas review reopen ITEM --reason TEXT       withdraw an agent's verdict and put the subject back to a person
     mas run start TASK [--seed N] [--limit N] [--tool-calls N] [--llm-turns N] | run show RUN | run resume RUN
     mas board show TASK [--all] | candidate show TASK CANDIDATE
     mas candidate explain TASK [CANDIDATE] [--top N]
@@ -388,6 +389,17 @@ def cmd_review(args) -> None:
             return
         if args.action == "adjudicate":
             cmd_review_adjudicate(args, core)
+            return
+        if args.action == "reopen":
+            item = items.get(args.item)
+            if item is None:
+                sys.exit(f"no such review item {args.item}")
+            if not args.reason:
+                sys.exit("--reason is required: say why the agent's verdict is being withdrawn")
+            fresh = adjudication.reopen(core, item, by=_person("operator"), reason_text=args.reason)
+            print(f"withdrew {item.get('adjudication_id')} and raised {fresh} for "
+                  f"{item['subject']['kind']} {item['subject']['id']}")
+            print("    the subject is unresolved again; decide it with `mas review decide`")
             return
         item = items.get(args.item)
         if item is None:
@@ -808,8 +820,8 @@ def main(argv: list[str] | None = None) -> int:
     r.set_defaults(func=cmd_rules)
 
     v = sub.add_parser("review")
-    v.add_argument("action", choices=("list", "decide", "adjudicate"))
-    v.add_argument("item", nargs="?", help="decide: the queue item; adjudicate: the task")
+    v.add_argument("action", choices=("list", "decide", "adjudicate", "reopen"))
+    v.add_argument("item", nargs="?", help="decide/reopen: the queue item; adjudicate: the task")
     v.add_argument("--task")
     v.add_argument("--item", dest="only_item", help="adjudicate: resolve this one item instead of every open one")
     v.add_argument("--decision", choices=sorted(vocab.DOMAINS["hd_decision"]))

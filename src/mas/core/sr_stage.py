@@ -162,8 +162,12 @@ def _attr_ref(attribute: dict[str, Any]) -> str:
 
 
 def _identifiers(attribute: dict[str, Any]) -> set[str]:
-    parameters = (attribute.get("evidence_request") or {}).get("parameters") or {}
-    return {str(value) for value in parameters.values() if isinstance(value, (str, int)) and not isinstance(value, bool)}
+    # Over every route the attribute declares: a quantity read from two databases names its subject
+    # in each of them, and a feature measured against the regressed target is the target whichever
+    # route carried it.
+    return {str(value) for route in criteria.evidence_routes(attribute)
+            for value in ((route or {}).get("parameters") or {}).values()
+            if isinstance(value, (str, int)) and not isinstance(value, bool)}
 
 
 def potency_target_rules(rules: list[dict[str, Any]], task_context: dict[str, Any]) -> list[str]:
@@ -172,8 +176,8 @@ def potency_target_rules(rules: list[dict[str, Any]], task_context: dict[str, An
     out = []
     for item in rules:
         attribute = item["attribute"]
-        request = attribute.get("evidence_request") or {}
-        if (request.get("capability") == "interaction_evidence_lookup" and _identifiers(attribute) & required
+        capabilities = {(r or {}).get("capability") for r in criteria.evidence_routes(attribute)}
+        if ("interaction_evidence_lookup" in capabilities and _identifiers(attribute) & required
                 and attribute.get("measurement_kind") == "quantitative" and not assessor.declares_predicted(attribute)):
             out.append(item["entry"]["rule_ref"])
     return sorted(out)
@@ -206,9 +210,12 @@ def build_dataset(*, mode: str, rules: list[dict[str, Any]], cells_by_candidate:
                                "is offered as a feature"}
         for other in rules:
             candidate_attr = other["attribute"]
-            request = candidate_attr.get("evidence_request") or {}
+            routes = criteria.evidence_routes(candidate_attr)
             quantitative = candidate_attr.get("measurement_kind") == "quantitative"
-            if request.get("capability") not in FEATURE_CAPABILITIES or not quantitative:
+            # Every route has to be a sweep-wide one: a cell pooling a literature reading into its
+            # value is as unpromised for the universe as a purely literature cell is.
+            if not routes or not quantitative or not all((r or {}).get("capability") in FEATURE_CAPABILITIES
+                                                         for r in routes):
                 continue
             ref = _attr_ref(candidate_attr)
             if ref == target_ref or (_identifiers(candidate_attr) & target_ids):
@@ -250,7 +257,8 @@ def _feature(item: dict[str, Any], attribute: dict[str, Any]) -> Feature:
     return Feature(ref=_attr_ref(attribute), name=attribute["name"], definition=attribute["definition"],
                    unit=attribute.get("unit"), direction=attribute.get("direction", "non_directional"),
                    rule_ref=item["entry"]["rule_ref"],
-                   capability=(attribute.get("evidence_request") or {}).get("capability", ""),
+                   capability="+".join(dict.fromkeys((r or {}).get("capability") or ""
+                                                     for r in criteria.evidence_routes(attribute))),
                    determination_bases=tuple(bases))
 
 

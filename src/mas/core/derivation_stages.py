@@ -30,6 +30,7 @@ from typing import Any
 
 from . import criteria
 from .assessor import canonical_unit
+from .canonical import canonical_text
 from .derivation import (CRITIC_SYSTEM, CRITIQUE_SCHEMA, PROPOSAL_SCHEMA, PROPOSER_SYSTEM, REVISER_SYSTEM,
                          SCHEMA_BLOCK_FORMS,
                          REVISION_CHECKS, REVISION_SCHEMA, _claims_block, _normalize_proposal, validate_proposal)
@@ -67,7 +68,11 @@ MERGE_SCHEMA = {
     "properties": {"decisions": {"type": "array", "items": {
         "type": "object", "required": ["group", "action", "reason"],
         "properties": {"group": {"type": "integer"}, "action": {"type": "string", "enum": ["merge", "keep_separate"]},
-                       "merged": {"type": "object"}, "reason": {"type": "string"}}}}},
+                       "merged": {"type": "object", "properties": {"attribute": {"type": "object", "properties": {
+                           # The merged attribute may keep every route its parents had, which is how two
+                           # bindings of one quantity become one attribute read from both databases.
+                           "evidence_requests": {"type": "array", "items": {"type": "object"}}}}}},
+                       "reason": {"type": "string"}}}}},
 }
 
 ADJUDICATOR_SYSTEM = (
@@ -76,7 +81,11 @@ ADJUDICATOR_SYSTEM = (
     "criterion keeps the clearest definition and cites the claims (from the members' citations only) that support "
     "it. Otherwise keep the members separate and say what distinguishes them. Never name a specific candidate "
     "compound. A merged criterion has the same fields as the members: attribute, rule, supporting_claim_ids, "
-    "expected_change, falsification_test."
+    "expected_change, falsification_test. "
+    "Members may differ only in which database answers the same question -- the same measurement curated by two "
+    "sources. That is one quantity: merge them and give the merged attribute evidence_requests, the list of the "
+    "members' evidence routes to keep, so the merged criterion reads both sources and pools their values under its "
+    "aggregation. Keep a route only if a member declared it; a merge may not reach for a source no member had."
 )
 
 BATCH = {"critic": 30, "distill": 25, "refine": 20}
@@ -141,7 +150,10 @@ class StageContext:
                 "returns -- {kind: excess_above|shortfall_below|distance_outside_band, bound or low and high, "
                 "basis, source_refs}; without it the raw value is what gets ranked, however the definition "
                 "describes the quantity, "
-                "evidence_request {capability, question_kind, identifier_scheme, parameters}, rationale.\n"
+                "evidence_request {capability, question_kind, identifier_scheme, parameters} -- or "
+                "evidence_requests [{...}, {...}] when one quantity is read from several catalog entries "
+                "(same unit, same direction, same subject parameters), whose values are then pooled under "
+                "this attribute's aggregation, rationale.\n"
                 + SCHEMA_BLOCK_FORMS)
 
     def cited_block(self, items: list[dict[str, Any]]) -> str:
@@ -303,19 +315,47 @@ def _overlap(a: dict[str, Any], b: dict[str, Any]) -> float:
     return max(names, full)
 
 
-def merge_groups(entries: list[dict[str, Any]], *, overlap: float = 0.35) -> list[list[dict[str, Any]]]:
-    """Connected groups of items with the same evidence route, unit and direction and overlapping wording."""
-    def route(e):
-        a = e["item"]["attribute"]
-        request = a.get("evidence_request") or {}
-        return (request.get("capability"), request.get("question_kind"), canonical_unit(a.get("unit")), a.get("direction"))
+def _subject(attribute: dict[str, Any]) -> list[str]:
+    """What the attribute's routes are about: the subject-identifying parameters over all of them."""
+    return sorted({canonical_text([k, v]) for route in criteria.evidence_routes(attribute)
+                   for k, v in criteria.subject_parameters(route).items()})
 
+
+def quantity_key(attribute: dict[str, Any]) -> tuple:
+    """What an attribute measures, as a groupable key: capabilities, canonical unit, direction, subject.
+
+    WHY the question kind is not in it: `question_kind` names *which database answers*
+    (`pchembl_values` is ChEMBL, `gtopdb_affinity` is IUPHAR/BPS), so keying on it put the two
+    bindings of one quantity in different buckets, where no amount of adjudication could reach them.
+    Measured on the manuscript registry: ten promoted rules, five quantities, every receptor scored
+    twice.
+    """
+    routes = criteria.evidence_routes(attribute)
+    capabilities = tuple(sorted({(route or {}).get("capability") or "" for route in routes}))
+    return (capabilities, canonical_unit(attribute.get("unit")), attribute.get("direction"),
+            canonical_text(_subject(attribute)))
+
+
+def merge_groups(entries: list[dict[str, Any]], *, overlap: float = 0.35) -> list[list[dict[str, Any]]]:
+    """Connected groups of items that measure one quantity, for the adjudicator to decide on.
+
+    Same capability, unit, direction and subject parameters groups unconditionally: one subject
+    measured in one unit in one direction is far stronger evidence of one quantity than any wording
+    similarity. Measured on the pair this exists for -- a receptor's curated potency from ChEMBL and
+    the same affinity from IUPHAR/BPS -- name Jaccard is 0.14 and name+definition 0.10, under the
+    0.35 the overlap test needs, because one definition is terse and the other is verbose prose. So
+    wording is the wrong signal whenever the routes already say what the quantity is about. Items
+    with no subject parameters (literature-bound ones, whose parameters are a query template) keep
+    the wording test.
+    """
     groups = []
     by_route: dict[tuple, list[dict[str, Any]]] = {}
     for entry in entries:
-        by_route.setdefault(route(entry), []).append(entry)
+        by_route.setdefault(quantity_key(entry["item"]["attribute"]), []).append(entry)
     for members in by_route.values():
         parent = {e["criterion_id"]: e["criterion_id"] for e in members}
+        # The key carries the subject, so every member of this bucket shares it; one member decides.
+        same_subject = bool(_subject(members[0]["item"]["attribute"]))
 
         def find(x):
             while parent[x] != x:
@@ -326,7 +366,7 @@ def merge_groups(entries: list[dict[str, Any]], *, overlap: float = 0.35) -> lis
         for i, a in enumerate(members):
             for b in members[i + 1:]:
                 same_key = criteria.evidence_key(a["item"]["attribute"]) == criteria.evidence_key(b["item"]["attribute"])
-                if same_key or _overlap(a["item"]["attribute"], b["item"]["attribute"]) >= overlap:
+                if same_subject or same_key or _overlap(a["item"]["attribute"], b["item"]["attribute"]) >= overlap:
                     parent[find(a["criterion_id"])] = find(b["criterion_id"])
         clusters: dict[str, list[dict[str, Any]]] = {}
         for entry in members:
@@ -356,10 +396,17 @@ def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> 
             stats["kept_separate"] += 1
             continue
         parents_claims = {c for e in group for c in e["item"]["supporting_claim_ids"]}
+        parents_routes = {criteria.route_key(r) for e in group
+                          for r in criteria.evidence_routes(e["item"]["attribute"])}
         item = _item(decision["merged"], dimension=group[0]["item"].get("dimension"))
+        child_routes = {criteria.route_key(r) for r in criteria.evidence_routes(item["attribute"])}
         problems = ctx.validate(item)
-        if problems or not item["supporting_claim_ids"] or not set(item["supporting_claim_ids"]) <= parents_claims:
-            stats["refused"] += 1   # an invalid merge, or one citing evidence its parents did not, is not applied
+        if problems or not item["supporting_claim_ids"] or not set(item["supporting_claim_ids"]) <= parents_claims \
+                or not child_routes <= parents_routes:
+            # An invalid merge, one citing evidence its parents did not, or one reaching for a data
+            # source neither parent was bound to, is not applied: a merge combines what the pool
+            # already has, exactly as it may cite only its parents' claims.
+            stats["refused"] += 1
             continue
         pool.merge(group, dict(item, validator_problems=[]), reason_text=decision["reason"])
         stats["merged"] += 1

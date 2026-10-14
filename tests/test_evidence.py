@@ -1,9 +1,9 @@
 import pytest
 
-from mas.core import identity, ledger, vocab
+from mas.core import assessor, identity, ledger, vocab
 from mas.core.assessor import usable_claims
-from mas.core.broker import Broker, ToolResult
-from mas.core.evidence import claims_from_tool_result
+from mas.core.broker import Broker, ProviderResponse, ToolContract, ToolError, ToolResult
+from mas.core.evidence import claims_from_tool_result, gather
 from mas.core.journal import actor
 from mas.core.runtime import Core
 from tests.fakes import AbsentProvider, FakeIdentity, FakeProperty
@@ -174,3 +174,84 @@ def test_an_attribute_may_declare_the_curated_basis_and_mechanism_claims_then_be
     criteria.check_attribute(CURATED_ATTRIBUTE)
     usable, set_aside = usable_claims(claims, CURATED_ATTRIBUTE)
     assert usable == [] and [c["set_aside_reason"] for c in set_aside] == ["determination_basis_not_accepted"]
+
+
+# --- one quantity, two curations: an attribute may declare a route to each -----------------
+
+CSF1R_ROUTES = [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values",
+                 "identifier_scheme": "chembl_id", "parameters": {"target_chembl_id": "CHEMBL1844"}},
+                {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity",
+                 "identifier_scheme": "chembl_id", "parameters": {"target_chembl_id": "CHEMBL1844"}}]
+POOLED_POTENCY = {"attribute_id": "attr_csf1r-curated-potency", "version": 1, "name": "CSF1R curated potency",
+                  "definition": "Median pChEMBL value over curated point measurements against CSF1R (CHEMBL1844), "
+                                "from every curation that reports one",
+                  "measurement_kind": "quantitative", "unit": "pChEMBL", "direction": "higher_better",
+                  "aggregation": "median", "acceptable_value_sources": ["curated_measurement"],
+                  "evidence_requests": CSF1R_ROUTES}
+ORDERING = {"rule_id": "rule_csf1r-curated-potency", "version": 1, "rule_kind": "preference",
+            "predicate_form": "ordering", "cutoff": None, "cutoff_basis": "none_evidence_insufficient"}
+CANDIDATE = {"candidate_id": "cand_ik-K1", "label": "Alphatinib"}
+RESOLVED = {"candidate_id": "cand_ik-K1", "identifiers": [{"scheme": "chembl_id", "value": "CHEMBL1"}],
+            "identity_link_basis": "exact_identifier_match", "preferred_label": "Alphatinib", "aliases": []}
+
+
+class Curation:
+    """One curated-affinity source. The two real ones answer different question kinds under the same
+    capability, which is exactly why the question kind cannot stand for the quantity."""
+
+    def __init__(self, question_kind: str, tool_id: str, values: list[float], *, fail: bool = False):
+        self.contract = ToolContract(
+            tool_id=tool_id, capability="interaction_evidence_lookup", capability_kind="relationship_evidence_lookup",
+            question_kinds=(question_kind,), contract_version="1", implementation_version="fake-1",
+            purpose_statement="curated affinity against one target", evidence_kind_produced="curated_measurement",
+            claim_strength_ceiling="measured", identity_inputs=("identifier",))
+        self.values, self.fail, self.calls = values, fail, []
+
+    def invoke(self, question_kind, inputs):
+        self.calls.append(inputs["target_chembl_id"])
+        if self.fail:
+            raise ToolError("parse_failed", "scripted failure")
+        return ProviderResponse(
+            values=[{"name": "pchembl_value", "value": value, "unit": "pChEMBL", "value_kind": "curated",
+                     "source_record_ref": f"{self.contract.tool_id}:{index}"} for index, value in enumerate(self.values)],
+            data_version="fake", upstream_refs=[self.contract.tool_id])
+
+
+def test_an_attribute_with_a_route_to_each_curation_gathers_from_both_and_is_aggregated_once(core):
+    """The registry held two attributes per receptor -- the same measurement from two databases, so the
+    receptor was scored twice and the coverage denominator counted a quantity that does not exist. One
+    attribute with two routes gathers the union and `assess_cell` aggregates it under the declared
+    median, with no change to the assessor: it already aggregates all of an attribute's claims."""
+    broker = Broker(core)
+    chembl, gtopdb = Curation("pchembl_values", "tool_chembl", [7.0, 7.4]), Curation("gtopdb_affinity", "tool_gtopdb", [9.0])
+    broker.register(chembl)
+    broker.register(gtopdb)
+    claims, error_ref, searched = gather(core, broker, None, "run_x", candidate=CANDIDATE, identity=RESOLVED,
+                                         attribute=POOLED_POTENCY, objective_text="rank by potency", cutoff_date=None)
+    assert chembl.calls == gtopdb.calls == ["CHEMBL1844"]          # each route asked its own source
+    assert error_ref is None and searched == ["interaction_evidence_lookup"]
+    assert sorted(c["value"] for c in claims) == [7.0, 7.4, 9.0]   # the union, each claim on the attribute
+    assert {c["attribute_ref"] for c in claims} == {"attr_csf1r-curated-potency@v1"}
+
+    cell, reason = assessor.assess_cell(candidate=CANDIDATE, attribute=POOLED_POTENCY, rule=ORDERING,
+                                        rule_set_ref="rules@v1", claims=claims, resolved=True, searched=searched)
+    assert cell["verdict"] == "pass" and cell["value"] == 7.4      # one median over both curations, not two cells
+    assert len(cell["value_source_claim_refs"]) == 3 and cell["set_aside_claims"] == []
+    assert "3 usable claim(s); aggregation median" in reason["uncertainty_statement"]
+
+
+def test_a_route_that_errors_does_not_discard_what_the_other_route_returned(core):
+    """A cell scored on nothing because one of two sources was down would be a silent downgrade of the
+    evidence; a cell scored silently on one of two declared sources would be worse. The claims that
+    arrived are kept and the failing call's result id rides along as the cell's tool error."""
+    broker = Broker(core, sleep=lambda s: None)
+    broker.register(Curation("pchembl_values", "tool_chembl", [], fail=True))
+    broker.register(Curation("gtopdb_affinity", "tool_gtopdb", [9.0]))
+    claims, error_ref, searched = gather(core, broker, None, "run_x", candidate=CANDIDATE, identity=RESOLVED,
+                                         attribute=POOLED_POTENCY, objective_text="rank by potency", cutoff_date=None)
+    assert [c["value"] for c in claims] == [9.0] and error_ref is not None and searched == ["interaction_evidence_lookup"]
+    both = [e.event_type for e in core.journal.replay("run_x") if e.event_type in ("tool.errored", "tool.returned")]
+    assert both == ["tool.errored", "tool.returned"]                     # both routes are on the record
+    cell, _ = assessor.assess_cell(candidate=CANDIDATE, attribute=POOLED_POTENCY, rule=ORDERING, rule_set_ref="rules@v1",
+                                   claims=claims, resolved=True, tool_error_ref=error_ref, searched=searched)
+    assert cell["verdict"] == "pass" and cell["value"] == 9.0 and cell["tool_error_ref"] == error_ref

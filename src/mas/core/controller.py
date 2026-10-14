@@ -194,7 +194,7 @@ class RunController:
             rule = criteria.load(self.core, entry["rule_ref"], task_id)
             attr = criteria.load(self.core, entry["attribute_ref"], task_id)
             state.rules.append({"entry": entry, "rule": rule, "attribute": attr})
-        state.rules.sort(key=lambda r: (LITERATURE_LAST if r["attribute"]["evidence_request"]["capability"] == "literature_retrieval"
+        state.rules.sort(key=lambda r: (LITERATURE_LAST if criteria.is_literature_bound(r["attribute"])
                                         else DATABASE_FIRST, r["entry"]["rule_ref"]))
         return state
 
@@ -284,7 +284,7 @@ class RunController:
                        question=f"apply {rule_ref} to every resolved candidate")
             todo = [c for c in order if (rule_ref, c) not in st.cells]
             st.reused += len(order) - len(todo)
-            literature = item["attribute"]["evidence_request"]["capability"] == "literature_retrieval"
+            literature = criteria.is_literature_bound(item["attribute"])
 
             def work(candidate_id: str) -> bool:
                 cell, reason = self._assess(st, item, candidate_id, pass_budget, step_ids, cache)
@@ -319,7 +319,7 @@ class RunController:
             return assessor.assess_cell(candidate=candidate, attribute=attribute, rule=rule,
                                         rule_set_ref=st.rule_set["rule_set_ref"], claims=[], resolved=False,
                                         not_assessed_reason=reason)
-        needs_llm = attribute["evidence_request"]["capability"] == "literature_retrieval"
+        needs_llm = criteria.is_literature_bound(attribute)
         out_of_budget = assessor.assess_cell(candidate=candidate, attribute=attribute, rule=rule,
                                              rule_set_ref=st.rule_set["rule_set_ref"], claims=[], resolved=True,
                                              not_assessed_reason="budget_exhausted")
@@ -338,7 +338,7 @@ class RunController:
                 reading_attributes=[{"name": r["attribute"]["name"], "definition": r["attribute"]["definition"],
                                      "unit": r["attribute"].get("unit"),
                                      "ref": f"{r['attribute']['attribute_id']}@v{r['attribute']['version']}"}
-                                    for r in st.rules if r["attribute"]["evidence_request"]["capability"] == "literature_retrieval"])
+                                    for r in st.rules if criteria.is_literature_bound(r["attribute"])])
         except evidence.BudgetBlocked:
             return out_of_budget
         return assessor.assess_cell(candidate=candidate, attribute=attribute, rule=rule,

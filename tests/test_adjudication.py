@@ -127,17 +127,33 @@ def test_an_agent_still_cannot_create_an_expert_decision_however_much_it_can_adj
 
 # --- route 1: the task's own constraint ------------------------------------------------------------
 
-def test_a_task_constraint_cutoff_is_confirmed_by_restating_the_tasks_own_constraint(core):
+def test_a_task_constraint_cutoff_is_confirmed_only_through_the_link_that_built_it(core):
     task_id = _task(core)
-    _, rule_ref = criteria.propose(core, task_id, ROUTE, ROUTE_RULE, by=AGENT)
+    _, rule_ref = criteria.propose(core, task_id, _derived(ROUTE, task_id, "constraints[0]"), ROUTE_RULE, by=AGENT)
     record = adjudication.adjudicate(core, _item(core, task_id, rule_ref))
     assert record["route"] == "task_constraint_restated" and record["resolution"] == "approve"
     assert record["cites"] == {"task_context_ref": f"{task_id}@v1", "field": "constraints[0]",
-                               "match": "wording_restated", "constraint_text": "oral administration",
+                               "match": "derived_from_task_field", "constraint_text": "oral administration",
                                "hardness": "hard", "provenance": "manuscript"}
     # approving means the rule enters unchanged: no new version, the hard exclusion intact
     assert record["rule_ref_after"] == rule_ref == record["rule_ref_before"]
     assert record["rule_kind_after"] == "hard_exclusion"
+
+
+def test_a_proposal_cannot_authorise_itself_by_quoting_the_task_into_its_own_definition(core):
+    """The one route that approves must rest on something a proposer cannot write.
+
+    `derived_from.field` is a link an adapter template wrote when it built the criterion *from* a
+    constraint. An attribute's name and definition are free text the proposer chooses, so matching
+    the task's wording against them would let any proposal grant itself the task's authority by
+    repeating it -- and this route confirms hard exclusions, which delete candidates outright.
+    """
+    task_id = _task(core)
+    quoted = dict(ROUTE, name="Oral administration", definition="oral administration on record")
+    _, rule_ref = criteria.propose(core, task_id, quoted, ROUTE_RULE, by=AGENT)
+    record = adjudication.adjudicate(core, _item(core, task_id, rule_ref))
+    assert record["resolution"] != "approve"
+    assert record["route"] == "irreversible_without_authority" and record["rule_kind_after"] == "preference"
 
 
 def test_a_cutoff_built_from_a_named_task_field_cites_that_field_and_its_version(core):
@@ -418,7 +434,7 @@ def test_the_review_page_shows_the_route_for_an_open_item_and_who_resolved_a_clo
     with Core.open(root) as core:
         task_id = _task(core)
         _, resolved_ref = criteria.propose(core, task_id, MW, dict(MW_RULE, cutoff_basis="expert_set"), by=AGENT)
-        criteria.propose(core, task_id, ROUTE, ROUTE_RULE, by=AGENT)
+        criteria.propose(core, task_id, _derived(ROUTE, task_id, "constraints[0]"), ROUTE_RULE, by=AGENT)
         adjudication.adjudicate(core, _item(core, task_id, resolved_ref))
     data = json.loads(Workbench(root).handle("GET", "/api/review").body)
 
@@ -490,3 +506,51 @@ def test_a_run_that_stops_for_a_person_may_not_also_resolve_the_queue_without_on
     assert "interaction.checkpoints" in str(error.value) and "formality" in str(error.value)
     config_mod.resolve(project_file=None, environ={},
                        overrides={"interaction.autonomous_adjudication": "true", "interaction.checkpoints": ""})
+
+
+def test_an_expert_arriving_later_can_withdraw_the_agents_verdict_and_decide_it_themselves(core):
+    """Running with nobody to ask must not be a one-way door.
+
+    `review.decide` refuses an item whose state is not open, which is what stops an adjudication
+    being re-badged as an expert decision -- but it also left an expert arriving later unable to
+    overrule the agent on anything already resolved. Withdrawing is not deciding: it raises a fresh
+    item and leaves the subject unresolved, with the adjudication still in the journal as what the
+    system did while no person was available.
+    """
+    task_id = _task(core)
+    _, rule_ref = criteria.propose(core, task_id, MW, dict(MW_RULE, cutoff_basis="expert_set"), by=AGENT)
+    record = adjudication.adjudicate(core, _item(core, task_id, rule_ref))
+    resolved = _item(core, task_id, rule_ref)
+    assert resolved["state"] == "machine_adjudicated"
+
+    fresh_id = adjudication.reopen(core, resolved, by=OPERATOR, reason_text="a pharmacologist is available now")
+    items = review.items(core, [task_id])
+    assert items[resolved["item_id"]]["state"] == "withdrawn"
+    fresh = items[fresh_id]
+    assert fresh["state"] == "open" and fresh["subject"] == resolved["subject"]
+    assert record["adjudication_id"] in fresh["why_expert_required"] or \
+        record["route"] in fresh["why_expert_required"]
+
+    decision = review.decide(core, fresh, decision="reject", actor=EXPERT, reason_text="the cutoff is not supportable",
+                             entry="interactive", historical_list_exposure="not_exposed")
+    assert decision["decision_id"].startswith("hd_") and decision["actor"]["kind"] == "human"
+    # the agent's record survives the override: the journal keeps both
+    assert [r["adjudication_id"] for r in adjudication.records(core, task_id)] == [record["adjudication_id"]]
+
+
+def test_an_item_a_person_already_decided_cannot_be_reopened_as_if_an_agent_had_done_it(core):
+    task_id = _task(core)
+    _, rule_ref = criteria.propose(core, task_id, MW, dict(MW_RULE, cutoff_basis="expert_set"), by=AGENT)
+    item = _item(core, task_id, rule_ref)
+    review.decide(core, item, decision="approve", actor=EXPERT, reason_text="", entry="interactive",
+                  historical_list_exposure="not_exposed")
+    with pytest.raises(adjudication.AdjudicationError, match="not machine-adjudicated"):
+        adjudication.reopen(core, _item(core, task_id, rule_ref), by=OPERATOR, reason_text="second thoughts")
+
+
+def test_withdrawing_an_agents_verdict_needs_a_reason(core):
+    task_id = _task(core)
+    _, rule_ref = criteria.propose(core, task_id, MW, dict(MW_RULE, cutoff_basis="expert_set"), by=AGENT)
+    adjudication.adjudicate(core, _item(core, task_id, rule_ref))
+    with pytest.raises(adjudication.AdjudicationError, match="say why"):
+        adjudication.reopen(core, _item(core, task_id, rule_ref), by=OPERATOR, reason_text="  ")

@@ -9,7 +9,7 @@ import json
 import pytest
 
 from mas.adapters.drug.registration import EVIDENCE_CATALOG
-from mas.core import criteria, derivation_run, pool, task
+from mas.core import criteria, derivation_run, derivation_stages, pool, task
 from mas.core.broker import Broker, ProviderResponse, ToolContract
 from mas.core.budget import Budget
 from mas.core.controller import RunController, RunError
@@ -407,3 +407,159 @@ def test_the_trajectory_shows_the_pool_growing_then_being_pruned(core):
     assert any(s["stage"] == "merge" and s["merged_away"] for s in steps)
     assert any(s["removed"] for s in steps) and steps[-1]["promoted"] == 2
     assert steps[-1]["live_after"] < steps[0]["live_after"], "the pool must end smaller than it started"
+
+
+# --- one quantity, two curations ------------------------------------------------------------
+# The two attributes the live manuscript registry held for each of the five required receptors,
+# with the wording and bindings they were read out of the store with: one measurement, two
+# curations, differing only in the `question_kind` that names which database answers.
+CHEMBL_POTENCY = {
+    "name": "CSF1R curated potency",
+    "definition": "Median pChEMBL value over curated point measurements against CSF1R (CHEMBL1844)",
+    "measurement_kind": "quantitative", "unit": "pChEMBL", "direction": "higher_better", "aggregation": "median",
+    "acceptable_value_sources": ["curated_measurement"],
+    "evidence_request": {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values",
+                         "identifier_scheme": "inchikey", "parameters": {"target_chembl_id": "CHEMBL1844"}},
+    "rationale": "CSF1R is a required target of the task"}
+GTOPDB_AFFINITY = {
+    "name": "CSF1R affinity on the independent expert curation",
+    "definition": "The median expert-curated affinity, reported on the pChEMBL scale as the negative base-ten "
+                  "logarithm of a molar pIC50, pKi or pKd, that an independent pharmacological curation lists for "
+                  "the compound at CSF1R",
+    "measurement_kind": "quantitative", "unit": "pChEMBL", "direction": "higher_better", "aggregation": "median",
+    "acceptable_value_sources": ["curated_measurement"],
+    "evidence_request": {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity",
+                         "identifier_scheme": "inchikey", "parameters": {"target_chembl_id": "CHEMBL1844"}},
+    "rationale": "an independent curation of affinity at a required target"}
+
+
+def pooled(*routes, base=CHEMBL_POTENCY, **extra):
+    """`base` rebound to several evidence routes and nothing else."""
+    attribute = dict(base, evidence_requests=list(routes), **extra)
+    attribute.pop("evidence_request", None)
+    return attribute
+
+
+def test_one_quantity_curated_by_two_databases_is_grouped_for_merge_though_its_wording_barely_overlaps():
+    """Measured on the registry, 14 October 2026: ten promoted rules for five quantities, because each
+    receptor had one attribute bound to ChEMBL and one bound to IUPHAR/BPS. Grouping keyed on
+    `question_kind`, which *is* the source, so the pair could never land in one bucket; and the wording
+    test cannot rescue it, as the pair's name Jaccard is 0.14 and name+definition 0.10 against the 0.35
+    the test needs. Same capability, unit, direction and subject parameter is what says one quantity."""
+    from mas.core.derivation_stages import _overlap, merge_groups
+
+    assert _overlap(CHEMBL_POTENCY, GTOPDB_AFFINITY) < 0.35
+
+    def entry(i, attribute):
+        return {"criterion_id": f"cri_{i}", "version": 1, "item": {"attribute": attribute}}
+
+    other_receptor = dict(CHEMBL_POTENCY, name="VEGFR2 curated potency",
+                          evidence_request=dict(CHEMBL_POTENCY["evidence_request"],
+                                                parameters={"target_chembl_id": "CHEMBL279"}))
+    groups = merge_groups([entry(1, CHEMBL_POTENCY), entry(2, GTOPDB_AFFINITY), entry(3, other_receptor),
+                           entry(4, dict(GTOPDB_AFFINITY, direction="lower_better"))])
+    assert [sorted(e["criterion_id"] for e in g) for g in groups] == [["cri_1", "cri_2"]]
+    # the two-route form of the quantity groups with either single-route form: a merge can still absorb
+    # a third sibling the pool proposes later
+    both = merge_groups([entry(1, pooled(CHEMBL_POTENCY["evidence_request"], GTOPDB_AFFINITY["evidence_request"])),
+                         entry(2, CHEMBL_POTENCY)])
+    assert [sorted(e["criterion_id"] for e in g) for g in both] == [["cri_1", "cri_2"]]
+
+
+def test_an_attribute_mixing_a_literature_route_with_a_database_route_is_refused():
+    """Two routes on one attribute are two broker calls pooled under one aggregation. A literature route
+    is not that: it is a search, a read and a quote-checked extraction, and pooling a claim read from a
+    paper with a database record under one median needs a policy nobody has set."""
+    literature_route = {"capability": "literature_retrieval", "question_kind": "search",
+                        "parameters": {"query_template": "({names}) AND CSF1R affinity"}}
+    with pytest.raises(criteria.InvariantViolation, match="mixes a literature route"):
+        criteria.check_attribute(pooled(CHEMBL_POTENCY["evidence_request"], literature_route))
+    with pytest.raises(criteria.InvariantViolation, match="literature routes"):
+        criteria.check_attribute(pooled(literature_route, dict(literature_route, parameters={"query_template": "({names})"})))
+    with pytest.raises(criteria.InvariantViolation, match="same evidence route twice"):
+        criteria.check_attribute(pooled(CHEMBL_POTENCY["evidence_request"], dict(CHEMBL_POTENCY["evidence_request"])))
+    # a singular request left behind beside a route list would never be asked, so it is not accepted silently
+    with pytest.raises(criteria.InvariantViolation, match="nothing would ever ask it"):
+        criteria.check_attribute(dict(CHEMBL_POTENCY, evidence_requests=[GTOPDB_AFFINITY["evidence_request"]]))
+    criteria.check_attribute(pooled(CHEMBL_POTENCY["evidence_request"], GTOPDB_AFFINITY["evidence_request"]))
+
+
+def test_two_attributes_asking_the_same_route_set_are_duplicates_and_a_second_route_makes_them_distinct():
+    """`evidence_key` is what `filter_stage` and `promote` call a duplicate of the registry. Keyed on one
+    route it could not see the pair as duplicates at all (the question kinds differ); keyed on the route
+    *set* it sees two attributes asking the same two databases as one, while the ChEMBL-only and the
+    ChEMBL+IUPHAR form of a quantity stay distinct -- the second asks something the first never asks."""
+    chembl_only = criteria.evidence_key(CHEMBL_POTENCY)
+    assert criteria.evidence_key(dict(CHEMBL_POTENCY, name="Potency at the first required receptor",
+                                      definition="another wording of the same question")) == chembl_only
+    both = pooled(CHEMBL_POTENCY["evidence_request"], GTOPDB_AFFINITY["evidence_request"])
+    assert criteria.evidence_key(both) not in (chembl_only, criteria.evidence_key(GTOPDB_AFFINITY))
+    reordered = pooled(GTOPDB_AFFINITY["evidence_request"], CHEMBL_POTENCY["evidence_request"])
+    assert criteria.evidence_key(reordered) == criteria.evidence_key(both)      # the set, not the order
+    assert criteria.evidence_key(dict(both, name="CSF1R curated affinity")) == criteria.evidence_key(both)
+
+
+def merge_script(extra_route=None):
+    """An adjudicator that merges each group, keeping its members' routes (plus `extra_route`, if given,
+    which no member declared)."""
+    def script(request):
+        question = request.metadata.get("question", "")
+        assert question == "adjudicate merges", question
+        groups = json.loads(request.messages[0]["content"].split("Groups:\n", 1)[1].split("\n\nCited claims:")[0])
+        decisions = []
+        for group in groups:
+            members = group["members"]
+            routes = [r for m in members for r in criteria.evidence_routes(m["attribute"])]
+            attribute = pooled(*(routes + ([extra_route] if extra_route else [])), base=members[0]["attribute"],
+                               name="CSF1R curated affinity",
+                               definition="Median curated affinity at CSF1R (CHEMBL1844) on the pChEMBL scale, over "
+                                          "every curation that reports one")
+            merged = dict(members[0], attribute=attribute,
+                          supporting_claim_ids=sorted({c for m in members for c in m["supporting_claim_ids"]}))
+            merged.pop("index")
+            decisions.append({"group": group["group"], "action": "merge", "merged": merged,
+                              "reason": "one measurement, two curations of it"})
+        return {"decisions": decisions}
+    return script
+
+
+def two_curations_pool(core, script, task_id="task_merge"):
+    """A pool holding the receptor's two attributes, and the stage context to merge them in."""
+    writer = pool.Pool(core, task_id, by=OPERATOR, run_id="run_merge").at("propose", 0)
+    claims_by_id = {}
+    for claim_id, attribute in (("claim_chembl", CHEMBL_POTENCY), ("claim_gtopdb", GTOPDB_AFFINITY)):
+        claims_by_id[claim_id] = {"claim_id": claim_id, "source_ref": "src_db_1", "determination_basis": "measured",
+                                  "location": {"quoted_span": f"a curated affinity at CSF1R ({claim_id})"},
+                                  "value": 8.0, "unit": "pChEMBL"}
+        writer.add(proposal(attribute, claim_id), reason_text="proposed for target_coverage")
+    return derivation_stages.StageContext(
+        core=core, roster=roster_for(script), task_id=task_id, run_id="run_merge",
+        task_context={"objective_text": SPEC["objective_text"], "constraints": [],
+                      "scope_entities": SPEC["scope_entities"]},
+        catalog=EVIDENCE_CATALOG, claims_by_id=claims_by_id, reference_labels=[], pool=writer)
+
+
+def test_a_merge_may_pool_its_parents_routes_into_one_attribute(core):
+    ctx = two_curations_pool(core, merge_script())
+    assert derivation_stages.merge_stage(ctx, 1) == {"groups": 1, "merged": 1, "kept_separate": 0, "refused": 0}
+    folded = pool.fold(core, "task_merge")
+    child = next(e for e in folded.values() if e["parents"])
+    assert [r["question_kind"] for r in criteria.evidence_routes(child["item"]["attribute"])] == \
+           ["pchembl_values", "gtopdb_affinity"]
+    assert sorted(e["state"] for e in folded.values() if not e["parents"]) == ["merged_away", "merged_away"]
+    criteria.check_attribute(child["item"]["attribute"])          # and the pooled child is registrable
+
+
+def test_a_merge_may_not_add_an_evidence_route_neither_parent_had(core):
+    """The merge gate already refuses a child citing a claim its parents did not; a child bound to a data
+    source neither parent was bound to is the same kind of reach, and it would make the merged criterion
+    measure something the pool never proposed."""
+    extra = {"capability": "property_estimate", "question_kind": "computed_property",
+             "identifier_scheme": "inchikey", "parameters": {"property": "MolecularWeight"}}
+    ctx = two_curations_pool(core, merge_script(extra_route=extra))
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["refused"] == 1 and stats["merged"] == 0
+    assert not [e for e in pool.fold(core, "task_merge").values() if e["parents"]]
+    # and nothing else about that child was wrong: the refusal is about the route it reached for
+    invented = pooled(CHEMBL_POTENCY["evidence_request"], GTOPDB_AFFINITY["evidence_request"], extra)
+    assert ctx.validate(proposal(invented, "claim_chembl")) == []

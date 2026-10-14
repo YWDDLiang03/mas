@@ -156,8 +156,11 @@ run. It searches and reads (breadth × depth), then:
 2. **filter** — deterministic checks (already registered, no supporting claim, unbound
    evidence request), then a blind critic on its own model queue;
 3. **distill** — each candidate is sharpened into its most precise, measurable form;
-4. **merge** — candidates measuring the same quantity (same evidence route, unit and
-   direction, overlapping wording) are offered to an adjudicator, which may merge them;
+4. **merge** — candidates measuring the same quantity (same capability, unit, direction and
+   subject parameters; or, where a candidate names no subject, overlapping wording) are
+   offered to an adjudicator, which may merge them. Two candidates that are one measurement
+   from two databases merge into one attribute declaring a route to each (`evidence_requests`),
+   whose values are pooled under its aggregation;
 5. **refine** — items with validator problems or critic findings are revised or withdrawn.
 
 Steps 2–5 repeat up to `criteria.inner_iterations` times and stop early once the pool

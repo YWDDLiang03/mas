@@ -35,7 +35,7 @@ import json
 import re
 from typing import Any
 
-from . import criteria, ledger, vocab
+from . import criteria, ledger, review, vocab
 from .clock import utc_now
 from .ids import new_id
 from .journal import actor as make_actor
@@ -104,18 +104,14 @@ def restated_constraint(rule: dict[str, Any], attribute: dict[str, Any],
                         context: dict[str, Any]) -> dict[str, Any] | None:
     """The task constraint this rule restates, or None when the task text does not state it.
 
-    Two ways a rule may rest on the task's own authority, both checked against the constraints the
-    task context actually holds (`constraints[] {text, kind, hardness, provenance}`):
+    A rule rests on the task's own authority only when it was built *from* a constraint by an
+    adapter template, which records `derived_from {task_context, field}` naming the field -- checked
+    against the constraints the task context actually holds (`constraints[] {text, kind, hardness,
+    provenance}`). Nothing a proposer writes can establish this, which is the point.
 
-    * the criterion was built *from* a constraint by an adapter template, which records
-      `derived_from {task_context, field}` -- the only link that names the field itself; or
-    * the criterion's operational text (name and definition, never the rationale) repeats every
-      content word of a constraint. The rationale is excluded on purpose: it is free text the
-      proposer writes, so letting it match would let a proposal authorise itself by quoting the
-      task back at the reader.
-
-    A numeric cutoff must also appear in the constraint's text. A number the task never states is a
-    judgement about where to draw a line, which is exactly what this route may not supply.
+    A hard exclusion must restate a *hard* constraint, and a numeric cutoff must also appear in the
+    constraint's text. A number the task never states is a judgement about where to draw a line,
+    which is exactly what this route may not supply.
     """
     constraints = context.get("constraints") or []
     if not constraints:
@@ -126,7 +122,6 @@ def restated_constraint(rule: dict[str, Any], attribute: dict[str, Any],
                      else set())
     task_ref = f"{context['task_context_id']}@v{context['version']}"
     derived = (attribute.get("derived_from") or {}).get("field")
-    operational = _words(f"{attribute.get('name', '')} {attribute.get('definition', '')}")
 
     def supported(index: int, constraint: dict[str, Any], match: str) -> dict[str, Any] | None:
         # A soft constraint cannot authorise deleting candidates: a hard exclusion restates a hard one.
@@ -143,12 +138,12 @@ def restated_constraint(rule: dict[str, Any], attribute: dict[str, Any],
             found = supported(index, constraint, "derived_from_task_field")
             if found:
                 return found
-    for index, constraint in enumerate(constraints):
-        text = _words(constraint.get("text", ""))
-        if text and text <= operational:
-            found = supported(index, constraint, "wording_restated")
-            if found:
-                return found
+    # WHY there is no wording path here: matching a constraint's words against the attribute's own
+    # name and definition would let a proposal authorise itself by quoting the task back at the
+    # reader -- and this is the only route that approves rather than demotes. `derived_from.field`
+    # is a link an adapter template wrote when it built the criterion *from* the constraint, which
+    # no proposer can forge. A criterion that genuinely restates the task but carries no such link
+    # is demoted instead of approved: the conservative failure, which is the right one here.
     return None
 
 
@@ -503,3 +498,28 @@ def by_rule_version(core: Core, task_id: str) -> dict[str, dict[str, Any]]:
     for record in records(core, task_id):
         out[record["rule_ref_after"]] = record
     return out
+
+
+def reopen(core: Core, item: dict[str, Any], *, by: dict[str, Any], reason_text: str) -> str:
+    """Withdraw a machine adjudication and raise a fresh item on the same subject, for a person.
+
+    WHY this exists: `review.decide` refuses an item whose state is not open, which is what keeps an
+    adjudicated item from being quietly re-badged as an expert decision. Without a way back, though,
+    running with nobody to ask became a one-way door -- an expert arriving later could not overrule
+    the agent on anything it had already resolved. This keeps both records: the adjudication stays
+    in the journal as what the system did while no person was available, and the new item carries
+    the subject to a terminal. Withdrawing is not deciding: it leaves the subject unresolved.
+    """
+    if item.get("state") != "machine_adjudicated":
+        raise AdjudicationError(f"item {item['item_id']} is {item.get('state')}, not machine-adjudicated")
+    if not reason_text.strip():
+        raise AdjudicationError("say why the adjudication is being withdrawn")
+    core.journal.append(item["stream_id"], "human.review_withdrawn", actor=by,
+                        ids={"review_request_id": item["item_id"]},
+                        payload={"item_id": item["item_id"], "withdrew_adjudication_id": item.get("adjudication_id"),
+                                 "reason_text": reason_text},
+                        summary=f"withdrew the agent's verdict on {item['subject']['kind']} {item['subject']['id']}")
+    return review.request(core, item["stream_id"], subject=item["subject"],
+                          why_expert_required=f"an agent resolved this without a person "
+                                              f"({item.get('adjudication_route')}); withdrawn: {reason_text}",
+                          requested_by=by, inspection_bundle=item.get("inspection_bundle") or {})

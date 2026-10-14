@@ -62,6 +62,10 @@ PROPOSER_SYSTEM = (
     "A preference rule without a cited cutoff uses predicate_form ordering: candidates are ranked by the value in "
     "the attribute's direction. "
     "Bind each attribute's evidence_request to one entry of the evidence catalog and fill its parameters. "
+    "When one quantity is measured by several catalog entries -- the same measurement curated by two "
+    "databases -- declare them together as evidence_requests [{...}, {...}] on one attribute instead of "
+    "writing one attribute per database: their values are then pooled under that attribute's aggregation. "
+    "A literature route may not be combined with a database route on one attribute. "
     "When that entry states a determination_basis, list it in the attribute's acceptable_determination_bases, "
     "or every value the source returns is set aside and the attribute carries no evidence. "
     "Never name or allude to any specific candidate compound in definitions, rationales, or rules. "
@@ -104,7 +108,7 @@ REVISION_CHECKS = ("objective_conformance", "evidence_support", "unit_applicabil
 # revision, because the declaration was stripped before the check re-read it.
 ATTRIBUTE_FIELDS = ("name", "definition", "measurement_kind", "unit", "direction", "acceptable_value_sources",
                     "acceptable_determination_bases", "aggregation", "value_transform", "evidence_request",
-                    "rationale")
+                    "evidence_requests", "rationale")
 
 # WHY one shared constant: both prompt builders describe the rule schema, and when the description drifts from what
 # `check_rule` accepts a proposer spends revisions discovering the real contract. This listed two of the five
@@ -295,22 +299,39 @@ def validate_proposal(proposal: dict[str, Any], *, claims_by_id: dict[str, dict[
                   and any(claims_by_id[c].get(k) is not None for k in ("value", "value_low", "value_high"))]
         if not values:
             problems.append("arbitrary_cutoff: source_stated_value cutoff without a cited claim carrying a value")
-    request = attribute.get("evidence_request") or {}
-    entry = next((e for e in catalog if e["capability"] == request.get("capability")
-                  and e["question_kind"] == request.get("question_kind")), None)
-    if entry is None:
-        problems.append("schema: evidence_request is not bound to a catalog entry")
-    elif entry.get("determination_basis"):
-        # The source states what its records are. An attribute that does not accept that basis has
-        # every value it receives set aside at assessment time, which reads as "no data" rather than
-        # as a mistake, so the pairing is refused here instead.
-        accepted = list(attribute.get("acceptable_determination_bases") or assessor.DEFAULT_DETERMINATION_BASES)
-        if entry["determination_basis"] not in accepted:
-            problems.append(f"evidence_support: the bound source returns {entry['determination_basis']} records and "
-                            f"acceptable_determination_bases {accepted} excludes that basis, so every value it returns "
-                            f"would be set aside and the attribute would carry no evidence")
-    if request.get("capability") == "literature_retrieval" and not (attribute.get("measurement_kind") == "quantitative"
-                                                                     and attribute.get("unit")):
+    # Every route is bound and checked, not just the first: an attribute may read one quantity from
+    # two databases, and an unbound second route would be a tool call nobody declared.
+    routes = criteria.evidence_routes(attribute)
+    for request in routes:
+        request = request if isinstance(request, dict) else {}
+        entry = next((e for e in catalog if e["capability"] == request.get("capability")
+                      and e["question_kind"] == request.get("question_kind")), None)
+        if entry is None:
+            problems.append(f"schema: evidence route {request.get('capability')}/{request.get('question_kind')} "
+                            f"is not bound to a catalog entry")
+            continue
+        if len(routes) > 1 and entry.get("evidence_kind") \
+                and entry["evidence_kind"] not in set(attribute.get("acceptable_value_sources") or ()):
+            # Checked only for a pooled attribute, because that is where the mismatch hides: a single
+            # route whose kind the attribute does not accept leaves the cell empty, which reads as
+            # absence, while one of two leaves the cell scored on half the evidence it declares and
+            # says nothing about the half that was dropped.
+            problems.append(f"evidence_support: route {entry['capability']}/{entry['question_kind']} returns "
+                            f"{entry['evidence_kind']} claims and acceptable_value_sources "
+                            f"{attribute.get('acceptable_value_sources')} excludes that kind, so this route would "
+                            f"contribute nothing while the attribute's other routes score the cell")
+        if entry.get("determination_basis"):
+            # The source states what its records are. An attribute that does not accept that basis has
+            # every value it receives set aside at assessment time, which reads as "no data" rather than
+            # as a mistake, so the pairing is refused here instead.
+            accepted = list(attribute.get("acceptable_determination_bases") or assessor.DEFAULT_DETERMINATION_BASES)
+            if entry["determination_basis"] not in accepted:
+                problems.append(f"evidence_support: the bound source {entry['capability']}/{entry['question_kind']} "
+                                f"returns {entry['determination_basis']} records and acceptable_determination_bases "
+                                f"{accepted} excludes that basis, so every value it returns would be set aside and "
+                                f"the attribute would carry no evidence")
+    if criteria.is_literature_bound(attribute) and not (attribute.get("measurement_kind") == "quantitative"
+                                                        and attribute.get("unit")):
         problems.append("schema: literature evidence yields numbers with units; a literature-bound attribute must be "
                         "quantitative with a unit")
     text = json.dumps({k: attribute.get(k) for k in ("name", "definition", "rationale")} | {"rule": rule}, ensure_ascii=False)
@@ -391,7 +412,9 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
               f"returns -- {{kind: excess_above|shortfall_below|distance_outside_band, bound or low and high, "
               f"basis, source_refs}}; without it the raw value is what gets ranked, however the definition "
               f"describes the quantity, "
-              f"aggregation (max|min|consensus), evidence_request {{capability, question_kind, identifier_scheme, parameters}}, rationale.\n"
+              f"aggregation (max|min|consensus), evidence_request {{capability, question_kind, identifier_scheme, parameters}} "
+              f"-- or evidence_requests [{{...}}, {{...}}] when one quantity is read from several catalog entries, "
+              f"rationale.\n"
               + SCHEMA_BLOCK_FORMS
               + f"\nClaims ({len(claims)}):\n{_claims_block(claims)}")
     proposer = call_role(core, roster, stream_id, ModelRequest(
