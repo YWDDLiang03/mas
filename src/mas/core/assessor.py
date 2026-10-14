@@ -107,14 +107,22 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
         # aggregation and before any comparison, so the cell carries the quantity the attribute names.
         declared = attribute.get("value_transform")
         transform = (lambda v: criteria.apply_value_transform(v, declared)) if declared else (lambda v: v)
-        values = []
+        # WHY one evaluation per claim, kept and reused: the verdict and its explanation have to be computed
+        # from the same numbers. Conflict attribution used to re-derive sides from the raw `value` against a
+        # cutoff that lives on the transformed scale, and skipped range claims entirely because their `value`
+        # is None -- so with raw observations 20 and 50, an excess-above-30 transform, assessed values 0 and
+        # 20, median 10 and a `>= 10` predicate, the cell passed while the claim that transformed to 0 was
+        # reported as no conflict at all. The score was right and its audit trail denied the counter-evidence.
+        evaluated = []
         for c in usable:
             if categorical:
-                values.append(c["value"])
+                claim_values = [c["value"]]
             elif c.get("value") is not None:
-                values.append(transform(float(c["value"])))
+                claim_values = [transform(float(c["value"]))]
             else:   # a reported range contributes both ends: a range straddling a cutoff is a conflict, not a pass
-                values.extend([transform(float(c["value_low"])), transform(float(c["value_high"]))])
+                claim_values = [transform(float(c["value_low"])), transform(float(c["value_high"]))]
+            evaluated.append({"claim_id": c["claim_id"], "values": claim_values})
+        values = [v for e in evaluated for v in e["values"]]
         aggregation = "consensus" if categorical else attribute.get("aggregation", "consensus")
         if cutoff is None:
             if rule.get("predicate_form") == "ordering" and rule["rule_kind"] == "preference":
@@ -144,9 +152,11 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
                 verdict = "pass" if _compare(value, cutoff["comparator"], cutoff["value"]) else "fail"
             if len(sides) > 1 and aggregation != "consensus":
                 disposition = "found_and_outweighed"
-                conflicting = [c["claim_id"] for c in usable if c.get("value") is not None
-                               and _compare(c["value"] if categorical else float(c["value"]), cutoff["comparator"], cutoff["value"])
-                               != (verdict == "pass")]
+                # A claim counts as counter-evidence when any value it contributed -- either end of a
+                # reported range included -- lands on the side the aggregate did not take.
+                conflicting = [e["claim_id"] for e in evaluated
+                               if any(_compare(v, cutoff["comparator"], cutoff["value"]) != (verdict == "pass")
+                                      for v in e["values"])]
         explicit_conflicts = [c["claim_id"] for c in usable if c.get("polarity") == "conflicts"]
         conflicting = sorted(set(conflicting) | set(explicit_conflicts))
         if explicit_conflicts and disposition == "none_found":

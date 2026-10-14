@@ -291,3 +291,41 @@ def test_range_claims_straddling_a_cutoff_are_conflicts_not_passes():
     above, _ = assessor.assess_cell(candidate={"candidate_id": "x"}, attribute=attribute, rule=rule, rule_set_ref="rules@v1",
                                     claims=[claim(35, 45)], resolved=True)
     assert straddling["verdict"] == "unknown_conflicted" and above["verdict"] == "pass"
+
+
+def test_counter_evidence_is_attributed_from_the_values_the_verdict_was_computed_from():
+    """F8. Conflict attribution re-derived sides from the raw observation against a cutoff that lives
+    on the transformed scale, and skipped range claims because their `value` is None. Reproduced from
+    the handoff fixture: raw 20 and 50, excess above 30, assessed 0 and 20, median 10, pass if `>= 10`.
+    The cell correctly passed while the claim that transformed to 0 was reported as no conflict at all,
+    so the score was right and its own audit trail denied the counter-evidence."""
+    attribute = {"attribute_id": "attr_x", "version": 1, "name": "Excess above the stated bound",
+                 "definition": "the excess above 30", "measurement_kind": "quantitative", "unit": "u",
+                 "direction": "lower_better", "acceptable_value_sources": ["curated_measurement"],
+                 "aggregation": "median",
+                 "value_transform": {"kind": "excess_above", "bound": 30.0, "basis": "source_stated_value",
+                                     "source_refs": ["c0"]},
+                 "evidence_request": {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}}
+    rule = {"rule_id": "rule_x", "version": 1, "rule_kind": "preference", "predicate_form": "threshold",
+            "cutoff": {"comparator": ">=", "value": 10.0, "unit": "u"}, "cutoff_basis": "source_stated_value"}
+
+    def claim(i, value=None, low=None, high=None):
+        return {"claim_id": f"c{i}", "admission_state": "admitted", "evidence_kind": "curated_measurement",
+                "determination_basis": "measured", "value": value, "value_low": low, "value_high": high, "unit": "u"}
+
+    cell, _ = assessor.assess_cell(candidate={"candidate_id": "x"}, attribute=attribute, rule=rule,
+                                   rule_set_ref="rules@v1", claims=[claim(0, 20.0), claim(1, 50.0)], resolved=True)
+    assert cell["verdict"] == "pass" and cell["value"] == 10.0          # median of the transformed 0 and 20
+    assert cell["conflicting_claim_refs"] == ["c0"], "the claim transformed to 0 is the counter-evidence"
+
+    # a reported range contributes both ends, so it is attributable too -- it was skipped entirely before
+    cell, _ = assessor.assess_cell(candidate={"candidate_id": "y"}, attribute=attribute, rule=rule,
+                                   rule_set_ref="rules@v1",
+                                   claims=[claim(0, low=20.0, high=50.0), claim(1, 60.0)], resolved=True)
+    assert "c0" in cell["conflicting_claim_refs"], "a range straddling the cutoff is counter-evidence"
+
+    # without a transform the raw and evaluated values coincide, so behaviour is unchanged
+    plain = dict(attribute); plain.pop("value_transform")
+    cell, _ = assessor.assess_cell(candidate={"candidate_id": "z"}, attribute=plain, rule=rule,
+                                   rule_set_ref="rules@v1", claims=[claim(0, 2.0), claim(1, 50.0)], resolved=True)
+    assert cell["verdict"] == "pass" and cell["conflicting_claim_refs"] == ["c0"]

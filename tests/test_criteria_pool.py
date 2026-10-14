@@ -870,3 +870,32 @@ def test_a_collapse_group_that_states_no_subject_is_refused_because_its_quantity
     before = len(core.journal.replay(task_id))
     collapse.collapse(core, task_id, by=OPERATOR, dry_run=False)
     assert len(core.journal.replay(task_id)) == before, "a refused group must write nothing"
+
+
+def test_the_repair_budget_survives_a_store_reopen_and_a_merge_does_not_reset_it(core):
+    """F1. `refine_stage` wrote `refine_count` onto the item and `filter_stage` read it to enforce
+    `max_refines`, but it was absent from `pool.ITEM_FIELDS`, so `_record` dropped it and a fold read
+    0. The budget reset on every reopen and round continuation, so the limit bounded nothing durably.
+    A merged child must inherit its group's largest count too, or merging would be the cheapest way
+    past the limit."""
+    from mas.core import pool as pool_mod
+    task_id, _ = task.record_version(core, SPEC, by=OPERATOR)
+    writer = pool_mod.Pool(core, task_id, by=OPERATOR, run_id="run_x").at("refine", 1)
+    item = {"attribute": lit_attribute("Oral bioavailability", "%"), "rule": {}, "supporting_claim_ids": ["c1"],
+            "refine_count": 2}
+    criterion_id = writer.add(item, reason_text="first")
+
+    # the counter must come back from a fresh fold, which is what a reopened store or a later round does
+    entry = pool_mod.fold(core, task_id)[criterion_id]
+    assert entry["item"]["refine_count"] == 2, "the repair budget was dropped on persistence"
+
+    revised = pool_mod.Pool(core, task_id, by=OPERATOR, run_id="run_x").at("refine", 2)
+    revised.revise(entry, dict(entry["item"], refine_count=3), reason_text="again", reason_kind="refined")
+    assert pool_mod.fold(core, task_id)[criterion_id]["item"]["refine_count"] == 3
+
+    # a merged child inherits the largest count in its group rather than starting over
+    from mas.core.derivation_stages import _item
+    group = [{"item": {"refine_count": 3}}, {"item": {"refine_count": 1}}, {"item": {}}]
+    child = _item({"attribute": {}, "rule": {}, "supporting_claim_ids": []},
+                  refine_count=max(int(e["item"].get("refine_count") or 0) for e in group))
+    assert child["refine_count"] == 3

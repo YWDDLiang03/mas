@@ -22,8 +22,16 @@ from .ids import new_id
 from .runtime import Core
 
 ACTIVE_STATES = ("candidate", "needs_refine", "deferred_next_round")
+# WHY refine_count is persisted: `refine_stage` writes it onto the item and `filter_stage` reads it to decide
+# whether an item has exhausted `max_refines`, but it was not in this list, so `_record` dropped it and a fold
+# read it back as 0. The repair budget therefore reset on every store reopen and every round continuation, and
+# `max_refines` bounded nothing durably -- an item could be revised indefinitely as long as the run was resumed.
+# The budget is per lineage and cumulative across rounds: its purpose is to stop the pool rewriting one
+# proposal forever, and a round boundary is not a reason to grant a fresh allowance. Historical records predate
+# this field and legitimately fold to 0; they are not backfilled with invented counts, so a run derived before
+# this change keeps whatever repair history it actually recorded.
 ITEM_FIELDS = ("attribute", "rule", "supporting_claim_ids", "expected_change", "falsification_test", "dimension",
-               "validator_problems", "critic_findings")
+               "validator_problems", "critic_findings", "refine_count")
 
 
 def _ref(criterion_id: str, version: int) -> str:
