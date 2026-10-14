@@ -36,7 +36,7 @@ from .derivation import (CRITIC_SYSTEM, CRITIQUE_SCHEMA, PROPOSAL_SCHEMA, PROPOS
                          REVISION_CHECKS, REVISION_SCHEMA, _claims_block, _normalize_proposal, validate_proposal)
 from .ids import slug
 from .journal import actor as make_actor
-from .models import ModelRequest, ModelRoster, call_role
+from .models import ModelError, ModelRequest, ModelRoster, call_role
 from .pool import Pool, active
 from .runtime import Core
 
@@ -95,6 +95,27 @@ _STOP = {"the", "of", "a", "an", "in", "to", "and", "or", "for", "with", "by", "
 
 def _chunks(items: list, size: int) -> list[list]:
     return [items[i:i + size] for i in range(0, len(items), size)]
+
+
+# WHY one batch may fail without taking the round with it: `call_role` repairs an unparseable reply
+# once and then raises, and every stage ran its batches in a bare loop, so a single bad reply ended
+# the whole derivation. Measured on the clean derivation of 14 October 2026 -- after 1.5 hours, 24
+# documents read, 597 claims admitted and 59 proposals pruned to 38 -- `refine` at iteration 2 hit
+# `parse_failed: no JSON value found in the model reply` on one batch and the run died with nothing
+# promoted. A reasoning model that occasionally answers in prose is a property of the provider, not a
+# reason to discard the work. An unresolved batch is a legitimate outcome once it is labelled: the
+# items keep whatever state they already had, the failure is counted in the stage's own stats, and
+# promotion sees a smaller pool rather than none. A budget refusal still propagates untouched --
+# that is the run being told to stop, which is different from a provider stumbling.
+def _for_each_batch(items: list, size: int, stats: dict[str, Any], handle) -> None:
+    for batch in _chunks(items, size):
+        try:
+            handle(batch)
+        except ModelError as error:
+            if error.error_class == "quota_exhausted":
+                raise
+            stats["batches_unresolved"] = stats.get("batches_unresolved", 0) + 1
+            stats.setdefault("unresolved_reasons", []).append(f"{error.error_class}: {error}"[:200])
 
 
 @dataclass
@@ -272,17 +293,29 @@ def duplicate_reason(found: dict[str, Any]) -> str:
             f"it asks {', '.join(found['asks'])}")
 
 
-def _critique(ctx: StageContext, entries: list[dict[str, Any]], question: str) -> None:
-    """Blind critique of entries not yet critiqued at their current version; results kept per (id, version)."""
+def _critique(ctx: StageContext, entries: list[dict[str, Any]], question: str,
+              stats: dict[str, Any] | None = None) -> None:
+    """Blind critique of entries not yet critiqued at their current version; results kept per (id, version).
+
+    A batch whose reply cannot be used leaves its items uncritiqued, which `filter_stage` already
+    reads as "the critic said nothing" -- so the pass continues and the omission is counted rather
+    than ending the round.
+    """
     todo = [e for e in entries if (e["criterion_id"], e["version"]) not in ctx.critiques]
     for batch in _chunks(todo, BATCH["critic"]):
-        views = [_view(e, i, blind=True) for i, e in enumerate(batch)]
-        response = ctx.call("critic", CRITIC_SYSTEM, f"Objective: {ctx.task_context['objective_text']}\n\nProposals:\n"
-                            f"{json.dumps(views, ensure_ascii=False, indent=1)}\n\nCited claims:\n"
-                            f"{ctx.cited_block([e['item'] for e in batch])}", CRITIQUE_SCHEMA, question, max_tokens=8000)
-        findings = [f for f in response.data["findings"] if f.get("referent")]
-        for index, entry in enumerate(batch):
-            ctx.critiques[(entry["criterion_id"], entry["version"])] = [f for f in findings if f["proposal_index"] == index]
+        try:
+            views = [_view(e, i, blind=True) for i, e in enumerate(batch)]
+            response = ctx.call("critic", CRITIC_SYSTEM, f"Objective: {ctx.task_context['objective_text']}\n\nProposals:\n"
+                                f"{json.dumps(views, ensure_ascii=False, indent=1)}\n\nCited claims:\n"
+                                f"{ctx.cited_block([e['item'] for e in batch])}", CRITIQUE_SCHEMA, question, max_tokens=8000)
+            findings = [f for f in response.data["findings"] if f.get("referent")]
+            for index, entry in enumerate(batch):
+                ctx.critiques[(entry["criterion_id"], entry["version"])] = [f for f in findings if f["proposal_index"] == index]
+        except ModelError as error:
+            if error.error_class == "quota_exhausted":
+                raise
+            if stats is not None:
+                stats["critique_batches_unresolved"] = stats.get("critique_batches_unresolved", 0) + 1
 
 
 def _failures(findings: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -317,7 +350,7 @@ def filter_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
                 stats["to_refine"] += 1
             elif not problems:
                 survivors.append(entry)
-    _critique(ctx, survivors, "critique pool")
+    _critique(ctx, survivors, "critique pool", stats)
     for entry in survivors:
         blocking, material = _failures(ctx.critiques[(entry["criterion_id"], entry["version"])])
         refined = int(entry["item"].get("refine_count") or 0)
@@ -343,31 +376,37 @@ def distill_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
     pool = ctx.pool.at("distill", iteration)
     stats = {"revised": 0, "kept": 0, "withdrawn": 0, "to_refine": 0}
     for batch in _chunks(active(pool.fold(), ("candidate",)), BATCH["distill"]):
-        views = [_view(e, i) for i, e in enumerate(batch)]
-        response = ctx.call("proposer", DISTILLER_SYSTEM, ctx.base_prompt() + "\nItems to distill:\n"
-                            + json.dumps(views, ensure_ascii=False, indent=1) + "\n\nCited claims:\n"
-                            + ctx.cited_block([e["item"] for e in batch]), DISTILL_SCHEMA, "distill pool")
-        for decision in response.data["items"]:
-            if not 0 <= decision["index"] < len(batch):
-                continue
-            entry = batch[decision["index"]]
-            if decision["action"] == "withdraw":
-                pool.set_state(entry, "withdrawn", operation="remove", reason_kind="withdrawn_by_distiller",
-                               reason_text=decision["reason"])
-                stats["withdrawn"] += 1
-            elif decision["action"] == "revise" and decision.get("proposal"):
-                item = _item(dict(entry["item"], **decision["proposal"]), dimension=entry["item"].get("dimension"),
-                             refine_count=entry["item"].get("refine_count", 0))
-                if set(item["supporting_claim_ids"]) - set(entry["item"]["supporting_claim_ids"]):
-                    stats["kept"] += 1   # distilling may not reach for new evidence; the earlier version stands
+        try:
+            views = [_view(e, i) for i, e in enumerate(batch)]
+            response = ctx.call("proposer", DISTILLER_SYSTEM, ctx.base_prompt() + "\nItems to distill:\n"
+                                + json.dumps(views, ensure_ascii=False, indent=1) + "\n\nCited claims:\n"
+                                + ctx.cited_block([e["item"] for e in batch]), DISTILL_SCHEMA, "distill pool")
+            for decision in response.data["items"]:
+                if not 0 <= decision["index"] < len(batch):
                     continue
-                problems = ctx.validate(item)
-                state = "needs_refine" if problems else "candidate"
-                pool.revise(entry, dict(item, validator_problems=problems), state=state, reason_kind="distilled",
-                            reason_text=decision["reason"])
-                stats["to_refine" if problems else "revised"] += 1
-            else:
-                stats["kept"] += 1
+                entry = batch[decision["index"]]
+                if decision["action"] == "withdraw":
+                    pool.set_state(entry, "withdrawn", operation="remove", reason_kind="withdrawn_by_distiller",
+                                   reason_text=decision["reason"])
+                    stats["withdrawn"] += 1
+                elif decision["action"] == "revise" and decision.get("proposal"):
+                    item = _item(dict(entry["item"], **decision["proposal"]), dimension=entry["item"].get("dimension"),
+                                 refine_count=entry["item"].get("refine_count", 0))
+                    if set(item["supporting_claim_ids"]) - set(entry["item"]["supporting_claim_ids"]):
+                        stats["kept"] += 1   # distilling may not reach for new evidence; the earlier version stands
+                        continue
+                    problems = ctx.validate(item)
+                    state = "needs_refine" if problems else "candidate"
+                    pool.revise(entry, dict(item, validator_problems=problems), state=state, reason_kind="distilled",
+                                reason_text=decision["reason"])
+                    stats["to_refine" if problems else "revised"] += 1
+                else:
+                    stats["kept"] += 1
+        except ModelError as error:
+            if error.error_class == "quota_exhausted":
+                raise
+            stats["batches_unresolved"] = stats.get("batches_unresolved", 0) + 1
+            stats.setdefault("unresolved_reasons", []).append(f"{error.error_class}: {error}"[:160])
     return stats
 
 
@@ -503,36 +542,42 @@ def refine_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
     pool = ctx.pool.at("refine", iteration)
     stats = {"revised": 0, "withdrawn": 0, "still_failing": 0, "deferred": 0}
     for batch in _chunks(active(pool.fold(), ("needs_refine",)), BATCH["refine"]):
-        notes = [dict(_view(e, i), validator_problems=e["item"].get("validator_problems") or [],
-                      critic_findings=e["item"].get("critic_findings") or []) for i, e in enumerate(batch)]
-        response = ctx.call("proposer", REVISER_SYSTEM, ctx.base_prompt() + "\nProposals to revise or withdraw:\n"
-                            + json.dumps(notes, ensure_ascii=False, indent=1) + "\n\nCited claims:\n"
-                            + ctx.cited_block([e["item"] for e in batch]), REVISION_SCHEMA, "refine pool")
-        for revision in response.data["revisions"]:
-            if not 0 <= revision["index"] < len(batch):
-                continue
-            entry = batch[revision["index"]]
-            count = int(entry["item"].get("refine_count") or 0) + 1
-            if revision["action"] == "withdraw" or not revision.get("proposal"):
-                pool.set_state(entry, "withdrawn", operation="remove", reason_kind="withdrawn_by_reviser",
-                               reason_text=revision["reason"])
-                stats["withdrawn"] += 1
-                continue
-            item = _item(dict(entry["item"], **revision["proposal"]), dimension=entry["item"].get("dimension"),
-                         refine_count=count)
-            problems = ctx.validate(item)
-            if not problems:
-                pool.revise(entry, dict(item, validator_problems=[]), state="candidate", reason_kind="refined",
-                            reason_text=revision["reason"])
-                stats["revised"] += 1
-            elif count >= ctx.max_refines:
-                pool.revise(entry, dict(item, validator_problems=problems), state="deferred_next_round",
-                            reason_kind="still_failing_after_refinement", reason_text="; ".join(problems)[:500])
-                stats["deferred"] += 1
-            else:
-                pool.revise(entry, dict(item, validator_problems=problems), state="needs_refine",
-                            reason_kind="refined_still_failing", reason_text="; ".join(problems)[:500])
-                stats["still_failing"] += 1
+        try:
+            notes = [dict(_view(e, i), validator_problems=e["item"].get("validator_problems") or [],
+                          critic_findings=e["item"].get("critic_findings") or []) for i, e in enumerate(batch)]
+            response = ctx.call("proposer", REVISER_SYSTEM, ctx.base_prompt() + "\nProposals to revise or withdraw:\n"
+                                + json.dumps(notes, ensure_ascii=False, indent=1) + "\n\nCited claims:\n"
+                                + ctx.cited_block([e["item"] for e in batch]), REVISION_SCHEMA, "refine pool")
+            for revision in response.data["revisions"]:
+                if not 0 <= revision["index"] < len(batch):
+                    continue
+                entry = batch[revision["index"]]
+                count = int(entry["item"].get("refine_count") or 0) + 1
+                if revision["action"] == "withdraw" or not revision.get("proposal"):
+                    pool.set_state(entry, "withdrawn", operation="remove", reason_kind="withdrawn_by_reviser",
+                                   reason_text=revision["reason"])
+                    stats["withdrawn"] += 1
+                    continue
+                item = _item(dict(entry["item"], **revision["proposal"]), dimension=entry["item"].get("dimension"),
+                             refine_count=count)
+                problems = ctx.validate(item)
+                if not problems:
+                    pool.revise(entry, dict(item, validator_problems=[]), state="candidate", reason_kind="refined",
+                                reason_text=revision["reason"])
+                    stats["revised"] += 1
+                elif count >= ctx.max_refines:
+                    pool.revise(entry, dict(item, validator_problems=problems), state="deferred_next_round",
+                                reason_kind="still_failing_after_refinement", reason_text="; ".join(problems)[:500])
+                    stats["deferred"] += 1
+                else:
+                    pool.revise(entry, dict(item, validator_problems=problems), state="needs_refine",
+                                reason_kind="refined_still_failing", reason_text="; ".join(problems)[:500])
+                    stats["still_failing"] += 1
+        except ModelError as error:
+            if error.error_class == "quota_exhausted":
+                raise
+            stats["batches_unresolved"] = stats.get("batches_unresolved", 0) + 1
+            stats.setdefault("unresolved_reasons", []).append(f"{error.error_class}: {error}"[:160])
     return stats
 
 
@@ -560,8 +605,9 @@ def promote(ctx: StageContext, *, by_proposer: dict[str, Any]) -> dict[str, Any]
     pool = ctx.pool.at("promote", 0)
     registered = ctx.registered()
     candidates = active(pool.fold(), ("candidate", "needs_refine"))
-    _critique(ctx, [e for e in candidates if not ctx.validate(e["item"])], "final check before promotion")
     out = {"accepted": [], "disputed": [], "deferred": [], "duplicates": []}
+    _critique(ctx, [e for e in candidates if not ctx.validate(e["item"])],
+              "final check before promotion", out)
     for entry in candidates:
         item = entry["item"]
         duplicate = duplicate_of_registered(item["attribute"], registered)

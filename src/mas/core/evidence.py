@@ -120,9 +120,9 @@ class LiteratureCache:
 
     WHY a gate per key instead of one lock held across the call, which is how
     `adapters/drug/pubchem.PropertyCache` solves the same shape: producing an entry here is a
-    reader tool call plus an extraction model call, around half a minute each on the measured
-    enumerate stage, so a single lock would serialize exactly the work the workers exist to
-    overlap. A gate is kept after use rather than discarded: discarding it reopens the window in
+    reader tool call plus an extraction model call - the measured enumerate stage averaged 25 s
+    over its 24 calls - so a single lock would serialize exactly the work the workers exist to
+    overlap, while two threads reaching for the same paper must still pay for one call. A gate is kept after use rather than discarded: discarding it reopens the window in
     which a late thread builds a second gate for a key whose production is still in flight, and
     one `threading.Lock` per key is nothing beside the documents the memo already holds.
     """

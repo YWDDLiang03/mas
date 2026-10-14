@@ -933,3 +933,60 @@ def test_a_derived_quantity_is_not_a_duplicate_of_the_measurement_it_is_derived_
     assert duplicate_of_registered(excess, [raw]) is None
     assert duplicate_of_registered(tighter, [excess]) is None
     assert duplicate_of_registered(mw("Molecular weight restated"), [raw]) is not None
+
+
+class RoundOneBadRefineReply(RoundOne):
+    """Like RoundOne, but the provider answers the refine call with prose instead of json once."""
+
+    def __init__(self):
+        super().__init__()
+        self.refine_calls = 0
+
+    def __call__(self, request):
+        if request.metadata.get("question", "") == "refine pool":
+            self.refine_calls += 1
+            if self.refine_calls == 1:
+                raise _Unparseable("no JSON value found in the model reply")
+        return super().__call__(request)
+
+
+class _Unparseable(Exception):
+    pass
+
+
+def test_one_unusable_model_reply_does_not_destroy_the_round(core):
+    """Measured on the clean derivation of 14 October 2026: after 1.5 hours, 24 documents read, 597
+    claims admitted and 59 proposals pruned to 38, `refine` at iteration 2 received
+    `parse_failed: no JSON value found in the model reply` on one batch and the whole run died with
+    nothing promoted. `call_role` repairs an unparseable reply once and then raises, and every stage
+    ran its batches in a bare loop. A reasoning model that occasionally answers in prose is a
+    property of the provider, not a reason to discard the work.
+
+    This enters through `derive_iterative`, the seam a run uses, because the lesson of 64be256 is
+    that a test which does not is not evidence about production.
+    """
+    from mas.core.models import ModelError
+
+    task_id, broker = setup(core)
+    script = RoundOneBadRefineReply()
+
+    class Failing(ScriptedAdapter):
+        def complete(self, request):
+            try:
+                return super().complete(request)
+            except _Unparseable as bad:
+                raise ModelError("parse_failed", str(bad))
+
+    roster = ModelRoster({"p": Failing("p", script, model="proposer-model", provider_family="family_a"),
+                          "c": Failing("c", script, model="critic-model", provider_family="family_b")},
+                         {"retriever": "p", "reader": "p", "proposer": "p", "adjudicator": "p", "critic": "c"})
+    record = derivation_run.derive_iterative(core, broker, roster, task_id, dimensions=DIMENSIONS,
+                                             catalog=EVIDENCE_CATALOG, by=OPERATOR, inner_iterations=4,
+                                             stall_rounds=1)
+    assert script.refine_calls >= 1, "the refine stage must actually have been reached"
+    assert record["termination_reason"] != "unresolved", record["termination_reason"]
+    assert record["promotion"] is not None, "the round must still reach promotion"
+    # the failure is counted rather than hidden
+    unresolved = [it for it in record["iterations"]
+                  if (it.get("refine") or {}).get("batches_unresolved")]
+    assert unresolved, "an unusable batch must be recorded in the stage's own stats"
