@@ -13,7 +13,30 @@ compound's rank is a secondary readout.
 
 ---
 
-## 1 Audit result: 8 of 8 findings confirmed
+## 1 Audit result: 8 of 8 findings confirmed — and all eight now repaired
+
+**Status as of the end of 14 October 2026: F1-F9 are repaired, with a regression test each.** The
+table below is kept as the audit record; the right-hand column now says how each was closed. F7 is
+the exception worth reading carefully: it is *documented and pinned*, not enforced, because making
+it a real boundary needs an authenticated principal this deployment does not have.
+
+| # | closed by |
+|---|---|
+| F1 | `refine_count` persisted in `ITEM_FIELDS`, per lineage and cumulative across rounds; a merged child inherits its group's largest count |
+| F2 | one shared `bound_support` validator, wired to proposal validation, promotion, revision, collapse and confirmation |
+| F3 | authority computed from rule + attribute + transform + weighting, not the rule's two fields |
+| F4 | revisions fully revalidated, tightening permitted only to a number the cited claims state, both versions and a diff recorded |
+| F5 | `quantity_key` includes the declared transform; a shared retrieval identity is a hint, and the quantity must agree before a duplicate is refused |
+| F6 | a registration reference must resolve, and `core/freeze.py` now writes one |
+| F7 | **not enforced.** Documented in `review.decide` and pinned by a test asserting both halves — the rejections that hold, and the forged approval that still succeeds |
+| F8 | each claim evaluated once; aggregation, predicate and conflict attribution read the same evaluation |
+| F9 | `asserted` registered as a determination basis, kept out of the defaults |
+
+Two gaps found beyond the eight: the eligibility criterion asked for an *approved* oral product when
+the task admits approved **or Phase III**, and the proposer was offered `none_evidence_insufficient`
+as a co-equal option and took it 39 times out of 40. Both repaired; the second is measured in §8.
+
+### The audit record
 
 Verified by source inspection and synthetic execution on this checkout, not accepted on report.
 
