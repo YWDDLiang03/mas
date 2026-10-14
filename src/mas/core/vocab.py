@@ -119,7 +119,9 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
     ),
     "identity_basis": _domain("authenticated_account", "recorded_attestation"),
     "actor_kind": _domain("agent", "tool", "human", "controller", "scheduler", "system"),
-    "visibility": _domain("default", "expert", "auditor"),
+    # `evaluator` is the visibility of the sealed historical list and of everything derived from
+    # it (`core/recovery.py`): an event a non-evaluator surface must not render (design §8.6).
+    "visibility": _domain("default", "expert", "auditor", "evaluator"),
     "denominator_kind": _domain("enumerated_fixed", "enumerated_growing", "budget_bounded", "unbounded_adaptive", "unknown"),
     "sweep_scope": _labelled(
         full_universe=("all candidates", "neutral"), rerun_plan=("rerun of stale records", "neutral"),
@@ -163,6 +165,25 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
     "trigger_class": _domain(
         "new_external_evidence", "unresolved_conflict", "consequential_missing_measurement",
         "questionable_exclusion", "decision_relevant_computation", "human_request",
+    ),
+    # Primary CQA recovery (handoff §12.2, design §8.6). `field_visibility` is a record's own
+    # visibility, which is not the `visibility` of the event that announced it: an event may be
+    # readable while the artifact it links is not.
+    "field_visibility": _domain("agent_visible", "evaluator_only", "control_only"),
+    "recovery_category": _labelled(
+        exact=("exact", "positive"), near_equivalent=("near-equivalent", "neutral"),
+        missed=("missed", "negative"), extra=("extra: no historical counterpart", "neutral"),
+    ),
+    "recovery_difference_kind": _domain("expression", "threshold", "scope"),
+    "recovery_mapping_shape": _domain("one_to_one", "merged", "split", "none"),
+    "recovery_match_basis": _domain("definition_and_unit_match", "definition_match_unit_differs",
+                                    "verdict_agreement_on_assessed_candidates", "expert_judged_equivalent"),
+    "recovery_view": _labelled(independent=("independent", "positive"), assisted=("assisted", "attention")),
+    "intake_provenance_form": _domain("manuscript_main_text", "manuscript_supplement", "author_supplied_list",
+                                      "reconstructed_from_code", "verbal_report"),
+    "completeness_attestation": _labelled(
+        complete=("attested complete", "neutral"), partial=("attested partial", "attention"),
+        unknown=("completeness not attested", "attention"),
     ),
 }
 

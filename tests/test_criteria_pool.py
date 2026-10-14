@@ -899,3 +899,37 @@ def test_the_repair_budget_survives_a_store_reopen_and_a_merge_does_not_reset_it
     child = _item({"attribute": {}, "rule": {}, "supporting_claim_ids": []},
                   refine_count=max(int(e["item"].get("refine_count") or 0) for e in group))
     assert child["refine_count"] == 3
+
+
+def test_a_derived_quantity_is_not_a_duplicate_of_the_measurement_it_is_derived_from():
+    """F5. `quantity_key` is supposed to say what an attribute measures, but it omitted the declared
+    `value_transform` -- and a transform changes exactly that. "Molecular weight" and "the excess of
+    molecular weight above 500 g/mol" share a capability, a unit, a direction and a subject while
+    being different quantities, one derived from the other. So a merge or a duplicate check could
+    collapse a derived criterion into its own source measurement and report it as redundant."""
+    from mas.core.derivation_stages import quantity_key, duplicate_of_registered
+
+    def mw(name, transform=None, direction="lower_better"):
+        a = {"attribute_id": "attr_" + name, "version": 1, "name": name, "definition": name,
+             "measurement_kind": "quantitative", "unit": "g/mol", "direction": direction,
+             "acceptable_value_sources": ["database_entry"], "aggregation": "median",
+             "evidence_request": {"capability": "property_estimate", "question_kind": "computed_property",
+                                  "identifier_scheme": "inchikey", "parameters": {"property": "MolecularWeight"}}}
+        if transform:
+            a["value_transform"] = transform
+        return a
+
+    raw = mw("Molecular weight")
+    excess = mw("Molecular weight in excess of the stated bound",
+                {"kind": "excess_above", "bound": 500.0, "basis": "source_stated_value", "source_refs": ["c1"]})
+    tighter = mw("Molecular weight in excess of a lower bound",
+                 {"kind": "excess_above", "bound": 300.0, "basis": "source_stated_value", "source_refs": ["c1"]})
+
+    assert quantity_key(raw) != quantity_key(excess), "a transform makes it a different quantity"
+    assert quantity_key(excess) != quantity_key(tighter), "a different bound is a different quantity"
+    assert quantity_key(raw) == quantity_key(mw("Molecular weight restated")), "same quantity, different wording"
+
+    # and the duplicate check must not retire the derived criterion against the raw registration
+    assert duplicate_of_registered(excess, [raw]) is None
+    assert duplicate_of_registered(tighter, [excess]) is None
+    assert duplicate_of_registered(mw("Molecular weight restated"), [raw]) is not None

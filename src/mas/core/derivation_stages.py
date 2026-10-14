@@ -236,8 +236,15 @@ def duplicate_of_registered(attribute: dict[str, Any],
     for other in registered:
         routes = criteria.evidence_routes(other)
         covered = sorted({_route_name(r) for r in routes if criteria.route_key(r) in asked})
-        if criteria.evidence_key(attribute) == criteria.evidence_key(other):
-            why = "it asks the same tools the same questions"
+        # WHY the retrieval match is no longer sufficient on its own (F5): `evidence_key` hashes
+        # capability, question kind and parameters -- a *retrieval* identity, the thing that makes two
+        # calls interchangeable for caching. Two attributes can ask one tool one question and compute
+        # different quantities from the answer: molecular weight and the excess of molecular weight
+        # above a bound read the same PubChem field. Dropping one as a duplicate of the other retires a
+        # derived criterion against the measurement it was derived from. So a shared retrieval identity
+        # is a hint, and the quantity has to agree before anything is refused.
+        if criteria.evidence_key(attribute) == criteria.evidence_key(other) and quantity_key(other) == key:
+            why = "it asks the same tools the same questions about the same quantity"
         elif not literature and quantity_key(other) == key and asked <= {criteria.route_key(r) for r in routes}:
             why = f"every route this proposal asks is one of its own ({', '.join(covered)})"
         else:
@@ -395,10 +402,18 @@ def quantity_key(attribute: dict[str, Any]) -> tuple:
     Measured on the manuscript registry: ten promoted rules, five quantities, every receptor scored
     twice.
     """
+    # WHY the transform is in it (F5): the key is meant to say what an attribute measures, and a
+    # declared `value_transform` changes exactly that -- "molecular weight" and "the excess of
+    # molecular weight above 500 g/mol" share a capability, a unit, a direction and a subject while
+    # being different quantities, one of them derived from the other. Leaving it out let a raw
+    # quantity and its own transform group as one thing, so a merge or a duplicate check could
+    # collapse a derived criterion into the measurement it was derived from and call it redundant.
+    # The transform's kind and parameters are both included: an excess above 500 and an excess above
+    # 300 are no more the same quantity than either is the raw value.
     routes = criteria.evidence_routes(attribute)
     capabilities = tuple(sorted({(route or {}).get("capability") or "" for route in routes}))
     return (capabilities, canonical_unit(attribute.get("unit")), attribute.get("direction"),
-            canonical_text(_subject(attribute)))
+            canonical_text(_subject(attribute)), canonical_text(attribute.get("value_transform")))
 
 
 def merge_groups(entries: list[dict[str, Any]], *, overlap: float = 0.35) -> list[list[dict[str, Any]]]:

@@ -33,6 +33,18 @@
     mas models show
     mas config show [--explain] | validate | save NAME | estimate [--dimensions N] [--candidates N]
     mas sources list | check | sync bookshelf --book NBK... | template   evidence sources and their set-up
+    mas recovery intake TASK --from FILE.json [--rule-set rules@vN]
+                                               record the sealed historical criteria list once, as
+                                               evaluator-only content, after the criteria froze; the
+                                               intake is refused while no rule set is confirmed
+    mas recovery report TASK [--out DIR] [--mapping FILE] [--at-seq N]
+                                               the primary acceptance measurement: exact / N and
+                                               (exact + near-equivalent) / N with the mapping per
+                                               item, an origin-stratified view and the exposure
+                                               declaration. An isolated evaluator role proposes the
+                                               mapping; a deterministic gate refuses one that cites
+                                               an unknown criterion, leaves an item unmapped, or
+                                               spends one derived meaning on two items
     mas ui serve [--port 8765]                 the browser workbench: the same read surfaces in a browser,
                                                on loopback, read-only; it may run while a run holds the store
     mas bridge next|answer|status ...          answer LLM requests as an outside agent
@@ -872,6 +884,57 @@ def cmd_models(args) -> None:
     _print(roster.role_bindings())
 
 
+def cmd_recovery(args) -> None:
+    """The primary acceptance measurement (handoff §12.2), as two evaluator commands.
+
+    WHY it is the evaluator who runs both: the sealed list is evaluator-only content, so recording
+    it and reading it are role-bound commands, and `_person("evaluator")` is the attestation this
+    terminal can make. The intake is refused while no criteria snapshot is frozen, which is the
+    reason the two commands are separate at all -- the list arrives second.
+    """
+    from mas.core import recovery
+    with _open(args) as core:
+        who = _person("evaluator")
+        if args.action == "intake":
+            if not args.file:
+                sys.exit("--from FILE is required: the evaluator supplies the historical list as JSON")
+            supplied = json.loads(Path(args.file).read_text(encoding="utf-8"))
+            try:
+                record = recovery.record_intake(core, args.task, supplied, by=who,
+                                                rule_set_refs=args.rule_set or None)
+            except recovery.RecoveryError as error:
+                sys.exit(str(error))
+            # The items are not printed back. A terminal is a surface, and echoing the list would put
+            # it in a scrollback nobody logs (design §8.6).
+            print(f"{record['intake_id']}  {record['item_count']} items  sha256 {record['content_sha256']}")
+            print(f"  compared against {', '.join(record['freeze']['rule_set_refs'])} frozen at seq "
+                  f"{record['freeze']['frozen_at_seq']}")
+            return
+        mapping = json.loads(Path(args.mapping).read_text(encoding="utf-8")) if args.mapping else None
+        if isinstance(mapping, dict):
+            mapping = mapping.get("mapping")
+        try:
+            report = recovery.report(core, args.task, by=who, roster=_roster(args, required=mapping is None),
+                                     mapping=mapping, at_seq=args.at_seq)
+        except recovery.GateRefusal as error:
+            print(f"the proposed mapping is refused ({len(error.problems)} check(s) failed):", file=sys.stderr)
+            for problem in error.problems:
+                print(f"  {problem['code']}: {problem['detail']}", file=sys.stderr)
+            sys.exit("no recovery figure is reported for a mapping that failed the gate")
+        except recovery.RecoveryError as error:
+            sys.exit(str(error))
+        out = Path(args.out) if args.out else _store_dir(args).parent / "recovery" / args.task
+        record = recovery.write(report, out, store_root=str(_store_dir(args)), implementation=_implementation())
+        counts, rates = report["counts"]["categories"], report["counts"]["rates"]
+        print(f"exact {rates['exact']['as_text']}  exact-or-near "
+              f"{rates['exact_or_near_equivalent']['as_text']}  "
+              f"missed {counts['missed']}  extra {report['counts']['extra']['count_by_meaning']}")
+        print(f"  recovery view: {report['exposure']['recovery_view']}; independently derived only: "
+              f"{report['origin_stratified']['independently_derived_only']['recovered_as_text']}")
+        for name, visibility in record["file_visibility"].items():
+            print(f"  {visibility:<14} {record['paths'][name]}")
+
+
 def cmd_ui(args) -> None:
     """Serve the browser workbench (`ui_ux_spec.md` §15.5): loopback only, read-only, no decisions."""
     from mas.ui.server import address, make_server, serve
@@ -998,6 +1061,20 @@ def main(argv: list[str] | None = None) -> int:
     m = sub.add_parser("models")
     m.add_argument("action", choices=("show",))
     m.set_defaults(func=cmd_models)
+
+    rc = sub.add_parser("recovery")
+    rc.add_argument("action", choices=("intake", "report"))
+    rc.add_argument("task")
+    rc.add_argument("--from", dest="file", help="intake: the historical list as JSON")
+    rc.add_argument("--rule-set", action="append", metavar="rules@vN",
+                    help="intake: compare against these frozen rule sets (default: every confirmed one)")
+    rc.add_argument("--out", metavar="DIR",
+                    help="report: where to write it (default: STORE/../recovery/TASK; never a published directory)")
+    rc.add_argument("--mapping", metavar="FILE",
+                    help="report: a mapping an outside evaluator proposed, instead of calling the evaluator model")
+    rc.add_argument("--at-seq", type=int, metavar="N",
+                    help="report: pin the derived set at this task sequence (default: where the criteria froze)")
+    rc.set_defaults(func=cmd_recovery)
 
     w = sub.add_parser("ui")
     w.add_argument("action", choices=("serve",))
