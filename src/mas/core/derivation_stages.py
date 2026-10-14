@@ -28,8 +28,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import bound_support, criteria
-from .assessor import canonical_unit
+from . import bound_support, criteria, vocab
+from .assessor import canonical_unit, family_aggregation_execution
 from .canonical import canonical_text
 from .derivation import (CRITIC_SYSTEM, CRITIQUE_SCHEMA, PROPOSAL_SCHEMA, PROPOSER_SYSTEM, REVISER_SYSTEM,
                          SCHEMA_BLOCK_FORMS,
@@ -63,20 +63,41 @@ DISTILLER_SYSTEM = PROPOSER_SYSTEM + (
     "merges. Cite only claims already cited by the item."
 )
 
+# The registered reductions over a family, offered to the adjudicator and enforced by the gate.
+FAMILY_AGGREGATIONS = tuple(vocab.DOMAINS["criterion_family_aggregation"])
+
 MERGE_SCHEMA = {
     "type": "object", "required": ["decisions"],
     "properties": {"decisions": {"type": "array", "items": {
         "type": "object", "required": ["group", "action", "reason"],
-        "properties": {"group": {"type": "integer"}, "action": {"type": "string", "enum": ["merge", "keep_separate"]},
+        "properties": {"group": {"type": "integer"},
+                       "action": {"type": "string", "enum": ["merge", "consolidate", "keep_separate"]},
                        "merged": {"type": "object", "properties": {"attribute": {"type": "object", "properties": {
                            # The merged attribute may keep every route its parents had, which is how two
                            # bindings of one quantity become one attribute read from both databases.
                            "evidence_requests": {"type": "array", "items": {"type": "object"}}}}}},
+                       # A consolidation carries the same criterion fields as a merge plus the three that make
+                       # the abstraction checkable: which members it folds in (so it may take part of a group,
+                       # and so a reviewer sees what was subsumed), the property it claims they share, and how
+                       # the family reduces to one number.
+                       "consolidated": {
+                           "type": "object", "required": ["members", "shared_property", "family_aggregation"],
+                           "properties": {"members": {"type": "array", "items": {"type": "integer"}},
+                                          "shared_property": {"type": "string"},
+                                          "family_aggregation": {"type": "string",
+                                                                 "enum": list(FAMILY_AGGREGATIONS)},
+                                          "attribute": {"type": "object", "properties": {
+                                              "evidence_requests": {"type": "array",
+                                                                    "items": {"type": "object"}}}}}},
                        "reason": {"type": "string"}}}}},
 }
 
 ADJUDICATOR_SYSTEM = (
-    "You adjudicate whether groups of candidate screening criteria measure the same property. Merge a group only "
+    "You decide what each group of candidate screening criteria becomes. Three answers are available and "
+    "`keep_separate` is as legitimate as either reduction: `merge` when the members are one quantity described "
+    "more than once, `consolidate` when they are genuinely different measurements of one screen-relevant family, "
+    "`keep_separate` when neither holds. "
+    "Merge a group only "
     "when its members measure the same quantity, in the same unit and direction, for the same purpose; the merged "
     "criterion keeps the clearest definition and cites the claims (from the members' citations only) that support "
     "it. Otherwise keep the members separate and say what distinguishes them. Never name a specific candidate "
@@ -85,7 +106,30 @@ ADJUDICATOR_SYSTEM = (
     "Members may differ only in which database answers the same question -- the same measurement curated by two "
     "sources. That is one quantity: merge them and give the merged attribute evidence_requests, the list of the "
     "members' evidence routes to keep, so the merged criterion reads both sources and pools their values under its "
-    "aggregation. Keep a route only if a member declared it; a merge may not reach for a source no member had."
+    "aggregation. Keep a route only if a member declared it; a merge may not reach for a source no member had. "
+    "A group of distinct measurements is not a merge, and the pool still has to reduce from many derived "
+    "criteria to the few a screen decides on. That is `consolidate`: a family of specific endpoints replaced by "
+    "the one criterion a screen would actually apply -- eight grade >=3 toxicity incidences by one grade >=3 "
+    "toxicity burden. A consolidation gives `consolidated` with the criterion's own fields and three more: "
+    "`members`, the indices within the group it folds in (two or more; one member is not a family, and all of "
+    "them must sit in one dimension); `shared_property`, what those endpoints have in common and why that "
+    "property decides a screen -- a restatement of the unit or the dimension (\"they are all percentages\") is "
+    "refused, so name the substance; and `family_aggregation`, how the family reduces to one number, one of "
+    + "|".join(FAMILY_AGGREGATIONS) +
+    ". Those are the reductions that are computed rather than merely recorded, so nothing else is accepted: "
+    "`worst_member` scores the least favourable member, which is the largest value when the attribute's "
+    "direction is lower_better and the smallest when it is higher_better, and so needs one of those two "
+    "directions; `median_of_members` scores the median and works under any direction. Your choice sets the "
+    "consolidated attribute's own `aggregation` -- do not try to coordinate the two yourself, and expect the "
+    "aggregation you write on a consolidated attribute to be replaced by the one your family reduction "
+    "implies. "
+    "It may cite only its members\' claims, and may read only the sources its members read: a literature-bound "
+    "family may carry a query written for the family it now stands for, but no consolidation reaches for a "
+    "capability, a question kind or a target no member declared. "
+    "Consolidate nothing you cannot justify by a shared property that matters at screening time: a criterion so "
+    "abstract that nobody can compute it, or that a reviewer cannot object to because it no longer says which "
+    "endpoints it stands for, is worse than the family it replaced, and saying what distinguishes the members "
+    "is the right answer whenever that is what you find. Keep each decision\'s `reason` specific to its group."
 )
 
 BATCH = {"critic": 30, "distill": 25, "refine": 20}
@@ -526,11 +570,149 @@ def merge_groups(entries: list[dict[str, Any]], *, overlap: float = 0.35) -> lis
     return groups
 
 
+# Words that say only what the merge group already said: a group shares a unit, a direction and (for a
+# consolidation) a dimension, so repeating those back is not a shared property. WHY this list exists at all:
+# the failure mode of an abstraction is breadth, and "they are all percentages" is both true of the group and
+# no reason to replace eight measurements with one. Stems are compared, so a plural or a longer form of a
+# word the group already carries ("toxicities" against the dimension `toxicological_safety`) does not count
+# as substance either.
+_FAMILY_GENERIC = {
+    "they", "them", "these", "those", "this", "that", "are", "all", "also", "same", "each", "every", "both",
+    "member", "members", "criterion", "criteria", "endpoint", "endpoints", "item", "items", "measure", "measured",
+    "measures", "measurement", "measurements", "quantity", "quantities", "value", "values", "number", "numbers",
+    "count", "counts", "unit", "units", "scale", "percent", "percentage", "percentages", "pct", "proportion",
+    "proportions", "fraction", "fractions", "share", "rate", "rates", "ratio", "incidence", "incidences",
+    "frequency", "frequencies", "higher", "lower", "better", "worse", "direction", "dimension", "reported",
+}
+# WHY two and not one: a single surviving word is what a restatement of the unit leaves behind once any
+# qualifier is added to it -- "all are event percentages" leaves one ("event"), and it still says nothing a
+# screen can apply. Measured against this group's own unit, direction and dimension: "they are all
+# percentages" and "all of these toxicity endpoints are incidence rates" leave zero, "severe haematological
+# toxicity" leaves two, "grade >=3 toxicity requiring dose reduction" five, and the kind of property worth
+# consolidating on sixteen. So the floor refuses the empty claims and binds on nothing a reviewer would read
+# as a property.
+_SHARED_PROPERTY_MIN_NEW_WORDS = 2
+
+
+def _stem(word: str) -> str:
+    """A crude stem, enough to see that two tokens say one thing: a long word by its first five characters, a
+    short one by itself without a trailing plural."""
+    return word[:5] if len(word) > 5 else word.rstrip("s")
+
+
+def _substantive_words(text: str, already_said: str) -> set[str]:
+    """Stems of `text` that neither `already_said` nor the measurement-generic vocabulary already carries."""
+    known = {_stem(w) for w in _tokens(already_said)} | {_stem(w) for w in _FAMILY_GENERIC}
+    return {_stem(w) for w in _tokens(text)} - known
+
+
+def _consolidation(group: list[dict[str, Any]], declared: dict[str, Any],
+                   attribute: dict[str, Any]) -> tuple[list[dict[str, Any]], str | None, str | None]:
+    """The members a consolidation subsumes, why it is refused -- or None when it stands -- and the
+    attribute `aggregation` that computes its declared family reduction.
+
+    Four refusals live here, and each one is the abstraction failing to be checkable rather than the
+    criterion failing to validate (`merge_stage` still applies the merge gate's own three):
+
+      * fewer than two usable members: one endpoint is not a family, and the group would lose a lineage
+        and gain an abstraction of it in exchange for nothing.
+      * members from more than one dimension: a family spanning safety and pharmacokinetics has no shared
+        property a single screening criterion can state, however the two are worded.
+      * a shared property that is empty, or that only repeats the unit, direction or dimension the group
+        already agrees on.
+      * a family aggregation that would not be computed: outside `criterion_family_aggregation`, so the
+        reduction is prose nobody can compute, or registered but with no executable reduction for this
+        attribute's direction (`assessor.family_aggregation_execution`) -- `worst_member` over a
+        `within_range` attribute names no end of the scale as the worst one.
+
+    The third return value is what makes the declaration more than a declaration: the aggregation the
+    assessor will actually run, which `merge_stage` writes onto the consolidated attribute.
+    """
+    members, seen = [], set()
+    for index in declared.get("members") or []:
+        if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < len(group) or index in seen:
+            continue
+        seen.add(index)
+        members.append(group[index])
+    if len(members) < 2:
+        return members, (f"consolidation names {len(members)} usable member(s) of the {len(group)} in the group; "
+                         f"a family is two or more endpoints"), None
+    dimensions = sorted({str(e["item"].get("dimension") or "") for e in members})
+    if len(dimensions) > 1:
+        return members, (f"consolidation spans dimensions {dimensions}; one screening criterion cannot state a "
+                         f"property shared across them"), None
+    shared = str(declared.get("shared_property") or "").strip()
+    already_said = f"{attribute.get('unit') or ''} {attribute.get('direction') or ''} {dimensions[0]}"
+    substantive = _substantive_words(shared, already_said)
+    if len(substantive) < _SHARED_PROPERTY_MIN_NEW_WORDS:
+        return members, (f"shared_property {shared!r} says nothing the group's unit, direction and dimension do "
+                         f"not already say, so there is no property to screen on"), None
+    family = str(declared.get("family_aggregation") or "")
+    try:
+        vocab.require("criterion_family_aggregation", family)
+    except vocab.VocabularyViolation as violation:
+        return members, f"family_aggregation is not computable: {violation}", None
+    executes_as, problem = family_aggregation_execution(family, attribute.get("direction"))
+    if problem:
+        return members, f"family_aggregation is not computable: {problem}", None
+    return members, None, executes_as
+
+
+def _source_key(route: Any) -> str:
+    """A route's source and subject, without the retrieval knobs that say how hard to look.
+
+    WHY a consolidation's route reach is measured on this and a merge's on `criteria.route_key`: for a
+    literature-bound family every member's route is `literature_retrieval/search` differing only in its
+    `query_template`, which `criteria.RETRIEVAL_PARAMETERS` already classifies as "how hard to look for a
+    quantity rather than which quantity is meant". Keyed on the full route, a consolidated criterion could
+    only ever carry one member's query -- eight grade >=3 toxicity endpoints would reduce to a criterion
+    that searches for diarrhea and claims to measure toxicity burden. Keyed on the source and subject, it
+    asks the same source about the same subject with a query for the family it now stands for, and a reach
+    for a capability, a question or a target no member had is still refused.
+    """
+    route = route if isinstance(route, dict) else {}
+    return canonical_text([route.get("capability"), route.get("question_kind"), criteria.subject_parameters(route)])
+
+
+def _reach_beyond_parents(item: dict[str, Any], parents_claims: set[str], parents_routes: set[str],
+                          child_routes: set[str]) -> str | None:
+    """What this child asks for that its parents did not have, named so the refusal record says which it was."""
+    cited = set(item["supporting_claim_ids"])
+    if not cited:
+        return "the child cites no supporting claim"
+    if not cited <= parents_claims:
+        return f"the child cites claims no parent had: {sorted(cited - parents_claims)}"
+    if not child_routes <= parents_routes:
+        return f"the child declares {len(child_routes - parents_routes)} evidence route(s) no parent declared"
+    return None
+
+
 def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> dict[str, Any]:
+    """Two reductions over one set of groups: `merge` for one quantity described twice, `consolidate` for a
+    family of distinct endpoints a screen applies as one criterion.
+
+    WHY the second one exists: grouping on a shared unit and direction first produced groups on 14 October
+    2026 -- 10 of them over the live pool of 89 proposals -- and two of those were eight *distinct* toxicity
+    endpoints each (any-grade incidences; grade >=3 incidences). `merge`'s own rule, "the same
+    quantity, in the same unit and direction, for the same purpose", correctly answers keep-separate for all
+    sixteen, so duplication was never what stood between 89 proposals and the roughly 11 attributes an expert
+    screens on. The system generates granular endpoints where a screen decides on aggregates, and the missing
+    operation is the one that abstracts a family into the criterion that decides. Its risk is the opposite of
+    the merge's: not a lost distinction but a criterion too broad to compute or to argue with, which is why a
+    consolidation has to name the shared property, the members it subsumes and the aggregation that reduces
+    them before this gate applies it.
+    """
     pool = ctx.pool.at("merge", iteration)
     groups = [g for g in merge_groups(active(pool.fold(), ("candidate",)), overlap=overlap)
               if frozenset((e["criterion_id"], e["version"]) for e in g) not in ctx.adjudicated]
-    stats = {"groups": len(groups), "merged": 0, "kept_separate": 0, "refused": 0}
+    # WHY the groups that were *not* reduced carry their reasons into the stage result (which
+    # `_stage_recorder` writes to the journal and a `derivation_stage` artifact): an applied merge or
+    # consolidation records its own reason on the change record, and these two outcomes record nothing
+    # anywhere else. The counts alone are what made "zero merges across every historical round" unreadable
+    # -- a reader could not tell a pool of genuinely distinct criteria from a gate refusing every reduction
+    # the adjudicator proposed, and those call for opposite repairs.
+    stats: dict[str, Any] = {"groups": len(groups), "merged": 0, "consolidated": 0, "kept_separate": 0,
+                             "refused": 0, "not_reduced": []}
     if not groups:
         return stats
     views = [{"group": gi, "members": [_view(e, mi) for mi, e in enumerate(g)]} for gi, g in enumerate(groups)]
@@ -539,32 +721,80 @@ def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> 
                         + ctx.cited_block([e["item"] for g in groups for e in g]), MERGE_SCHEMA, "adjudicate merges")
     for group in groups:
         ctx.adjudicated.add(frozenset((e["criterion_id"], e["version"]) for e in group))
+
+    def not_reduced(index: int, outcome: str, action: Any, reason: str) -> None:
+        stats[outcome] += 1
+        stats["not_reduced"].append({"group": index, "outcome": outcome, "action": action, "reason": reason[:500]})
+
     for decision in response.data["decisions"]:
         if not 0 <= decision["group"] < len(groups):
             continue
         group = groups[decision["group"]]
-        if decision["action"] != "merge" or not decision.get("merged"):
-            stats["kept_separate"] += 1
+        action = decision.get("action")
+        declared = decision.get("consolidated") if action == "consolidate" else decision.get("merged")
+        if action not in ("merge", "consolidate") or not declared:
+            not_reduced(decision["group"], "kept_separate", action, decision.get("reason") or "")
             continue
-        parents_claims = {c for e in group for c in e["item"]["supporting_claim_ids"]}
-        parents_routes = {criteria.route_key(r) for e in group
+        parents = group
+        consolidation = None
+        if action == "consolidate":
+            parents, problem, executes_as = _consolidation(group, declared, declared.get("attribute") or {})
+            if problem:
+                not_reduced(decision["group"], "refused", action, problem)
+                continue
+            adjudicator_said = (declared.get("attribute") or {}).get("aggregation")
+            consolidation = {"shared_property": str(declared["shared_property"]).strip(),
+                             "family_aggregation": declared["family_aggregation"],
+                             # The aggregation the declared family reduction compiles to. It is recorded and,
+                             # below, written onto the attribute, which is the only half of this pair the
+                             # assessor ever reads: a consolidated criterion reaches `assess_cell` as one
+                             # attribute over one pooled claim set, with no family left to reduce, so a
+                             # `family_aggregation` that is not compiled into `aggregation` is a declaration
+                             # the score ignores -- what this field was when it was first added.
+                             "executes_as_aggregation": executes_as,
+                             # The adjudicator is asked for the attribute's fields, `aggregation` among them,
+                             # and it has no way to know which one its family reduction implies. Deriving is
+                             # what keeps the two from disagreeing; naming the derived-over declaration is
+                             # what keeps the derivation from being silent.
+                             **({"replaced_declared_aggregation": adjudicator_said}
+                                if adjudicator_said and adjudicator_said != executes_as else {}),
+                             # The ids and names of what this criterion stands for, resolved here rather than
+                             # taken from the reply: the adjudicator never sees a criterion id, and a reviewer
+                             # who cannot follow the abstraction back to the endpoints it replaced cannot object
+                             # to it, which is the difference between an abstraction and information loss.
+                             "subsumes": [{"criterion_id": e["criterion_id"], "version": e["version"],
+                                           "name": e["item"]["attribute"].get("name")} for e in parents]}
+        route_key = _source_key if action == "consolidate" else criteria.route_key
+        parents_claims = {c for e in parents for c in e["item"]["supporting_claim_ids"]}
+        parents_routes = {route_key(r) for e in parents
                           for r in criteria.evidence_routes(e["item"]["attribute"])}
         # A merged child inherits the largest repair count in its group, never a fresh budget: otherwise
         # merging two items that had each been revised to their limit would hand the result an untouched
         # allowance, and the cheapest way past `max_refines` would be to merge.
-        item = _item(decision["merged"], dimension=group[0]["item"].get("dimension"),
-                     refine_count=max(int(e["item"].get("refine_count") or 0) for e in group))
-        child_routes = {criteria.route_key(r) for r in criteria.evidence_routes(item["attribute"])}
+        item = _item(declared, dimension=parents[0]["item"].get("dimension"),
+                     refine_count=max(int(e["item"].get("refine_count") or 0) for e in parents),
+                     **({"consolidation": consolidation} if consolidation else {}))
+        if consolidation:
+            # Written before the validator and before the pool, so what is stored, scored and exported is one
+            # value: the declared reduction and the executed aggregation cannot drift apart afterwards
+            # because only one of them was ever authored.
+            item["attribute"]["aggregation"] = consolidation["executes_as_aggregation"]
+        child_routes = {route_key(r) for r in criteria.evidence_routes(item["attribute"])}
+        # An invalid child, one citing evidence its parents did not, or one reaching for a data source no
+        # parent was bound to, is not applied: a reduction combines what the pool already has, and that holds
+        # for a consolidation exactly as for a merge -- an abstraction is still not a licence to read a source
+        # or cite a claim the family never had.
+        reach = _reach_beyond_parents(item, parents_claims, parents_routes, child_routes)
         problems = ctx.validate(item)
-        if problems or not item["supporting_claim_ids"] or not set(item["supporting_claim_ids"]) <= parents_claims \
-                or not child_routes <= parents_routes:
-            # An invalid merge, one citing evidence its parents did not, or one reaching for a data
-            # source neither parent was bound to, is not applied: a merge combines what the pool
-            # already has, exactly as it may cite only its parents' claims.
-            stats["refused"] += 1
+        if problems or reach:
+            not_reduced(decision["group"], "refused", action, "; ".join(problems) if problems else reach)
             continue
-        pool.merge(group, dict(item, validator_problems=[]), reason_text=decision["reason"])
-        stats["merged"] += 1
+        if action == "consolidate":
+            pool.consolidate(parents, dict(item, validator_problems=[]), reason_text=decision["reason"])
+            stats["consolidated"] += 1
+        else:
+            pool.merge(parents, dict(item, validator_problems=[]), reason_text=decision["reason"])
+            stats["merged"] += 1
     return stats
 
 

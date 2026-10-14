@@ -429,6 +429,12 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     `bounds_withheld[]`. Each entry carries the state of each of its bounds, so a reader can see
     which numbers a source states and which the criterion interprets.
 
+    A bound a machine adjudication granted on a declared interpretation (`adjudication` route 6)
+    scores as a cutoff and is listed in `bounds_granted[]` with the `adj_` that granted it, with a
+    separate line for any rule still *excluding* candidates on such a bound. Its state is
+    `interpretation_granted`, never `sourced_threshold`, and it makes the set `exploratory` on its
+    own grounds as well as through `machine_adjudicated[]`.
+
     A rule whose attribute a `collapse` merged away (`core/collapse.py`: several registrations of one
     quantity) does not enter at all and is listed in `collapsed_away[]`; a rule reading an attribute
     version that collapse wrote is listed in `machine_collapsed[]`. Either makes the set
@@ -454,7 +460,7 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
         if event.event_type == "criterion.version_proposed" and event.payload["kind"] == "rule":
             proposed[event.payload["id"]] = f"{event.payload['id']}@v{event.payload['version']}"   # latest version wins
     entries, deferred, machine_adjudicated, collapsed_away = [], [], [], []
-    bounds_unsupported, bounds_withheld, decisions_not_carried = [], [], []
+    bounds_unsupported, bounds_withheld, decisions_not_carried, bounds_granted = [], [], [], []
     for rule_ref in sorted(proposed.values()):
         rule = load(core, rule_ref, task_id)
         merged_away = superseded.get(rule["attribute_ref"])
@@ -481,7 +487,14 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
         # (`core/bound_support.py`, design §5.4). A bound whose support contradicts it never enters
         # the set: 90 citing a claim that states 30 is not a rule awaiting an opinion, it is a rule
         # whose own evidence says it is wrong.
-        support = bound_support.validate(attr, rule, claims=_claims_for(core, task_id, attr, rule))
+        #
+        # `grants` comes from the `adj_` record that resolved this rule's queue item and from nowhere
+        # else (`adjudication.granted_bounds`, empty for every other route and for a refusal): an
+        # interpreted bound may act as a cutoff only where an authority said so, and a rule that
+        # could say so about itself would need no authority at all.
+        granted = adjudication.granted_bounds(adjudication_record)
+        support = bound_support.validate(attr, rule, claims=_claims_for(core, task_id, attr, rule),
+                                         grants=granted)
         if support["unsupported_paths"]:
             bounds_unsupported.append({"rule_ref": rule_ref, "attribute_ref": rule["attribute_ref"],
                                        "paths": support["unsupported_paths"],
@@ -493,6 +506,10 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
             # invalid support stays visible and non-scoring). Off by default, because an already
             # promoted criterion carries no support record at all and §9.2 asks that absent
             # metadata be marked unknown rather than be given a passing status *or* a failing one.
+            # An `interpretation_granted` bound is withheld here too, and that is the gate working:
+            # it asks for thresholds the sources themselves state, and a granted bound is one an
+            # agent read into a passage that reports a measurement. The grant is still recorded and
+            # still named in `bounds_granted[]`; what this gate refuses is calling it sourced.
             bounds_withheld.append({"rule_ref": rule_ref, "attribute_ref": rule["attribute_ref"],
                                     "states": support["states"], "fallback": None})
             # WHY a preference may fall back to ranking instead of leaving the set: withholding the
@@ -546,6 +563,16 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
             confirmed_by, authority = "auto:trigger_table", "trigger_table"
         else:
             continue
+        if support["granted_paths"]:
+            # A rule that scores on a bound an agent granted, named here as well as in
+            # `machine_adjudicated[]`, because the two say different things: that list says no person
+            # confirmed the rule, this one says which *number* is acting as a decision bound on an
+            # agent's reading of a passage that states no cutoff -- and, where the rule is still a
+            # hard exclusion, that candidates are being removed on it.
+            bounds_granted.append({"rule_ref": rule_ref, "attribute_ref": rule["attribute_ref"],
+                                   "paths": support["granted_paths"], "rule_kind": rule["rule_kind"],
+                                   "adjudication_id": adjudication_record["adjudication_id"],
+                                   "excludes_candidates": rule["rule_kind"] == "hard_exclusion"})
         # WHY `disputed` is recorded on the entry: the trigger table admits a preference rule without an expert, and
         # it does that whether or not a critic finding about that rule is still open. Such a rule scores candidates
         # while also appearing in `pending[]`, which on its own reads as "did not enter the set". The entry says
@@ -591,6 +618,7 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     fitted_ordering = chosen_after_results(ordering_method) and not preregistration_ref
     scoring_disputed = sorted(e["rule_ref"] for e in entries if e["disputed"])
     machine_adjudicated = sorted(machine_adjudicated)
+    excluding_on_a_granted_bound = sorted(e["rule_ref"] for e in bounds_granted if e["excludes_candidates"])
     machine_collapsed = sorted(e["rule_ref"] for e in entries if e["rule_ref"] in collapsed_surviving)
     # Two separate facts, each stated only when it is true: a rule may read a collapsed attribute
     # after the collapse was withdrawn (the version stays; the registry is append-only), and a pure
@@ -609,7 +637,12 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                       f"{', '.join(e['rule_ref'] for e in bounds_withheld)}"] if bounds_withheld else []) + \
                     ([f"{len(decisions_not_carried)} rules read an attribute version the decision on them did not "
                       f"cover: {', '.join(e['rule_ref'] for e in decisions_not_carried)}"]
-                     if decisions_not_carried else [])
+                     if decisions_not_carried else []) + \
+                    ([f"{len(bounds_granted)} rules score on a bound an agent granted on a declared "
+                      f"interpretation rather than on a threshold their source states: "
+                      f"{', '.join(sorted(e['rule_ref'] for e in bounds_granted))}"] if bounds_granted else []) + \
+                    ([f"{len(excluding_on_a_granted_bound)} of them remove candidates on such a bound: "
+                      f"{', '.join(excluding_on_a_granted_bound)}"] if excluding_on_a_granted_bound else [])
     acceptance_reasons = ([f"{len(open_refs)} rule proposals await an expert decision"] if open_refs else []) + \
                          ([f"{len(scoring_disputed)} of them score candidates while disputed: "
                            f"{', '.join(scoring_disputed)}"] if scoring_disputed else []) + \
@@ -625,7 +658,7 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
               "pending_but_scoring": scoring_disputed, "machine_adjudicated": machine_adjudicated,
               "machine_collapsed": machine_collapsed, "collapsed_away": collapsed_away,
               "deferred": deferred, "bounds_unsupported": bounds_unsupported, "bounds_withheld": bounds_withheld,
-              "decisions_not_carried": decisions_not_carried,
+              "bounds_granted": bounds_granted, "decisions_not_carried": decisions_not_carried,
               "acceptance_label": vocab.require("acceptance_label", "exploratory" if acceptance_reasons else "prespecified"),
               "acceptance_reasons": acceptance_reasons, "preregistration_ref": preregistration_ref}
     artifact_id = core.artifacts.put("rule_set", record)
@@ -637,7 +670,8 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                                 f"of which {len(scoring_disputed)} score anyway, {len(machine_adjudicated)} adjudicated "
                                 f"by an agent, {len(machine_collapsed)} reading a collapsed attribute, "
                                 f"{len(collapsed_away)} collapsed away, {len(deferred)} deferred, "
-                                f"{len(bounds_unsupported) + len(bounds_withheld)} held out over bound support)")
+                                f"{len(bounds_unsupported) + len(bounds_withheld)} held out over bound support, "
+                                f"{len(bounds_granted)} scoring on a bound an agent granted)")
     return record["rule_set_ref"]
 
 

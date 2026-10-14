@@ -3,9 +3,11 @@
 A pool item is a *lineage* `cri_<ulid>`: it keeps its id while stages revise it, and each
 revision is a new version. Every transition is one `criterion.change_recorded` event in
 the task stream carrying the operation, the versions it consumed (`targets_in`) and
-produced (`targets_out`), the reason, and the claims that justify it. A merge writes one
-record per parent (state `merged_away`, pointing at the child) and one for the child
-(pointing at its parents), so lineage reads both ways. Nothing is deleted.
+produced (`targets_out`), the reason, and the claims that justify it. A reduction -- a `merge`
+of one quantity's several descriptions, or a `consolidate` of a family of distinct endpoints
+into one screening criterion -- writes one record per parent (state `merged_away`, pointing at
+the child) and one for the child (pointing at its parents), so lineage reads both ways.
+Nothing is deleted.
 
 `fold()` replays those events into the current pool; because the events live in the task
 stream, a later round (a new run in the same chain) folds the same pool and continues
@@ -30,8 +32,20 @@ ACTIVE_STATES = ("candidate", "needs_refine", "deferred_next_round")
 # proposal forever, and a round boundary is not a reason to grant a fresh allowance. Historical records predate
 # this field and legitimately fold to 0; they are not backfilled with invented counts, so a run derived before
 # this change keeps whatever repair history it actually recorded.
+# WHY `consolidation` is persisted on the item and not only in the change record's reason text: a consolidated
+# criterion replaces a family of specific endpoints with an abstraction over them, and the only thing standing
+# between that and information loss is the reviewer's ability to read which endpoints were folded in and object.
+# A reason string is prose; this is the list, with each subsumed lineage's id, version and name, the shared
+# property claimed for the family, and the aggregation that computes it. Items that are not consolidations do not
+# carry the field, and historical records legitimately fold it back as None.
 ITEM_FIELDS = ("attribute", "rule", "supporting_claim_ids", "expected_change", "falsification_test", "dimension",
-               "validator_problems", "critic_findings", "refine_count")
+               "validator_problems", "critic_findings", "refine_count", "consolidation")
+
+# The operations that produce a child from several parents, so `fold` reads lineage both ways for each of them.
+# `consolidate` is the second one (`vocab.DOMAINS["criterion_change_operation"]`); the states it writes are the
+# merge states unchanged, because `merged_away` ("merged into another") is exactly where a subsumed parent goes
+# and a new registered state would say nothing `operation` does not already say.
+REDUCTION_OPERATIONS = ("merge", "consolidate")
 
 
 def _ref(criterion_id: str, version: int) -> str:
@@ -72,9 +86,9 @@ def fold(core: Core, task_id: str) -> dict[str, dict[str, Any]]:
         entry["state"] = change["state"]
         if change.get("artifact_id"):
             entry["item"] = core.artifacts.payload(change["artifact_id"])
-        if change["operation"] == "merge" and change["state"] == "merged_away":
+        if change["operation"] in REDUCTION_OPERATIONS and change["state"] == "merged_away":
             entry["children"] += change["targets_out"]
-        elif change["operation"] == "merge":
+        elif change["operation"] in REDUCTION_OPERATIONS:
             entry["parents"] += change["targets_in"]
         if change.get("promoted_as"):
             entry["promoted_as"] = change["promoted_as"]
@@ -135,20 +149,35 @@ class Pool:
         if item is not None:
             entry["item"] = item
 
-    def merge(self, parents: list[dict[str, Any]], item: dict[str, Any], *, reason_text: str) -> str:
+    def merge(self, parents: list[dict[str, Any]], item: dict[str, Any], *, reason_text: str,
+              operation: str = "merge", reason_kind: str = "duplicate_merged") -> str:
+        """Several parents into one child: one record per parent (`merged_away`, pointing at the child) and
+        one for the child (pointing at its parents).
+
+        `operation` and `reason_kind` are what distinguish the two reductions in the record. A reader of the
+        trajectory sees `duplicate_merged` or `family_consolidated` in the per-stage reason counts, and a
+        reader of one lineage's history sees `merge` or `consolidate` as the operation that retired it.
+        """
         child = new_id("cri")
         parent_refs = [_ref(p["criterion_id"], p["version"]) for p in parents]
         for parent in parents:
-            _record(self.core, self.task_id, criterion_id=parent["criterion_id"], version=parent["version"], operation="merge",
-                    state="merged_away", by=self.by, context=self.context, reason_kind="duplicate_merged",
+            _record(self.core, self.task_id, criterion_id=parent["criterion_id"], version=parent["version"],
+                    operation=operation, state="merged_away", by=self.by, context=self.context, reason_kind=reason_kind,
                     reason_text=reason_text, targets_in=[_ref(parent["criterion_id"], parent["version"])],
                     targets_out=[_ref(child, 1)])
             parent["state"] = "merged_away"
-        _record(self.core, self.task_id, criterion_id=child, version=1, operation="merge", state="candidate", by=self.by,
-                context=self.context, reason_kind="duplicate_merged", reason_text=reason_text, item=item,
+        _record(self.core, self.task_id, criterion_id=child, version=1, operation=operation, state="candidate",
+                by=self.by, context=self.context, reason_kind=reason_kind, reason_text=reason_text, item=item,
                 targets_in=parent_refs, targets_out=[_ref(child, 1)],
                 source_refs=list(item.get("supporting_claim_ids") or []))
         return child
+
+    def consolidate(self, members: list[dict[str, Any]], item: dict[str, Any], *, reason_text: str) -> str:
+        """A family of distinct criteria into one that subsumes them. Lineage is the merge's, the claim is not:
+        these members were never one quantity, so the record says `consolidate`, and `item["consolidation"]`
+        carries the family it stands for."""
+        return self.merge(members, item, reason_text=reason_text, operation="consolidate",
+                          reason_kind="family_consolidated")
 
 
 # WHY a trajectory report: the pool's whole point is that it grows, is pruned and is merged, and `fold` only

@@ -116,7 +116,8 @@ SETTINGS: dict[str, Setting] = {
                                 unit="iterations", const_id="const_criteria_stall_rounds"),
     # sweep
     "assess.max_candidates": _s(0, "candidates assessed; 0 means the whole universe", minimum=0, maximum=1000000),
-    "assess.workers": _s(1, "concurrent literature cells", minimum=1, maximum=32),
+    "assess.workers": _s(1, "candidates whose literature is read and ruled on at once", minimum=1,
+                         maximum=32),
     # ranking
     "rank.method": _s("weighted_preference", "how the leaderboard score is produced",
                       choices=("weighted_preference", "symbolic_expression")),
@@ -154,10 +155,11 @@ SETTINGS: dict[str, Setting] = {
     # concurrency
     # The clean derivation's enumerate stage spent roughly 10 minutes on 16 reader and 8 retriever
     # calls, every one sequential, at a per-call price that made wall-clock the binding constraint
-    # rather than spend. A worker count carries no `const_id`: `evidence.gather` collects a cell's
-    # claims positionally and concatenates them in the documents' own order, so raising this cannot
-    # move a value, a verdict or a digest, and registering it as verdict-affecting would say it can.
-    # It multiplies with `assess.workers`: N cells each reading M documents is N*M calls in flight.
+    # rather than spend. A worker count carries no `const_id`: `evidence.read_literature` collects a
+    # candidate's claims positionally and concatenates them in the documents' own order, and every
+    # cell of that candidate is assessed against the finished reading, so raising this cannot move a
+    # value, a verdict or a digest, and registering it as verdict-affecting would say it can.
+    # It multiplies with `assess.workers`: N candidates each reading M documents is N*M in flight.
     # Measured on a synthetic eight-document cell at 0.25 s per extraction: 2.40 s at 1 worker,
     # 0.81 s at 4, 0.71 s at 8. The 0.40 s that does not shrink is the per-document journal and
     # artifact writing, which serializes on the store write lock -- so past roughly 8 the ceiling

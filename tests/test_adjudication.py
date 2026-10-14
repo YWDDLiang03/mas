@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from mas.core import adjudication, assessor, criteria, ledger, leaderboard, review, task
+from mas.core import adjudication, assessor, bound_support, criteria, ledger, leaderboard, review, task
 from mas.core import config as config_mod
 from mas.core.journal import actor
 from mas.core.models import ModelRoster, ScriptedAdapter
@@ -683,6 +683,290 @@ def test_a_route_preview_over_the_two_manuscript_rule_shapes_names_the_definitio
         assert preview["route"] == "definition_restated", item["subject"]["id"]
         assert preview["route_label"] == "restates the attribute's own definition"
         assert "declare the transformation" in preview["would"] and preview["why_not"] is None
+
+
+# --- route 6: a declared interpretation of a bound ---------------------------------------------------
+
+# The criterion shape route 6 exists for, and it is the shape the live derivation produced 29 times
+# out of 33: a cutoff whose number the cited passage states, a passage that reports a measurement
+# rather than a screening threshold, and the step from the one to the other declared. Before this
+# route the honest declaration was also the one that could never gate: of 35 derived criteria exactly
+# one carried a cutoff, and that one restated a task constraint.
+EXPOSURE_RULE = {"rule_kind": "preference", "predicate_form": "threshold",
+                 "cutoff": {"comparator": ">=", "value": 12, "unit": "h"},
+                 "cutoff_basis": "source_stated_value"}
+INTERPRETATION = {
+    "measurement": "the reported series sustained once-daily dosing at a terminal half-life of 12 h",
+    "inference": "at_least_the_reported_value",
+    "population_rationale": "the series reported here is orally dosed inhibitors on a once-daily schedule, which "
+                            "is the schedule the objective asks for, so a shorter exposure cannot sustain the "
+                            "dosing this screen is built around",
+}
+
+
+def _interpreted(core, task_id: str, *, rule: dict | None = None,
+                 interpretation: dict | None = INTERPRETATION) -> tuple[str, str]:
+    """Propose a criterion whose cutoff rests on a reported measurement, and raise its queue item.
+
+    The support report is passed to `criteria.propose`, as the derivation stages pass it: the bound is
+    `interpretation_added`, so the authority table asks for a decision and the item exists to resolve.
+    """
+    claim_id = _claim(core, task_id)
+    attribute = dict(HALF_LIFE, rationale=RATIONALE, supporting_claim_refs=[claim_id])
+    record = {"parameter_path": "rule.cutoff.value", "claim_id": claim_id, "source_number": 12,
+              "source_unit": "h", "conversion": {"kind": "identity"}, "statement_kind": "reports_measurement",
+              "applicability_rationale": "the passage is about orally dosed inhibitors, which is this task's "
+                                         "candidate population"}
+    if interpretation is not None:
+        record["interpretation"] = interpretation
+    rule = dict(rule or EXPOSURE_RULE, bound_support=[record])
+    claims = [c for c in ledger.claims(core, [task_id]) if c["claim_id"] == claim_id]
+    _, rule_ref = criteria.propose(core, task_id, attribute, rule, by=AGENT,
+                                   support=bound_support.validate(attribute, rule, claims=claims))
+    return rule_ref, claim_id
+
+
+def _grants(verdict: str, *, requirement: bool = False, reasoning: str = "the quote states 12 h for this series"):
+    def script(request):
+        return {"verdict": verdict, "reasoning": reasoning, "cited_claim_ids": [],
+                "property_is_a_requirement": requirement}
+    return script
+
+
+def test_a_cutoff_resting_on_a_reported_measurement_with_a_declared_interpretation_can_be_granted_and_then_scores(core):
+    """The gap this route closes, end to end on the shape that measured it.
+
+    The passage reports a half-life; it states no screening threshold, and the record says so. What
+    the record adds is the step -- the measurement, the direction of the inference and why it holds
+    for this population -- and an agent on the `adjudicator` role grants it. The rule is unchanged by
+    the grant: same kind, same predicate, same cutoff, so the cell is compared against 12 h.
+    """
+    task_id = _task(core)
+    rule_ref, claim_id = _interpreted(core, task_id)
+    item = _item(core, task_id, rule_ref)
+    assert "reads 12 as a decision line that its source does not state as one" in item["why_expert_required"]
+    assert adjudication.route_preview(core, item)["route"] == "bound_interpretation_granted"
+
+    record = adjudication.adjudicate(core, item, roster=_roster(_grants("grant_bound")))
+    assert record["route"] == "bound_interpretation_granted" and record["resolution"] == "approve"
+    assert record["verdict"] == "grant_bound" and record["scores_candidates"] is True
+    assert record["grants"]["granted"] is True
+    assert record["grants"]["parameter_paths"] == ["rule.cutoff.value"]
+    assert record["grants"]["inferences"] == {"rule.cutoff.value": "at_least_the_reported_value"}
+    assert record["rule_ref_after"] == rule_ref == record["rule_ref_before"] and record["edits"] == []
+
+    rules = criteria.rule_set(core, task_id, criteria.confirm_rule_set(core, task_id, by=OPERATOR))
+    (entry,) = rules["entries"]
+    assert entry["rule_ref"] == rule_ref and entry["cutoff_basis"] == "source_stated_value"
+    assert entry["authority"] == "machine_adjudication" and entry["confirmed_by"] == record["adjudication_id"]
+    assert rules["bounds_granted"] == [{"rule_ref": rule_ref, "attribute_ref": "attr_terminal-half-life@v1",
+                                        "paths": ["rule.cutoff.value"], "rule_kind": "preference",
+                                        "adjudication_id": record["adjudication_id"],
+                                        "excludes_candidates": False}]
+    # and the cutoff is what the cell is now compared against, which is the whole point of granting it
+    rule = criteria.load(core, rule_ref, task_id)
+    assert rule["cutoff"] == {"comparator": ">=", "value": 12, "unit": "h"}
+    short = [{"claim_id": claim_id, "admission_state": "admitted", "evidence_kind": "peer_reviewed",
+              "determination_basis": "measured", "value": 4, "unit": "h"}]
+    cell, _ = assessor.assess_cell(candidate={"candidate_id": "cand_x"},
+                                   attribute=criteria.load(core, rule["attribute_ref"], task_id), rule=rule,
+                                   rule_set_ref=rules["rule_set_ref"], claims=short, resolved=True)
+    assert cell["verdict"] == "fail"
+
+
+def test_the_same_cutoff_without_a_declared_interpretation_is_not_granted_and_falls_back_to_ranking(core):
+    """Nobody can grant what nobody has stated, and the fallback is the one that was already there.
+
+    The criterion is the one above with its `interpretation` left out. There is nothing for an
+    adjudicator to read, so route 6 does not fire at all -- no model is asked -- and the strict gate
+    does what it did before: it withholds the *cutoff* and lets the measurement go on ranking
+    candidates in the attribute's declared direction, which asserts no bound.
+    """
+    task_id = _task(core)
+    rule_ref, claim_id = _interpreted(core, task_id, interpretation=None)
+    attribute = criteria.load(core, "attr_terminal-half-life@v1", task_id)
+    rule = criteria.load(core, rule_ref, task_id)
+    claims = ledger.claims(core, [task_id])
+    report = bound_support.validate(attribute, rule, claims=claims)
+    assert report["states"] == {"rule.cutoff.value": "interpretation_added"}
+    assert report["grantable_paths"] == [] and report["granted_paths"] == []
+    assert adjudication.grantable_interpretation(rule, attribute, claims) is None
+    assert adjudication.route_preview(core, _item(core, task_id, rule_ref))["route"] == "no_authority_available"
+
+    rules = criteria.rule_set(core, task_id, criteria.confirm_rule_set(
+        core, task_id, by=OPERATOR, allow_pending=True, require_bound_support=True))
+    (withheld,) = rules["bounds_withheld"]
+    assert withheld["rule_ref"] == rule_ref and withheld["fallback"] == "ranked_without_the_withheld_cutoff"
+    (entry,) = rules["entries"]
+    assert entry["rule_ref"] == rule_ref and entry["cutoff_basis"] == "none_evidence_insufficient"
+    assert rules["bounds_granted"] == [] and rules["acceptance_label"] == "exploratory"
+
+
+def test_a_granted_bound_is_recorded_as_interpreted_and_never_as_a_sourced_threshold(core):
+    """`sourced_threshold` keeps meaning "the passage stated this cutoff", so a grant gets its own state.
+
+    Everything the record said before the grant it still says: the passage reports a measurement, the
+    number traces to the claim's own value, and the line is the criterion's reading. What changed is
+    who stands behind that reading -- an agent -- and the gate a sourced or frozen set confirms with
+    still refuses to call it sourced.
+    """
+    task_id = _task(core)
+    rule_ref, claim_id = _interpreted(core, task_id)
+    record = adjudication.adjudicate(core, _item(core, task_id, rule_ref),
+                                     roster=_roster(_grants("grant_bound")))
+    attribute = criteria.load(core, "attr_terminal-half-life@v1", task_id)
+    rule = criteria.load(core, rule_ref, task_id)
+    claims = ledger.claims(core, [task_id])
+
+    granted = adjudication.granted_bounds(record)
+    assert list(granted) == ["rule.cutoff.value"]
+    assert granted["rule.cutoff.value"]["approval_kind"] == "agent_verdict"
+    report = bound_support.validate(attribute, rule, claims=claims, grants=granted)
+    (bound,) = report["bounds"]
+    assert bound["state"] == "interpretation_granted" != "sourced_threshold"
+    assert bound["semantic_support"] == "reports_measurement" and bound["trace_kind"] == "claim_value"
+    assert bound["interpretation"] == "declared" and bound["authority"] == "agent_granted"
+    assert bound["granted_by"]["adjudication_id"] == record["adjudication_id"]
+    assert report["granted_paths"] == ["rule.cutoff.value"] and report["review_paths"] == []
+
+    # nothing read off the rule can produce it: the grant lives in the `adj_` record, not in the
+    # support record the proposer wrote, so a criterion cannot grant its own interpretation
+    assert bound_support.validate(attribute, rule, claims=claims)["states"] == {
+        "rule.cutoff.value": "interpretation_added"}
+    forged = dict(rule, bound_support=[dict(rule["bound_support"][0], interpretation_granted=True,
+                                            state="sourced_threshold")])
+    assert bound_support.validate(attribute, forged, claims=claims)["states"] == {
+        "rule.cutoff.value": "interpretation_added"}
+
+    strict = criteria.rule_set(core, task_id, criteria.confirm_rule_set(
+        core, task_id, by=OPERATOR, require_bound_support=True))
+    assert [e["rule_ref"] for e in strict["bounds_withheld"]] == [rule_ref], \
+        "the sourced gate refuses to call a granted bound a threshold its source states"
+
+
+def test_a_granted_hard_exclusion_is_named_in_the_rule_set_and_keeps_the_label_exploratory(core):
+    """Granting an exclusion is the loudest thing this module can do, so it is asked and recorded twice.
+
+    Route 6 runs ahead of route 3 for a rule that declares an interpretation, because refusing the
+    grant lands on route 3's own outcome anyway. A granted bound alone does not keep the exclusion:
+    the adjudicator answers separately whether the evidence makes the property a requirement, and
+    silence is a no.
+    """
+    task_id = _task(core)
+    hard = dict(EXPOSURE_RULE, rule_kind="hard_exclusion", predicate_form="threshold")
+    rule_ref, _claim_id = _interpreted(core, task_id, rule=hard)
+    record = adjudication.adjudicate(core, _item(core, task_id, rule_ref),
+                                     roster=_roster(_grants("grant_bound", requirement=True)))
+    assert record["route"] == "bound_interpretation_granted" and record["resolution"] == "approve"
+    assert record["rule_kind_before"] == record["rule_kind_after"] == "hard_exclusion"
+    assert record["grants"]["hard_exclusion"] is True and "the exclusion stands" in record["reason_text"]
+
+    rules = criteria.rule_set(core, task_id, criteria.confirm_rule_set(core, task_id, by=OPERATOR))
+    (granted,) = rules["bounds_granted"]
+    assert granted["rule_ref"] == rule_ref and granted["excludes_candidates"] is True
+    assert rules["acceptance_label"] == "exploratory"
+    assert any("score on a bound an agent granted on a declared interpretation" in reason
+               for reason in rules["acceptance_reasons"]), rules["acceptance_reasons"]
+    assert any("remove candidates on such a bound" in reason for reason in rules["acceptance_reasons"])
+    assert rules["machine_adjudicated"] == [rule_ref]
+    # the board says a machine granted it, which is what makes an exclusion nobody confirmed readable
+    summary = leaderboard._review_summary(rules)
+    assert summary["machine_adjudicated_n"] == 1 and "no person has confirmed them" in summary["note"]
+    # and it really does exclude: that is why the grant had to be a second question
+    failing = [{"attribute_ref": "attr_terminal-half-life@v1", "rule_kind": "hard_exclusion", "verdict": "fail"}]
+    assert assessor.roll_up("cand_x", failing, coverage_floor=1.0,
+                            recommended_requires_hd=False)["state"] == "rejected"
+
+    # the same grant without that second answer: the bound scores, the exclusion does not stand
+    other = _task(core)
+    other_ref, _ = _interpreted(core, other, rule=dict(hard, rule_id="rule_exposure_hard"))
+    softer = adjudication.adjudicate(core, _item(core, other, other_ref),
+                                     roster=_roster(_grants("grant_bound")))
+    assert softer["grants"]["granted"] is True and softer["grants"]["hard_exclusion"] is False
+    assert softer["resolution"] == "demote_to_preference" and softer["rule_kind_after"] == "preference"
+    assert criteria.load(core, softer["rule_ref_after"], other)["cutoff"]["value"] == 12
+
+
+def test_a_refused_bound_leaves_the_criterion_ranking_on_the_measurement_and_asserting_no_cutoff(core):
+    """Refusing is a normal answer, and it falls where the support contract already put it.
+
+    Withholding a cutoff and withholding a measurement are different acts: the rule gives up the
+    cutoff and the support record that backed it, keeps its direction, and goes on ranking. The
+    refused version and the reason stay in the journal.
+    """
+    task_id = _task(core)
+    rule_ref, _claim_id = _interpreted(core, task_id)
+    record = adjudication.adjudicate(core, _item(core, task_id, rule_ref), roster=_roster(
+        _grants("refuse_bound", reasoning="the series was dosed once daily at a higher dose than this screen "
+                                          "assumes, so 12 h is not the line for this population")))
+    assert record["verdict"] == "refuse_bound" and record["resolution"] == "withdraw_the_cutoff"
+    assert record["grants"]["granted"] is False
+    assert record["grants"]["parameter_paths_refused"] == ["rule.cutoff.value"]
+    assert "ranking candidates on the measurement" in record["reason_text"]
+    assert record["rule_ref_after"] == "rule_terminal-half-life@v2"
+    assert record["edits"] == [{"target": rule_ref, "target_after": record["rule_ref_after"], "field": "cutoff",
+                               "from": {"comparator": ">=", "value": 12, "unit": "h"}, "to": None}]
+
+    after = criteria.load(core, record["rule_ref_after"], task_id)
+    assert (after["rule_kind"], after["predicate_form"], after["cutoff"], after["cutoff_basis"]) == (
+        "preference", "ordering", None, "none_evidence_insufficient")
+    assert after["bound_support"] == [], "the support record goes with the cutoff it supported"
+    assert record["scores_candidates"] is True
+    rules = criteria.rule_set(core, task_id, criteria.confirm_rule_set(core, task_id, by=OPERATOR))
+    assert rules["bounds_granted"] == [] and rules["machine_adjudicated"] == [record["rule_ref_after"]]
+    assert criteria.load(core, rule_ref, task_id)["cutoff"]["value"] == 12, \
+        "the refused version is still in the journal"
+
+
+def test_the_grant_is_recorded_as_an_agents_and_creates_no_expert_decision(core):
+    """The invariant the whole module is built around, on the one route that lets a rule gate.
+
+    A grant is an agent's verdict and the record says so in the same field an `hd_` uses to say the
+    opposite. The adjudicator is blind to the proposer's rationale, exactly as the critic is, and the
+    declared interpretation is shown because it is the thing under judgement.
+    """
+    task_id = _task(core)
+    rule_ref, claim_id = _interpreted(core, task_id)
+    seen = {}
+
+    def script(request):
+        seen["content"] = request.messages[0]["content"]
+        seen["role"] = request.role
+        return {"verdict": "grant_bound", "reasoning": "the quote states 12 h for the series it reports",
+                "cited_claim_ids": [claim_id, "claim_that_was_never_offered"]}
+
+    record = adjudication.adjudicate(core, _item(core, task_id, rule_ref), roster=_roster(script))
+    assert record["adjudication_id"].startswith("adj_") and "decision_id" not in record
+    assert record["actor"]["kind"] == "agent" and record["actor"]["role"] == "adjudicator"
+    assert record["approval_kind"] == "agent_verdict" != "human_scientific_approval"
+    assert record["authority"] == "machine_adjudication" and record["confirmed_by_a_person"] is False
+    assert not core.artifacts.of_kind("expert_decision"), "no grant may leave an hd_ behind"
+    assert record["cited_claim_ids"] == [claim_id]
+    assert record["independence"]["adjudicator_saw_proposer_rationale"] is False
+    assert record["independence"]["adjudicator_family"] == "family_c"
+
+    assert seen["role"] == "adjudicator"
+    assert RATIONALE not in seen["content"], "the grant is judged blind, as the critic judges"
+    assert "expected_change" not in seen["content"]
+    assert INTERPRETATION["population_rationale"] in seen["content"], "the declaration is what is being judged"
+    assert QUOTE in seen["content"]
+
+    resolved = _item(core, task_id, rule_ref)
+    assert resolved["state"] == "machine_adjudicated" and "decision_id" not in resolved
+    with pytest.raises(review.ReviewError) as after:
+        review.decide(core, resolved, decision="approve", actor=EXPERT, reason_text="", entry="interactive")
+    assert after.value.code == "rejected_not_permitted_in_state"
+
+
+def test_a_grant_with_no_adjudicator_to_call_is_left_open_rather_than_resolved(core):
+    """A judgement needs somebody to make it: with no roster the item stays on the queue for a person,
+    exactly as a proposer/critic dispute does."""
+    task_id = _task(core)
+    rule_ref, _claim_id = _interpreted(core, task_id)
+    (left,) = adjudication.adjudicate_open(core, task_id)
+    assert left["route"] is None and "no model roster" in left["left_open_because"]
+    assert "declared interpretation of rule.cutoff.value" in left["left_open_because"]
+    assert _item(core, task_id, rule_ref)["state"] == "open"
 
 
 # --- what the rule set, the board and the pages then say ------------------------------------------------

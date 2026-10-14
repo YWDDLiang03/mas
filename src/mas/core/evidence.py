@@ -8,6 +8,10 @@ Two paths, chosen by the capabilities of the attribute's evidence routes
   and the cell's claims are the union over the routes;
 * `literature_retrieval`: a query built from the attribute's query template and the
   candidate's labels, then reading of the best hits and checked claim extraction.
+
+The literature path is per *candidate*, not per cell: `read_literature` reads the union of
+every literature attribute's selection once and `gather` hands each cell the claims tagged
+for its own attribute (`LiteratureReading`).
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ from __future__ import annotations
 import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from . import criteria, ledger, reading, vocab
@@ -113,10 +118,12 @@ def name_like(alias: str | None) -> bool:
 class LiteratureCache:
     """Per-run memo of searches and documents, so one paper is read once per run.
 
-    The sweep hands one cache to cells it may assess concurrently, and `gather` reads one cell's
-    documents concurrently, so all three dicts are shared mutable state. `once` keeps the memo's
-    whole point - a (candidate, paper) pair costs one extraction - across threads: the first
-    caller produces under that key's gate while the others wait on it and then read the memo.
+    The sweep hands one cache to candidates it may read concurrently, and `read_literature` reads
+    one candidate's documents concurrently, so all three dicts are shared mutable state. `once`
+    keeps the memo's whole point - a (candidate, paper) pair costs one extraction - across threads:
+    the first caller produces under that key's gate while the others wait on it and then read the
+    memo. Two candidates selecting the same paper still read it once: the document memo is keyed by
+    the paper, and only the extraction is keyed by (candidate, paper).
 
     WHY a gate per key instead of one lock held across the call, which is how
     `adapters/drug/pubchem.PropertyCache` solves the same shape: producing an entry here is a
@@ -153,13 +160,194 @@ class LiteratureCache:
             return value
 
 
+@dataclass
+class LiteratureReading:
+    """One candidate's whole literature reading, before any of its cells is assessed.
+
+    WHY the reading is a per-candidate unit rather than a per-cell one: one extraction tags claims
+    for *every* literature attribute in the prompt, so a paper found by the hypertension query
+    answers the bioavailability question too -- but a cell that harvested only the papers its own
+    query selected never saw those claims. Measured on the real path, 14 October 2026, 26
+    literature criteria x 2 candidates (surufatinib, sunitinib): 375 claims recorded, 253 admitted,
+    70 ever offered to a cell, 6 of the 52 cells value-bearing where the ledger supported 16. The
+    decisive one: surufatinib's oral bioavailability, extracted from doi:10.3389/fphar.2024.1498339
+    as value 40.3 in the attribute's own unit, basis measured, quote verified, admitted -- and its
+    cell came back `unknown_missing`, because that paper was read for another attribute's query.
+
+    WHY the union is read up front instead of harvesting opportunistically from
+    `cache.extractions`: a cell's claims may not depend on which other cell finished first. This
+    project replays runs and compares digests (see the fold in `read_literature`), and an
+    opportunistic harvest changes a cell's claim set with the scheduling of its neighbours as soon
+    as `assess.workers > 1`. Reading the union first costs nothing extra -- the same documents are
+    already read, the memo already pays for each one once -- and leaves every cell of a candidate
+    looking at the same finished evidence.
+    """
+
+    candidate_ref: str
+    claims: list[dict[str, Any]] = field(default_factory=list)
+    error_ref: str | None = None
+    searched: list[str] = field(default_factory=list)
+    documents: list[str] = field(default_factory=list)      # union documents reached, in reading order
+    selections: list[dict[str, Any]] = field(default_factory=list)   # per attribute: query and its selection
+
+    def claims_for(self, attribute_ref: str) -> list[dict[str, Any]]:
+        """The claims this reading tagged for one attribute, in the documents' own order."""
+        return [c for c in self.claims if c.get("attribute_ref") == attribute_ref]
+
+
+def search_labels(candidate: dict[str, Any], identity: dict[str, Any]) -> list[str]:
+    """The names a search may use for this candidate: its preferred label and name-like aliases."""
+    aliases = [a.get("alias") if isinstance(a, dict) else a for a in identity.get("aliases", [])]
+    labels = [identity.get("preferred_label") or candidate.get("label")] + [a for a in aliases if name_like(a)][:4]
+    return [label for label in dict.fromkeys(labels) if label]
+
+
+def _document_key(hit: dict[str, Any]) -> str:
+    return (hit.get("doi") or hit.get("pmid") or hit.get("title") or "").lower()
+
+
+def _attr_ref(attribute: dict[str, Any]) -> str:
+    return f"{attribute['attribute_id']}@v{attribute['version']}"
+
+
+def _select_documents(core: Core, broker, stream_id: str, *, attribute: dict[str, Any], labels: list[str],
+                      cache: LiteratureCache, cutoff_date: str | None, ids: dict | None, budget: Any,
+                      sources: list[str] | None, limit_per_query: int | None, max_documents: int,
+                      case_sources: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
+    """One literature attribute's query and the documents it selects, highest relevance first."""
+    request = criteria.evidence_routes(attribute)[0]
+    query = literature_query(attribute, labels)
+
+    def run_search() -> list[dict[str, Any]]:
+        hits, coverage_id = reading.search(core, broker, stream_id, [query], cutoff_date=cutoff_date,
+                                           limit_per_query=limit_per_query or request.get("parameters", {}).get("search_limit", 10),
+                                           ids=ids, budget=budget, sources=sources)
+        if any(f["reason"] == "budget_exceeded" for f in core.artifacts.payload(coverage_id)["retrieval_failures"]):
+            raise BudgetBlocked()
+        return hits
+
+    searched_hits = cache.once("searches", query, run_search)
+    terms = (request.get("parameters") or {}).get("relevance_terms") or [attribute["name"]]
+
+    def relevance(hit: dict[str, Any]) -> tuple:
+        text = f"{hit.get('title', '')} {hit.get('abstract_html', '')}"
+        names_candidate = reading.names_entity(labels, text)
+        term_hits = sum(reading.normalize_for_match(t) in reading.normalize_for_match(text) for t in terms)
+        return (not names_candidate, -term_hits, not hit.get("pmcid"), hit.get("best_rank", 0))
+
+    hits = [h for h in sorted(searched_hits, key=relevance)
+            if reading.names_entity(labels, f"{h.get('title', '')} {h.get('abstract_html', '')}")
+            and not reading.is_case_source(h, case_sources)]
+    return query, hits[:max_documents]
+
+
+def read_literature(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, Any],
+                    identity: dict[str, Any], attributes: list[dict[str, Any]], objective_text: str,
+                    cutoff_date: str | None, budget: Any = None, ids: dict | None = None,
+                    cache: LiteratureCache | None = None, max_documents: int = 2,
+                    max_union_documents: int | None = None, case_sources: list[dict[str, Any]] | None = None,
+                    reading_attributes: list[dict[str, Any]] | None = None, sources: list[str] | None = None,
+                    limit_per_query: int | None = None, max_chars: int | None = None,
+                    document_workers: int = 1) -> LiteratureReading:
+    """Read one candidate's literature once: every attribute's selection, extracted for all of them.
+
+    The union is bounded twice. Per query, by `max_documents` (`read.max_papers_per_candidate`),
+    exactly as a single cell was bounded. Across queries, by `max_union_documents`, which defaults
+    to the sum of those per-query bounds -- the union is a set of documents, so two queries that
+    choose the same paper pay for it once, and the measured run's 26 queries x 2 documents came to
+    38 documents per candidate rather than the 52 the ceiling allows.
+    """
+    cache = cache or LiteratureCache()
+    labels = search_labels(candidate, identity)
+    ordered = sorted(attributes, key=_attr_ref)
+    if reading_attributes is None and len(ordered) > 1:
+        reading_attributes = [{"name": a["name"], "definition": a["definition"], "unit": a.get("unit"),
+                               "ref": _attr_ref(a)} for a in ordered]
+    out = LiteratureReading(candidate_ref=candidate["candidate_id"],
+                            searched=["literature_retrieval", "document_reading"])
+    union: dict[str, dict[str, Any]] = {}
+    for attribute in ordered:
+        query, selected = _select_documents(core, broker, stream_id, attribute=attribute, labels=labels, cache=cache,
+                                            cutoff_date=cutoff_date, ids=ids, budget=budget, sources=sources,
+                                            limit_per_query=limit_per_query, max_documents=max_documents,
+                                            case_sources=case_sources or [])
+        out.selections.append({"attribute_ref": _attr_ref(attribute), "query": query,
+                               "documents": [_document_key(h) for h in selected]})
+        for hit in selected:
+            union.setdefault(_document_key(hit), hit)
+    cap = max_union_documents if max_union_documents is not None else max_documents * max(1, len(ordered))
+    selected_hits = list(union.values())[:cap]
+
+    def read_one(hit: dict[str, Any]) -> tuple[list[dict[str, Any]], str | None, bool]:
+        """One document's claims, the model error that ended it, and whether the budget refused it."""
+        key = _document_key(hit)
+        document = cache.once("documents", key, lambda: reading.read(core, broker, stream_id, hit, ids=ids,
+                                                                     budget=budget, cutoff_date=cutoff_date))
+        if document is None:
+            return [], None, False
+        candidate_spec = {"candidate_id": candidate["candidate_id"], "labels": labels}
+        if reading_attributes:
+            # one read of this paper for this candidate serves every literature attribute of the rule set
+            question = {"purpose": "candidate_attribute", "objective_text": objective_text, "attribute": None,
+                        "attributes": reading_attributes, "candidate": candidate_spec}
+        else:
+            one = ordered[0]
+            question = {"purpose": "candidate_attribute", "objective_text": objective_text,
+                        "attribute": {"name": one["name"], "definition": one["definition"],
+                                      "unit": one.get("unit"), "ref": _attr_ref(one)},
+                        "candidate": candidate_spec}
+        try:
+            if reading_attributes:
+                extracted = cache.once("extractions", (candidate["candidate_id"], key),
+                                       lambda: reading.extract_claims(core, roster, stream_id, document, question,
+                                                                      ids=ids, budget=budget, max_chars=max_chars))
+                return list(extracted), None, False
+            return list(reading.extract_claims(core, roster, stream_id, document, question, ids=ids, budget=budget,
+                                               max_chars=max_chars)), None, False
+        except ModelError as error:
+            if error.error_class == "quota_exhausted":
+                return [], None, True
+            return [], f"model_error:{error.error_class}", False
+
+    # Positional collection, not completion order: the project replays runs and compares digests, so
+    # a cell's claim order may not depend on which worker finished first. The fold below then reads
+    # the outcomes in the documents' own order, which is what makes the result at N workers the same
+    # result the one-worker path produces -- including when reading ends early. At one worker nothing
+    # past the document that ended the reading is read at all; at N the later documents are already in
+    # flight when it fails, and their claims are dropped rather than appended out of sequence.
+    outcomes: list[tuple[list[dict[str, Any]], str | None, bool]] = []
+    if document_workers > 1 and len(selected_hits) > 1:
+        with ThreadPoolExecutor(max_workers=min(document_workers, len(selected_hits))) as pool:
+            pending = [pool.submit(read_one, hit) for hit in selected_hits]
+        outcomes = [future.result() for future in pending]   # the pool has joined: every read finished
+    else:
+        for hit in selected_hits:
+            outcome = read_one(hit)
+            outcomes.append(outcome)
+            if outcome[1] or outcome[2]:
+                break
+    for hit, (extracted, model_error, blocked) in zip(selected_hits, outcomes):
+        if blocked:
+            # A refusal mid-flight must leave the candidate's literature cells `not_assessed`, never a
+            # short set of claims that reads like a complete one: what was gathered so far is discarded
+            # with the exception, and the reading is re-done in full when the run resumes.
+            raise BudgetBlocked()
+        if model_error:
+            out.error_ref = model_error
+            return out
+        out.claims += extracted
+        out.documents.append(_document_key(hit))
+    return out
+
+
 def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, Any], identity: dict[str, Any],
            attribute: dict[str, Any], objective_text: str, cutoff_date: str | None, budget: Any = None,
            ids: dict | None = None, cache: LiteratureCache | None = None, max_documents: int = 2,
            case_sources: list[dict[str, Any]] | None = None,
            reading_attributes: list[dict[str, Any]] | None = None,
            sources: list[str] | None = None, limit_per_query: int | None = None,
-           max_chars: int | None = None, document_workers: int = 1) -> tuple[list[dict], str | None, list[str]]:
+           max_chars: int | None = None, document_workers: int = 1,
+           candidate_reading: LiteratureReading | None = None) -> tuple[list[dict], str | None, list[str]]:
     """Gather claims for one cell. Returns (claims, tool_error_ref, source kinds searched)."""
     routes = criteria.evidence_routes(attribute)
     attr_ref = f"{attribute['attribute_id']}@v{attribute['version']}"
@@ -192,90 +380,15 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
                                                   evidence_kind=contract.evidence_kind_produced if contract else "database_entry",
                                                   link_basis=identity["identity_link_basis"], ids=ids)
         return claims, error_ref, searched
-    request = routes[0]
-    cache = cache or LiteratureCache()
-    aliases = [a.get("alias") if isinstance(a, dict) else a for a in identity.get("aliases", [])]
-    labels = [identity.get("preferred_label") or candidate.get("label")] + [a for a in aliases if name_like(a)][:4]
-    labels = [l for l in dict.fromkeys(labels) if l]
-    query = literature_query(attribute, labels)
-
-    def run_search() -> list[dict[str, Any]]:
-        hits, coverage_id = reading.search(core, broker, stream_id, [query], cutoff_date=cutoff_date,
-                                           limit_per_query=limit_per_query or request.get("parameters", {}).get("search_limit", 10),
-                                           ids=ids, budget=budget, sources=sources)
-        if any(f["reason"] == "budget_exceeded" for f in core.artifacts.payload(coverage_id)["retrieval_failures"]):
-            raise BudgetBlocked()
-        return hits
-
-    searched_hits = cache.once("searches", query, run_search)
-    terms = (request.get("parameters") or {}).get("relevance_terms") or [attribute["name"]]
-
-    def relevance(hit: dict[str, Any]) -> tuple:
-        text = f"{hit.get('title', '')} {hit.get('abstract_html', '')}"
-        names_candidate = reading.names_entity(labels, text)
-        term_hits = sum(reading.normalize_for_match(t) in reading.normalize_for_match(text) for t in terms)
-        return (not names_candidate, -term_hits, not hit.get("pmcid"), hit.get("best_rank", 0))
-
-    hits = [h for h in sorted(searched_hits, key=relevance)
-            if reading.names_entity(labels, f"{h.get('title', '')} {h.get('abstract_html', '')}")
-            and not reading.is_case_source(h, case_sources or [])]
-    selected = hits[:max_documents]
-
-    def read_one(hit: dict[str, Any]) -> tuple[list[dict[str, Any]], str | None, bool]:
-        """One document's claims, the model error that ended it, and whether the budget refused it."""
-        key = (hit.get("doi") or hit.get("pmid") or hit.get("title") or "").lower()
-        document = cache.once("documents", key, lambda: reading.read(core, broker, stream_id, hit, ids=ids,
-                                                                     budget=budget, cutoff_date=cutoff_date))
-        if document is None:
-            return [], None, False
-        candidate_spec = {"candidate_id": candidate["candidate_id"], "labels": labels}
-        if reading_attributes:
-            # one read of this paper for this candidate serves every literature attribute of the rule set
-            question = {"purpose": "candidate_attribute", "objective_text": objective_text, "attribute": None,
-                        "attributes": reading_attributes, "candidate": candidate_spec}
-        else:
-            question = {"purpose": "candidate_attribute", "objective_text": objective_text,
-                        "attribute": {"name": attribute["name"], "definition": attribute["definition"],
-                                      "unit": attribute.get("unit"), "ref": attr_ref},
-                        "candidate": candidate_spec}
-        try:
-            if reading_attributes:
-                extracted = cache.once("extractions", (candidate["candidate_id"], key),
-                                       lambda: reading.extract_claims(core, roster, stream_id, document, question,
-                                                                      ids=ids, budget=budget, max_chars=max_chars))
-                return [c for c in extracted if c.get("attribute_ref") == attr_ref], None, False
-            return list(reading.extract_claims(core, roster, stream_id, document, question, ids=ids, budget=budget,
-                                               max_chars=max_chars)), None, False
-        except ModelError as error:
-            if error.error_class == "quota_exhausted":
-                return [], None, True
-            return [], f"model_error:{error.error_class}", False
-
-    # Positional collection, not completion order: the project replays runs and compares digests, so
-    # a cell's claim order may not depend on which worker finished first. The fold below then reads
-    # the outcomes in the documents' own order, which is what makes the result at N workers the same
-    # result the one-worker path produces -- including when reading ends early. At one worker nothing
-    # past the document that ended the cell is read at all; at N the later documents are already in
-    # flight when it fails, and their claims are dropped rather than appended out of sequence.
-    outcomes: list[tuple[list[dict[str, Any]], str | None, bool]] = []
-    if document_workers > 1 and len(selected) > 1:
-        with ThreadPoolExecutor(max_workers=min(document_workers, len(selected))) as pool:
-            pending = [pool.submit(read_one, hit) for hit in selected]
-        outcomes = [future.result() for future in pending]   # the pool has joined: every read finished
-    else:
-        for hit in selected:
-            outcome = read_one(hit)
-            outcomes.append(outcome)
-            if outcome[1] or outcome[2]:
-                break
-    claims: list[dict[str, Any]] = []
-    for extracted, model_error, blocked in outcomes:
-        if blocked:
-            # A refusal mid-flight must leave the cell `not_assessed`, never a short set of claims
-            # that reads like a complete one: the claims gathered so far are discarded with the
-            # exception, and the cell is re-gathered in full when the run resumes.
-            raise BudgetBlocked()
-        if model_error:
-            return claims, model_error, ["literature_retrieval", "document_reading"]
-        claims += extracted
-    return claims, None, ["literature_retrieval", "document_reading"]
+    # One cell of a literature attribute. The reading is a per-candidate unit (`read_literature`),
+    # so the sweep reads it once and hands it to every literature cell of that candidate; a caller
+    # that assesses a single cell on its own gets a reading of that one attribute's selection, which
+    # is what the cell used to read for itself.
+    if candidate_reading is None:
+        candidate_reading = read_literature(
+            core, broker, roster, stream_id, candidate=candidate, identity=identity, attributes=[attribute],
+            objective_text=objective_text, cutoff_date=cutoff_date, budget=budget, ids=ids, cache=cache,
+            max_documents=max_documents, case_sources=case_sources, reading_attributes=reading_attributes,
+            sources=sources, limit_per_query=limit_per_query, max_chars=max_chars,
+            document_workers=document_workers)
+    return candidate_reading.claims_for(attr_ref), candidate_reading.error_ref, candidate_reading.searched

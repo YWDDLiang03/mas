@@ -56,8 +56,8 @@ PROPOSER_SYSTEM = (
     "You propose screening criteria (attributes and rules) for an evidence-driven prioritization task. "
     "Work only from the objective, the constraints, and the claims provided (each has an id and a verbatim quote). "
     "Each proposal is one measurable attribute plus one rule. Rules are hard_exclusion (a candidate failing it is "
-    "excluded) or preference (it ranks candidates). Prefer preference rules unless the objective or a constraint "
-    "makes the property a requirement. "
+    "excluded) or preference (it ranks candidates). Prefer preference rules unless the objective, a constraint or "
+    "the cited evidence makes the property a requirement. "
     # WHY the threshold instruction is this insistent: the earlier wording offered
     # `none_evidence_insufficient` as a co-equal option and the proposer took it every single time.
     # Measured on the manuscript registry: 39 of 40 promoted rules carry no cutoff at all, and the one
@@ -76,6 +76,28 @@ PROPOSER_SYSTEM = (
     "lets a reviewer judge the cutoff. Only use cutoff_basis none_evidence_insufficient when no cited "
     "claim states any number you could threshold on, and then say which quantity was missing in the "
     "rationale. Never invent a number that is not in a quote. "
+    # WHY the proposer is told it may interpret: the honest declaration above used to end the story.
+    # Measured on the clean derivation of 14 October 2026, 29 of 33 cutoffs came back
+    # `reports_measurement` and 4 `provides_heuristic`, none `states_decision_threshold`, and one
+    # criterion of 35 carried a cutoff at all -- so no derived criterion could exclude anything, and
+    # against the 11 sealed historical attributes the recovery measurement read exact 0 / 11 with all
+    # 5 near matches differing on the threshold facet. A proposer that may not state the step from a
+    # measurement to a bound has only two moves left: invent a number, or decline to have one.
+    "WHERE A CITED PASSAGE REPORTS A MEASUREMENT A SCREENING DECISION CAN DEFENSIBLY REST ON, PROPOSE "
+    "THE CUTOFF AND DECLARE THE INTERPRETATION. The bound_support record takes an interpretation "
+    "{measurement, inference, population_rationale}: what the passage reports in its own terms, which "
+    "way the step runs (at_least_the_reported_value, at_most_the_reported_value, "
+    "outside_the_reported_range_is_out_of_population, the_heuristic_is_the_line), and why that step "
+    "holds for the candidates this task screens. An adjudicator then reads the quote, your declaration "
+    "and the rule, and grants the bound or refuses it; a granted bound is recorded as resting on an "
+    "interpretation, never as a threshold the source states. An undeclared interpretation is worse "
+    "than no cutoff: nobody can grant what nobody has stated, so the cutoff stops scoring and the "
+    "criterion ranks instead. A circular justification is no justification -- 'the bound is 90 because "
+    "90 is appropriate' is refused before anyone reads it -- and inventing a number no passage states "
+    "is still forbidden, interpretation or not: the inference runs from the number the passage gives. "
+    "Propose a hard_exclusion where the task or the evidence makes the property a requirement rather "
+    "than a preference -- a candidate failing it is unsuitable, not merely worse -- and say so in the "
+    "interpretation, because excluding candidates on an interpreted bound is granted separately. "
     "A preference rule without a cited cutoff uses predicate_form ordering: candidates are ranked by the value in "
     "the attribute's direction. "
     "Bind each attribute's evidence_request to one entry of the evidence catalog and fill its parameters. "
@@ -150,7 +172,14 @@ SCHEMA_BLOCK_FORMS = (
     "requirement | reports_measurement when it reports a measured or observed value or range | provides_heuristic), "
     "applicability_rationale (why it applies to this candidate population)}. The number, the unit and the "
     "arithmetic are checked against the claim; statement_kind and applicability_rationale are your reading and are "
-    "recorded as such.\n")
+    "recorded as such.\n"
+    "Where statement_kind is reports_measurement or provides_heuristic and you still want the number to act as a "
+    "cutoff, add to that record interpretation {measurement (what the passage reports, in its own terms), inference "
+    "(at_least_the_reported_value | at_most_the_reported_value | "
+    "outside_the_reported_range_is_out_of_population | the_heuristic_is_the_line), population_rationale (why that "
+    "step holds for the candidates being screened)}. The direction is checked against the comparator the rule "
+    "applies and, for a range edge, against the range the claim states; a justification that only restates the "
+    "number is refused. Without it the bound cannot be granted and the cutoff will not score.\n")
 RULE_FIELDS = ("rule_kind", "predicate_form", "cutoff", "cutoff_basis", "on_missing", "on_inapplicable",
                "on_conflict", "bound_support")
 

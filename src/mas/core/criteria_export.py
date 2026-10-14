@@ -28,7 +28,8 @@ import json
 from pathlib import Path
 from typing import Any, Iterator
 
-from . import adjudication, collapse as collapse_mod, criteria, pool as pool_mod, review, task as task_mod
+from . import (adjudication, assessor, collapse as collapse_mod, criteria, pool as pool_mod, review,
+               task as task_mod)
 from .canonical import canonical_bytes, sha256_hex
 from .clock import utc_now
 from .journal import Event, Journal
@@ -681,6 +682,7 @@ def _card(core: Core, task_id: str, base_id: str, attribute_entry: dict[str, Any
         "computation": {
             "value_transform": attribute.get("value_transform"),
             "transform_declared": attribute.get("value_transform") is not None,
+            "family_reduction": _family_reduction(attribute, item.get("consolidation")),
             "evidence_routes": [_route_view(r) for r in criteria.evidence_routes(attribute)],
             "route_count": len(criteria.evidence_routes(attribute)),
             "literature_bound": criteria.is_literature_bound(attribute),
@@ -750,6 +752,12 @@ def _card(core: Core, task_id: str, base_id: str, attribute_entry: dict[str, Any
             "critic_findings": item.get("critic_findings") or [],
             "validator_problems": item.get("validator_problems") or [],
             "dissent_recorded_on_rule": rule.get("dissent") or [],
+            # What a consolidated criterion stands for: the specific endpoints it subsumed, the property
+            # claimed to be shared across them, and the aggregation that reduces them to one number. A
+            # reviewer who cannot read that list cannot object to the abstraction, which is the whole
+            # difference between a consolidation and information loss, so it travels with the card rather
+            # than only in the pool's change records.
+            "consolidation": item.get("consolidation"),
             "merged_away": None if merged is None else {
                 "collapse_id": merged["collapse_id"], "into": merged["surviving"]["attribute_ref_after"],
                 "reason_text": merged["reason_text"], "withdrawn": merged["withdrawn"]},
@@ -1067,6 +1075,52 @@ def _sources_markdown(payload: dict[str, Any]) -> list[str]:
     return lines + [""]
 
 
+def _family_reduction(attribute: dict[str, Any], consolidation: dict[str, Any] | None) -> dict[str, Any] | None:
+    """What a consolidated criterion computes, re-derived from the attribute that will be executed.
+
+    WHY it is re-derived here rather than copied from the pool's consolidation record: the record is what the
+    adjudicator declared, the attribute's `aggregation` is what `assess_cell` runs, and only the second one
+    reaches the assessor. The merge gate writes the first into the second so they cannot part, but a later
+    attribute version can be registered by any other route, so the card states the aggregation that will run
+    and, when it is not the one the declared family reduction asks for, says so in the same sentence. A card
+    that printed only the declaration would be reproducing the defect this field had when it was added: a
+    reduction recorded and never executed.
+    """
+    if not consolidation:
+        return None
+    family = str(consolidation.get("family_aggregation") or "")
+    direction = attribute.get("direction")
+    executes_as, problem = assessor.family_aggregation_execution(family, direction)
+    runs = attribute.get("aggregation") or "consensus"
+    agrees = problem is None and executes_as == runs
+    if agrees:
+        statement = (f"the family reduction `{family}` over a `{direction}` attribute is the `{runs}` of the "
+                     f"cell's pooled claims, which is the aggregation the attribute declares: that is what "
+                     f"will be computed")
+    elif problem:
+        statement = (f"the family reduction `{family}` is not executable here ({problem}); the attribute's "
+                     f"`{runs}` of the cell's pooled claims is what will be computed")
+    else:
+        statement = (f"the family reduction `{family}` over a `{direction}` attribute would be the "
+                     f"`{executes_as}` of the cell's pooled claims, but the attribute declares `{runs}`, "
+                     f"which is what will be computed: the declaration and the execution disagree")
+    return {"family_aggregation": family, "executes_as_aggregation": executes_as,
+            "attribute_aggregation": runs, "direction": direction, "agrees_with_attribute": agrees,
+            "statement": statement}
+
+
+def _consolidation_lines(consolidation: dict[str, Any] | None) -> list[str]:
+    """The family a consolidated criterion replaced, named endpoint by endpoint so that a reviewer can say
+    one of them did not belong in it."""
+    if not consolidation:
+        return []
+    subsumes = consolidation.get("subsumes") or []
+    return [f"- consolidates {len(subsumes)} specific endpoints, reduced by "
+            f"`{consolidation.get('family_aggregation')}`, on the shared property "
+            f"{_fence(consolidation.get('shared_property'))}:"] + \
+           [f"  - `{s.get('criterion_id')}@v{s.get('version')}` {s.get('name')}" for s in subsumes]
+
+
 def _card_markdown(card: dict[str, Any], index: int) -> list[str]:
     identity, meaning, rule = card["identity"], card["meaning"], card["rule"]
     origin, support, use = card["origin"], card["support"], card["use"]
@@ -1152,6 +1206,8 @@ def _card_markdown(card: dict[str, Any], index: int) -> list[str]:
         f"- **evidence key** `{computation['evidence_key_sha256']}` · "
         f"{computation['route_count']} route(s) · literature-bound {_inline(computation['literature_bound'])}",
     ]
+    if computation["family_reduction"]:
+        lines.append(f"- **family reduction**: {computation['family_reduction']['statement']}")
     for route in computation["evidence_routes"]:
         lines.append(f"  - route `{route['capability']}` / `{route['question_kind']}` · "
                      f"subject {_inline(route['subject_parameters'])} · "
@@ -1226,6 +1282,7 @@ def _card_markdown(card: dict[str, Any], index: int) -> list[str]:
               f"- parents {_inline(lifecycle['parents'])} · children {_inline(lifecycle['children'])}",
               f"- merged away: {_inline(lifecycle['merged_away'])}",
               f"- survived a collapse: {_inline(lifecycle['survived_collapse'])}",
+              *_consolidation_lines(lifecycle.get("consolidation")),
               "- refinement history:" if lifecycle["refinement_history"]
               else "- refinement history: — (this criterion never entered the pool)"]
     for step in lifecycle["refinement_history"]:

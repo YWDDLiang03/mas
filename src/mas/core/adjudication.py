@@ -7,8 +7,9 @@ agent_verdict`, never `human_scientific_approval`; it folds the queue item into 
 machine_adjudication` into the rule set, its acceptance label and the board. `review.decide` is
 untouched by this module: an `hd_` is still created only by a person confirming at a terminal.
 
-Five routes: the first four chosen by *why* the item needed an expert (`criteria.needs_expert`), the
-fifth by what the subject attribute's own definition states, for an item that needed no expert at all:
+Six routes: the first four chosen by *why* the item needed an expert (`criteria.needs_expert`), the
+fifth by what the subject attribute's own definition states, for an item that needed no expert at
+all, and the sixth by what its support record declares about a bound it cannot call a threshold:
 
   task_constraint_restated       the cutoff restates a constraint the task context itself states,
                                  so the authority is the user's own task text and no judgement is
@@ -39,6 +40,29 @@ fifth by what the subject attribute's own definition states, for an item that ne
                                  band. Two one-sided bounds with no band of their own stay refused --
                                  no text says they are the two ends of one band. Deterministic, no
                                  model call. Changes no rule kind and no cutoff.
+  bound_interpretation_granted   a cutoff traces to a cited claim, the claim reports a measurement or
+                                 a rule of thumb rather than stating a screening threshold, and the
+                                 support record declares the step from the one to the other
+                                 (`bound_support.interpretation`). The `adjudicator` role reads the
+                                 cited claim, that declaration and the rule -- blind to the
+                                 proposer's rationale, exactly as the critic is -- and either grants
+                                 the bound, which may then score and may go on excluding candidates,
+                                 or refuses it, in which case the rule falls back: a preference gives
+                                 up the cutoff and ranks on the measurement instead, anything else
+                                 stops scoring. A granted bound is recorded `interpretation_granted`,
+                                 never `sourced_threshold`.
+
+WHY route 6 exists at all, and why it is the only route that can leave an exclusion excluding on
+anything other than the task's own text. Measured on the clean derivation of 14 October 2026: of 35 derived criteria exactly one carried a
+cutoff, a task-mandated route constraint, and the proposer declared 29 of its 33 cutoffs
+`reports_measurement` and 4 `provides_heuristic` with none `states_decision_threshold`, because the
+literature reports measurements and does not state screening cutoffs. Not one derived criterion
+could exclude a candidate, and against the 11 sealed historical attributes the acceptance
+measurement read exact 0 / 11 with all 5 near-equivalent matches differing on the threshold facet.
+The missing piece was not a number -- inventing one is still refused -- but a declared inference and
+somebody with the standing to accept it. An agent is not that somebody for a *person's* purposes,
+which is why granting is loud everywhere it travels: `machine_adjudicated[]`, `bounds_granted[]`, an
+acceptance reason, `exploratory`, and a board that says no person confirmed it.
 
 WHY a demotion is a new rule version rather than a field on the entry: the assessor reads
 `rule["rule_kind"]` from the rule record it loads (`assessor.assess_cell`, `roll_up`), so a demotion
@@ -75,14 +99,22 @@ ROUTE_EFFECT = {
     "dispute_adjudicated": "put the dispute to the adjudicator, blind to the proposer's rationale",
     "definition_restated": "declare the transformation the attribute's own definition states, so the cell "
                            "carries the quantity it names",
+    "bound_interpretation_granted": "put the declared interpretation of the bound to the adjudicator, which may "
+                                    "let it score as a cutoff",
 }
 ROUTES = tuple(ROUTE_EFFECT)
 VERDICTS = ("uphold_proposal", "uphold_objection", "revise", "cannot_resolve")
-# The rule kind each resolution leaves behind; `approve` and `declare_value_transform` leave the
-# kind the proposal had, the second because it changes the attribute and not the rule.
+# The two answers route 6 asks for. The second question a hard exclusion adds -- whether the
+# evidence makes the property a requirement -- is a boolean of its own in `BOUND_GRANT_SCHEMA`, so
+# that an answer which simply does not address it reads as no.
+GRANT_VERDICTS = ("grant_bound", "refuse_bound")
+# The rule kind each resolution leaves behind; `approve`, `declare_value_transform` and
+# `withdraw_the_cutoff` leave the kind the proposal had -- the second because it changes the
+# attribute and not the rule, the third because giving up a cutoff is a change to what the rule
+# compares, not to how hard it bears on a candidate.
 RESOLUTIONS = {"approve": None, "demote_to_preference": "preference",
                "demote_to_exploratory_consideration": "exploratory_consideration",
-               "declare_value_transform": None}
+               "declare_value_transform": None, "withdraw_the_cutoff": None}
 
 # The deterministic routes add no judgement of their own, so their actor is the software, not an agent.
 MACHINE = make_actor("system", "machine-adjudication", "adjudicator")
@@ -309,16 +341,99 @@ def restated_definition(attribute: dict[str, Any], claims: list[dict[str, Any]])
             "value_transform": dict(reading, basis="source_stated_value", source_refs=sorted(set(refs)))}
 
 
-def _cited_claims(core: Core, task_id: str, attribute: dict[str, Any], item: dict[str, Any]) -> list[dict[str, Any]]:
+# --- route 6: may a declared interpretation of a bound become a cutoff? -------------------------
+
+BOUND_GRANT_SYSTEM = (
+    "You decide whether one screening criterion may use one number as a decision bound. The passage "
+    "the criterion cites reports a measurement or offers a rule of thumb; it does not state a "
+    "screening threshold, and the criterion says so. What the criterion adds is a declared "
+    "interpretation: the measurement it rests on, the direction of the inference from that "
+    "measurement to the bound, and why that inference holds for the population this screen ranks. "
+    "You see the criterion, that declaration and the claims it cites, not the proposer's reasoning. "
+    "Grant the bound only if the cited quote makes the bound defensible for this population in the "
+    "direction declared: the number must be the one the passage reports, the inference must follow "
+    "from what the passage actually says, and the population the passage is about must be the one "
+    "being screened. Refuse it if the step needs evidence that is not in front of you, if an observed "
+    "value is being turned into a requirement with nothing to say why that value is where the line "
+    "belongs, or if the quote is about a different population, species, assay or dose. Refusing is a "
+    "normal answer: the criterion then ranks candidates on the measurement instead, which asserts no "
+    "bound. Where the rule is a hard_exclusion, answer the second question too -- whether the cited "
+    "evidence makes this property a requirement, so that candidates failing it are removed from the "
+    "result, rather than a preference that only moves them down. Answer no unless the evidence says "
+    "a failing candidate is unsuitable, not merely worse. Cite the claim ids your reasoning rests on; "
+    "cite no claim that is not listed. Never name a specific candidate compound."
+)
+
+BOUND_GRANT_SCHEMA = {
+    "type": "object", "required": ["verdict", "reasoning", "cited_claim_ids"],
+    "properties": {"verdict": {"type": "string", "enum": list(GRANT_VERDICTS)},
+                   "reasoning": {"type": "string"},
+                   "cited_claim_ids": {"type": "array", "items": {"type": "string"}},
+                   "property_is_a_requirement": {"type": "boolean"}},
+}
+
+
+def grantable_interpretation(rule: dict[str, Any], attribute: dict[str, Any],
+                             claims: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The bounds of this criterion whose declared interpretation an adjudicator could grant, or None.
+
+    Deterministic, and it decides only what is on the table. None where there is nothing to put to
+    anybody: no bound, a bound already stated as a threshold by its source, a bound whose basis is an
+    authority rather than a source, no support record, a record whose declaration is absent, partial,
+    circular or contradicted by the rule's own comparator (`bound_support.interpretation`) -- and,
+    first of all, a number that does not trace to any cited claim. That last one is `unsupported`,
+    which no interpretation rescues: an interpretation is a step from a passage to a bound, and there
+    is no step from a passage that does not state the number.
+    """
+    support = bound_support.validate(attribute, rule, claims=claims)
+    if support["blocking"] or not support["grantable_paths"]:
+        return None
+    by_path = {b["parameter_path"]: b for b in support["bounds"]}
+    records = bound_support.support_records(attribute, rule)
+    paths = list(support["grantable_paths"])
+    offered = {c["claim_id"] for c in claims}
+    return {"field": "bound_support", "match": "interpretation_declared", "parameter_paths": paths,
+            "claim_ids": sorted({records[p].get("claim_id") for p in paths} & offered),
+            "bounds": [{"parameter_path": p, "value": by_path[p]["value"], "unit": by_path[p]["unit"],
+                        "comparator": by_path[p]["comparator"], "statement_kind": by_path[p]["semantic_support"],
+                        "claim_id": records[p].get("claim_id"),
+                        "trace_kind": by_path[p]["trace_kind"],
+                        "range_endpoint": by_path[p]["range_endpoint"],
+                        "interpretation": records[p].get("interpretation"),
+                        "inference": by_path[p]["interpretation_inference"],
+                        "applicability_rationale": records[p].get("applicability_rationale")} for p in paths]}
+
+
+def granted_bounds(record: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+    """The parameter paths one machine adjudication granted, by path, for `bound_support.validate`.
+
+    Empty for every other route and for a refusal, so a caller may hand any adjudication record to
+    this and pass the answer on: a grant is the only thing that produces a granted bound, and reading
+    it out of the `adj_` artifact is what keeps the grant out of the reach of whoever wrote the rule.
+    """
+    grant = (record or {}).get("grants") or {}
+    if not grant.get("granted"):
+        return {}
+    return {path: {"adjudication_id": record["adjudication_id"], "verdict": grant["verdict"],
+                   "by": record["actor"], "approval_kind": record["approval_kind"],
+                   "confirmed_by_a_person": record["confirmed_by_a_person"]}
+            for path in grant.get("parameter_paths") or []}
+
+
+def _cited_claims(core: Core, task_id: str, attribute: dict[str, Any], item: dict[str, Any],
+                  rule: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """The admitted claims an attribute cites, wherever the run that enumerated them recorded them.
 
     A promoted criterion's claims were enumerated in a derivation run's own stream, and an item
     raised outside a dispute names no run, so the run streams are read when the bundle does not name
     one. Nothing is read at all unless the definition states a bound there would be something to
-    trace, which is what keeps `route_preview` cheap for the four routes that cite no claim.
+    trace, or a support record declares an interpretation there would be something to grant, which is
+    what keeps `route_preview` cheap for the routes that cite no claim at all.
     """
     cited = set(attribute.get("supporting_claim_refs") or [])
-    if not cited or _restatable(attribute) is None:
+    declares = any(isinstance(r.get("interpretation"), dict)
+                   for r in bound_support.support_records(attribute, rule or {}).values())
+    if not cited or (_restatable(attribute) is None and not declares):
         return []
     bundle = item.get("inspection_bundle") or {}
     streams = [task_id] + ([bundle["derivation_run"]] if bundle.get("derivation_run")
@@ -334,19 +449,26 @@ def _is_dispute(item: dict[str, Any]) -> bool:
 
 def route_of(rule: dict[str, Any], attribute: dict[str, Any], context: dict[str, Any],
              item: dict[str, Any], claims: list[dict[str, Any]] | None = None) -> tuple[str, dict[str, Any] | None]:
-    """The route that resolves this item, and what it cites (routes 1 and 5 cite something).
+    """The route that resolves this item, and what it cites (routes 1, 5 and 6 cite something).
 
     Order matters where a rule qualifies for more than one route, and it runs from the most
     conservative outcome to the least: an `expert_set` hard exclusion is demoted to a
     non-scoring exploratory consideration rather than to a scoring preference, because the
     authority its cutoff claims (an expert's judgement) is the one thing missing.
 
-    Route 5 is tried last of the five and only ahead of the `no_authority_available` fallback. It is
-    the one route that leaves a rule scoring without an expert having said anything, so where a rule
-    also claims an authority it does not have -- an `expert_set` cutoff, a task constraint the task
-    text does not state, a hard exclusion -- the route that answers that claim wins and route 5 never
-    sees the item. What is left for it is the case it is for: a rule nothing is wrong with, whose
-    attribute measures something other than what it says it measures.
+    Route 5 is tried last and only ahead of the `no_authority_available` fallback. It is one of the
+    two routes that leave a rule scoring without an expert having said anything, so where a rule also
+    claims an authority it does not have -- an `expert_set` cutoff, a task constraint the task text
+    does not state -- the route that answers that claim wins and route 5 never sees the item. What is
+    left for it is the case it is for: a rule nothing is wrong with, whose attribute measures
+    something other than what it says it measures.
+
+    Route 6 is the one exception to the conservative ordering, and it is placed ahead of route 3 on
+    purpose: a hard exclusion whose bound carries a declared interpretation is asked about rather
+    than demoted on sight, because refusing the grant lands on route 3's own outcome anyway, so
+    asking costs nothing and demoting first would make the declaration unaskable. It cannot fire
+    without that declaration, and `grantable_interpretation` refuses every bound a machine can
+    already see through.
     """
     if _is_dispute(item):
         return "dispute_adjudicated", None
@@ -361,6 +483,9 @@ def route_of(rule: dict[str, Any], attribute: dict[str, Any], context: dict[str,
                 else "no_authority_available"), None
     if rule["cutoff_basis"] == "expert_set":
         return "no_authority_available", None
+    grantable = grantable_interpretation(rule, attribute, claims or [])
+    if grantable is not None:
+        return "bound_interpretation_granted", grantable
     if rule["rule_kind"] == "hard_exclusion":
         return "irreversible_without_authority", None
     restated = restated_definition(attribute, claims or [])
@@ -380,7 +505,7 @@ def route_preview(core: Core, item: dict[str, Any]) -> dict[str, Any]:
         context = task_mod.get(core, task_id)
         rule = criteria.load(core, item["subject"]["id"], task_id)
         attribute = criteria.load(core, rule["attribute_ref"], task_id)
-        claims = _cited_claims(core, task_id, attribute, item)
+        claims = _cited_claims(core, task_id, attribute, item, rule)
     except (KeyError, StopIteration):
         return dict(unknown, why_not="the rule or the task context this item names is not in this store root")
     route, _restated = route_of(rule, attribute, context, item, claims)
@@ -511,8 +636,9 @@ def cited_claims(core: Core, task_id: str, item: dict[str, Any], attribute: dict
     """The admitted claims this criterion cites, from the task stream and the run the item names.
 
     WHY beside `_cited_claims`: that one reads nothing unless the definition states a bound there
-    would be something to trace, which is what keeps `route_preview` cheap for the four routes that
-    cite no claim. A revision and a dispute need the claims whatever the definition says.
+    would be something to trace or a support record declares an interpretation, which is what keeps
+    `route_preview` cheap for the routes that cite no claim. A revision and a dispute need the claims
+    whatever the definition says.
     """
     cited = set(attribute.get("supporting_claim_refs") or [])
     if not cited:
@@ -550,6 +676,51 @@ def _adjudicate_dispute(core: Core, task_id: str, item: dict[str, Any], rule: di
             "uncited_ids_refused": sorted(set(answer.get("cited_claim_ids") or []) - offered),
             "revised_rule": answer.get("revised_rule") or None, "independence": marker,
             "request_id": response.request_id}
+
+
+def _grant_bound(core: Core, task_id: str, item: dict[str, Any], rule: dict[str, Any],
+                 attribute: dict[str, Any], grantable: dict[str, Any], *, roster: ModelRoster,
+                 budget: Any = None) -> dict[str, Any]:
+    """Put one criterion's declared interpretation of its bound to the adjudicator (route 6).
+
+    The same call shape as `_adjudicate_dispute`, and blind in the same way and by the same code:
+    `_dispute_view` strips the proposer's `rationale` and withholds `expected_change`, and what is
+    left includes the support record -- which is the point, because the declared interpretation is
+    the thing under judgement. A second question is asked only in the record: whether the evidence
+    makes the property a requirement. An answer that does not say so does not grant the exclusion.
+    """
+    from .derivation import _claims_block
+
+    marker = independence(roster)
+    # WHY the widening reader and not `cited_claims`: a route 6 item is raised by `criteria.propose`
+    # and carries no inspection bundle, so it names no derivation run -- and a derivation enumerates
+    # its claims in the run's own stream. The narrow reader would hand the adjudicator a criterion to
+    # judge and none of the evidence it cites, which is the one thing this route must not do.
+    claims = _cited_claims(core, task_id, attribute, item, rule)
+    content = (f"Objective: {task_mod.get(core, task_id)['objective_text']}\n\n"
+               f"Criterion:\n{json.dumps(_dispute_view(attribute, rule), ensure_ascii=False, indent=1)}\n\n"
+               f"Bounds whose interpretation is in question:\n"
+               f"{json.dumps(grantable['bounds'], ensure_ascii=False, indent=1)}\n\n"
+               f"The rule is a {rule['rule_kind']}.\n\n"
+               f"Cited claims ({len(claims)}):\n{_claims_block(claims)}")
+    bench = ModelRoster(roster.adapters, {**roster.roles, "adjudicator": marker["adjudicator_adapter_id"]})
+    response = call_role(core, bench, task_id, ModelRequest(
+        role="adjudicator", system=BOUND_GRANT_SYSTEM, messages=[{"role": "user", "content": content}],
+        response_schema=BOUND_GRANT_SCHEMA, max_tokens=4000,
+        metadata={"question": "grant or refuse a declared interpretation of a bound"}),
+        ids={"task_id": task_id}, budget=budget)
+    answer = response.data
+    verdict = vocab.require("bound_grant_verdict", answer["verdict"])
+    granted = verdict == "grant_bound"
+    offered = {c["claim_id"] for c in claims}
+    return {"verdict": verdict, "granted": granted, "reasoning": answer["reasoning"][:2000],
+            "cited_claim_ids": sorted(set(answer.get("cited_claim_ids") or []) & offered),
+            "uncited_ids_refused": sorted(set(answer.get("cited_claim_ids") or []) - offered),
+            "parameter_paths": list(grantable["parameter_paths"]),
+            # Only a granted bound can carry a granted exclusion, and only an explicit answer grants
+            # it: an exclusion deletes candidates, so silence is a no.
+            "hard_exclusion": granted and bool(answer.get("property_is_a_requirement")),
+            "independence": marker, "request_id": response.request_id}
 
 
 def _apply_revision(rule: dict[str, Any], revision: dict[str, Any], attribute: dict[str, Any], *,
@@ -640,9 +811,10 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
     rule_ref = item["subject"]["id"]
     rule = criteria.load(core, rule_ref, task_id)
     attribute = criteria.load(core, rule["attribute_ref"], task_id)
-    route, restated = route_of(rule, attribute, context, item, _cited_claims(core, task_id, attribute, item))
+    route, restated = route_of(rule, attribute, context, item,
+                               _cited_claims(core, task_id, attribute, item, rule))
     adjudication_id = new_id("adj")
-    by, dispute, revision = MACHINE, None, None
+    by, dispute, revision, grant = MACHINE, None, None, None
 
     if route == "dispute_adjudicated":
         if roster is None:
@@ -669,6 +841,39 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         else:
             resolution = "demote_to_exploratory_consideration"
             reason = "the adjudicator could not settle the dispute on the evidence before it"
+    elif route == "bound_interpretation_granted":
+        if roster is None:
+            raise AdjudicationError(f"{item['item_id']} rests on a declared interpretation of "
+                                    f"{', '.join(restated['parameter_paths'])} and needs the adjudicator role; "
+                                    f"no model roster was given")
+        grant = _grant_bound(core, task_id, item, rule, attribute, restated, roster=roster, budget=budget)
+        by = make_actor("agent", f"adjudicator:{grant['independence']['adjudicator_adapter_id']}", "adjudicator",
+                        model_family=grant["independence"]["adjudicator_family"],
+                        version=grant["independence"]["adjudicator_model_id"])
+        paths = ", ".join(grant["parameter_paths"])
+        if grant["granted"]:
+            resolution = "approve"
+            reason = (f"an agent read the cited claims, the interpretation declared for {paths} and the rule, and "
+                      f"granted the bound: it may score as a cutoff and is recorded as resting on that "
+                      f"interpretation, not as a threshold its source states"
+                      + ("; the agent also found the evidence makes the property a requirement, so the exclusion "
+                         "stands" if grant["hard_exclusion"] else ""))
+        else:
+            # The fallback is the one the support contract already draws: withholding a *cutoff* and
+            # withholding a *measurement* are different acts, so a preference gives up the cutoff and
+            # goes on ranking in the attribute's declared direction, which asserts no bound. A hard
+            # exclusion gets no such fallback (an exclusion with no defensible cutoff has nothing
+            # left to do, and demoting it would turn a requirement into a nudge), and neither does a
+            # bound inside a `value_transform`: the transform computes every cell from that number,
+            # so dropping the predicate would leave it scoring under another name.
+            directional = (attribute.get("direction") or "non_directional") != "non_directional"
+            cutoff_only = all(p.startswith("rule.cutoff") for p in grant["parameter_paths"])
+            resolution = ("withdraw_the_cutoff" if cutoff_only and directional
+                          and rule["rule_kind"] == "preference" else "demote_to_exploratory_consideration")
+            reason = (f"an agent read the cited claims and the interpretation declared for {paths} and refused the "
+                      f"bound: {grant['reasoning'][:300]}"
+                      + ("; the criterion keeps ranking candidates on the measurement, which asserts no bound"
+                         if resolution == "withdraw_the_cutoff" else "; the criterion stops scoring"))
     elif route == "task_constraint_restated":
         resolution = "approve"
         reason = (f"the cutoff restates {restated['field']} of {restated['task_context_ref']} "
@@ -696,13 +901,30 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         resolution = "demote_to_exploratory_consideration"
         reason += "; its cutoff is still expert_set, which no agent can supply"
     elif resolution == "approve" and rule["rule_kind"] == "hard_exclusion" \
-            and restated_constraint(rule, attribute, context) is None:
+            and restated_constraint(rule, attribute, context) is None \
+            and not (grant and grant["hard_exclusion"]):
+        # WHY route 6 is excepted here and nothing else is: this composition exists because no agent
+        # may delete candidates on its own say-so, and a granted exclusion is the one case where an
+        # agent was asked that question directly, on the cited evidence, and answered it. It is the
+        # loudest thing the system can record -- `machine_adjudicated[]`, `bounds_granted[]`, an
+        # acceptance reason, `exploratory`, and a board saying no person confirmed it -- and a run
+        # with nobody to ask that may never state a requirement cannot derive criteria at all
+        # (measured: 1 of 35 derived criteria carried a cutoff, and that one restated the task).
         resolution = "demote_to_preference"
         reason += "; it is still a hard exclusion the task text does not state, so it stops excluding"
 
     kind = RESOLUTIONS[resolution] or rule["rule_kind"]
     rewritten = _demoted(rule, kind)
     attribute_ref_after, edits = rule["attribute_ref"], []
+    if resolution == "withdraw_the_cutoff":
+        # The support record goes with the cutoff it supported. A record naming a parameter the rule
+        # no longer holds is one the validator calls blocking ("a record supporting nothing would
+        # read as support for everything"), and the version it did support is still in the journal
+        # with this adjudication naming what was refused.
+        rewritten = dict(rewritten, predicate_form="ordering", cutoff=None,
+                         cutoff_basis="none_evidence_insufficient",
+                         bound_support=[r for r in (rule.get("bound_support") or [])
+                                        if r.get("parameter_path") not in set(grant["parameter_paths"])])
     if resolution == "declare_value_transform":
         declared = restated["value_transform"]
         attribute_ref_after = _record_attribute_version(
@@ -718,8 +940,13 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
     changed = rewritten != criteria.load(core, rule_ref, task_id)
     rule_ref_after = rule_ref if not changed else _record_rule_version(
         core, task_id, rule_ref, rewritten, by=by, adjudication_id=adjudication_id,
-        summary=(f"{rule_ref} reads {attribute_ref_after} after {adjudication_id} ({route})"
+        summary=(f"{rule_ref} gives up its cutoff after {adjudication_id} ({route})"
+                 if resolution == "withdraw_the_cutoff" else
+                 f"{rule_ref} reads {attribute_ref_after} after {adjudication_id} ({route})"
                  if edits else f"{rule_ref} {rule['rule_kind']} -> {kind} by {adjudication_id} ({route})"))
+    if resolution == "withdraw_the_cutoff":
+        edits = [{"target": rule_ref, "target_after": rule_ref_after, "field": "cutoff",
+                  "from": rule.get("cutoff"), "to": None}]
     scores = rewritten["rule_kind"] == "preference"
 
     record = {
@@ -743,10 +970,20 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         # Both versions and a field-level diff of the revision, applied or refused (§6 F4).
         "revision": revision,
         "requires_explicit_review": bool(revision and revision["requires_explicit_review"]),
-        "verdict": dispute["verdict"] if dispute else None,
-        "reasoning": dispute["reasoning"] if dispute else None,
-        "cited_claim_ids": dispute["cited_claim_ids"] if dispute else [],
-        "independence": dispute["independence"] if dispute else None,
+        # What route 6 granted, if anything: the paths, the verdict, and whether the exclusion was
+        # granted with the bound. `granted_bounds` reads this and nothing else, so a rule set learns
+        # about a grant from the `adj_` artifact rather than from the rule that wanted one.
+        "grants": None if grant is None else {
+            "granted": grant["granted"], "verdict": grant["verdict"],
+            "parameter_paths": grant["parameter_paths"] if grant["granted"] else [],
+            "parameter_paths_refused": [] if grant["granted"] else grant["parameter_paths"],
+            "hard_exclusion": grant["hard_exclusion"],
+            "interpretations": {b["parameter_path"]: b["interpretation"] for b in restated["bounds"]},
+            "inferences": {b["parameter_path"]: b["inference"] for b in restated["bounds"]}},
+        "verdict": (dispute or grant or {}).get("verdict"),
+        "reasoning": (dispute or grant or {}).get("reasoning"),
+        "cited_claim_ids": (dispute or grant or {}).get("cited_claim_ids") or [],
+        "independence": (dispute or grant or {}).get("independence"),
     }
     artifact_id = core.artifacts.put("machine_adjudication", record)
     # WHY `decision.recorded` and not a new event kind: `human.review_decided` is the `hd_` path and

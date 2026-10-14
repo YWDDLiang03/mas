@@ -52,6 +52,44 @@ def _median(values: list[float]) -> float:
     return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
 
 
+# Which reduction over a consolidated family (`vocab.criterion_family_aggregation`) `assess_cell` below can
+# actually run, given as the attribute `aggregation` that runs it.
+#
+# WHY the table lives beside the assessor rather than beside the vocabulary that registers the words: a
+# consolidation record never reaches this function. The registered attribute carries `aggregation` and
+# nothing else, and a consolidated criterion has one attribute and one pooled claim set rather than N member
+# cells, so a declared family reduction is executed only if the merge gate compiles it into that field
+# (`derivation_stages._consolidation`) -- and the authority on what compiles is the code that runs it.
+#
+# `worst_member` is direction-dependent and the inversion is silent: with `lower_better` the least
+# favourable member is the largest value (`max`), with `higher_better` the smallest (`min`). Reversed, a
+# candidate would be ranked on its best endpoint while its card said its worst -- the same shape as the
+# ordering path that took the maximum whatever the attribute declared, which ranked sorafenib on the top of
+# its 125 curated VEGFR2 measurements against surufatinib's 9.00 from two. A direction that does not order
+# values (`within_range`, `target_value`, `non_directional`, `undetermined`) does not say which end is
+# worse, so there is no worst member to compute and the gate refuses the consolidation instead of guessing;
+# a median needs no direction, so it is executable under every one.
+FAMILY_AGGREGATION_EXECUTION: dict[str, dict[str, str]] = {
+    "worst_member": {"lower_better": "max", "higher_better": "min"},
+    "median_of_members": dict.fromkeys(criteria.DIRECTIONS, "median"),
+}
+
+
+def family_aggregation_execution(family_aggregation: str, direction: str | None) -> tuple[str | None, str | None]:
+    """The attribute `aggregation` that computes `family_aggregation` over a cell's pooled claims, or the
+    reason nothing here computes it. Pure; exactly one of the two is None."""
+    by_direction = FAMILY_AGGREGATION_EXECUTION.get(family_aggregation)
+    if not by_direction:
+        return None, (f"{family_aggregation!r} is not a reduction this assessor computes over a consolidated "
+                      f"criterion's pooled claims")
+    aggregation = by_direction.get(direction or "")
+    if aggregation is None:
+        return None, (f"{family_aggregation} is not computable for direction {direction!r}, which does not say "
+                      f"which end of the scale is worse; it needs one of "
+                      f"{', '.join(sorted(by_direction))}")
+    return aggregation, None
+
+
 def declares_predicted(attribute: dict[str, Any]) -> bool:
     """True when the attribute is the one that carries predicted values, rather than measurements."""
     return "predicted" in (attribute.get("acceptable_determination_bases") or DEFAULT_DETERMINATION_BASES)

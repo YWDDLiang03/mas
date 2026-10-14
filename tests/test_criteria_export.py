@@ -259,3 +259,118 @@ def test_the_export_never_appends_to_the_store_it_reads(seeded):
     pinned_core, _ = criteria_export.pinned(core, task_id)
     with pytest.raises(criteria_export.ExportError):
         pinned_core.journal.append(task_id, "task.version_recorded", actor=OPERATOR, payload={})
+
+
+# --- a consolidated criterion on its card ---------------------------------------------------
+
+CONSOLIDATED_FAMILY = ("Grade >=3 diarrhea incidence", "Grade >=3 fatigue incidence")
+SHARED_PROPERTY = ("both are grade >=3 treatment-related toxicities that force a dose reduction, which is "
+                   "what disqualifies a chronic oral drug")
+
+
+def _seed_consolidated(root, aggregation: str = "max") -> str:
+    """A store whose one promoted criterion consolidated two specific endpoints into the criterion a screen
+    applies. The pool reduction is the `consolidate` operation, so the members are retired as `merged_away`
+    pointing at the child, exactly as a merge retires its parents.
+
+    `aggregation` is the consolidated attribute's own: `max` is what the merge gate writes for a
+    `worst_member` family over a `lower_better` attribute, and passing anything else builds the store a
+    direct registration could still produce, where the declared reduction is not the one that would run.
+    """
+    with Core.open(root) as core:
+        task_id, _ = task.record_version(core, TASK_SPEC, by=OPERATOR)
+        run_id = "run_01TESTDERIVATION000000000"
+        ledger.put_source(core, SOURCE)
+        claim_id = ledger.record_claim(core, run_id, dict(CLAIM), by=PROPOSER, admission_state="admitted",
+                                       admission_reasons=["quote_verified", "value_in_quote"])
+        writer = pool_mod.Pool(core, task_id, by=PROPOSER, run_id=run_id).at("propose", 0)
+        endpoint = dict(SURVIVOR["attribute"], unit="%", direction="lower_better")
+        family = [writer.add(dict(SURVIVOR, attribute=dict(endpoint, name=name, definition=f"{name} on treatment"),
+                                  supporting_claim_ids=[claim_id], dimension="toxicological_safety"),
+                             reason_text="proposed for toxicological_safety")
+                  for name in CONSOLIDATED_FAMILY]
+        folded = writer.fold()
+        burden = dict(endpoint, name="Grade >=3 toxicity burden", aggregation=aggregation,
+                      definition="Share of treated patients with any grade >=3 treatment-related adverse event")
+        child = writer.at("merge", 1).consolidate(
+            [folded[member] for member in family],
+            dict(SURVIVOR, attribute=burden, supporting_claim_ids=[claim_id], dimension="toxicological_safety",
+                 consolidation={"shared_property": SHARED_PROPERTY, "family_aggregation": "worst_member",
+                                "subsumes": [{"criterion_id": member, "version": 1,
+                                              "name": folded[member]["item"]["attribute"]["name"]}
+                                             for member in family]}),
+            reason_text="two specific endpoints a screen applies as one toxicity burden")
+        folded = writer.fold()
+        attribute = dict(burden, attribute_id="attr_toxicity-burden", supporting_claim_refs=[claim_id],
+                         derived_from={"pool_criterion": f"{child}@v1", "derivation_run": run_id})
+        rule = dict(SURVIVOR["rule"], rule_id="rule_toxicity-burden",
+                    expected_change=SURVIVOR["expected_change"], falsification_test=SURVIVOR["falsification_test"])
+        attr_ref, rule_ref = criteria.propose(core, task_id, attribute, rule, by=PROPOSER)
+        writer.at("promote", 0).set_state(folded[child], "promoted", operation="promote", reason_kind="accepted",
+                                         reason_text="no material finding",
+                                         extra={"promoted_as": {"attribute_ref": attr_ref, "rule_ref": rule_ref}})
+        criteria.confirm_rule_set(core, task_id, by=OPERATOR, coverage_floor=0.5, allow_pending=True)
+        return task_id
+
+
+def test_a_consolidated_criterion_names_the_family_it_subsumed_on_its_exported_card(tmp_path):
+    """A consolidation replaces several specific endpoints with an abstraction over them, and the only thing
+    between that and information loss is a reviewer's ability to see which endpoints went into it and say
+    that one of them did not belong. So the card carries the subsumed list by id and name, the property
+    claimed to be shared, and the aggregation that reduces the family -- and the retired members say which
+    operation retired them, because a consolidation is a scientific judgement where a merge is not."""
+    root = tmp_path / "root"
+    task_id = _seed_consolidated(root)
+    with criteria_export.open_read_only(root) as core:
+        payload = criteria_export.snapshot(core, task_id, with_board=False)
+        (card,) = payload["criteria"]
+        declared = card["lifecycle"]["consolidation"]
+        assert [s["name"] for s in declared["subsumes"]] == list(CONSOLIDATED_FAMILY)
+        assert declared["family_aggregation"] == "worst_member" and declared["shared_property"] == SHARED_PROPERTY
+
+        cards = criteria_export.render_markdown(payload).split("## Cards", 1)[1].split("## Lifecycle", 1)[0]
+        assert "consolidates 2 specific endpoints, reduced by `worst_member`" in cards
+        assert all(name in cards for name in CONSOLIDATED_FAMILY)
+
+        retired = payload["lifecycle"]["pool_items_not_promoted"]["merged_away"]
+        assert sorted(item["name"] for item in retired) == sorted(CONSOLIDATED_FAMILY)
+        assert {item["left_at"]["operation"] for item in retired} == {"consolidate"}
+        assert {item["reason_kind"] for item in retired} == {"family_consolidated"}
+
+
+def test_a_consolidated_criterions_exported_card_states_what_will_be_computed(tmp_path, seeded):
+    """A declared family reduction is only worth reading if the card says what it reduces to, so the card
+    states the aggregation that will run over the cell's pooled claims and whether it is the one the
+    declaration asks for. Re-derived from the attribute rather than copied from the consolidation record,
+    because the attribute is the half the assessor reads: a card that printed the declaration alone would
+    reproduce the defect the field was added with, a reduction recorded and never executed.
+    """
+    task_id = _seed_consolidated(tmp_path / "worst")
+    with criteria_export.open_read_only(tmp_path / "worst") as core:
+        payload = criteria_export.snapshot(core, task_id, with_board=False)
+        (card,) = payload["criteria"]
+        reduction = card["computation"]["family_reduction"]
+        assert reduction["family_aggregation"] == "worst_member" and reduction["direction"] == "lower_better"
+        assert reduction["executes_as_aggregation"] == "max" == reduction["attribute_aggregation"]
+        assert reduction["agrees_with_attribute"]
+        cards = criteria_export.render_markdown(payload).split("## Cards", 1)[1].split("## Lifecycle", 1)[0]
+        assert ("- **family reduction**: the family reduction `worst_member` over a `lower_better` attribute "
+                "is the `max` of the cell's pooled claims, which is the aggregation the attribute declares: "
+                "that is what will be computed") in cards
+
+    # the same declaration over an attribute that would compute something else: the card may not read as
+    # though `worst_member` had run, because it is the attribute's own aggregation that runs
+    task_id = _seed_consolidated(tmp_path / "median", aggregation="median")
+    with criteria_export.open_read_only(tmp_path / "median") as core:
+        payload = criteria_export.snapshot(core, task_id, with_board=False)
+        reduction = payload["criteria"][0]["computation"]["family_reduction"]
+        assert reduction["executes_as_aggregation"] == "max" and reduction["attribute_aggregation"] == "median"
+        assert not reduction["agrees_with_attribute"]
+        cards = criteria_export.render_markdown(payload).split("## Cards", 1)[1].split("## Lifecycle", 1)[0]
+        assert "the attribute declares `median`, which is what will be computed" in cards
+        assert "the declaration and the execution disagree" in cards
+
+    # a criterion that consolidated nothing claims no family reduction at all
+    core, plain_task, _ = seeded
+    assert [card["computation"]["family_reduction"]
+            for card in criteria_export.snapshot(core, plain_task, with_board=False)["criteria"]] == [None]

@@ -22,6 +22,27 @@ cannot be read out of prose by a machine without inventing the answer -- so they
 fields (`statement_kind`, `applicability_rationale`) and they are recorded, not guessed. A model
 critic may argue about them; it cannot stand in for the arithmetic (§6 F2).
 
+AND ONE DECLARATION THAT CAN BE GRANTED. An interpreted bound used to have exactly one future: a
+decision, or no scoring. Measured on the clean derivation of 14 October 2026, that left the system
+unable to state a requirement at all. Of 33 cutoff-bearing proposals the proposer declared 29
+`reports_measurement` and 4 `provides_heuristic` and not one `states_decision_threshold` -- the
+literature reports measurements and rules of thumb and does not state screening cutoffs, so the
+honest declaration was also the one that could never gate. Of the 35 derived criteria exactly one
+carried a cutoff (a task-mandated route constraint); every other was an ordering preference, so not
+one derived criterion could exclude a candidate. Scored against the 11 sealed historical attributes
+that measurement read exact 0 / 11, 5 near-equivalent, and every one of those 5 differed on the
+threshold facet by construction. So a record may now also declare the step it takes from "this
+passage reports X" to "X is the screening bound" (`interpretation`: the measurement it rests on, the
+direction of the inference, and why that inference holds for this candidate population). The
+declaration is checked here for the parts a machine can check -- all three fields present, a
+registered inference direction, that direction consistent with the way the bound points, a
+justification that is not the conclusion restated -- and that is all a declaration buys: the bound is
+`interpretation_added` still, and only an authority may grant it (`adjudication`, route 6, on the
+`adjudicator` role). A granted bound becomes `interpretation_granted`, never `sourced_threshold`:
+that word keeps meaning "the passage stated this cutoff". The grant is never read off the record --
+it is passed in by the caller that resolved it from the journal (`grants`), so declaring an
+interpretation is something a proposer can do and granting one is not.
+
 ONE PLACE WHERE THE MACHINE CAN CONTRADICT A DECLARATION, and it is the case the live registry is
 in. The molecular-weight bound 500 traces to a claim whose quote reads "Most clinically relevant
 kinase inhibitors typically fall within the range of approximately 380-500 Da, which is considered
@@ -66,15 +87,64 @@ CENSORING = ("none", "left_censored", "right_censored", "range")
 
 # One state per bound, worst first. `unaudited` is not a pass: it says the store holds nothing to
 # check this number against, which §9.2 requires be marked unknown rather than given a passing status.
+# `interpretation_granted` sits below `sourced_threshold` and above everything else: the number is
+# traceable, the step to the decision line is declared and an authority granted it, and none of that
+# makes the passage state a cutoff it does not state.
 STATES = ("invalid_support_record", "unsupported", "interpretation_added", "authority_basis",
-          "interpretation_undeclared", "unaudited", "sourced_threshold")
+          "interpretation_undeclared", "unaudited", "interpretation_granted", "sourced_threshold")
 # States that stop a proposal, a revision, a promotion, a collapse or an entry into a rule set.
 BLOCKING_STATES = ("invalid_support_record", "unsupported")
 # States where the number is traceable but its reading as a decision line is the criterion's own, so
 # the parameter needs a decision before it may score (F2 acceptance, via `criteria.needs_expert`).
 REVIEW_STATES = ("interpretation_added",)
 
+# What a record may declare about the step from the number a passage states to the screening bound
+# (§5.4 item 5, beside `statement_kind` rather than instead of it: the kind says what the passage is
+# doing with the number, these three say what the criterion then does with it).
+#   measurement           what the cited passage reports, in the passage's own terms
+#   inference             which way the step runs, from `INFERENCES`
+#   population_rationale  why that step holds for the candidates this screen ranks
+INTERPRETATION_FIELDS = ("measurement", "inference", "population_rationale")
+# The direction of the inference, and the comparators each direction is consistent with. A floor that
+# a rule applies with `<=` is not a reading of the passage, it is two declarations contradicting each
+# other, and that is checkable without reading either one. The two with None are checked differently:
+# a range edge against the range the cited claim states, a heuristic against `statement_kind`.
+INFERENCES = {"at_least_the_reported_value": (">=", ">"),
+              "at_most_the_reported_value": ("<=", "<"),
+              "outside_the_reported_range_is_out_of_population": None,
+              "the_heuristic_is_the_line": None}
+# What one declared interpretation came out as. Only `declared` may be granted; the four between the
+# two are recorded with a finding and leave the bound exactly where an undeclared one sits. Derived
+# rather than listed a second time, so a reading added here is refused until someone decides it is
+# not -- the safe direction for a field that decides whether a number may exclude a candidate.
+INTERPRETATIONS = ("not_declared", "incomplete", "unreadable", "circular", "contradicts_the_rule", "declared")
+REFUSED_INTERPRETATIONS = tuple(i for i in INTERPRETATIONS if i not in ("not_declared", "declared"))
+# Words that assert a number is right without saying anything about why. A justification whose words
+# are only these, the bound's own number and the attribute's own name states its conclusion as its
+# premise -- "the bound is 90 because 90 is appropriate" -- which is the one shape that must be
+# refused outright rather than passed to an adjudicator to see through. The floor below is four
+# distinct words left after they are removed: a justification that names a population and a reason
+# why the inference holds for it cannot do either in three words, and nothing shorter has been asked
+# of a proposer here (`derivation.SCHEMA_BLOCK_FORMS` asks for both in so many words).
+_EMPTY_JUSTIFICATION = frozenset(
+    """appropriate reasonable suitable sensible standard accepted conventional common usual typical
+    right correct proper apt fitting good better best cutoff cutoffs threshold thresholds bound
+    bounds limit limits value values number numbers screen screening criterion criteria rule rules
+    population candidate candidates applies apply applicable applicability relevant chosen choose
+    because since therefore thus hence so as this that these those which what it its is are was
+    were be been being am do does did the a an of for to in on at and or not no any all our we us
+    i you they he she him her task""".split())
+_MINIMUM_JUSTIFICATION_WORDS = 4
+# Which way a transform's bound points, since a transform bound carries no comparator of its own:
+# `excess_above` penalises a value above its bound, which is the direction a `<=` cutoff requires,
+# and a band's low end is a floor while its high end is a ceiling.
+_TRANSFORM_DIRECTION = {("value_transform.excess_above", "bound"): "<=",
+                        ("value_transform.shortfall_below", "bound"): ">=",
+                        ("value_transform.distance_outside_band", "low"): ">=",
+                        ("value_transform.distance_outside_band", "high"): "<="}
+
 _NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
+_WORD = re.compile(r"[a-z][a-z'-]*")
 # A stated range, written either way round: "380-500 Da" and "2 to 4 log units" are both ranges, and
 # a bound that is one end of one is a different kind of support from a bound a passage states alone.
 _RANGE = re.compile(r"(-?\d+(?:\.\d+)?)\s*(?:[‐-―−-]|to|and)\s*(-?\d+(?:\.\d+)?)")
@@ -199,6 +269,87 @@ def range_endpoint(bound: float | int, claims: list[dict[str, Any]], *,
     return None
 
 
+def _informative(text: str, *, besides: str = "") -> set[str]:
+    """The words of a justification that could carry a reason, with the empty ones taken out.
+
+    `besides` is the attribute's own name, taken out for the same reason the empty words are: naming
+    the quantity the bound is about says nothing about why the bound is where it is. Numbers are not
+    words here, so repeating the bound does not count towards a reason either.
+    """
+    return {w for w in _WORD.findall((text or "").lower())} - _EMPTY_JUSTIFICATION \
+        - set(_WORD.findall((besides or "").lower()))
+
+
+def interpretation(bound: dict[str, Any], record: dict[str, Any], claim: dict[str, Any] | None, *,
+                   attribute_name: str = "") -> dict[str, Any]:
+    """What a record declares about the step from the measurement to the screening bound (§5.4).
+
+    Deterministic and structural, which is the division of labour this module is built on: whether
+    the inference is *good* is a judgement, and `adjudication`'s route 6 puts that to an agent on the
+    `adjudicator` role. What is settled here is whether there is a declaration to judge at all -- all
+    three fields present, a registered direction, that direction consistent with the way the bound
+    points and with what the record says the passage is doing, and a justification that is not the
+    conclusion restated. Returns the outcome, the declared direction and a sentence saying why,
+    recorded whichever way it came out.
+    """
+    declared = record.get("interpretation")
+    if not isinstance(declared, dict) or not any(str(declared.get(f) or "").strip() for f in INTERPRETATION_FIELDS):
+        return {"outcome": "not_declared", "inference": None,
+                "detail": "no interpretation is declared, so nothing states how this bound follows from the passage"}
+    missing = [f for f in INTERPRETATION_FIELDS if not str(declared.get(f) or "").strip()]
+    inference = declared.get("inference")
+    if missing:
+        return {"outcome": "incomplete", "inference": inference,
+                "detail": f"the declared interpretation states no {', '.join(missing)}"}
+    if inference not in INFERENCES:
+        return {"outcome": "unreadable", "inference": inference,
+                "detail": f"inference {inference!r} is not one of {tuple(INFERENCES)}"}
+    reason = _informative(declared["population_rationale"], besides=attribute_name)
+    if len(reason) < _MINIMUM_JUSTIFICATION_WORDS or not _informative(declared["measurement"], besides=attribute_name):
+        return {"outcome": "circular", "inference": inference,
+                "detail": f"the declared interpretation of {bound['value']} says only that the bound is the bound: "
+                          f"{len(reason)} words of its population_rationale carry a reason, and §5.4 asks what the "
+                          f"passage measures and why that inference holds for this candidate population"}
+    comparator = bound.get("comparator") or _TRANSFORM_DIRECTION.get((bound["kind"], bound["parameter"]))
+    allowed = INFERENCES[inference]
+    if comparator is None:
+        return {"outcome": "contradicts_the_rule", "inference": inference,
+                "detail": f"nothing says which way {bound['parameter_path']} points, so no declared direction of "
+                          f"inference can be checked against it"}
+    if allowed is not None and comparator not in allowed:
+        return {"outcome": "contradicts_the_rule", "inference": inference,
+                "detail": f"the interpretation declares {inference} while the rule applies the bound with "
+                          f"{comparator}, which demands the opposite of a candidate"}
+    if inference == "the_heuristic_is_the_line" and record.get("statement_kind") != "provides_heuristic":
+        return {"outcome": "contradicts_the_rule", "inference": inference,
+                "detail": f"the interpretation declares the passage's heuristic as the line while the record "
+                          f"declares statement_kind {record.get('statement_kind')!r}"}
+    if inference == "outside_the_reported_range_is_out_of_population":
+        ends = {"low": None, "high": None}
+        for low, high in (stated_ranges(claim) if claim else []):
+            if abs(low - float(bound["value"])) <= _TOLERANCE:
+                ends["low"] = (low, high)
+            if abs(high - float(bound["value"])) <= _TOLERANCE:
+                ends["high"] = (low, high)
+        if ends["low"] is None and ends["high"] is None:
+            return {"outcome": "contradicts_the_rule", "inference": inference,
+                    "detail": f"the interpretation reads {bound['value']} as an edge of a range the passage reports, "
+                              f"and the cited claim states no range ending there"}
+        # Into the range, not out of it: the high end of a reported band is a ceiling and its low end
+        # a floor, so a bound at the high end applied with `>=` would exclude the very population the
+        # passage reports.
+        at_high = ends["high"] is not None
+        wanted = ("<=", "<") if at_high else (">=", ">")
+        if comparator not in wanted:
+            return {"outcome": "contradicts_the_rule", "inference": inference,
+                    "detail": f"{bound['value']} is the {'upper' if at_high else 'lower'} edge of the reported range "
+                              f"{ends['high' if at_high else 'low']}, and {comparator} points away from the range "
+                              f"rather than into it"}
+    return {"outcome": "declared", "inference": inference,
+            "detail": f"the record declares {inference} from what the passage reports, and says why that holds for "
+                      f"this candidate population"}
+
+
 def support_records(attribute: dict[str, Any], rule: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """The declared support records, by the parameter path each one supports.
 
@@ -248,7 +399,7 @@ def _converted(record: dict[str, Any]) -> tuple[float | None, str]:
 
 
 def _check_declared(bound: dict[str, Any], record: dict[str, Any],
-                    claims_by_id: dict[str, dict[str, Any]]) -> dict[str, Any]:
+                    claims_by_id: dict[str, dict[str, Any]], *, attribute_name: str = "") -> dict[str, Any]:
     """The four outcomes of one declared support record, recorded separately (§5.4 item 7)."""
     path = bound["parameter_path"]
     findings: list[dict[str, Any]] = []
@@ -328,8 +479,19 @@ def _check_declared(bound: dict[str, Any], record: dict[str, Any],
             findings.append(_finding("bound_support_mismatch", "material", path,
                                      f"the support record for {path} declares no censoring while claim "
                                      f"{claim['claim_id']} states the range {low} to {high}"))
+
+    read = interpretation(bound, record, claim, attribute_name=attribute_name)
+    if read["outcome"] in REFUSED_INTERPRETATIONS:
+        # Material, not blocking, for the reason the range-endpoint contradiction above is material:
+        # the number still traces to the claim, so the criterion is not wrong about its evidence, it
+        # is a criterion whose declared step from that evidence cannot be checked. It stays where an
+        # undeclared one stays -- `interpretation_added`, needing a decision -- and no authority can
+        # grant it, which is the refusal. Blocking it instead would hold the sourced measurement out
+        # of the registry too, and that measurement is not what is in doubt.
+        findings.append(_finding("bound_support_mismatch", "material", path,
+                                 f"the interpretation declared for {path} cannot be granted: {read['detail']}"))
     return {"findings": findings, "quote": quote, "arithmetic": arithmetic, "statement_kind": statement_kind,
-            "claim": claim, "conversion": how,
+            "claim": claim, "conversion": how, "interpretation": read,
             # Carried so that every declared field of §5.4 item 3 reaches the report, the rule-set
             # entry and the export rather than being accepted and read by nothing (§5.3).
             "censoring": record.get("censoring"), "source_comparator": record.get("source_comparator"),
@@ -337,15 +499,25 @@ def _check_declared(bound: dict[str, Any], record: dict[str, Any],
 
 
 def validate(attribute: dict[str, Any], rule: dict[str, Any], *,
-             claims: list[dict[str, Any]] | None, context: dict[str, Any] | None = None) -> dict[str, Any]:
+             claims: list[dict[str, Any]] | None, context: dict[str, Any] | None = None,
+             grants: dict[str, Any] | list[str] | None = None) -> dict[str, Any]:
     """Support for every decision-bearing number of one criterion (§5.4). Pure; never raises.
 
     `claims` are the admitted claims this criterion cites, or None where the caller cannot resolve
     them (an old record whose derivation run is not in this store root). None is not a pass: every
     bound is then `unaudited` and says so, because a status manufactured for absent metadata is the
     thing §9.2 forbids.
+
+    `grants` are the parameter paths an authority has granted the declared interpretation of, which
+    the caller resolved from the journal (`adjudication.granted_bounds` over the `adj_` record that
+    resolved this rule's queue item). WHY it is an argument and not a field of the support record: a
+    support record is written by whoever proposes the criterion, and a criterion that could grant its
+    own interpretation would have acquired, by writing a field, the authority this whole module
+    exists to ask for. Nothing read off the attribute or the rule can produce
+    `interpretation_granted`.
     """
     claims = list(claims) if claims is not None else None
+    granted = {p: (grants[p] if isinstance(grants, dict) else None) for p in (grants or ())}
     claims_by_id = {c["claim_id"]: c for c in (claims or []) if c.get("claim_id")}
     declared = support_records(attribute, rule)
     found = bounds(attribute, rule)
@@ -369,12 +541,17 @@ def validate(attribute: dict[str, Any], rule: dict[str, Any], *,
                                             "comparator", "basis")},
                    "declared": record is not None, "quote": "not_declared", "arithmetic": "not_declared",
                    "semantic_support": "undeclared", "authority": "unaudited", "trace": [], "trace_kind": "none",
-                   "range_endpoint": None, "state": "unaudited"}
+                   "range_endpoint": None, "state": "unaudited", "interpretation": "not_declared",
+                   "interpretation_inference": None, "interpretation_detail": None, "granted_by": None}
 
         if record is not None:
-            checked = _check_declared(bound, record, claims_by_id)
+            checked = _check_declared(bound, record, claims_by_id,
+                                      attribute_name=attribute.get("name") or "")
             findings += checked["findings"]
-            outcome.update(quote=checked["quote"], arithmetic=checked["arithmetic"],
+            outcome.update(interpretation=checked["interpretation"]["outcome"],
+                           interpretation_inference=checked["interpretation"]["inference"],
+                           interpretation_detail=checked["interpretation"]["detail"],
+                           quote=checked["quote"], arithmetic=checked["arithmetic"],
                            semantic_support=checked["statement_kind"] or "undeclared",
                            conversion=checked["conversion"], censoring=checked["censoring"],
                            source_comparator=checked["source_comparator"],
@@ -465,6 +642,14 @@ def validate(attribute: dict[str, Any], rule: dict[str, Any], *,
                                      f"number is supported"))
         if record is not None and any(f["severity"] == "blocking" and f["parameter_path"] == path for f in findings):
             outcome["state"] = "invalid_support_record"
+        if path in granted and outcome["state"] in REVIEW_STATES and outcome["interpretation"] == "declared":
+            # The authority this bound was waiting for arrived, and what arrived was an agent's
+            # verdict on a declared interpretation -- so the bound may score and the record keeps
+            # saying what it rests on. `semantic_support` still reads `reports_measurement` or
+            # `provides_heuristic`, the trace is still the trace, and the state is its own: a reader
+            # who wants "the passage stated this cutoff" has `sourced_threshold` for that and will
+            # not find it here.
+            outcome.update(state="interpretation_granted", authority="agent_granted", granted_by=granted[path])
         outcomes.append(outcome)
 
     states = {o["parameter_path"]: o["state"] for o in outcomes}
@@ -472,6 +657,12 @@ def validate(attribute: dict[str, Any], rule: dict[str, Any], *,
             "blocking": [f for f in findings if f["severity"] == "blocking"],
             "review_paths": sorted(p for p, s in states.items() if s in REVIEW_STATES),
             "unsupported_paths": sorted(p for p, s in states.items() if s in BLOCKING_STATES),
+            # The bounds an authority could grant, and the ones it has. Separate lists because they
+            # answer separate questions: what is on the table for an adjudicator, and what is already
+            # scoring on an agent's verdict rather than on a source's own words.
+            "grantable_paths": sorted(o["parameter_path"] for o in outcomes
+                                      if o["state"] in REVIEW_STATES and o["interpretation"] == "declared"),
+            "granted_paths": sorted(o["parameter_path"] for o in outcomes if o["state"] == "interpretation_granted"),
             "claims_resolved": None if claims is None else len(claims_by_id)}
 
 

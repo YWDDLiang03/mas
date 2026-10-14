@@ -77,6 +77,26 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
         "rate_limited_exhausted", "out_of_domain", "identity_unresolved", "no_record_found", "budget_exceeded",
         "declined_by_policy",
     ),
+    # What the literature reader decided about one extracted claim (`reading.extract_claims`), which
+    # is what admits it or sets it aside. Registered because of the last value: a claim refused for
+    # `attribution_ambiguous` is a number the reader found and the system is declining to use, and a
+    # reviewer reading a set-aside list needs that said in words rather than inferred from a string.
+    # WHY these nine and not every admission reason in the system: a database claim's reasons
+    # (`evidence.claims_from_tool_result`) are about identity and provenance, not about reading a
+    # span, and one domain holding both would say a reader can refuse a claim for a reason it has no
+    # way to produce. `reading.extract_claims` is the only writer and validates against this list,
+    # so there is one registry rather than two that can drift.
+    "literature_admission_reason": _labelled(
+        quote_verified=("the quoted span is in the passage it cites", "positive"),
+        value_in_quote=("the number is inside the quote", "positive"),
+        candidate_named_in_quote=("the quote names the candidate", "positive"),
+        candidate_named_in_passage=("the passage names the candidate; the quote does not", "neutral"),
+        passage_not_found=("the document has no such passage", "negative"),
+        quote_not_found_in_passage=("the quote is not in the passage it cites", "negative"),
+        value_not_in_quote=("the number is not inside the quote", "negative"),
+        candidate_not_named_in_source=("neither the quote nor its passage names the candidate", "negative"),
+        attribution_ambiguous=("the span does not tie this number to this candidate and this attribute", "negative"),
+    ),
     "approval_kind": _domain("agent_verdict", "software_status", "human_scientific_approval", "operations_decision"),
     "review": _labelled(
         none=("no human review yet", "muted"), requested=("requested", "attention"),
@@ -102,6 +122,15 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
         irreversible_without_authority=("too irreversible for an agent; demoted to a preference", "attention"),
         dispute_adjudicated=("proposer/critic dispute adjudicated by an agent", "attention"),
         definition_restated=("restates the attribute's own definition", "neutral"),
+        bound_interpretation_granted=("an agent granted the bound's declared interpretation", "attention"),
+    ),
+    # WHY route 6's verdicts are their own domain rather than two more `adjudication_verdict` values:
+    # the question is not whose side of a dispute stands, it is whether one number may act as a
+    # decision bound, and a surface that read "the proposal stands" over a granted cutoff would be
+    # saying the quieter of the two things (`core/adjudication.py` route 6).
+    "bound_grant_verdict": _labelled(
+        grant_bound=("an agent granted the bound; it may score as a cutoff", "attention"),
+        refuse_bound=("an agent refused the bound; it may not score as a cutoff", "neutral"),
     ),
     "adjudication_verdict": _labelled(
         uphold_proposal=("the proposal stands", "neutral"), uphold_objection=("the objection stands", "attention"),
@@ -160,7 +189,48 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
         withdrawn=("withdrawn", "muted"), promoted=("in the registry", "positive"),
         deferred_next_round=("deferred to the next round", "attention"),
     ),
-    "criterion_change_operation": _domain("add", "revise", "merge", "remove", "reinstate", "promote", "defer"),
+    # WHY `consolidate` is registered beside `merge` rather than reusing it: the two make different claims
+    # about what happened. A merge says the members were one quantity all along, so nothing is lost. A
+    # consolidation says they were distinct measurements that a screen is better off treating as one family,
+    # which is a scientific judgement a reviewer may disagree with. Measured on the live pool of 89 proposals,
+    # 14 October 2026: grouping formed 10 groups, two of them eight *distinct* toxicity endpoints each (any-grade
+    # incidences; grade >=3 incidences), so `merge` -- "the same quantity, in the same unit and direction, for
+    # the same purpose" -- correctly answers "keep separate" for all sixteen and the pool cannot reduce.
+    # Recording both as `merge` would make the record unable to say which of the two happened.
+    "criterion_change_operation": _domain("add", "revise", "merge", "consolidate", "remove", "reinstate", "promote",
+                                          "defer"),
+    # How a consolidated criterion reduces its family to one number. WHY registered rather than free text: a
+    # consolidated criterion nobody can compute is worse than the family it replaced, and prose ("the overall
+    # burden") does not say what to compute.
+    #
+    # Only the reductions that execute are registered. A consolidated criterion has one attribute and one
+    # pooled claim set, not N member cells, so the reduction has to be one `assessor.assess_cell` can run
+    # over those claims: `assessor.FAMILY_AGGREGATION_EXECUTION` maps each value here to the attribute
+    # `aggregation` (criteria.AGGREGATIONS) that runs it, and the merge gate writes that aggregation onto
+    # the consolidated attribute, which is the only field the assessor ever sees. Six values were registered
+    # on 14 October 2026 and removed the same day rather than left accepted-and-unhonoured -- the defect
+    # shape this repository hit twice that day (an attribute defining a derived quantity whose cell carried
+    # the raw value; an ordering rule ignoring its attribute's declared aggregation) and which review
+    # handoff §5.3 calls an implementation failure:
+    #   * `mean_of_members`, `sum_of_members`: `criteria.AGGREGATIONS` offers no mean and no sum, so nothing
+    #     computes either; substituting the median would make the card say one thing and the score another.
+    #     A sum would not even be the sum over the members -- `assessor.usable_claims` pools one value per
+    #     distinct (document, span, value) and a reported range contributes both of its ends, so the total
+    #     would move with how much was read rather than with the family.
+    #   * `count_exceeding`, `fraction_exceeding`: both name a different quantity in a different unit (a
+    #     count; a share) from the attribute's own, and nothing in the consolidated cell holds the N member
+    #     values to count -- the claims pooled there are observations of the family's endpoints. A count
+    #     could not even be ruled on: `criteria.check_rule` requires the cutoff's unit to equal the
+    #     attribute's, and the live toxicity families are in %.
+    #   * `any_member_exceeds`, `all_members_within`: under a threshold rule each one *is* `worst_member`
+    #     plus the cutoff ("every member stays within" is "the worst member is within"), so neither adds a
+    #     computation -- and "exceeds" does not say whether it means the failing side of the cutoff or the
+    #     numerically larger one, which inverts the direction mapping between the two. Three registered
+    #     words for one computation make the record say something other than what runs.
+    "criterion_family_aggregation": _labelled(
+        worst_member=("the least favourable member", "neutral"),
+        median_of_members=("the median over the members", "neutral"),
+    ),
     "run_purpose": _labelled(sweep=("candidate sweep", "neutral"), criteria_derivation=("criteria derivation", "neutral")),
     "trigger_class": _domain(
         "new_external_evidence", "unresolved_conflict", "consequential_missing_measurement",

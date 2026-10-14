@@ -95,7 +95,8 @@ class RunController:
                  implementation: dict[str, Any] | None = None, workers: int = 1):
         self.core, self.broker, self.roster = core, broker, roster
         self.implementation = implementation or {}
-        self.workers = max(1, workers)  # concurrent cells for literature rules (model calls dominate)
+        self.workers = max(1, workers)  # concurrent candidates in the literature phase (model calls dominate)
+        self._cells_lock = threading.Lock()
         self.adapter = adapter  # {"adapter_id", "adapter_version", "primary_scheme"}
         self.host_platform = host_platform
 
@@ -270,10 +271,19 @@ class RunController:
                              "completed": len(st.cells), "planned": planned_cells})
         budget_cut = False
         cache = evidence.LiteratureCache()
-        for index, item in enumerate(st.rules):
+        # The sweep is breadth-first by rule for database rules and breadth-first by *candidate* for
+        # literature rules, because that is the unit the reading is bought in: one read of one paper
+        # for one candidate is extracted for every literature attribute at once, so every literature
+        # cell of a candidate is assessed against that candidate's whole reading (`_literature_pass`).
+        database_rules = [r for r in st.rules if not criteria.is_literature_bound(r["attribute"])]
+        literature_rules = [r for r in st.rules if criteria.is_literature_bound(r["attribute"])]
+        for index, item in enumerate(database_rules):
             rule_ref = item["entry"]["rule_ref"]
-            remaining_rules = len(st.rules) - index
-            reservation = {k: (st.budget.remaining(k) or 0) / remaining_rules
+            # The literature phase is one more reservation holder, not one per literature rule: its
+            # rules share a single reading, so reserving per rule would hold back budget for passes
+            # that cost nothing of their own.
+            remaining_passes = len(database_rules) - index + (1 if literature_rules else 0)
+            reservation = {k: (st.budget.remaining(k) or 0) / remaining_passes
                            for k in ("tool_calls", "llm_turns") if st.budget.remaining(k) is not None}
             pass_budget = _PassBudget(st.budget, reservation)
             order = list(candidates)
@@ -284,33 +294,116 @@ class RunController:
                        question=f"apply {rule_ref} to every resolved candidate")
             todo = [c for c in order if (rule_ref, c) not in st.cells]
             st.reused += len(order) - len(todo)
-            literature = criteria.is_literature_bound(item["attribute"])
-
-            def work(candidate_id: str) -> bool:
+            for candidate_id in todo:
                 cell, reason = self._assess(st, item, candidate_id, pass_budget, step_ids, cache)
                 self._record_cell(st, cell, reason, step_ids, planned_cells)
-                return cell["verdict"] == "not_assessed" and cell["not_assessed_reason"] == "budget_exhausted"
-
-            if literature and self.workers > 1:
-                with ThreadPoolExecutor(max_workers=self.workers) as pool:
-                    budget_cut = any(list(pool.map(work, todo))) or budget_cut
-            else:
-                for candidate_id in todo:
-                    budget_cut = work(candidate_id) or budget_cut
+                budget_cut = (cell["verdict"] == "not_assessed"
+                              and cell["not_assessed_reason"] == "budget_exhausted") or budget_cut
             self._emit(run_id, "step.completed", ids=step_ids, state_to="completed",
                        payload={"rule_ref": rule_ref, "budget_used": pass_budget.used})
             self._emit(run_id, "checkpoint.written", ids=dict(step_ids, checkpoint_id=f"ckpt_{run_id}_{index + 1}"),
                        payload={"sweep_cursor": {"rule_ref": rule_ref, "seed": st.binding["sweep_seed"],
                                                  "completed_candidate_count": len(order),
-                                                 "completed_cell_refs_hash": sha256_hex(sorted(f"{r}|{c}" for r, c in st.cells))},
+                                                 "completed_cell_refs_hash": self._cell_refs_hash(st)},
                                 "next_rule_index": index + 1})
+        if literature_rules:
+            budget_cut = self._literature_pass(st, ids, literature_rules, candidates, planned_cells,
+                                               steps_done=len(database_rules), cache=cache) or budget_cut
         self._emit(run_id, "stage.closed", ids=ids, state_to="completed", payload={"stage": "assess"},
                    progress={"scope": "stage:assess", "denominator_kind": "enumerated_fixed",
                              "completed": len(st.cells), "planned": planned_cells})
         return self._finish(st, ids, budget_cut)
 
+    def _literature_pass(self, st: RunState, ids: dict[str, Any], rules: list[dict[str, Any]],
+                         candidates: list[str], planned_cells: int, *, steps_done: int, cache) -> bool:
+        """One candidate at a time: read its literature once, then rule on it with every literature rule.
+
+        WHY the candidate and not the rule is the unit here: one extraction of one paper tags claims
+        for every literature attribute in the prompt, so a paper the hypertension query found also
+        answers the bioavailability question -- but while each cell harvested only the papers its own
+        query selected, those claims were paid for, admitted to the ledger, and never offered to a
+        cell. Measured on the real path, 14 October 2026, 26 literature criteria x 2 candidates:
+        375 claims recorded, 253 admitted, 70 offered to a cell, 6 of 52 cells value-bearing where
+        the ledger supported 16. Reading the union first costs no extra call -- it is the same set of
+        documents the per-cell reads already fetched through the memo -- and it keeps a cell's claims
+        independent of which other cell finished first, which `assess.workers > 1` would otherwise
+        decide.
+
+        A step and a checkpoint per candidate rather than per rule, for the same reason: the
+        candidate is what the work and the spend are organized by.
+        """
+        run_id = st.run_id
+        reservation = {k: (st.budget.remaining(k) or 0)
+                       for k in ("tool_calls", "llm_turns") if st.budget.remaining(k) is not None}
+        pass_budget = _PassBudget(st.budget, reservation)
+        order = list(candidates)
+        random.Random(f"{st.binding['sweep_seed']}:literature").shuffle(order)
+        rule_refs = [r["entry"]["rule_ref"] for r in rules]
+        attributes = [r["attribute"] for r in rules]
+        todo = []
+        for candidate_id in order:
+            missing = [r for r in rules if (r["entry"]["rule_ref"], candidate_id) not in st.cells]
+            st.reused += len(rules) - len(missing)
+            if missing:
+                todo.append(candidate_id)
+
+        def work(job: tuple[int, str]) -> bool:
+            position, candidate_id = job
+            step_ids = dict(ids, step_id=f"step_{st.round_id}_{steps_done + position + 1}")
+            self._emit(run_id, "step.started", ids=step_ids,
+                       payload={"candidate_ref": candidate_id, "rule_refs": rule_refs},
+                       question=f"read {candidate_id}'s literature once and apply {len(rule_refs)} literature rule(s)")
+            record = st.identities[candidate_id]
+            reading, refused = None, False
+            if identity.is_resolved(record) and not pass_budget.blocked() and not st.budget.exhausted("llm_turns"):
+                try:
+                    reading = evidence.read_literature(
+                        self.core, self.broker, self.roster, run_id,
+                        candidate={"candidate_id": candidate_id, "label": record.get("preferred_label")},
+                        identity=record, attributes=attributes, objective_text=st.task_context["objective_text"],
+                        cutoff_date=st.binding["evidence_cutoff"], budget=pass_budget, ids=step_ids, cache=cache,
+                        case_sources=st.task_context.get("case_source_documents", []),
+                        sources=st.settings.get("search.sources"),
+                        max_documents=st.settings.get("read.max_papers_per_candidate", 2),
+                        limit_per_query=st.settings.get("search.results_per_query", 10),
+                        max_chars=st.settings.get("read.max_content_chars"),
+                        document_workers=st.settings.get("concurrency.read_workers", 1))
+                except evidence.BudgetBlocked:
+                    # Every literature cell of this candidate is left `not_assessed` rather than scored
+                    # on the part of the union that was read before the cap: the cells share one
+                    # reading, and a truncated one would make each of them look complete.
+                    refused = True
+            cut = False
+            for item in rules:
+                if (item["entry"]["rule_ref"], candidate_id) in st.cells:
+                    continue
+                cell, reason = self._assess(st, item, candidate_id, pass_budget, step_ids, cache,
+                                            candidate_reading=reading, read_refused=refused)
+                self._record_cell(st, cell, reason, step_ids, planned_cells)
+                cut = cut or (cell["verdict"] == "not_assessed"
+                              and cell["not_assessed_reason"] == "budget_exhausted")
+            self._emit(run_id, "step.completed", ids=step_ids, state_to="completed",
+                       payload={"candidate_ref": candidate_id, "rule_refs": rule_refs,
+                                "union_documents": len(reading.documents) if reading else 0,
+                                "claims_extracted": len(reading.claims) if reading else 0,
+                                "budget_used": dict(pass_budget.used)})
+            self._emit(run_id, "checkpoint.written",
+                       ids=dict(step_ids, checkpoint_id=f"ckpt_{run_id}_{steps_done + position + 1}"),
+                       payload={"sweep_cursor": {"candidate_ref": candidate_id, "seed": st.binding["sweep_seed"],
+                                                 "literature_rules": len(rule_refs),
+                                                 "completed_cell_refs_hash": self._cell_refs_hash(st)},
+                                "next_candidate_index": position + 1})
+            return cut
+
+        jobs = list(enumerate(todo))
+        if self.workers > 1 and len(jobs) > 1:
+            with ThreadPoolExecutor(max_workers=self.workers) as pool:
+                return any(list(pool.map(work, jobs)))
+        return any([work(job) for job in jobs])     # every candidate is swept; `any` may not short-circuit
+
     def _assess(self, st: RunState, item: dict[str, Any], candidate_id: str, pass_budget: _PassBudget,
-                ids: dict[str, Any], cache) -> tuple[dict, dict]:
+                ids: dict[str, Any], cache, *, candidate_reading: evidence.LiteratureReading | None = None,
+                read_refused: bool = False) -> tuple[dict, dict]:
         record = st.identities[candidate_id]
         attribute, rule = item["attribute"], item["rule"]
         candidate = {"candidate_id": candidate_id, "label": record.get("preferred_label")}
@@ -323,7 +416,10 @@ class RunController:
         out_of_budget = assessor.assess_cell(candidate=candidate, attribute=attribute, rule=rule,
                                              rule_set_ref=st.rule_set["rule_set_ref"], claims=[], resolved=True,
                                              not_assessed_reason="budget_exhausted")
-        if pass_budget.blocked() or (needs_llm and st.budget.exhausted("llm_turns")):
+        # `read_refused` is the candidate's shared literature reading having been cut off by the
+        # budget: it is not visible in `pass_budget.blocked()`, which answers whether the next call
+        # may be made, not whether one was already refused.
+        if read_refused or pass_budget.blocked() or (needs_llm and st.budget.exhausted("llm_turns")):
             return out_of_budget
         try:
             claims, error_ref, searched = evidence.gather(
@@ -339,12 +435,23 @@ class RunController:
                 reading_attributes=[{"name": r["attribute"]["name"], "definition": r["attribute"]["definition"],
                                      "unit": r["attribute"].get("unit"),
                                      "ref": f"{r['attribute']['attribute_id']}@v{r['attribute']['version']}"}
-                                    for r in st.rules if criteria.is_literature_bound(r["attribute"])])
+                                    for r in st.rules if criteria.is_literature_bound(r["attribute"])],
+                candidate_reading=candidate_reading)
         except evidence.BudgetBlocked:
             return out_of_budget
         return assessor.assess_cell(candidate=candidate, attribute=attribute, rule=rule,
                                     rule_set_ref=st.rule_set["rule_set_ref"], claims=claims, resolved=True,
                                     tool_error_ref=error_ref, searched=searched)
+
+    def _cell_refs_hash(self, st: RunState) -> str:
+        """The checkpoint's digest of what is assessed so far, read without a writer mid-insert.
+
+        The literature phase assesses candidates concurrently and writes its checkpoint from inside
+        a worker, so this iterates a dict another worker may be inserting into -- which raises
+        `RuntimeError: dictionary changed size during iteration` rather than returning a wrong hash.
+        """
+        with self._cells_lock:
+            return sha256_hex(sorted(f"{rule}|{candidate}" for rule, candidate in st.cells))
 
     def _record_cell(self, st: RunState, cell: dict, reason: dict, ids: dict[str, Any], planned_cells: int) -> None:
         cell = dict(cell, fingerprint=sha256_hex({
@@ -355,7 +462,9 @@ class RunController:
             reuse={"decision": "recomputed"})
         reason_artifact = self.core.artifacts.put("reason", reason)
         cell_artifact = self.core.artifacts.put("assessment", dict(cell, reason_artifact_id=reason_artifact))
-        st.cells[(cell["rule_ref"], cell["candidate_ref"])] = dict(cell, reason_artifact_id=reason_artifact)
+        with self._cells_lock:
+            st.cells[(cell["rule_ref"], cell["candidate_ref"])] = dict(cell, reason_artifact_id=reason_artifact)
+            completed = len(st.cells)
         self._emit(st.run_id, "candidate.assessed", ids=ids,
                    payload={"candidate_ref": cell["candidate_ref"], "rule_ref": cell["rule_ref"],
                             "attribute_ref": cell["attribute_ref"], "verdict": cell["verdict"],
@@ -363,7 +472,7 @@ class RunController:
                    artifact_links=[{"kind": "assessment", "id": cell_artifact}, {"kind": "reason", "id": reason_artifact}],
                    summary=f"{cell['candidate_ref']} · {cell['attribute_ref']}: {cell['verdict']}",
                    progress={"scope": "stage:assess", "denominator_kind": "enumerated_fixed",
-                             "completed": len(st.cells), "planned": planned_cells},
+                             "completed": completed, "planned": planned_cells},
                    budget=st.budget.snapshot())
 
     def _finish(self, st: RunState, ids: dict[str, Any], budget_cut: bool) -> str:

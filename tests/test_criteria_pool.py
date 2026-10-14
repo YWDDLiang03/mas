@@ -9,7 +9,7 @@ import json
 import pytest
 
 from mas.adapters.drug.registration import EVIDENCE_CATALOG
-from mas.core import criteria, derivation_run, derivation_stages, pool, review, task
+from mas.core import assessor, criteria, derivation_run, derivation_stages, pool, review, task, vocab
 from mas.core.broker import Broker, ProviderResponse, ToolContract
 from mas.core.budget import Budget
 from mas.core.controller import RunController, RunError
@@ -575,7 +575,8 @@ def two_curations_pool(core, script, task_id="task_merge"):
 
 def test_a_merge_may_pool_its_parents_routes_into_one_attribute(core):
     ctx = two_curations_pool(core, merge_script())
-    assert derivation_stages.merge_stage(ctx, 1) == {"groups": 1, "merged": 1, "kept_separate": 0, "refused": 0}
+    assert derivation_stages.merge_stage(ctx, 1) == {"groups": 1, "merged": 1, "consolidated": 0,
+                                                     "kept_separate": 0, "refused": 0, "not_reduced": []}
     folded = pool.fold(core, "task_merge")
     child = next(e for e in folded.values() if e["parents"])
     assert [r["question_kind"] for r in criteria.evidence_routes(child["item"]["attribute"])] == \
@@ -599,6 +600,362 @@ def test_a_merge_may_not_add_an_evidence_route_neither_parent_had(core):
     # and nothing else about that child was wrong: the refusal is about the route it reached for
     invented = pooled(CHEMBL_POTENCY["evidence_request"], GTOPDB_AFFINITY["evidence_request"], extra)
     assert ctx.validate(proposal(invented, "claim_chembl")) == []
+
+# --- a family of distinct endpoints ---------------------------------------------------------
+# What a dry check of `merge_groups` over the live pool of 89 proposals produced on 14 October 2026:
+# ten groups, two of them eight *distinct* toxicity endpoints each (any-grade incidences; grade >=3
+# incidences), sharing a unit, a direction and a dimension while measuring
+# different things. `merge` is unavailable to them by its own rule -- they are not one quantity, in
+# one unit and direction, for one purpose -- so duplication was never what stood between 89
+# proposals and the handful of attributes a screen applies. Reducing them needs the second
+# operation: a family abstracted into the criterion that decides, which is a scientific judgement
+# and is therefore recorded as a consolidation and not as a merge.
+TOXICITY_FAMILY = [("Grade >=3 diarrhea incidence", "toxicological_safety"),
+                   ("Grade >=3 fatigue incidence", "toxicological_safety"),
+                   ("Grade >=3 hyperphosphatemia incidence", "toxicological_safety")]
+SHARED_PROPERTY = ("every member is a grade >=3 treatment-related adverse event that forces a dose "
+                   "reduction or stops treatment, which is what disqualifies a chronic oral drug")
+
+
+def burden_attribute(**extra):
+    """The criterion a screen would actually apply to the family: one toxicity burden, with its own
+    literature query, which is a retrieval knob rather than a reach for a source no member had."""
+    return dict(lit_attribute("Grade >=3 treatment-related toxicity burden", "%", direction="lower_better"),
+                definition="Share of treated patients with any grade >=3 treatment-related adverse event",
+                **extra)
+
+
+def family_pool(core, script, members=TOXICITY_FAMILY, *, task_id="task_family", run_id="run_family",
+                spare_claim=False):
+    """A pool holding one literature-bound candidate per (name, dimension), each citing its own claim.
+
+    With `spare_claim` the ledger also holds a claim no member cites, which is how a child that cites
+    evidence beyond its parents can still be a child whose every other field validates.
+    """
+    writer = pool.Pool(core, task_id, by=OPERATOR, run_id=run_id).at("propose", 0)
+    claims_by_id = {}
+
+    def claim(claim_id, text):
+        claims_by_id[claim_id] = {"claim_id": claim_id, "source_ref": f"src_{claim_id}",
+                                  "determination_basis": "measured", "value": 12.0, "unit": "%",
+                                  "location": {"quoted_span": text}}
+
+    for index, (name, dimension) in enumerate(members):
+        claim_id = f"claim_tox_{index}"
+        claim(claim_id, f"{name.lower()} was 12% of treated patients")
+        writer.add(dict(proposal(lit_attribute(name, "%", direction="lower_better"), claim_id), dimension=dimension),
+                   reason_text=f"proposed for {dimension}")
+    if spare_claim:
+        claim("claim_spare", "treatment was stopped for toxicity in 12% of patients")
+    return derivation_stages.StageContext(
+        core=core, roster=roster_for(script), task_id=task_id, run_id=run_id,
+        task_context={"objective_text": SPEC["objective_text"], "constraints": [],
+                      "scope_entities": SPEC["scope_entities"]},
+        catalog=EVIDENCE_CATALOG, claims_by_id=claims_by_id, reference_labels=[], pool=writer)
+
+
+def consolidate_script(*, members=None, shared_property=SHARED_PROPERTY, family_aggregation="worst_member",
+                       attribute=None, claims=None):
+    """An adjudicator that consolidates each group into one toxicity-burden criterion."""
+    def script(request):
+        question = request.metadata.get("question", "")
+        assert question == "adjudicate merges", question
+        groups = json.loads(request.messages[0]["content"].split("Groups:\n", 1)[1].split("\n\nCited claims:")[0])
+        decisions = []
+        for group in groups:
+            folded = [m for m in group["members"] if members is None or m["index"] in members]
+            cited = claims if claims is not None else sorted({c for m in folded for c in m["supporting_claim_ids"]})
+            item = dict(proposal(attribute or burden_attribute(), "unused"), supporting_claim_ids=cited)
+            decisions.append({"group": group["group"], "action": "consolidate",
+                              "consolidated": dict(item, members=[m["index"] for m in folded],
+                                                   shared_property=shared_property,
+                                                   family_aggregation=family_aggregation),
+                              "reason": "three specific endpoints a screen applies as one toxicity burden"})
+        return {"decisions": decisions}
+    return script
+
+
+def test_a_family_of_distinct_endpoints_sharing_a_screen_relevant_property_consolidates_into_one_criterion_that_names_what_it_subsumes(core):
+    ctx = family_pool(core, consolidate_script())
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["groups"] == 1 and stats["consolidated"] == 1 and stats["merged"] == 0 and stats["refused"] == 0
+
+    child = next(e for e in pool.fold(core, "task_family").values() if e["parents"])
+    declared = child["item"]["consolidation"]
+    assert declared["shared_property"] == SHARED_PROPERTY
+    assert declared["family_aggregation"] in derivation_stages.FAMILY_AGGREGATIONS
+    # the whole point of the field: a reviewer reads which specific endpoints this abstraction replaced,
+    # by lineage id and by name, and can say that one of them did not belong in it
+    assert [s["name"] for s in declared["subsumes"]] == [name for name, _ in TOXICITY_FAMILY]
+    assert {s["criterion_id"] for s in declared["subsumes"]} == \
+           {ref.split("@v")[0] for ref in child["parents"]}
+    criteria.check_attribute(child["item"]["attribute"])        # and the consolidated criterion is registrable
+
+
+def test_a_consolidation_whose_shared_property_merely_restates_the_unit_is_refused(core):
+    """The failure mode of an abstraction is breadth, and "they are all percentages" is both true of the
+    group and no reason to replace three measurements with one. The group already agrees on a unit, a
+    direction and a dimension by construction, so a shared property that says only those says nothing."""
+    ctx = family_pool(core, consolidate_script(shared_property="They are all percentages, lower is better"))
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["refused"] == 1 and stats["consolidated"] == 0
+    (refusal,) = [d for d in stats["not_reduced"] if d["outcome"] == "refused"]
+    assert "shared_property" in refusal["reason"] and "no property to screen on" in refusal["reason"]
+    assert not [e for e in pool.fold(core, "task_family").values() if e["parents"]]
+    # a restatement dressed up in the dimension's own words is the same empty claim
+    ctx = family_pool(core, consolidate_script(shared_property="all of these toxicity endpoints are incidence rates"),
+                      task_id="task_family_2")
+    assert derivation_stages.merge_stage(ctx, 1)["refused"] == 1
+
+
+def _family_group(direction: str = "lower_better") -> list[dict]:
+    """The merge group the gate sees: one entry per endpoint, already agreeing on unit, direction and
+    dimension, which is how `merge_groups` formed the two eight-member toxicity groups."""
+    return [{"criterion_id": f"cri_{i}", "version": 1,
+             "item": {"attribute": lit_attribute(name, "%", direction=direction), "dimension": dimension}}
+            for i, (name, dimension) in enumerate(TOXICITY_FAMILY)]
+
+
+# Three pooled values whose maximum, minimum and median all differ, so a cell scored under one reduction is
+# distinguishable from the same cell scored under either other one.
+FAMILY_VALUES = (4.0, 12.0, 31.0)
+# The reductions, written out independently of `assess_cell`, so that "the assessor honours this
+# aggregation" is an assertion about its output rather than a restatement of its implementation. An
+# aggregation absent from this table is one no test here can confirm, which is the point: a family
+# aggregation mapped to `consensus` would fail rather than quietly pass.
+POOLED_REDUCTIONS = {"max": max, "min": min, "median": lambda values: sorted(values)[len(values) // 2]}
+
+
+def _cell(attribute: dict, *, cutoff: dict | None = None, values=FAMILY_VALUES) -> tuple:
+    """(value, verdict) `assessor.assess_cell` puts in one cell of `attribute` over claims carrying `values`.
+
+    A consolidated criterion arrives here as one attribute over one pooled claim set -- there are no member
+    cells left to reduce -- so this is the whole of what a declared family aggregation can be executed as.
+    """
+    rule = {"rule_id": "rule_burden", "version": 1, "rule_kind": "preference",
+            "predicate_form": "threshold" if cutoff else "ordering", "cutoff": cutoff,
+            "cutoff_basis": "source_stated_value" if cutoff else "none_evidence_insufficient"}
+    claims = [{"claim_id": f"claim_{index}", "source_ref": f"src_{index}", "admission_state": "admitted",
+               "evidence_kind": "peer_reviewed", "determination_basis": "measured", "value": value, "unit": "%",
+               "location": {"quoted_span": f"the endpoint was {value}% of treated patients"}}
+              for index, value in enumerate(values)]
+    assessment, _ = assessor.assess_cell(candidate={"candidate_id": "cand_1"},
+                                         attribute=dict(attribute, attribute_id="attr_burden", version=1),
+                                         rule=rule, rule_set_ref="rules@v1", claims=claims, resolved=True)
+    return assessment["value"], assessment["verdict"]
+
+
+def test_a_consolidation_declaring_worst_member_computes_the_worst_value_in_the_attributes_declared_direction():
+    """`worst_member` is the reduction whose execution depends on the direction, and the inversion is silent:
+    with `lower_better` the least favourable member is the largest value, with `higher_better` the smallest.
+    Reversed, a candidate would be ranked on its best endpoint while its card named its worst. Asserted on a
+    family whose maximum and minimum differ, and against the same family's median, which is the reduction a
+    consolidated criterion used to be scored under whatever it declared.
+    """
+    declared = {"members": [0, 1, 2], "shared_property": SHARED_PROPERTY, "family_aggregation": "worst_member"}
+
+    members, problem, executes_as = derivation_stages._consolidation(
+        _family_group("lower_better"), declared, burden_attribute(direction="lower_better"))
+    assert (len(members), problem, executes_as) == (3, None, "max")
+    assert _cell(burden_attribute(direction="lower_better", aggregation=executes_as)) == (31.0, "pass")
+    # the worst member decides the verdict, where the median of that same family would have passed
+    low_cutoff = {"comparator": "<=", "value": 20, "unit": "%"}
+    assert _cell(burden_attribute(direction="lower_better", aggregation=executes_as), cutoff=low_cutoff) == \
+           (31.0, "fail")
+    assert _cell(burden_attribute(direction="lower_better", aggregation="median"), cutoff=low_cutoff) == \
+           (12.0, "pass")
+
+    members, problem, executes_as = derivation_stages._consolidation(
+        _family_group("higher_better"), declared, burden_attribute(direction="higher_better"))
+    assert (len(members), problem, executes_as) == (3, None, "min")
+    assert _cell(burden_attribute(direction="higher_better", aggregation=executes_as)) == (4.0, "pass")
+    high_cutoff = {"comparator": ">=", "value": 10, "unit": "%"}
+    assert _cell(burden_attribute(direction="higher_better", aggregation=executes_as), cutoff=high_cutoff) == \
+           (4.0, "fail")
+    assert _cell(burden_attribute(direction="higher_better", aggregation="median"), cutoff=high_cutoff) == \
+           (12.0, "pass")
+
+
+def test_a_consolidation_whose_declared_family_aggregation_and_attribute_aggregation_disagree_cannot_score_as_if_they_agreed(core):
+    """The adjudicator is asked for the attribute's own fields, `aggregation` among them, and nothing tells it
+    which aggregation its family reduction implies -- `consolidate_script` declares `worst_member` over an
+    attribute whose own aggregation is `median`, which is what a model actually returns. So the gate derives
+    the aggregation from the family reduction instead of trusting the pair to agree: the consolidation record
+    never reaches the assessor, and `aggregation` is the only half of it `assess_cell` reads."""
+    ctx = family_pool(core, consolidate_script(family_aggregation="worst_member"))
+    assert derivation_stages.merge_stage(ctx, 1)["consolidated"] == 1
+    child = next(e for e in pool.fold(core, "task_family").values() if e["parents"])
+    assert child["item"]["attribute"]["aggregation"] == "max"        # not the `median` the adjudicator wrote
+    assert child["item"]["consolidation"]["executes_as_aggregation"] == "max"
+    assert child["item"]["consolidation"]["replaced_declared_aggregation"] == "median"
+    # and the stored attribute scores as the worst member: under the median it would have read 12.0 and passed
+    assert _cell(child["item"]["attribute"], cutoff={"comparator": "<=", "value": 20, "unit": "%"}) == \
+           (31.0, "fail")
+
+
+def test_every_value_left_in_the_family_aggregation_vocabulary_is_executable_by_the_assessor():
+    """The requirement the field was first added with was a declaration: eight reductions were registered and
+    `assess_cell` computed none of them, so a consolidated criterion could say `worst_member` and be scored
+    on a median. The six that nothing could execute are gone (`vocab.criterion_family_aggregation` says which
+    and why); this is what keeps a seventh from being registered without being wired, in either direction --
+    a value the vocabulary offers and the table does not map, or a mapping to an aggregation `assess_cell`
+    does not perform."""
+    registered = set(vocab.DOMAINS["criterion_family_aggregation"])
+    assert registered == set(assessor.FAMILY_AGGREGATION_EXECUTION)
+    for family in sorted(registered):
+        executable = {}
+        for direction in criteria.DIRECTIONS:
+            aggregation, problem = assessor.family_aggregation_execution(family, direction)
+            assert (aggregation is None) != (problem is None), (family, direction)
+            if aggregation is not None:
+                executable[direction] = aggregation
+        assert executable, family
+        for direction, aggregation in executable.items():
+            assert aggregation in criteria.AGGREGATIONS and aggregation in POOLED_REDUCTIONS, (family, direction)
+            assert _cell(burden_attribute(direction=direction, aggregation=aggregation)) == \
+                   (POOLED_REDUCTIONS[aggregation](FAMILY_VALUES), "pass"), (family, direction)
+            # and the gate compiles the declaration into exactly that aggregation, so the value is reachable
+            group = _family_group(direction)
+            assert derivation_stages._consolidation(
+                group, {"members": [0, 1, 2], "shared_property": SHARED_PROPERTY, "family_aggregation": family},
+                burden_attribute(direction=direction)) == (group, None, aggregation), (family, direction)
+
+
+def test_a_consolidation_whose_declared_family_aggregation_would_not_be_computed_is_refused():
+    """A consolidated criterion nobody can compute is worse than the family it replaced, and prose ("the
+    overall burden of all of them") does not say what to compute, so the reduction over the family is a
+    registered vocabulary (`criterion_family_aggregation`) -- and, registered or not, it is refused unless it
+    maps to an aggregation `assess_cell` performs for this attribute's direction: `worst_member` over a
+    `within_range` attribute names no end of the scale as the worst one.
+
+    The gate is tested directly because the schema carries the same vocabulary as an enum and a structured
+    reply never reaches the gate with an unregistered one -- the scripted adapter raises `parse_failed`
+    first, as a provider enforcing the schema would. The enum is a request; this is the enforcement, and a
+    provider that answers prose or a repaired reply that drops the enum still has to get past it.
+    """
+    group = _family_group()
+    declared = {"members": [0, 1, 2], "shared_property": SHARED_PROPERTY,
+                "family_aggregation": "the overall burden of all of them"}
+    members, problem, executes_as = derivation_stages._consolidation(group, declared, burden_attribute())
+    assert members == group and executes_as is None
+    assert "family_aggregation is not computable" in problem
+    for aggregation in derivation_stages.FAMILY_AGGREGATIONS:
+        stands = derivation_stages._consolidation(group, dict(declared, family_aggregation=aggregation),
+                                                  burden_attribute())
+        assert (stands[0], stands[1]) == (group, None) and stands[2] in criteria.AGGREGATIONS, aggregation
+    # the same family with no aggregation declared at all is refused for the same reason
+    assert "family_aggregation" in derivation_stages._consolidation(
+        group, {k: v for k, v in declared.items() if k != "family_aggregation"}, burden_attribute())[1]
+    # a registered reduction a direction cannot order is refused rather than guessed at
+    _, problem, executes_as = derivation_stages._consolidation(
+        _family_group("within_range"), dict(declared, family_aggregation="worst_member"),
+        burden_attribute(direction="within_range"))
+    assert executes_as is None and "which end of the scale is worse" in problem
+
+
+def test_a_consolidation_that_subsumes_one_member_or_spans_two_dimensions_is_refused(core):
+    """Two different ways the declaration stops being a family. One member is no reduction at all -- the
+    pool would lose a lineage and gain an abstraction of that one lineage. Two dimensions have no shared
+    property one screening criterion can state: the group can span them because wording alone is enough
+    to pair a literature-bound item, and the same endpoint proposed under two dimension passes is the
+    ordinary way it happens."""
+    ctx = family_pool(core, consolidate_script(members=[0]))
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["refused"] == 1 and stats["consolidated"] == 0
+    assert "a family is two or more endpoints" in stats["not_reduced"][0]["reason"]
+
+    spanning = TOXICITY_FAMILY[:2] + [("Grade >=3 transaminase elevation incidence", "metabolic_stability")]
+    ctx = family_pool(core, consolidate_script(), members=spanning, task_id="task_family_span")
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["groups"] == 1, "the three are one group, or this test proves nothing"
+    assert stats["refused"] == 1 and stats["consolidated"] == 0
+    assert "spans dimensions" in stats["not_reduced"][0]["reason"]
+    assert not [e for e in pool.fold(core, "task_family_span").values() if e["parents"]]
+
+
+def test_a_consolidation_may_not_cite_evidence_no_member_had_nor_a_route_no_member_declared(core):
+    """The constraints a merge already carries, for the reason a merge carries them: a reduction combines
+    what the pool already has. An abstraction is not a licence to cite a claim the family never cited or
+    to read a source it never read -- and the route check measures the source and the subject, not the
+    query template, so the consolidated criterion may ask the literature about the family it now stands
+    for while a reach for a different capability is still refused."""
+    ctx = family_pool(core, consolidate_script(claims=["claim_tox_0", "claim_spare"]), spare_claim=True)
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["refused"] == 1 and stats["consolidated"] == 0
+    assert "cites claims no parent had: ['claim_spare']" in stats["not_reduced"][0]["reason"]
+    # and the claim it reached for is a real, resolvable claim: the refusal is about whose it was
+    assert ctx.validate(dict(proposal(burden_attribute(), "claim_spare"))) == []
+
+    descriptor = {"capability": "property_estimate", "question_kind": "computed_property",
+                  "identifier_scheme": "inchikey", "parameters": {"property": "MolecularWeight"}}
+    attribute = burden_attribute(evidence_request=descriptor)
+    ctx = family_pool(core, consolidate_script(attribute=attribute), task_id="task_family_route")
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["refused"] == 1 and stats["consolidated"] == 0
+    assert "1 evidence route(s) no parent declared" in stats["not_reduced"][0]["reason"]
+    assert ctx.validate(dict(proposal(attribute, "claim_tox_0"))) == []
+
+
+def test_the_parents_go_to_merged_away_pointing_at_the_child_and_the_pool_trajectory_shows_the_reduction(core):
+    """Lineage is the merge's, so nothing is deleted and the reduction is readable both ways; the claim is
+    not the merge's, so the records say `consolidate` and `family_consolidated` where a merge says `merge`
+    and `duplicate_merged`. A reader of one lineage sees which operation retired it, and a reader of the
+    trajectory sees three criteria leave and one arrive in the merge step of iteration 1."""
+    ctx = family_pool(core, consolidate_script())
+    derivation_stages.merge_stage(ctx, 1)
+    folded = pool.fold(core, "task_family")
+    child = next(e for e in folded.values() if e["parents"])
+    parents = [folded[ref.split("@v")[0]] for ref in child["parents"]]
+    assert len(parents) == 3
+    for parent in parents:
+        assert parent["state"] == "merged_away" and parent["children"] == [f"{child['criterion_id']}@v1"]
+        assert parent["history"][-1]["operation"] == "consolidate"
+        assert parent["history"][-1]["reason_kind"] == "family_consolidated"
+    assert child["history"][-1]["operation"] == "consolidate"
+
+    (step,) = [s for s in pool.trajectory(core, "task_family") if s["stage"] == "merge"]
+    assert step["iteration"] == 1 and step["merged_away"] == 3
+    assert step["reasons"] == {"family_consolidated": 4}        # three parents retired, one child written
+    assert step["live_after"] == 1, "three endpoints in, one criterion out: the pool got smaller"
+
+
+def test_a_merge_of_two_databases_views_of_one_quantity_is_still_a_merge_and_not_a_consolidation(core):
+    """The case the merge instruction exists for keeps its own operation. Those two attributes are one
+    measurement curated twice -- nothing is abstracted, nothing is subsumed, no shared property is claimed
+    -- so the record must not say a judgement was made about which endpoints a screen should treat as one
+    family. A consolidation is the stronger claim and the record has to be able to tell them apart."""
+    ctx = two_curations_pool(core, merge_script())
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["merged"] == 1 and stats["consolidated"] == 0 and stats["not_reduced"] == []
+    folded = pool.fold(core, "task_merge")
+    child = next(e for e in folded.values() if e["parents"])
+    assert child["item"].get("consolidation") is None
+    assert {h["operation"] for e in folded.values() for h in e["history"][-1:]} == {"merge"}
+    assert {h["reason_kind"] for e in folded.values() for h in e["history"][-1:]} == {"duplicate_merged"}
+
+
+def test_the_adjudicator_keeping_a_group_separate_remains_a_valid_outcome_and_is_recorded(core):
+    """Two operations do not make a reduction obligatory. Three distinct toxicity endpoints with no shared
+    screen-relevant property are three criteria, and the gate must leave them alone -- but a count of zero
+    is what made "no merges in any historical round" unreadable: a reviewer could not tell a pool of
+    genuinely distinct criteria from a gate refusing everything the adjudicator proposed. So the stage
+    result carries each unreduced group's reason, and `_stage_recorder` puts it in the journal."""
+    def keeps_separate(request):
+        assert request.metadata.get("question") == "adjudicate merges", request.metadata
+        groups = json.loads(request.messages[0]["content"].split("Groups:\n", 1)[1].split("\n\nCited claims:")[0])
+        return {"decisions": [{"group": g["group"], "action": "keep_separate",
+                               "reason": "diarrhea, fatigue and hyperphosphatemia are different liabilities "
+                                         "with different management"} for g in groups]}
+
+    ctx = family_pool(core, keeps_separate)
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats == {"groups": 1, "merged": 0, "consolidated": 0, "kept_separate": 1, "refused": 0,
+                     "not_reduced": [{"group": 0, "outcome": "kept_separate", "action": "keep_separate",
+                                      "reason": "diarrhea, fatigue and hyperphosphatemia are different liabilities "
+                                                "with different management"}]}
+    folded = pool.fold(core, "task_family")
+    assert sorted(e["state"] for e in folded.values()) == ["candidate"] * 3
+    assert all(e["version"] == 1 and not e["parents"] and not e["children"] for e in folded.values())
 
 
 # --- the registry already holds it ----------------------------------------------------------
@@ -1018,3 +1375,192 @@ def test_one_unusable_model_reply_does_not_destroy_the_round(core):
     unresolved = [it for it in record["iterations"]
                   if (it.get("refine") or {}).get("batches_unresolved")]
     assert unresolved, "an unusable batch must be recorded in the stage's own stats"
+
+
+# --- reducing a pool an earlier round already built ------------------------------------------
+# `reduce_pool` is the pruning half of a round with the growth half removed: no literature, no
+# proposals, only the stages that consolidate and the promotion that follows them. It exists because
+# re-reaching merge through `derive_iterative` costs an hour of reading and returns a *different*
+# pool each time -- saturation depends on what the searches happen to return -- so a merge strategy
+# could never be tried twice against the same pool.
+
+
+class RoundOneStoppedAtMerge(RoundOne):
+    """RoundOne with the budget refusing the adjudicator, so the round ends at the stage that reduces.
+
+    A round has to stop before promotion for anything to be left for a later pass to consolidate:
+    promotion either registers the survivors -- and a registered criterion is an expert's to change,
+    not a pool stage's -- or retires them. A budget refusal is how that happens in production, and
+    the merge call is the one a long round reaches last and so loses first.
+    """
+
+    def __call__(self, request):
+        if request.metadata.get("question") == "adjudicate merges":
+            from mas.core.models import ModelError
+            raise ModelError("quota_exhausted", "llm_turns budget exhausted for adjudicator")
+        return super().__call__(request)
+
+
+def unmerged_pool(core):
+    """A pool a first round pruned but never merged, with its survivors still candidates."""
+    task_id, broker = setup(core)
+    first = derivation_run.derive_iterative(core, broker, roster_for(RoundOneStoppedAtMerge()), task_id,
+                                            dimensions=DIMENSIONS, catalog=EVIDENCE_CATALOG, by=OPERATOR,
+                                            inner_iterations=2, stall_rounds=2)
+    assert first["termination_reason"] == "budget_exhausted"
+    assert not [e for e in pool.fold(core, task_id).values() if e["parents"]], "nothing was merged yet"
+    assert len(pool.active(pool.fold(core, task_id), ("candidate",))) >= 2, "nothing left to reduce"
+    return task_id, first
+
+
+def reduce(core, task_id, parent_run_id, script, **kwargs):
+    return derivation_run.reduce_pool(core, roster_for(script), task_id, catalog=EVIDENCE_CATALOG, by=OPERATOR,
+                                      continues_run_id=parent_run_id, **kwargs)
+
+
+def changes_by(core, task_id, run_id):
+    """The pool change records one run wrote."""
+    return [e.payload for e in core.journal.replay(task_id)
+            if e.event_type == "criterion.change_recorded" and e.payload.get("round_run_id") == run_id]
+
+
+def test_a_reduce_pass_reads_no_literature_and_proposes_nothing(core):
+    task_id, first = unmerged_pool(core)
+    script = RoundOne()
+    record = reduce(core, task_id, first["run_id"], script)
+    assert [role for role, _ in script.calls if role in ("retriever", "reader")] == []
+    assert not [q for _, q in script.calls if q.startswith("propose pool")]
+    stage_events = [e.payload["stage"] for e in core.journal.replay(record["run_id"]) if e.event_type == "stage.opened"]
+    assert not [s for s in stage_events if s == "enumerate" or s.startswith("propose")]
+    assert "merge" in stage_events and "promote" in stage_events
+    # no claim was admitted into this run's stream: a reduce pass has no document to admit one from
+    assert not [e for e in core.journal.replay(record["run_id"])
+                if e.event_type in ("evidence.admitted", "evidence.quarantined")]
+    # and every lineage it touched already existed: a pass that proposes nothing records no `add`
+    assert not [c for c in changes_by(core, task_id, record["run_id"]) if c["operation"] == "add"]
+
+
+def test_a_reduce_pass_merges_the_pair_an_earlier_round_left_unmerged(core):
+    task_id, first = unmerged_pool(core)
+    record = reduce(core, task_id, first["run_id"], RoundOne())
+    folded = pool.fold(core, task_id)
+    merged = [e for e in folded.values() if e["parents"]]
+    assert len(merged) == 1 and len(merged[0]["parents"]) == 2, "the pair was never merged"
+    assert sorted(folded[ref.split("@v")[0]]["state"] for ref in merged[0]["parents"]) == ["merged_away", "merged_away"]
+    # the child is a lineage of this run, and its parents are the versions it consumed
+    child = next(c for c in changes_by(core, task_id, record["run_id"])
+                 if c["operation"] == "merge" and c["state"] == "candidate")
+    assert sorted(child["targets_in"]) == sorted(merged[0]["parents"]) and child["stage"] == "merge"
+    assert sum(it["merge"]["merged"] for it in record["iterations"]) == 1
+    assert {r["name"] for r in record["promotion"]["accepted"]} == {"Oral bioavailability", "Elimination half-life"}
+    assert record["continues_run_id"] == first["run_id"] and record["chain_id"] == first["chain_id"]
+    assert record["round_index"] == first["round_index"] + 1
+
+
+def test_the_claims_a_pool_item_cites_still_resolve_in_a_reduce_pass(core):
+    """The reason a reduce pass can prune at all: `refine` quotes the evidence it is repairing against
+    and a merge may cite only its parents' claims, so an item whose claim ids no longer resolve is
+    one the pool can only retire. The claims were recorded in the *earlier run's* stream, not the
+    task's, so they are folded from the chain rather than re-read from the documents."""
+    task_id, first = unmerged_pool(core)
+    folded = pool.fold(core, task_id)
+    cited = {c for e in pool.active(folded) for c in e["item"]["supporting_claim_ids"]}
+    offered = []
+
+    class Capturing(RoundOne):
+        def __call__(self, request):
+            if request.metadata.get("question") == "adjudicate merges":
+                offered.append(request.messages[0]["content"].split("\n\nCited claims:\n")[1])
+            return super().__call__(request)
+
+    record = reduce(core, task_id, first["run_id"], Capturing())
+    resolvable = {c["claim_id"] for c in derivation_run.ledger.claims(core, [first["run_id"], task_id])}
+    assert cited and cited <= resolvable and record["claims_resolvable"] == len(resolvable)
+    # and the resolution is not vacuous: the one item citing an id no ledger holds was already retired
+    assert [e["state"] for e in folded.values() if "claim_that_does_not_exist"
+            in e["item"]["supporting_claim_ids"]] == ["filtered_out"]
+    # the adjudicator was given the claim text behind the items it was asked to merge
+    assert offered and all(any(claim in block for claim in cited) for block in offered)
+    # and the merged child kept a parent's claim, which only validates while the claim resolves
+    child = next(e for e in pool.fold(core, task_id).values() if e["parents"])
+    assert child["item"]["supporting_claim_ids"] and set(child["item"]["supporting_claim_ids"]) <= cited
+
+
+def test_a_reduce_pass_is_refused_against_a_run_that_is_not_a_criteria_derivation(core):
+    task_id, broker = setup(core)
+    derivation_run.derive_iterative(core, broker, roster_for(RoundOne()), task_id, dimensions=DIMENSIONS,
+                                    catalog=EVIDENCE_CATALOG, by=OPERATOR, inner_iterations=4, stall_rounds=1)
+    criteria.confirm_rule_set(core, task_id, by=OPERATOR, allow_pending=True)
+    sweep = RunController(core, broker, roster_for(RoundOne()),
+                          adapter={"adapter_id": "a", "adapter_version": "1"}).start(task_id, by=OPERATOR,
+                                                                                     execute=False)
+    with pytest.raises(derivation_run.DerivationError, match="not a criteria derivation run"):
+        reduce(core, task_id, sweep, RoundOne())
+    with pytest.raises(derivation_run.DerivationError, match="is not a run"):
+        reduce(core, task_id, task_id, RoundOne())
+    with pytest.raises(derivation_run.DerivationError, match="not a criteria derivation run to reduce"):
+        reduce(core, task_id, None, RoundOne())
+    # every refusal happened before a run was bound: the derivation round and the sweep are all there is
+    assert len(core.journal.streams("run_")) == 2
+
+
+def test_a_budget_refusal_ends_a_reduce_pass_as_budget_exhausted_rather_than_crashing(core):
+    task_id, first = unmerged_pool(core)
+    before = pool.pool_hash(pool.fold(core, task_id))
+    record = reduce(core, task_id, first["run_id"], RoundOne(), budget=Budget({"llm_turns": 1}))
+    assert record["termination_reason"] == "budget_exhausted"
+    assert core.journal.replay(record["run_id"])[-1].event_type == "run.unresolved"
+    assert record["continuation_decision"]["decision"] == "continue_next_round"
+    # the pass stopped on the first stage that was refused, so the pool it was handed is still there
+    assert pool.pool_hash(pool.fold(core, task_id)) == before
+    assert any(e["state"] in pool.ACTIVE_STATES for e in pool.fold(core, task_id).values())
+
+
+def test_running_a_reduce_pass_twice_leaves_the_second_nothing_to_do(core):
+    task_id, first = unmerged_pool(core)
+    once = reduce(core, task_id, first["run_id"], RoundOne())
+    second_script = RoundOne()
+    twice = reduce(core, task_id, once["run_id"], second_script)
+    assert twice["chain_id"] == once["chain_id"] and twice["round_index"] == once["round_index"] + 1
+    assert twice["termination_reason"] == "diminishing_information_gain"
+    assert twice["pool_hash"] == once["pool_hash"] and twice["pool_states"] == once["pool_states"]
+    assert second_script.calls == [], "an empty pool is nothing to ask a model about"
+    assert twice["promotion"] == {"accepted": [], "disputed": [], "deferred": [], "duplicates": []}
+    assert changes_by(core, task_id, twice["run_id"]) == []
+    assert twice["continuation_decision"]["decision"] == "stop"
+
+
+def test_a_round_and_a_reduce_pass_record_the_same_binding_and_stage_shapes(core):
+    """A reader comparing two rounds of one chain should not have to know which function ran them:
+    the fields they share carry the same names, and the run row the workbench builds is read off
+    `run.created` the same way for both."""
+    from mas.ui import views
+
+    task_id, broker = setup(core)
+    derived = derivation_run.derive_iterative(core, broker, roster_for(RoundOne()), task_id, dimensions=DIMENSIONS,
+                                              catalog=EVIDENCE_CATALOG, by=OPERATOR, inner_iterations=4,
+                                              stall_rounds=1)
+    reduced = reduce(core, task_id, derived["run_id"], RoundOne())
+    bindings = [views._binding(core, record["run_id"]) for record in (derived, reduced)]
+    assert all(b["task_id"] == task_id and b["run_purpose"] == "criteria_derivation" for b in bindings)
+    assert set(bindings[0]) - set(bindings[1]) == {"research", "dimensions", "evidence_cutoff"}
+    assert set(bindings[1]) - set(bindings[0]) == set()
+    assert [b["reads_new_evidence"] for b in bindings] == [True, False]
+    for field in ("chain_id", "continuation_kind", "round_index", "purpose_note", "stages", "merge_overlap",
+                  "inner_iterations", "stall_rounds", "max_refines", "settings", "role_bindings"):
+        assert field in bindings[0] and field in bindings[1], field
+
+    def shapes(run_id, kind):
+        return {frozenset(e.payload) for e in core.journal.replay(run_id) if e.event_type == kind}
+
+    for kind in ("run.created", "stage.opened", "stage.closed", "round.opened", "round.closed", "run.completed"):
+        assert shapes(derived["run_id"], kind) == shapes(reduced["run_id"], kind), kind
+    # and both rounds' records are findable again by the key the closing event names
+    for record in (derived, reduced):
+        assert derivation_run.record_of(core, record["run_id"])["run_id"] == record["run_id"]
+    shared = set(derived) & set(reduced)
+    assert set(derived) - shared == {"mandated", "enumeration", "proposed"}
+    assert set(reduced) - shared == {"reduce_only", "claims_resolvable"}
+    for field in ("pool_states", "pool_hash", "termination_reason", "independence", "budget",
+                  "continuation_decision", "artifact_id", "iterations", "promotion"):
+        assert field in shared, field

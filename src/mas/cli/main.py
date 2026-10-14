@@ -5,6 +5,12 @@
     mas criteria propose TASK --from FILE.json  propose attribute+rule pairs written by a person
     mas criteria derive TASK [--dimension D ...] [--continues RUN] [--single-pass]
                                                derive criteria from literature: a round of the pool workflow
+    mas criteria reduce TASK --continues RUN    prune and promote the pool that round left, reading no
+                                               literature and proposing nothing: filter, distill, refine
+                                               and merge over the items it already holds. This is how a
+                                               merge or refinement strategy is tried against the pool it
+                                               failed on instead of against whatever a fresh enumeration
+                                               returns, which is never the same documents twice
     mas criteria pool TASK [--all] [--trajectory]
                                                the criteria pool: states, versions, lineage; --trajectory
                                                prints what each stage added, pruned and merged, per iteration
@@ -291,6 +297,8 @@ def cmd_criteria(args) -> None:
                 _show_pool(core, args.task, show_all=args.all)
         elif args.action == "dedupe":
             _dedupe(core, args)
+        elif args.action == "reduce":
+            _reduce_pool(core, args)
         else:
             from mas.adapters.drug.registration import DIMENSIONS, EVIDENCE_CATALOG, objective_templates
             from mas.core import derivation, derivation_run
@@ -320,22 +328,58 @@ def cmd_criteria(args) -> None:
                     continues_run_id=args.continues, settings=settings, implementation=_implementation())
             except derivation_run.DerivationError as error:
                 sys.exit(str(error))
-            print(f"{record['run_id']}  round {record['round_index']}  {record['termination_reason']}  "
-                  f"pool {record['pool_states']}")
-            for e in record.get("enumeration", []):
-                print(f"  {e['dimension']:<28} {e['documents_read']} documents, {e['n_topics']} topics ({e['stop_reason']})")
-            for i in record.get("iterations", []):
-                print(f"  iteration {i['iteration']}: " + "; ".join(f"{k} {v}" for k, v in i.items()
-                                                                   if k not in ("iteration", "pool_changed")))
-            promotion = record.get("promotion") or {}
-            for key in ("accepted", "disputed"):
-                for item in promotion.get(key, []):
-                    print(f"  {key:<9} {item['rule_ref']:<44} {item['rule_kind']:<16} {item['name']}")
-            for item in promotion.get("deferred", []):
-                print(f"  deferred  {item['name']}: {'; '.join(item['problems'])[:100]}")
-            print(f"  next: {record['continuation_decision']['decision']}"
-                  + (f" (continue with --continues {record['run_id']})" if record['continuation_decision']['decision']
-                     == "continue_next_round" else ""))
+            _print_round(record)
+
+
+def _print_round(record: dict[str, Any]) -> None:
+    """One derivation round as it ended. Shared by `derive` and `reduce` so the two read alike: the
+    only difference a reduce pass shows is the enumeration block it has nothing to put in."""
+    print(f"{record['run_id']}  round {record['round_index']}  {record['termination_reason']}  "
+          f"pool {record['pool_states']}")
+    for e in record.get("enumeration", []):
+        print(f"  {e['dimension']:<28} {e['documents_read']} documents, {e['n_topics']} topics ({e['stop_reason']})")
+    for i in record.get("iterations", []):
+        print(f"  iteration {i['iteration']}: " + "; ".join(f"{k} {v}" for k, v in i.items()
+                                                            if k not in ("iteration", "pool_changed")))
+    promotion = record.get("promotion") or {}
+    for key in ("accepted", "disputed"):
+        for item in promotion.get(key, []):
+            print(f"  {key:<9} {item['rule_ref']:<44} {item['rule_kind']:<16} {item['name']}")
+    for item in promotion.get("deferred", []):
+        print(f"  deferred  {item['name']}: {'; '.join(item['problems'])[:100]}")
+    print(f"  next: {record['continuation_decision']['decision']}"
+          + (f" (continue with --continues {record['run_id']})" if record['continuation_decision']['decision']
+             == "continue_next_round" else ""))
+
+
+def _reduce_pool(core: Core, args) -> None:
+    """Prune and promote the pool an earlier round built, reading nothing new.
+
+    WHY this is a command and not a flag on `derive`: the two differ in what they are allowed to do,
+    not in how much of the same work they do. `derive` reads literature -- on the manuscript case an
+    hour of it, returning a different document set each time because saturation depends on what the
+    searches happen to return -- so the stages that reduce the pool could never be run twice over
+    one pool, and a change to the merge strategy could not be compared against the pool it failed
+    on. This takes no broker and no dimensions because it opens no document and proposes nothing.
+    """
+    from mas.adapters.drug.registration import EVIDENCE_CATALOG
+    from mas.core import derivation_run
+    from mas.core.budget import from_config
+    if not args.continues:
+        sys.exit("reduce needs --continues RUN: it prunes the pool an earlier derivation round left, "
+                 "and `mas criteria pool TASK --trajectory` names the rounds")
+    settings = _settings(args)
+    budget = from_config(settings, envelope={"llm_turns": args.llm_turns} if args.llm_turns else None)
+    try:
+        record = derivation_run.reduce_pool(
+            core, _roster(args), args.task, catalog=EVIDENCE_CATALOG, by=_person("operator"),
+            continues_run_id=args.continues, inner_iterations=settings["criteria.inner_iterations"],
+            stall_rounds=settings["criteria.stall_rounds"], stage_names=tuple(settings["criteria.stages"]),
+            max_refines=settings["criteria.max_refines"], merge_overlap=settings["criteria.merge_overlap"],
+            budget=budget, settings=settings, implementation=_implementation())
+    except derivation_run.DerivationError as error:
+        sys.exit(str(error))
+    _print_round(record)
 
 
 def _dedupe(core: Core, args) -> None:
@@ -975,7 +1019,7 @@ def main(argv: list[str] | None = None) -> int:
     t.set_defaults(func=cmd_task)
 
     c = sub.add_parser("criteria")
-    c.add_argument("action", choices=("propose", "derive", "mandated", "pool", "dedupe", "export"))
+    c.add_argument("action", choices=("propose", "derive", "reduce", "mandated", "pool", "dedupe", "export"))
     c.add_argument("task")
     c.add_argument("--out", metavar="DIR", help="export: where to write the package (default: design_audit)")
     c.add_argument("--at-seq", type=int, metavar="N",
@@ -985,7 +1029,8 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--dry-run", action="store_true", help="dedupe: print the plan and write nothing")
     c.add_argument("--withdraw", metavar="CLP", help="dedupe: undo this collapse, so its rules score again")
     c.add_argument("--reason", help="dedupe: why a collapse is being withdrawn")
-    c.add_argument("--continues", metavar="RUN", help="derive: continue the pool from this earlier derivation round")
+    c.add_argument("--continues", metavar="RUN",
+                   help="derive/reduce: continue the pool from this earlier derivation round (reduce requires it)")
     c.add_argument("--single-pass", action="store_true", help="derive: one propose/critique/revise pass, no pool")
     c.add_argument("--all", action="store_true", help="pool: include merged, withdrawn and filtered items")
     c.add_argument("--trajectory", action="store_true", help="pool: per-stage growth, pruning and merging instead of the end state")
@@ -1023,7 +1068,7 @@ def main(argv: list[str] | None = None) -> int:
     u.add_argument("--tool-calls", type=int)
     u.add_argument("--llm-turns", type=int)
     u.add_argument("--cutoff")
-    u.add_argument("--workers", type=int, help="concurrent literature cells (default: assess.workers)")
+    u.add_argument("--workers", type=int, help="candidates read and ruled on at once (default: assess.workers)")
     u.add_argument("--allow-config-drift", action="store_true", help="resume although the settings changed")
     u.set_defaults(func=cmd_run)
 

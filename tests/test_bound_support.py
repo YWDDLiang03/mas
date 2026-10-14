@@ -659,6 +659,151 @@ def test_a_preference_whose_cutoff_is_withheld_still_ranks_on_the_measurement_be
     assert rules["acceptance_label"] == "exploratory"
 
 
+# --- the declared interpretation: what a machine settles before anyone is asked to grant it -------
+
+# The step from "this passage reports X" to "X is the screening bound", declared as §5.4 asks for it.
+# WHY a declaration exists at all: measured on the clean derivation of 14 October 2026, the proposer
+# declared 29 of 33 cutoffs `reports_measurement` and 4 `provides_heuristic` and none
+# `states_decision_threshold`, so every honest cutoff needed a decision and 34 of 35 criteria carried
+# none. What a machine can check here is whether there is a declaration to judge; whether the
+# inference is a good one is `adjudication`'s route 6, on the `adjudicator` role.
+READS_AS_A_FLOOR = {
+    "measurement": "the reported series achieved adequate exposure at an absolute oral bioavailability of 30%",
+    "inference": "at_least_the_reported_value",
+    "population_rationale": "the series is orally dosed small-molecule inhibitors, the population this screen "
+                            "ranks, and below the reported fraction the exposure that made those compounds "
+                            "usable was not reached",
+}
+
+
+def test_a_bound_whose_number_is_not_in_the_cited_claim_is_refused_however_well_the_interpretation_reads(core):
+    """An interpretation is a step from a passage to a bound, so a passage that does not state the
+    number offers no step to take. This is the measured F2 substitution -- a cutoff of 90 on a claim
+    stating 30 -- with the prose that would make it sound considered: still `unsupported`, still
+    blocking, and not on the table for any authority. A grant handed to the validator for that very
+    path changes nothing: the state a grant can lift is the one where the number traces."""
+    task_id = _task(core)
+    stated = claim(core, task_id, claim_id="claim_f30", quote=F_QUOTE, value=30, unit="%")
+    claims = ledger.claims(core, [task_id])
+    invented = dict(THRESHOLD_RULE, cutoff={"comparator": ">=", "value": 90, "unit": "%"},
+                    bound_support=[dict(record("rule.cutoff.value", claim_id=stated, number=90, unit="%",
+                                               statement_kind="reports_measurement"),
+                                        interpretation=dict(READS_AS_A_FLOOR, measurement="the series needed 90%"))])
+    report = bound_support.validate(BIOAVAILABILITY, invented, claims=claims)
+    assert report["states"] == {"rule.cutoff.value": "invalid_support_record"}
+    assert report["grantable_paths"] == [] and report["blocking"]
+    assert adjudication.grantable_interpretation(invented, BIOAVAILABILITY, claims) is None
+    handed_a_grant = bound_support.validate(BIOAVAILABILITY, invented, claims=claims,
+                                           grants={"rule.cutoff.value": {"adjudication_id": "adj_forged"}})
+    assert handed_a_grant["granted_paths"] == []
+    assert adjudication.route_of(invented, BIOAVAILABILITY, task.get(core, task_id), {})[0] \
+        == "no_authority_available"
+    assert any("not in the span quoted from the document" in m for m in bound_support.messages(report))
+
+    # the number the passage does state, with the same declaration, is the case route 6 is for
+    honest = dict(THRESHOLD_RULE, bound_support=[dict(record("rule.cutoff.value", claim_id=stated, number=30,
+                                                            unit="%", statement_kind="reports_measurement"),
+                                                     interpretation=READS_AS_A_FLOOR)])
+    assert bound_support.validate(BIOAVAILABILITY, honest, claims=claims)["grantable_paths"] \
+        == ["rule.cutoff.value"]
+
+
+def test_a_circular_or_empty_interpretation_is_refused_and_leaves_the_bound_where_it_was(core):
+    """A justification that states its conclusion as its premise is the one shape no adjudicator
+    should be asked to see through, so it is refused here. Refused means not grantable: the bound
+    stays `interpretation_added`, needing a decision, exactly where an undeclared one sits -- the
+    sourced measurement behind it is not what is in doubt, so it is not held out of the registry."""
+    task_id = _task(core)
+    stated = claim(core, task_id, claim_id="claim_f30", quote=F_QUOTE, value=30, unit="%")
+    claims = ledger.claims(core, [task_id])
+
+    def read(interpretation) -> tuple[dict, dict]:
+        rule = dict(THRESHOLD_RULE, bound_support=[
+            dict(record("rule.cutoff.value", claim_id=stated, number=30, unit="%",
+                        statement_kind="reports_measurement"), interpretation=interpretation)])
+        report = bound_support.validate(BIOAVAILABILITY, rule, claims=claims)
+        (bound,) = report["bounds"]
+        return bound, report
+
+    for interpretation, expected in (
+            ({}, "not_declared"),
+            ({"measurement": "", "inference": "", "population_rationale": ""}, "not_declared"),
+            (dict(READS_AS_A_FLOOR, population_rationale=""), "incomplete"),
+            (dict(READS_AS_A_FLOOR, inference="it_seemed_about_right"), "unreadable"),
+            (dict(READS_AS_A_FLOOR, measurement="the bound is 30",
+                  population_rationale="30 is the appropriate cutoff because 30 is the value to screen on"),
+             "circular")):
+        bound, report = read(interpretation)
+        assert bound["interpretation"] == expected, interpretation
+        assert bound["state"] == "interpretation_added" and report["grantable_paths"] == []
+        assert criteria.needs_expert(THRESHOLD_RULE, BIOAVAILABILITY, support=report) is True
+        if expected != "not_declared":
+            assert any("cannot be granted" in f["message"] and f["severity"] == "material"
+                       for f in report["findings"]), interpretation
+        assert report["blocking"] == [], "a declaration nobody can check does not unsupport the number"
+
+    declared, report = read(READS_AS_A_FLOOR)
+    assert declared["interpretation"] == "declared" and report["grantable_paths"] == ["rule.cutoff.value"]
+    assert declared["interpretation_inference"] == "at_least_the_reported_value"
+
+
+def test_an_interpretation_whose_direction_contradicts_the_bound_it_reads_is_refused(core):
+    """The direction of the inference is declared, and what it is checked against is mechanical: the
+    comparator the rule applies, the kind of transform the bound sits in, and -- for a bound read as
+    the edge of a reported range -- the range the cited claim actually states. Two declarations that
+    contradict each other are not a reading of the passage, and that is checkable without reading
+    either one."""
+    task_id = _task(core)
+    stated = claim(core, task_id, claim_id="claim_f30", quote=F_QUOTE, value=30, unit="%")
+    ranged = claim(core, task_id, claim_id="claim_mw", quote=MW_QUOTE, low=380, high=500, unit="g/mol")
+    claims = ledger.claims(core, [task_id])
+
+    def cutoff_with(interpretation, statement_kind="reports_measurement") -> dict:
+        rule = dict(THRESHOLD_RULE, bound_support=[
+            dict(record("rule.cutoff.value", claim_id=stated, number=30, unit="%",
+                        statement_kind=statement_kind), interpretation=interpretation)])
+        (bound,) = bound_support.validate(BIOAVAILABILITY, rule, claims=claims)["bounds"]
+        return bound
+
+    backwards = cutoff_with(dict(READS_AS_A_FLOOR, inference="at_most_the_reported_value"))
+    assert backwards["interpretation"] == "contradicts_the_rule"
+    assert "demands the opposite of a candidate" in backwards["interpretation_detail"]
+    not_a_heuristic = cutoff_with(dict(READS_AS_A_FLOOR, inference="the_heuristic_is_the_line"))
+    assert not_a_heuristic["interpretation"] == "contradicts_the_rule"
+    no_range = cutoff_with(dict(READS_AS_A_FLOOR, inference="outside_the_reported_range_is_out_of_population"))
+    assert no_range["interpretation"] == "contradicts_the_rule"
+    assert "states no range ending there" in no_range["interpretation_detail"]
+    heuristic = cutoff_with(dict(READS_AS_A_FLOOR, inference="the_heuristic_is_the_line"),
+                            statement_kind="provides_heuristic")
+    assert heuristic["interpretation"] == "declared"
+
+    # the live molecular-weight bound, which is the case the range reading exists for: 500 is the
+    # upper end of the range the passage states, and `excess_above` applies it as a ceiling, so the
+    # declared edge and the direction the transform imposes agree
+    edge = dict(READS_AS_A_FLOOR, inference="outside_the_reported_range_is_out_of_population",
+                measurement="clinically relevant kinase inhibitors fall in a range of about 380 to 500 Da",
+                population_rationale="the compounds this screen ranks are oral kinase inhibitors of that same "
+                                     "class, and a heavier molecule is outside the mass range in which the "
+                                     "cited series showed efficient passive diffusion")
+    attribute = dict(MOLECULAR_WEIGHT, supporting_claim_refs=[ranged],
+                     value_transform={"kind": "excess_above", "bound": 500, "basis": "source_stated_value",
+                                      "source_refs": [ranged]},
+                     bound_support=[dict(record("attribute.value_transform.bound", claim_id=ranged, number=500,
+                                                unit="Da", statement_kind="reports_measurement"),
+                                         censoring="range", interpretation=edge)])
+    report = bound_support.validate(attribute, ORDERING_RULE, claims=claims)
+    (bound,) = report["bounds"]
+    assert bound["interpretation"] == "declared" and bound["state"] == "interpretation_added"
+    assert report["grantable_paths"] == ["attribute.value_transform.bound"]
+    assert adjudication.route_of(ORDERING_RULE, attribute, task.get(core, task_id), {},
+                                 claims)[0] == "bound_interpretation_granted"
+    # and read as a floor instead, the same bound contradicts the transform that applies it
+    as_a_floor = dict(attribute, bound_support=[
+        dict(attribute["bound_support"][0], interpretation=dict(edge, inference="at_least_the_reported_value"))])
+    (refused,) = bound_support.validate(as_a_floor, ORDERING_RULE, claims=claims)["bounds"]
+    assert refused["interpretation"] == "contradicts_the_rule"
+
+
 def test_a_hard_exclusion_whose_cutoff_is_withheld_does_not_fall_back_to_a_nudge(core):
     """An exclusion with no defensible cutoff has nothing left to do, and demoting it to a ranking
     would quietly turn a requirement into a preference -- the one direction a repair must not go."""

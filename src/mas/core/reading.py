@@ -8,8 +8,11 @@ Every extracted claim must quote one passage verbatim. The quote is checked
 deterministically against the stored passage text before the claim can be
 admitted; a numeric value must appear inside its quote; a candidate-specific
 claim must name the candidate in its quote, or in its passage when the quote names no
-other entity; a document title alone never ties a claim to a candidate. Claims that
-fail a check are quarantined with the reason, never silently dropped.
+other entity; a document title alone never ties a claim to a candidate; and a number
+whose span does not tie it to this candidate and this attribute -- an arm comparison, a
+span carrying someone else's value, a figure tagged to the wrong attribute -- is refused
+(`attribution_problem`). Claims that fail a check are quarantined with the reason, never
+silently dropped.
 """
 
 from __future__ import annotations
@@ -17,9 +20,10 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from collections import Counter
 from typing import Any
 
-from . import ledger
+from . import ledger, vocab
 from .clock import utc_now
 from .journal import actor as make_actor
 from .models import ModelRequest, ModelRoster, call_role
@@ -73,6 +77,213 @@ def names_entity(labels: list[str], *texts: str) -> bool:
     haystack = " ".join(normalize_for_match(t) for t in texts if t)
     return any(len(label) >= 3 and re.search(r"(?<![a-z0-9])" + re.escape(normalize_for_match(label)) + r"(?![a-z0-9])", haystack)
                for label in labels if label)
+
+
+# --- attribution: does this span tie this number to this candidate and this attribute? ----
+#
+# A verified quote says the words are in the source. It does not say the number answers the
+# question. Measured on the real literature path, 14 October 2026: the cell
+# `Incidence of any-grade proteinuria x surufatinib` came back 10.8 citing the span-verified quote
+# "9 [3.2%] vs. 10 [10.8%]" -- 10.8% is the comparator arm and the candidate's figure is 3.2% --
+# and the same cell also cited a quote about hypertension at 38%, tagged to proteinuria. Both
+# quotes passed every check there was, because every check there was is a string check.
+#
+# A missing value is honest and every surface already handles it; a confidently wrong value with a
+# verified quote behind it is the failure this project cannot survive. So these checks refuse
+# rather than guess, and they refuse into `quarantined` with a reason and a note, leaving the claim
+# in the ledger as the record of what was read.
+
+# Comparator cues, matched with boundaries that ignore hyphens so that `placebo-controlled` counts
+# as naming a placebo arm (`controlled` on its own does not: the lookahead stops at its `l`).
+_COMPARISON_CUE = re.compile(
+    r"(?<![a-z0-9])(?:vs\.?|versus|compared (?:with|to)|relative to|than|placebo|controls?|comparator|untreated"
+    r"|reference arm|standard of care|best supportive care)(?![a-z0-9])")
+_ARM_WORD = re.compile(r"(?<![a-z0-9])(?:placebo|controls?|comparator|untreated|reference arm|standard of care"
+                       r"|best supportive care)(?![a-z0-9])")
+# Clause boundaries: a span's number belongs to the clause it sits in, and these are the words and
+# marks that end one. Two tiers, because brackets cut both ways. A comparison word or a table
+# cell boundary ends a clause wherever it appears, including inside a bracket -- which is where
+# the measured arm comparison lives: "proteinuria (9 [3.2%] vs. 10 [10.8%], P = 0.010)". A comma or
+# an `and` ends one only outside brackets, because a figure's own bracket ("proteinuria (12,
+# 13.5%)") holds its count and its percentage and splitting there takes the endpoint's name away
+# from its number.
+_SPLIT_ANYWHERE = re.compile(r"(?<![a-z0-9])(?:vs\.?|versus|compared with|compared to|relative to|than)"
+                             r"(?![a-z0-9])|[;|]")
+_SPLIT_OUTSIDE_BRACKETS = re.compile(r"(?<![a-z0-9])(?:and|whereas|while)(?![a-z0-9])|[:,]")
+_BRACKETED_PERCENT = re.compile(r"[\[(]\s*-?\d+(?:\.\d+)?\s*%")
+# Words that measure rather than name a subject: dropping them is what lets "Incidence of
+# any-grade proteinuria" and "Incidence of grade 3 or higher proteinuria" be told apart by
+# `any-grade` versus `grade`, instead of both looking like "incidence".
+_NOT_A_SUBJECT = frozenset({
+    "incidence", "reported", "median", "mean", "average", "rate", "ratio", "time", "number", "percentage",
+    "percent", "proportion", "patients", "patient", "humans", "human", "subjects", "study", "studies",
+    "value", "values", "level", "levels", "dose", "doses", "dosing", "treatment", "treated", "repeated",
+    "total", "overall", "observed", "higher", "lower", "greater", "maximum", "minimum", "with", "from",
+    "after", "under", "over", "than", "that", "this", "which", "when", "their", "these", "those", "more",
+    "less", "most", "least", "both", "each", "same", "such", "also", "into", "upon", "only", "very",
+})
+
+
+def _said(terms: list[str], text: str) -> list[str]:
+    """Which of `terms` the text names, matched on the word's stem.
+
+    A stem rather than the word, because a registry writes "Treatment discontinuation rate" and a
+    paper writes "5 patients discontinued", "Proportion requiring a dose reduction" against "dose
+    reductions have been reported", "predominant excretory route" against "fecal excretion
+    predominated". Measured over the real run's 253 admitted claims, exact-word matching read all
+    three of those as the attribute's subject being absent. Hyphens are boundaries, so `grade` is
+    not found inside `any-grade` -- which is what tells an any-grade incidence from a grade-3 one.
+    """
+    haystack = normalize_for_match(text)
+    said = []
+    for term in terms:
+        stem = term[:max(5, len(term) - 4)]
+        if re.search(r"(?<![a-z0-9-])" + re.escape(stem) + r"[a-z]*(?![a-z0-9-])", haystack):
+            said.append(term)
+    return said
+
+
+def subject_terms(attribute_name: str, sibling_names: list[str]) -> tuple[list[str], dict[str, list[str]]]:
+    """The subject words that tell one attribute apart from the others read in the same extraction.
+
+    A token two attributes share distinguishes nothing -- `oral` is in both "Reported oral
+    bioavailability in humans" and "Time to steady state on repeated oral dosing" -- so only
+    tokens belonging to exactly one of the names are kept. Returns this attribute's terms and, per
+    other attribute, that one's, because what makes a span another attribute's is how much of that
+    attribute's subject it names, not that one incidental word of it appears.
+    """
+    names = list(dict.fromkeys([attribute_name, *sibling_names]))
+    tokens = {}
+    for name in names:
+        words = {t.strip("-") for t in re.findall(r"[a-z][a-z-]{3,}", normalize_for_match(name))}
+        tokens[name] = {t for t in words if len(t) >= 4 and t not in _NOT_A_SUBJECT}
+    counts = Counter(token for words in tokens.values() for token in words)
+    distinctive = {token for token, n in counts.items() if n == 1}
+    own = sorted(tokens.get(attribute_name, set()) & distinctive)
+    others = {name: sorted(words & distinctive) for name, words in tokens.items() if name != attribute_name}
+    return own, {name: terms for name, terms in others.items() if terms}
+
+
+def value_like_numbers(span: str, unit: str | None) -> list[float]:
+    """Numbers in the span that could be read as a value of this attribute.
+
+    A number carrying a percent sign, or the attribute's own unit word, or sitting in brackets --
+    the three forms a reported figure takes. Deliberately not every number: "grade 3", "study A1"
+    and "9 patients" are not candidate values, and counting them would refuse almost every real
+    span rather than the ambiguous ones.
+    """
+    text = normalize_for_match(span)
+    unit_text = normalize_for_match(unit or "")
+    unit_word = "%" if unit_text.startswith("%") else re.split(r"[\s/]", unit_text)[0]
+    out = []
+    for match in re.finditer(r"(?<![\w.])(-?\d+(?:\.\d+)?)", text):
+        tail = text[match.end():match.end() + 16].lstrip()
+        opener = text[match.start() - 1] if match.start() else ""
+        if tail.startswith("%") or (unit_word and len(unit_word) > 1 and tail.startswith(unit_word)) \
+                or opener in "([{":
+            out.append(float(match.group(1)))
+    return out
+
+
+def _clauses(span: str) -> list[str]:
+    """The span's clauses: comparison words and cell boundaries cut anywhere, commas only outside
+    brackets (see `_SPLIT_ANYWHERE` / `_SPLIT_OUTSIDE_BRACKETS`)."""
+    text = normalize_for_match(span)
+    out, depth, start, index = [], 0, 0, 0
+    while index < len(text):
+        character = text[index]
+        if character in "([{":
+            depth += 1
+        elif character in ")]}":
+            depth = max(0, depth - 1)
+        match = _SPLIT_ANYWHERE.match(text, index)
+        if match is None and depth == 0:
+            match = _SPLIT_OUTSIDE_BRACKETS.match(text, index)
+        if match and match.end() > index:
+            out.append(text[start:index])
+            start = index = match.end()
+            continue
+        index += 1
+    out.append(text[start:])
+    return [clause.strip() for clause in out if clause.strip()]
+
+
+def _clause_with(span: str, value: float) -> str:
+    """The clause of the span that carries `value`, or the whole span if none does on its own."""
+    for clause in _clauses(span):
+        if value_in_quote(value, clause):
+            return clause
+    return span
+
+
+def attribution_problem(item: dict[str, Any], *, labels: list[str], attribute_name: str | None,
+                        sibling_names: list[str], unit: str | None) -> dict[str, Any] | None:
+    """Why this numeric claim's span does not pin its number to this candidate and this attribute.
+
+    Returns the failing check and a note a reviewer can read, or None when the span does pin it.
+    Three checks, in the order they catch the measured failures:
+
+    1. the span's subject is another attribute's (a hypertension figure tagged to proteinuria);
+    2. the span compares arms -- `vs`, `versus`, `compared with`, a placebo or control arm, or two
+       bracketed percentages -- and the clause carrying the number does not tie it to the candidate;
+    3. the span carries a second value of this attribute's kind, so which one is meant is a guess.
+
+    Check 1 fires on a *competing* subject, never on the absence of its own: the measured
+    surufatinib bioavailability claim is "the serum level of the original drug is about 40.3%",
+    which names no attribute at all and is the observation the whole repair exists to recover. It
+    also asks for enough of the other attribute's subject to mean it -- every distinctive word of
+    a one-word subject (`hypertension`, `bioavailability`), two of a longer one -- because over the
+    measured 253 claims a single shared word ("drug", "serum") refused four true observations,
+    that one among them. And it looks for the competing subject in the *clause carrying the
+    number*, while its own subject counts anywhere in the span: "grade 3 or 4 TRAEs occurred in
+    23.5% of patients, primarily driven by hypertension (16.2%)" is a TRAE rate with two endpoint
+    names after it, not a hypertension figure.
+    """
+    numbers = [float(item[key]) for key in ("value", "value_low", "value_high") if item.get(key) is not None]
+    if not numbers:
+        return None                       # a claim with no number has no number to misattribute
+    span = item.get("quoted_span") or ""
+    own_terms, by_sibling = subject_terms(attribute_name, sibling_names) if attribute_name else ([], {})
+    clause = _clause_with(span, numbers[0])
+    said_others: list[str] = []
+    for terms in by_sibling.values():
+        hits = _said(terms, clause)
+        if len(hits) >= min(2, len(terms)):        # enough of that attribute's subject to be about it
+            said_others += [t for t in hits if t not in said_others]
+    said_others.sort()
+    if said_others and not _said(own_terms, span):
+        return {"rule": "attribute_subject_mismatch", "numbers": numbers, "clause": clause,
+                "note": f"the clause carrying {numbers[0]} ({clause!r}) is about {', '.join(said_others)}, which is "
+                        f"another attribute read from the same document, and the span names none of this "
+                        f"attribute's own subject words ({', '.join(own_terms) or 'it has none that are distinctive'})"}
+    value_like = value_like_numbers(span, unit)
+    competing = sorted({n for n in value_like if n not in numbers})
+    comparison = bool(_COMPARISON_CUE.search(normalize_for_match(span)))
+    crowded = bool(competing) or len(_BRACKETED_PERCENT.findall(span)) >= 2
+    if not comparison and not crowded:
+        return None
+    if said_others or _ARM_WORD.search(clause):
+        clean = False                     # the clause carrying the number names someone else's subject or arm
+    elif comparison:
+        # WHY a comparator cue demands the candidate's own name and not just the attribute's: the
+        # other arm's figure is an attribute value too, so naming the attribute distinguishes
+        # nothing. On "9 [3.2%] vs. 10 [10.8%]" both numbers are proteinuria incidences and only
+        # 3.2% is the candidate's -- a span that says which is which says the candidate's name.
+        clean = names_entity(labels, clause)
+    else:
+        # Several figures and no comparator: the usual shape is several endpoints of one arm, where
+        # the endpoint's own name is what picks the number out ("proteinuria in 9 (3.2%), and
+        # hypertension in 10 (10.8%)").
+        clean = names_entity(labels, clause) or bool(_said(own_terms, clause))
+    if clean:
+        return None
+    if comparison:
+        return {"rule": "arm_comparison", "numbers": numbers, "clause": clause,
+                "note": f"the span compares arms, and the clause carrying {numbers[0]} ({clause!r}) does not name "
+                        f"{labels[0] if labels else 'this candidate'}, so which arm the number belongs to is a guess"}
+    return {"rule": "competing_values", "numbers": numbers, "clause": clause,
+            "note": f"the span reports {sorted(set(value_like))} and the clause carrying {numbers[0]} ({clause!r}) "
+                    f"does not say that this number, rather than the others, is the one asked for"}
 
 
 # --- case-source exclusion ------------------------------------------------------------
@@ -448,6 +659,10 @@ def extract_claims(core: Core, roster: ModelRoster, stream_id: str, document: di
     reader = make_actor("agent", f"reader:{response.model_id}", "reader")
     candidate = question.get("candidate")
     attribute = question.get("attribute")
+    # The attributes this extraction was asked about, by name: what an extracted number may be
+    # checked against, and what the *other* attributes of the same read are called -- which is how
+    # a hypertension figure tagged to proteinuria is recognized as mis-tagged.
+    offered = {a["name"]: a for a in (question.get("attributes") or ([attribute] if attribute else []))}
     source_status = ("preprint" if document.get("source_hit", {}).get("is_preprint")
                      else document.get("evidence_kind", "peer_reviewed"))
     recorded = []
@@ -466,6 +681,7 @@ def extract_claims(core: Core, roster: ModelRoster, stream_id: str, document: di
                 reasons.append("value_in_quote")
             else:
                 problems.append("value_not_in_quote")
+        attribution = None
         if candidate:
             labels = candidate["labels"]
             others = [e for e in item.get("entities", []) if e and not names_entity(labels, e)]
@@ -475,6 +691,12 @@ def extract_claims(core: Core, roster: ModelRoster, stream_id: str, document: di
                 reasons.append("candidate_named_in_passage")
             else:
                 problems.append("candidate_not_named_in_source")
+            name = item.get("attribute_name") if attribute_refs else (attribute or {}).get("name")
+            attribution = attribution_problem(item, labels=labels, attribute_name=name,
+                                              sibling_names=[n for n in offered if n != name],
+                                              unit=(offered.get(name) or {}).get("unit"))
+            if attribution:
+                problems.append("attribution_ambiguous")
         claim = {
             "source_ref": document["source_id"], "document_artifact_id": document["document_artifact_id"],
             "location": {"location_kind": passage["kind"] if passage else "paragraph", "locator_value": item["passage_id"],
@@ -493,9 +715,13 @@ def extract_claims(core: Core, roster: ModelRoster, stream_id: str, document: di
             "attribute_ref": attribute_refs.get(item.get("attribute_name")) if attribute_refs
             else attribute.get("ref") if attribute else None,
             "question_purpose": question.get("purpose"),
+            # Which attribution check refused the number, and why in words: `attribution_ambiguous`
+            # says a claim was set aside, this says what a reviewer would have to disagree with.
+            "attribution_check": attribution,
         }
         state = "admitted" if admit and not problems else "quarantined"
+        admission_reasons = [vocab.require("literature_admission_reason", r) for r in reasons + problems]
         claim_id = ledger.record_claim(core, stream_id, claim, by=reader, admission_state=state,
-                                       admission_reasons=reasons + problems, ids=ids)
-        recorded.append(dict(claim, claim_id=claim_id, admission_state=state, admission_reasons=reasons + problems))
+                                       admission_reasons=admission_reasons, ids=ids)
+        recorded.append(dict(claim, claim_id=claim_id, admission_state=state, admission_reasons=admission_reasons))
     return recorded
