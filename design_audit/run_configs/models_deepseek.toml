@@ -1,0 +1,61 @@
+# Round 2 of the manuscript case: every role rebound to DeepSeek, same settings as round 1.
+#
+# Two adapters over one model, because reasoning mode is not interchangeable between roles
+# (ADR-46, measured 13 October 2026):
+#
+#   deepseek_reasoning   proposer, adjudicator - reasoning on, so the provider ignores temperature
+#   deepseek_exact       reader, extractor, assessor, critic recheck - reasoning disabled, which
+#                        is what makes temperature = 0 real: two identical extraction calls came
+#                        back byte-identical, while with reasoning on they differed and one spent
+#                        the entire completion allowance before writing any answer
+#
+# The key is read from the file at call time and never recorded (ADR-40). Prices are the peak
+# published rates, used deliberately: a cost estimate should not flatter itself with a cache
+# discount the run may not get.
+#
+# WHY the id is `deepseek-v4-flash` with no `[1m]` suffix: measured against the live API on
+# 2026-10-14. /v1/models advertises only `deepseek-flash` and `deepseek-v4-pro`, but
+# `deepseek-v4-flash` is accepted and the response reports `model: deepseek-flash`, so it is an
+# alias for the same model. Every spelling carrying a `[1m]` context suffix is refused outright --
+# `deepseek-v4-flash[1m]`, `deepseekv4.1-flash[1m]` and `deepseek-flash[1m]` each came back
+# HTTP 400 "The supported API model names are deepseek-flash, deepseek-v4-pro" -- and a beta
+# context header does not unlock it either. The suffix is therefore not requestable here.
+
+[providers.deepseek_reasoning]
+kind = "openai_compatible"
+base_url = "https://api.deepseek.com"
+model = "deepseek-v4-flash"
+api_key_file = "<path to a file containing only your DeepSeek API key>"
+provider_family = "deepseek"
+thinking = true
+price_input_per_mtok = 0.30
+price_output_per_mtok = 1.20
+
+[providers.deepseek_exact]
+kind = "openai_compatible"
+base_url = "https://api.deepseek.com"
+model = "deepseek-v4-flash"
+api_key_file = "<path to a file containing only your DeepSeek API key>"
+provider_family = "deepseek"
+thinking = false
+price_input_per_mtok = 0.30
+price_output_per_mtok = 1.20
+
+[roles]
+retriever = "deepseek_exact"
+reader = "deepseek_exact"
+summarizer = "deepseek_exact"
+proposer = "deepseek_reasoning"
+critic = "deepseek_exact"
+adjudicator = "deepseek_reasoning"
+
+# Committed so the run is reproducible: the live roster lives in `var/primary/store/`, which is
+# git-ignored, so a checkout had the derivation's model bindings nowhere. Point `api_key_file` at a
+# file holding only the key -- it is read at call time and never written into any record (ADR-40),
+# which is why the path and not the key itself is configuration.
+#
+# Used for the clean derivation of task_01M4X892V1EAER2GHWE1RE19ZN:
+#   mas --store var/primary/store --models <this file> \
+#       --set budget.usd_max=500 --set budget.on_exhaust=warn_continue \
+#       --set criteria.inner_iterations=3 \
+#       criteria derive <task> --max-documents 6
