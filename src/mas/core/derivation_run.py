@@ -67,6 +67,47 @@ def _binding_of(core: Core, run_id: str) -> dict[str, Any]:
     return core.artifacts.payload(core.journal.replay(run_id, 1, 1)[0].payload["binding_artifact_id"])
 
 
+def _inherited_claims_by_dimension(core: Core, parent_runs: list[str],
+                                   dimensions: list[dict[str, str]]) -> dict[str, list[dict[str, Any]]]:
+    """The chain's admitted claims, grouped by the dimension each was read for.
+
+    A round reads one dimension at a time and opens each dimension's reading with its
+    `plan queries: <focus>` calls, so a claim's `recorded_at` places it in the span the round was
+    reading for one dimension; the grouping is the one the round itself would have built had it
+    reached its proposal pass.
+
+    WHY grouped rather than handed to every dimension whole -- operator instruction to finish
+    quickly, 15 October 2026: the inherited set measured 2,234 claims (round 5's 1,771 and round
+    6's 463), and offering all of it to all four dimensions cost 24 proposer calls where the
+    grouping costs 8, most of the difference being round 5's 1,489 target-coverage claims. A claim
+    whose time falls in no span is offered to every dimension: dropping it would be the worse
+    error, and a round that never opened a dimension has no span to place its claims in.
+    """
+    by_focus = {d["focus"]: d["dimension"] for d in dimensions}
+    grouped: dict[str, list[dict[str, Any]]] = {d["dimension"]: [] for d in dimensions}
+    unplaced: list[dict[str, Any]] = []
+    for run_id in parent_runs:
+        marks: list[tuple[str, str]] = []
+        for event in core.journal.replay(run_id):
+            question = event.question or ""
+            if not question.startswith("plan queries: "):
+                continue
+            rest = question[len("plan queries: "):]
+            dimension = next((name for focus, name in by_focus.items() if rest.startswith(focus)), None)
+            if dimension and (not marks or marks[-1][0] != dimension):
+                marks.append((dimension, event.recorded_at))
+        spans = [(dimension, start, marks[index + 1][1] if index + 1 < len(marks) else None)
+                 for index, (dimension, start) in enumerate(marks)]
+        for claim in ledger.claims(core, [run_id]):
+            at = claim.get("recorded_at") or ""
+            placed = next((dimension for dimension, start, end in spans
+                           if start <= at and (end is None or at < end)), None)
+            (grouped[placed] if placed else unplaced).append(claim)
+    for claims in grouped.values():
+        claims.extend(unplaced)
+    return grouped
+
+
 def _stage_recorder(core: Core, task_id: str, run_id: str, ids: dict[str, Any]):
     """A `stage(name, iteration, fn)` that records the pool hash either side of a stage.
 
@@ -323,20 +364,17 @@ def derive_iterative(core: Core, broker, roster: ModelRoster, task_id: str, *, d
         # The chain's admitted claims are also proposed *from*, not only cited: a round may follow one
         # that read a hundred and seventy-nine documents and never reached its own proposal pass
         # (round 5 died waiting on an unavailable provider, 15 October 2026), and the operator
-        # instructed that the new round carry that reading rather than re-buy it. The claims are not
-        # dimension-tagged -- one document's reading covers every dimension -- so each dimension's
-        # pass sees the same inherited set and its own fresh enumeration's claims, with the dimension
-        # focus carried by the prompt and mis-fits pruned by filter and distill. The stage record
-        # keeps the counts, so what was inherited is readable from the run, not inferred.
-        own_ids = {c["claim_id"] for e in enumerations for c in e["claims"]}
-        inherited = [c for c in claims.values() if c.get("admission_state") == "admitted"
-                     and c["claim_id"] not in own_ids]
+        # instructed that the new round carry that reading rather than re-buy it. The inherited set is
+        # grouped by the dimension the earlier round was reading for, not handed to every dimension
+        # whole; `_inherited_claims_by_dimension` says why and how. The stage record keeps the counts,
+        # so what was inherited is readable from the run, not inferred.
+        inherited = _inherited_claims_by_dimension(core, parents, dimensions)
         ctx = _stage_context(core, roster, task_id, run_id, context=context, catalog=catalog, claims=claims,
                              budget=budget, max_refines=max_refines)
         record["proposed"] = {}
         for enumeration, dimension in zip(enumerations, dimensions):
             own = [c for c in enumeration["claims"] if c.get("admission_state") == "admitted"]
-            dim_claims = own + inherited
+            dim_claims = own + inherited[dimension["dimension"]]
             ctx.pool.at("propose", 0)
             record["proposed"][dimension["dimension"]] = stage(
                 f"propose:{dimension['dimension']}", 0, lambda d=dimension, cl=dim_claims: stages.propose(ctx, d, cl))
