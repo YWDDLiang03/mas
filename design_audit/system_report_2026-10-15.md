@@ -18,6 +18,45 @@ rank among rankable candidates on one named primary board **under the frozen sco
 with eligibility reported separately. A frozen rule set already exists (`rules@v1`, confirmed
 2026-10-14 20:58:43) with its preregistration.
 
+## 0. The goal, the wanted result, and every known problem (owner's request, one place)
+
+**The final goal** (ADR-32, the owner's restatement of 13 Oct 2026) is two one-shot readings,
+produced on the frozen policy and reported with their limitations:
+
+- **A — the reference compound's rank** among rankable candidates on the named primary board under
+  the frozen scoring policy. Target: **top 5**; eligibility reported separately, never folded into
+  the rank (the registration's own rule). Baseline for comparison: **#4 of 95** on the Oct-14 board
+  (different task, pre-repair criteria, no freeze) — a result the owner is satisfied with but that
+  is not an acceptance reading.
+- **B — CQA recovery**: how many of the sealed eleven historical criteria the derived set recovers,
+  "similar items counting". The intake exists (opened once, 14 Oct 22:50); the report is produced
+  by an isolated evaluator's mapping.
+
+**The wanted result, in the owner's terms:** inherit everything the store already holds (no
+re-derivation, **no literature crawling**), and reach a satisfactory, reproducible pair of readings
+by the shortest path. The recipes are in `design_audit/HANDOFF_2026-10-15.md` §3; the criterion for
+"satisfactory" and the honest limits of what can be promised are in its §4.
+
+**Every known problem, classified** (detail in `HANDOFF_2026-10-15.md` §5; process lessons in §3b
+below):
+
+| # | problem | class |
+|---|---|---|
+| 1 | No measurement-profile step; policy set during runs (the `--coverage-floor` default became policy on 15 Oct) | measurement |
+| 2 | Coverage floor is composition-dependent and was saturated by the 12 predicted rules; repair = stratify by `determination_basis` | measurement |
+| 3 | The two consolidated paper-shaped criteria (weakest-receptor; worst-toxicity-burden) are pending/disputed, not scoring | measurement |
+| 4 | 56 review items queued, 25 disputes open, 0 expert decisions | measurement |
+| 5 | The literature pass has never run; 41 registered rules deferred; the reference compound's CSF1R cell lives there | measurement |
+| 6 | Store grew to 4.5 GB; host hit 100 % disk (50 GB expansion applied) and memory exhaustion (284 MB free, 5.3 GB swap) | operations |
+| 7 | sqlite reads time out under sweep write load; use `timeout` and the read-only workbench | operations |
+| 8 | Killing a run requires killing the real python pid, not the shell wrapper | operations |
+| 9 | No watchdog on an outside servicer — a dead session idled the pipeline 5.5 h unnoticed | operations |
+| 10 | DeepSeek stalls intermittently mid-body; roster timeouts tightened to 120 s / 600 s | operations |
+| 11 | The old serving session is unrecoverable (422); the account needs `claude.ai/restricted` | administration |
+| 12 | `mas_audit.md` announces a sealed Section 6 that is absent | administration |
+| 13 | The pre-15-Oct merge schema-refusal failure mode was never root-caused (six consolidations succeeded on 15 Oct) | measurement |
+| 14 | Export label `historical_baseline_pre_repair` is applied cosmetically — not a data-quality statement | administration |
+
 ## 1. Where tonight's run stands
 
 **Round 10** (`run_01M4ZJZJM6NADXR9MPJN479F43`, continuing the chain from round 9, DeepSeek roster,
