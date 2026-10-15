@@ -59,6 +59,7 @@ below):
 | 8 | Killing a run requires killing the real python pid, not the shell wrapper | operations |
 | 9 | No watchdog on an outside servicer — a dead session idled the pipeline 5.5 h unnoticed | operations |
 | 10 | DeepSeek stalls intermittently mid-body; roster timeouts tightened to 120 s / 600 s | operations |
+| 10b | Throughput ceiling, measured 15 Oct: the per-host politeness throttle (`literature/http.py`, PubChem 0.25 s/request) holds **one lock across all threads and sleeps inside it**, so a sweep cannot exceed ~4 req/s to PubChem no matter how many workers; a measured-only sweep runs at ~120–360 cells/min. `assess.workers` beyond a handful changes little. Raising the interval means leaning on a public service — the honest fix is fewer cells or a cached, once-per-compound fetch, not more workers. | operations |
 | 11 | The old serving session is unrecoverable (422); the account needs `claude.ai/restricted` | administration |
 | 12 | `mas_audit.md` announces a sealed Section 6 that is absent | administration |
 | 13 | The pre-15-Oct merge schema-refusal failure mode was never root-caused (six consolidations succeeded on 15 Oct) | measurement |
