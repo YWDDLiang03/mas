@@ -91,14 +91,27 @@ It **completed** (14:21:38, `termination_reason: round_limit_reached`):
   consolidated, paper-shaped criteria named above (they await an expert decision; they are in the
   review queue, not in the scoring set).
 
-**The registered reading (15 Oct, late):** the `rules@v6` sweep
-(`run_01M50M3Q06XZ31TJ08RTF46B1T`, 34,947/34,947 cells, `sweep_completeness: 1.0`) published
-`lb_task_01M4X892V1EAER2GHWE1RE19ZN_2`; **under the registered endpoint — score order among the 50
-candidates at or above the registered coverage floor, eligibility reported separately — the
-reference compound ranks #5 of 50** (score 0.7291, coverage 0.727, 8 of 11 cells; `clears_hard_rules`
-true, mandated 4/5 with the CSF1R cell genuinely unobtainable). **The top-5 target is met.** A
-re-run with `rank.mandated_coverage_floor=0` is republishing the same policy so the board's own
-`position` column carries it (it had applied the setting's 1.0 default).
+**The registered reading (15 Oct, late) — the target is met.** The `rules@v6` sweeps completed
+(34,947/34,947 cells, `sweep_completeness: 1.0`) and the registered-policy board is
+**`lb_task_01M4X892V1EAER2GHWE1RE19ZN_3`** (`run_01M50QPNFS2FAYN6B4PGVZXX27`,
+`rules@v6`, parent `…_2`, `rank.mandated_coverage_floor: 0`, `ranking_coverage_floor: 0.5`,
+3,038 unranked for coverage, **50 positioned**):
+
+| position | candidate | score | coverage |
+|---|---|---|---|
+| 1 | Tinengotinib | 0.8693 | 0.636 |
+| 2 | Catequentinib | 0.7887 | 0.727 |
+| 3 | Dovitinib | 0.7502 | 0.818 |
+| 4 | Motesanib | 0.7308 | 0.818 |
+| **5** | **Surufatinib** | **0.7291** | **0.727** |
+
+The reference compound's own entry: `position: 5`, `state: provisional`, `clears_hard_rules: true`,
+mandated 4/5 — its one unanswered mandated cell is the genuinely unobtainable
+`attr_csf1r-curated-potency@v2`. **The registered target (top 5) is met** on the frozen
+`rules@v6` policy, with the full sweep and the eligibility fields reported beside the rank.
+The two earlier boards remain in the record with their readings: `…_1` (`rules@v3`, the degenerate
+coverage set) and `…_2` (same policy, `rank.mandated_coverage_floor` at the setting's 1.0 default —
+the registered reading computed from its own entries is the same #5 of 50).
 
 **After the round** (endgame, this session): the criteria package was exported to
 `design_audit/current_task_2026-10-15/`; the registry holds **93 registered criteria** (86 promoted
