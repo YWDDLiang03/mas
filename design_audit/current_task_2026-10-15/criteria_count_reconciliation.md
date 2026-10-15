@@ -1,6 +1,6 @@
 # Criteria count reconciliation
 
-Measured from `task_01M4X892V1EAER2GHWE1RE19ZN` at journal sequence 1449; the same snapshot as `derived_criteria_review.json`. The project has quoted several different criteria counts. They differ because they count different populations at different versions, not because any of them is wrong.
+Measured from `task_01M4X892V1EAER2GHWE1RE19ZN` at journal sequence 1452; the same snapshot as `derived_criteria_review.json`. The project has quoted several different criteria counts. They differ because they count different populations at different versions, not because any of them is wrong.
 
 ## The numbers, each with its population
 
@@ -11,9 +11,9 @@ Measured from `task_01M4X892V1EAER2GHWE1RE19ZN` at journal sequence 1449; the sa
 | 40 registered criteria | 93 | distinct attribute ids in the registry, each with one rule id | the registry, all origins |
 | 13 scoring rules on the published board | 9 | entries in `rules@v1` | the first confirmed rule set |
 | 8 scoring rules in an offline experiment | not a rule set in this store | the 13 minus the five duplicate IUPHAR rules | an offline recomputation; it was never confirmed, so no `rules@v` holds it |
-| 9 scoring rules in `rules@v1` | 9 | entries in the latest confirmed set | after the collapse and one machine adjudication |
-| 26 deferred literature criteria | 41 | registered rules whose capability `literature_retrieval` was held out of the run | every confirmed set so far |
-| 5 collapsed away | 0 | registered rules whose attribute a collapse merged away | `rules@v1` |
+| 9 scoring rules in `rules@v3` | 19 | entries in the latest confirmed set | after the collapse and one machine adjudication |
+| 26 deferred literature criteria | 67 | registered rules whose capability `literature_retrieval` was held out of the run | every confirmed set so far |
+| 5 collapsed away | 0 | registered rules whose attribute a collapse merged away | `rules@v3` |
 
 ## Why 34 and 40 differ
 
@@ -28,10 +28,14 @@ Every confirmed set draws on the same 93 registered rules and differs only in ho
 | rule set | scoring | pending | deferred | collapsed away | adds up to |
 |---|---|---|---|---|---|
 | `rules@v1` | 9 | 38 | 41 | 0 | 50 of 93 |
+| `rules@v2` | 54 | 56 | 0 | 0 | 54 of 93 |
+| `rules@v3` | 19 | 56 | 67 | 0 | 86 of 93 |
+
+5 of the 19 scoring rules of `rules@v3` score on part of their declared evidence: a capability this run held out (literature_retrieval) removes one or more of their routes and the rest are asked. They appear in `deferred[]` with `scope: route` and are counted once above, under scoring, never under deferred.
 
 `rules@v1`: 9 scoring plus 41 deferred accounts for 50 of 93. The remainder is the oral-route hard exclusion, which the trigger table gates and which had no decision at that point, so it entered neither list.
 
-`rules@v1`: 9 scoring plus 41 deferred plus 0 collapsed away accounts for all 93. Relative to `rules@v1` it loses the five IUPHAR duplicates, whose attributes a collapse merged into the receptor attributes they duplicated, and gains the oral-route hard exclusion, which a machine adjudication resolved by restating the task's own constraint.
+`rules@v3`: 19 scoring plus 67 deferred plus 0 collapsed away accounts for all 93. Relative to `rules@v1` it loses the five IUPHAR duplicates, whose attributes a collapse merged into the receptor attributes they duplicated, and gains the oral-route hard exclusion, which a machine adjudication resolved by restating the task's own constraint.
 
 The offline 8 sits between the two: it is the 13 with the five duplicates deleted rather than merged, and without the oral-route rule. Deleting an independent curation is not the path the store took; merging it into the quantity it duplicates is.
 

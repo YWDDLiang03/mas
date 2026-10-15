@@ -1,7 +1,18 @@
 {
  "baseline_label": "historical_baseline_pre_repair",
  "baseline_statement": "Pre-repair historical baseline. These records are exported unchanged from the live store. They are the output of a derivation whose merge stage performed zero merges across every round, whose proposer/critic debate deferred its disagreements to the review queue rather than settling them, and whose open disputes are still open. No criterion was improved, corrected or tidied during export; corrected records belong to a later version published with a diff.",
- "board": null,
+ "board": {
+  "artifact_sha256": "8d7c986c2211addbde43a37ea4c185d0149d69052f99a2f53376e3fec2ef55d6",
+  "candidates_assessed": 3177,
+  "candidates_ranked": 16,
+  "evidence_snapshot_id": "evs_task_01M4X892V1EAER2GHWE1RE19ZN_1",
+  "leaderboard_id": "lbd_task_01M4X892V1EAER2GHWE1RE19ZN_1",
+  "published_at": "2026-10-15T19:06:01.090Z",
+  "round_id": "round_run_01M506J2Q5GK32R0GQ7R035M90_1",
+  "rule_set_ref": "rules@v3",
+  "run_id": "run_01M506J2Q5GK32R0GQ7R035M90",
+  "snapshot_id": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1"
+ },
  "counts": {
   "bounds": {
    "counts": "registered criteria carrying a numeric bound whose basis is a cited claim, a bound restating a task constraint, and no bound at all",
@@ -28,7 +39,7 @@
   },
   "deferred_now": {
    "counts": "registered rules held out of the latest set entirely, because every evidence route they declare needs a capability that was not run",
-   "value": 41
+   "value": 67
   },
   "expert_decisions": {
    "counts": "`hd_` records; an expert decision needs a person at a terminal",
@@ -97,15 +108,33 @@
     "rule_set_ref": "rules@v1",
     "scoring": 9,
     "scoring_with_a_route_held_out": 0
+   },
+   {
+    "acceptance_label": "exploratory",
+    "collapsed_away": 0,
+    "deferred": 0,
+    "pending": 56,
+    "rule_set_ref": "rules@v2",
+    "scoring": 54,
+    "scoring_with_a_route_held_out": 0
+   },
+   {
+    "acceptance_label": "exploratory",
+    "collapsed_away": 0,
+    "deferred": 67,
+    "pending": 56,
+    "rule_set_ref": "rules@v3",
+    "scoring": 19,
+    "scoring_with_a_route_held_out": 5
    }
   ],
   "scoring_now": {
-   "counts": "rules in rules@v1, the latest confirmed set",
-   "value": 9
+   "counts": "rules in rules@v3, the latest confirmed set",
+   "value": 19
   },
   "scoring_with_a_route_held_out_now": {
    "counts": "rules in the latest set that score on some of their evidence routes while others are held out of this run; they are counted in `scoring_now`, never in `deferred_now`",
-   "value": 0
+   "value": 5
   },
   "unresolved_disputes": {
    "counts": "open review items raised because a proposer and a critic still disagreed after one revision",
@@ -114,7 +143,7 @@
  },
  "export_kind": "historical_baseline",
  "export_metadata": {
-  "exported_at": "2026-10-15T14:22:28.995Z",
+  "exported_at": "2026-10-15T19:17:56.054Z",
   "exported_by": {
    "id": "yiwei3_duke",
    "identity_basis": "recorded_attestation",
@@ -129,31 +158,31 @@
  },
  "file_digests": {
   "criteria_count_reconciliation.md": {
-   "bytes": 4075,
-   "sha256": "d75412ed620477e82d6f060b3ea0dd4b38833caaf01fd835ce1a28fe149e94b0"
+   "bytes": 4476,
+   "sha256": "e638210f9f3946058035a31fd55ede07f39d9d6f5fefd0ea7b4918b2520825b8"
   },
   "derived_criteria_review.json": {
-   "bytes": 2678122,
-   "sha256": "2e3b2d21feddbd4305bf5d8b5206f4a9f8efeefb0a2d8dfd6692ae33769d8858"
+   "bytes": 2826570,
+   "sha256": "81673823766f463fc7640fbecccc964563b625219ada0236020dfff3953f5a63"
   },
   "derived_criteria_review.md": {
-   "bytes": 1682170,
-   "sha256": "6fe965aabfa454efc774b69416935536b1fbca9ca4cdef31d72126e6cec0f901"
+   "bytes": 1708575,
+   "sha256": "56dc2deae77e28955f4d37ec847f0f1e17f68ba5d945f1a1c847bfbc191491a5"
   }
  },
  "implementation": {
-  "code_commit": "d0da99ad2a92f762ac5603c8b1bdcd148812f3c6",
+  "code_commit": "ec600e5fd5849918fc38a697ca69dee8bb2c9413",
   "package_version": "0.1.0",
   "uncommitted_changes": false
  },
  "journal_position": {
-  "pinned_seq": 1449,
+  "pinned_seq": 1452,
   "task_stream": "task_01M4X892V1EAER2GHWE1RE19ZN"
  },
- "latest_rule_set_ref": "rules@v1",
+ "latest_rule_set_ref": "rules@v3",
  "payload_digest": {
   "over": "the canonical snapshot payload, which carries no export timestamp",
-  "sha256": "a338c2ef50eeb1ca0a437a88800d9de2fa92097975988060bd23625894dec92e"
+  "sha256": "b658a89e76e342a00a4c44d023b75a54a254ad59c574d4eb4c0cdac0f4d196e8"
  },
  "recovery_comparison_set": {
   "by_origin": {
@@ -268,7 +297,9 @@
   "statement": "The derived set for a recovery mapping: every registered criterion whose quantity is not already carried by another registered criterion. Pruned pool items are in the lifecycle section and are not derived criteria. Nothing here is shaped by any knowledge of the sealed historical list."
  },
  "rule_set_refs": [
-  "rules@v1"
+  "rules@v1",
+  "rules@v2",
+  "rules@v3"
  ],
  "schema_version": 1,
  "store": {

@@ -4,7 +4,7 @@
 
 Pre-repair historical baseline. These records are exported unchanged from the live store. They are the output of a derivation whose merge stage performed zero merges across every round, whose proposer/critic debate deferred its disagreements to the review queue rather than settling them, and whose open disputes are still open. No criterion was improved, corrected or tidied during export; corrected records belong to a later version published with a diff.
 
-**Snapshot:** task stream `task_01M4X892V1EAER2GHWE1RE19ZN` pinned at journal sequence 1449. The exact records behind every card are in `derived_criteria_review.json`; the refs, hashes and code commit are in `derived_criteria_manifest.json`. The counts below are reconciled in `criteria_count_reconciliation.md`.
+**Snapshot:** task stream `task_01M4X892V1EAER2GHWE1RE19ZN` pinned at journal sequence 1452. The exact records behind every card are in `derived_criteria_review.json`; the refs, hashes and code commit are in `derived_criteria_manifest.json`. The counts below are reconciled in `criteria_count_reconciliation.md`.
 
 ## The task these criteria were derived for
 
@@ -39,9 +39,9 @@ Each card also opens with **recovery-comparison facets**: the operational quanti
 | `registered_from_pool` | `86` | registered criteria whose attribute a pool promotion wrote |
 | `registered_from_templates` | `7` | registered criteria an adapter template wrote directly, bypassing the pool |
 | `registry_versions` | `{"attribute": 98, "rule": 98}` | attribute and rule *versions*, not criteria; a second version is a revision of one criterion, not another criterion |
-| `scoring_now` | `9` | rules in rules@v1, the latest confirmed set |
-| `deferred_now` | `41` | registered rules held out of the latest set entirely, because every evidence route they declare needs a capability that was not run |
-| `scoring_with_a_route_held_out_now` | `0` | rules in the latest set that score on some of their evidence routes while others are held out of this run; they are counted in `scoring_now`, never in `deferred_now` |
+| `scoring_now` | `19` | rules in rules@v3, the latest confirmed set |
+| `deferred_now` | `67` | registered rules held out of the latest set entirely, because every evidence route they declare needs a capability that was not run |
+| `scoring_with_a_route_held_out_now` | `5` | rules in the latest set that score on some of their evidence routes while others are held out of this run; they are counted in `scoring_now`, never in `deferred_now` |
 | `collapsed_away_now` | `0` | registered rules whose attribute a collapse merged away |
 | `collapses` | `{"applied": 0, "withdrawn": 0}` | collapse records; each merged several registrations of one quantity into one attribute reading every route |
 | `review_queue` | `{"open": 56}` | review items raised against this task, by state |
@@ -57,11 +57,29 @@ Each card also opens with **recovery-comparison facets**: the operational quanti
 | rule set | scoring | pending | deferred | scoring with a route held out | collapsed away | label |
 |---|---|---|---|---|---|---|
 | `rules@v1` | 9 | 38 | 41 | 0 | 0 | `exploratory` |
+| `rules@v2` | 54 | 56 | 0 | 0 | 0 | `exploratory` |
+| `rules@v3` | 19 | 56 | 67 | 5 | 0 | `exploratory` |
 
 `rules@v1` is labelled `exploratory` because:
 - 38 rule proposals await an expert decision
 - 3 of them score candidates while disputed: rule_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1, rule_molecular-weight-against-the-class-typical-upper-size-edge-f@v1, rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v1
 - 3 rules are held out because support records establishing their bounds as source-stated thresholds are missing or incomplete: rule_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1, rule_molecular-weight-against-the-class-typical-upper-size-edge-f@v1, rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v1
+
+`rules@v2` is labelled `exploratory` because:
+- 56 rule proposals await an expert decision
+- 17 of them score candidates while disputed: rule_co-inhibition-burden-against-non-required-receptor-kinases@v1, rule_curated-mechanism-of-action-records-confirming-engagement-of@v1, rule_fgfr1-inclusive-fgfr-family-breadth@v1, rule_highest-required-receptor-residual-activity-in-a-1-micromola@v1, rule_human-oral-absorption-fraction-fa-reported-in-clinical-studi@v1, rule_kinases-inhibited-by-at-least-90-at-a-1-micromolar-screening@v1, rule_kinome-wide-inhibition-breadth-at-the-50-threshold@v1, rule_pan-vegfr-family-engagement-of-vegfr1-vegfr2-and-vegfr3-by-o@v1, rule_reported-inter-individual-variability-in-oral-exposure@v1, rule_reported-selectivity-of-the-required-vegfr-arm-over-off-targ@v1, rule_required-receptor-engagement-coverage-documented-on-curated-@v1, rule_required-receptors-designated-in-the-report-s-primary-strong@v1, rule_required-receptors-documented-as-inhibited-at-clinically-ach@v1, rule_selectivity-margin-over-off-target-protein-kinases@v1, rule_simultaneous-engagement-of-the-five-required-receptors-repor@v1, rule_weakest-required-receptor-potency-across-the-five-tumour-mic@v1, rule_worst-reported-treatment-emergent-toxicity-burden@v1
+
+`rules@v3` is labelled `exploratory` because:
+- 56 rule proposals await an expert decision
+- 2 of them score candidates while disputed: rule_curated-mechanism-of-action-records-confirming-engagement-of@v1, rule_required-receptor-engagement-coverage-documented-on-curated-@v1
+
+## The board these criteria were last applied on
+
+- **snapshot** `lb_task_01M4X892V1EAER2GHWE1RE19ZN_1` on `rules@v3`, run `run_01M506J2Q5GK32R0GQ7R035M90`, published 2026-10-15T19:06:01.090Z
+- **candidates assessed** 3177 · **ranked** 16 · result kind `ranked_under_score`
+- **reporting tuple**: `{"abstention_n_by_reason": {"hard rules await an expert decision": 3177}, "admitted_n": 0, "budget": {"caps": {"usd": 20.0}, "soft_kinds": ["usd"], "used": {"tool_calls": 88957}, "warn_at": 0.8}, "coverage_fraction": 0.6339645146861488, "eligible_on_mandated_criteria": 16, "ineligible_for_mandated_coverage": 3161, "mandated_coverage_floor": 1.0, "mandated_rule_refs": ["rule_csf1r-curated-potency@v2", "rule_fgfr1-curated-potency@v2", "rule_vegfr1-curated-potency@v2", "rule_vegfr2-curated-potency@v2", "rule_vegfr3-curated-potency@v2"], "precision_among_admitted": null, "ranked_with_a_mandated_gate_unanswered": 0, "ranking_coverage_floor": 0.5, "sweep_completeness": 1.0, "unranked_for_coverage": 0}`
+- **human review summary**: `{"expert_confirmed_n": 0, "expert_confirmed_rules": [], "machine_adjudicated_n": 0, "machine_adjudicated_rules": [], "note": null, "recommended_requires_hd": true}`
+- snapshot artifact `art_8d7c986c2211` sha256 `8d7c986c2211addbde43a37ea4c185d0149d69052f99a2f53376e3fec2ef55d6`
 
 ## Derivation trajectory
 
@@ -129,40 +147,40 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 | 11 | Clearance reduction in mild hepatic impairment | `attr_clearance-reduction-in-mild-hepatic-impairment@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 50}` | `deferred` |
 | 12 | Co-inhibition burden against non-required receptor kinases | `attr_co-inhibition-burden-against-non-required-receptor-kinases@v1` | `preference` | — | `deferred` |
 | 13 | Conformational flexibility (rotatable bond count) | `attr_conformational-flexibility-rotatable-bond-count@v1` | `preference` | — | `scoring` |
-| 14 | Count of documented non-CYP450 elimination routes | `attr_count-of-documented-non-cyp450-elimination-routes@v1` | `preference` | — | `not_entered` |
-| 15 | CSF1R curated potency | `attr_csf1r-curated-potency@v2` | `preference` | — | `not_entered` |
-| 16 | Curated CSF1R potency relative to the approved CSF1R-inhibitor benchmark | `attr_curated-csf1r-potency-relative-to-the-approved-csf1r-inhibit@v1` | `preference` | `{"comparator": ">=", "unit": "pChEMBL", "value": 7.89}` | `not_entered` |
-| 17 | Curated FGFR1 potency relative to a low-nanomolar FGFR1-3 inhibitor benchmark | `attr_curated-fgfr1-potency-relative-to-a-low-nanomolar-fgfr1-3-in@v1` | `preference` | `{"comparator": ">=", "unit": "pChEMBL", "value": 9.12}` | `not_entered` |
-| 18 | Curated mechanism-of-action records confirming engagement of the required receptors | `attr_curated-mechanism-of-action-records-confirming-engagement-of@v1` | `preference` | — | `not_entered` |
+| 14 | Count of documented non-CYP450 elimination routes | `attr_count-of-documented-non-cyp450-elimination-routes@v1` | `preference` | — | `deferred` |
+| 15 | CSF1R curated potency | `attr_csf1r-curated-potency@v2` | `preference` | — | `scoring` |
+| 16 | Curated CSF1R potency relative to the approved CSF1R-inhibitor benchmark | `attr_curated-csf1r-potency-relative-to-the-approved-csf1r-inhibit@v1` | `preference` | `{"comparator": ">=", "unit": "pChEMBL", "value": 7.89}` | `not_entered_pending_decision` |
+| 17 | Curated FGFR1 potency relative to a low-nanomolar FGFR1-3 inhibitor benchmark | `attr_curated-fgfr1-potency-relative-to-a-low-nanomolar-fgfr1-3-in@v1` | `preference` | `{"comparator": ">=", "unit": "pChEMBL", "value": 9.12}` | `not_entered_pending_decision` |
+| 18 | Curated mechanism-of-action records confirming engagement of the required receptors | `attr_curated-mechanism-of-action-records-confirming-engagement-of@v1` | `preference` | — | `scoring` |
 | 19 | CYP450-mediated drug-drug interaction liability (perpetrator) | `attr_cyp450-mediated-drug-drug-interaction-liability-perpetrator@v1` | `preference` | — | `deferred` |
-| 20 | FGFR1 curated potency | `attr_fgfr1-curated-potency@v2` | `preference` | — | `not_entered` |
+| 20 | FGFR1 curated potency | `attr_fgfr1-curated-potency@v2` | `preference` | — | `scoring` |
 | 21 | FGFR1-inclusive FGFR family breadth | `attr_fgfr1-inclusive-fgfr-family-breadth@v1` | `preference` | — | `deferred` |
 | 22 | First-pass extraction ratio | `attr_first-pass-extraction-ratio@v1` | `preference` | — | `deferred` |
-| 23 | Fold-weakness of the major circulating metabolite at the required receptor VEGFR2 | `attr_fold-weakness-of-the-major-circulating-metabolite-at-the-req@v1` | `preference` | `{"comparator": ">=", "unit": "fold", "value": 10}` | `not_entered` |
+| 23 | Fold-weakness of the major circulating metabolite at the required receptor VEGFR2 | `attr_fold-weakness-of-the-major-circulating-metabolite-at-the-req@v1` | `preference` | `{"comparator": ">=", "unit": "fold", "value": 10}` | `deferred` |
 | 24 | Grade ≥3 adverse event rate on the recommended dose | `attr_grade-3-adverse-event-rate-on-the-recommended-dose@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 20.0}` | `deferred` |
 | 25 | Grade ≥3 diarrhea incidence | `attr_grade-3-diarrhea-incidence@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 6.4}` | `deferred` |
 | 26 | Grade ≥3 fatigue incidence | `attr_grade-3-fatigue-incidence@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 19.4}` | `deferred` |
 | 27 | Grade ≥3 hyperphosphatemia incidence | `attr_grade-3-hyperphosphatemia-incidence@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 15.0}` | `deferred` |
-| 28 | Hepatic clearance as a fraction of liver blood flow | `attr_hepatic-clearance-as-a-fraction-of-liver-blood-flow@v1` | `preference` | `{"comparator": "<=", "unit": "% of liver blood flow", "value": 70}` | `not_entered` |
-| 29 | Hepatic elimination-route redundancy documented for the agent | `attr_hepatic-elimination-route-redundancy-documented-for-the-agen@v1` | `preference` | — | `not_entered` |
-| 30 | Highest required-receptor residual activity in a 1 micromolar single-concentration receptor-kinase panel | `attr_highest-required-receptor-residual-activity-in-a-1-micromola@v1` | `preference` | `{"comparator": "<=", "unit": "% residual activity", "value": 25}` | `not_entered` |
+| 28 | Hepatic clearance as a fraction of liver blood flow | `attr_hepatic-clearance-as-a-fraction-of-liver-blood-flow@v1` | `preference` | `{"comparator": "<=", "unit": "% of liver blood flow", "value": 70}` | `deferred` |
+| 29 | Hepatic elimination-route redundancy documented for the agent | `attr_hepatic-elimination-route-redundancy-documented-for-the-agen@v1` | `preference` | — | `deferred` |
+| 30 | Highest required-receptor residual activity in a 1 micromolar single-concentration receptor-kinase panel | `attr_highest-required-receptor-residual-activity-in-a-1-micromola@v1` | `preference` | `{"comparator": "<=", "unit": "% residual activity", "value": 25}` | `deferred` |
 | 31 | Human liver microsomal half-life | `attr_human-liver-microsomal-half-life@v1` | `preference` | `{"comparator": ">=", "unit": "min", "value": 100}` | `deferred` |
 | 32 | Human liver microsomal stability (% parent remaining at 60 min) | `attr_human-liver-microsomal-stability-parent-remaining-at-60-min@v1` | `preference` | `{"comparator": ">=", "unit": "%", "value": 6}` | `deferred` |
-| 33 | Human oral absorption fraction (Fa) reported in clinical studies | `attr_human-oral-absorption-fraction-fa-reported-in-clinical-studi@v1` | `preference` | `{"comparator": ">=", "unit": "%", "value": 75}` | `not_entered` |
+| 33 | Human oral absorption fraction (Fa) reported in clinical studies | `attr_human-oral-absorption-fraction-fa-reported-in-clinical-studi@v1` | `preference` | `{"comparator": ">=", "unit": "%", "value": 75}` | `deferred` |
 | 34 | Human terminal plasma elimination half-life relative to a same-class oral benchmark | `attr_human-terminal-plasma-elimination-half-life-relative-to-a-sa@v1` | `preference` | `{"comparator": ">=", "unit": "h", "value": 24}` | `deferred` |
 | 35 | Interpatient variability in terminal half-life | `attr_interpatient-variability-in-terminal-half-life@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 30}` | `deferred` |
-| 36 | Intestinal CYP3A4 inhibition-induced increase in oral exposure (victim liability) | `attr_intestinal-cyp3a4-inhibition-induced-increase-in-oral-exposu@v1` | `preference` | `{"comparator": "<=", "unit": "% increase in AUC", "value": 11}` | `not_entered` |
-| 37 | Kinases inhibited by at least 90% at a 1 micromolar screening concentration | `attr_kinases-inhibited-by-at-least-90-at-a-1-micromolar-screening@v1` | `preference` | `{"comparator": "<=", "unit": "count of kinases", "value": 38}` | `not_entered` |
-| 38 | Kinome-wide inhibition breadth at the >=50% threshold | `attr_kinome-wide-inhibition-breadth-at-the-50-threshold@v1` | `preference` | `{"comparator": "<=", "unit": "count of kinases", "value": 31}` | `not_entered` |
-| 39 | Lipophilicity relative to the upper edge of the stated optimal kinase-inhibitor band | `attr_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1` | `preference` | `{"comparator": "<=", "unit": "log units", "value": 4}` | `scoring` |
-| 40 | Literature-reported VEGFR1 IC50 | `attr_literature-reported-vegfr1-ic50@v1` | `preference` | `{"comparator": "<=", "unit": "µM", "value": 0.59}` | `not_entered` |
-| 41 | Lowest creatinine clearance at which the agent's clearance is documented unchanged | `attr_lowest-creatinine-clearance-at-which-the-agent-s-clearance-i@v1` | `preference` | `{"comparator": "<=", "unit": "mL/min", "value": 30}` | `not_entered` |
-| 42 | Magnitude of meal-induced change in oral exposure (absolute fed-versus-fasted change in AUC or F) | `attr_magnitude-of-meal-induced-change-in-oral-exposure-absolute-f@v1` | `preference` | — | `not_entered` |
-| 43 | Magnitude of meal-induced reduction in peak oral exposure (Cmax) | `attr_magnitude-of-meal-induced-reduction-in-peak-oral-exposure-cm@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 33}` | `not_entered` |
+| 36 | Intestinal CYP3A4 inhibition-induced increase in oral exposure (victim liability) | `attr_intestinal-cyp3a4-inhibition-induced-increase-in-oral-exposu@v1` | `preference` | `{"comparator": "<=", "unit": "% increase in AUC", "value": 11}` | `deferred` |
+| 37 | Kinases inhibited by at least 90% at a 1 micromolar screening concentration | `attr_kinases-inhibited-by-at-least-90-at-a-1-micromolar-screening@v1` | `preference` | `{"comparator": "<=", "unit": "count of kinases", "value": 38}` | `deferred` |
+| 38 | Kinome-wide inhibition breadth at the >=50% threshold | `attr_kinome-wide-inhibition-breadth-at-the-50-threshold@v1` | `preference` | `{"comparator": "<=", "unit": "count of kinases", "value": 31}` | `deferred` |
+| 39 | Lipophilicity relative to the upper edge of the stated optimal kinase-inhibitor band | `attr_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1` | `preference` | `{"comparator": "<=", "unit": "log units", "value": 4}` | `not_entered_pending_decision` |
+| 40 | Literature-reported VEGFR1 IC50 | `attr_literature-reported-vegfr1-ic50@v1` | `preference` | `{"comparator": "<=", "unit": "µM", "value": 0.59}` | `deferred` |
+| 41 | Lowest creatinine clearance at which the agent's clearance is documented unchanged | `attr_lowest-creatinine-clearance-at-which-the-agent-s-clearance-i@v1` | `preference` | `{"comparator": "<=", "unit": "mL/min", "value": 30}` | `deferred` |
+| 42 | Magnitude of meal-induced change in oral exposure (absolute fed-versus-fasted change in AUC or F) | `attr_magnitude-of-meal-induced-change-in-oral-exposure-absolute-f@v1` | `preference` | — | `deferred` |
+| 43 | Magnitude of meal-induced reduction in peak oral exposure (Cmax) | `attr_magnitude-of-meal-induced-reduction-in-peak-oral-exposure-cm@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 33}` | `deferred` |
 | 44 | Meal-induced AUC increase | `attr_meal-induced-auc-increase@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 20}` | `deferred` |
 | 45 | Meal-induced AUC reduction | `attr_meal-induced-auc-reduction@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 32}` | `deferred` |
-| 46 | Minimum percent inhibition across the five required receptors | `attr_minimum-percent-inhibition-across-the-five-required-receptor@v1` | `preference` | `{"comparator": ">=", "unit": "% inhibition", "value": 70}` | `not_entered` |
-| 47 | Molecular weight against the class-typical upper size edge for clinically relevant kinase inhibitors | `attr_molecular-weight-against-the-class-typical-upper-size-edge-f@v1` | `preference` | `{"comparator": "<=", "unit": "g/mol", "value": 500}` | `scoring` |
+| 46 | Minimum percent inhibition across the five required receptors | `attr_minimum-percent-inhibition-across-the-five-required-receptor@v1` | `preference` | `{"comparator": ">=", "unit": "% inhibition", "value": 70}` | `deferred` |
+| 47 | Molecular weight against the class-typical upper size edge for clinically relevant kinase inhibitors | `attr_molecular-weight-against-the-class-typical-upper-size-edge-f@v1` | `preference` | `{"comparator": "<=", "unit": "g/mol", "value": 500}` | `not_entered_pending_decision` |
 | 48 | Nail change incidence | `attr_nail-change-incidence@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 30}` | `deferred` |
 | 49 | Nail toxicity requiring dose reduction or interruption | `attr_nail-toxicity-requiring-dose-reduction-or-interruption@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 3}` | `deferred` |
 | 50 | Oral administration reported in the clinical literature | `attr_oral-administration-reported-in-the-clinical-literature@v1` | `exploratory_consideration` | — | `deferred` |
@@ -170,45 +188,45 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 | 52 | Oral clearance induction by enzyme-inducing antiepileptic drugs | `attr_oral-clearance-induction-by-enzyme-inducing-antiepileptic-dr@v1` | `preference` | `{"comparator": "<=", "unit": "fold", "value": 10}` | `deferred` |
 | 53 | Palmar-plantar erythrodysesthesia incidence | `attr_palmar-plantar-erythrodysesthesia-incidence@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 30}` | `deferred` |
 | 54 | Pan-VEGFR family engagement of VEGFR1, VEGFR2 and VEGFR3 by one agent | `attr_pan-vegfr-family-engagement-of-vegfr1-vegfr2-and-vegfr3-by-o@v1` | `preference` | — | `deferred` |
-| 55 | Peak on-treatment natriuretic peptide elevation | `attr_peak-on-treatment-natriuretic-peptide-elevation@v1` | `preference` | — | `not_entered` |
+| 55 | Peak on-treatment natriuretic peptide elevation | `attr_peak-on-treatment-natriuretic-peptide-elevation@v1` | `preference` | — | `deferred` |
 | 56 | Pharmacogenomic variability in drug metabolism | `attr_pharmacogenomic-variability-in-drug-metabolism@v1` | `preference` | — | `deferred` |
-| 57 | Predicted aqueous solubility | `attr_predicted-aqueous-solubility@v1` | `preference` | — | `not_entered` |
-| 58 | Predicted CYP3A4 substrate liability as a presystemic first-pass loss surrogate | `attr_predicted-cyp3a4-substrate-liability-as-a-presystemic-first-@v1` | `preference` | — | `not_entered` |
-| 59 | Predicted drug-induced liver injury probability | `attr_predicted-drug-induced-liver-injury-probability@v1` | `preference` | — | `not_entered` |
-| 60 | Predicted hERG channel blockade probability | `attr_predicted-herg-channel-blockade-probability@v1` | `preference` | — | `not_entered` |
-| 61 | Predicted human liver microsomal intrinsic clearance | `attr_predicted-human-liver-microsomal-intrinsic-clearance@v1` | `preference` | — | `not_entered` |
-| 62 | Predicted intestinal epithelial permeability (Caco-2 effective permeability) | `attr_predicted-intestinal-epithelial-permeability-caco-2-effectiv@v1` | `preference` | — | `not_entered` |
-| 63 | Predicted oral bioavailability probability | `attr_predicted-oral-bioavailability-probability@v1` | `preference` | — | `not_entered` |
-| 64 | Predicted P-glycoprotein interaction liability at the intestinal barrier | `attr_predicted-p-glycoprotein-interaction-liability-at-the-intest@v1` | `preference` | — | `not_entered` |
-| 65 | Predicted passive transcellular permeability (PAMPA) | `attr_predicted-passive-transcellular-permeability-pampa@v1` | `preference` | — | `not_entered` |
-| 66 | Predicted probability of clinical toxicity | `attr_predicted-probability-of-clinical-toxicity@v1` | `preference` | — | `not_entered` |
-| 67 | Predicted probability of human intestinal absorption | `attr_predicted-probability-of-human-intestinal-absorption@v1` | `preference` | — | `not_entered` |
+| 57 | Predicted aqueous solubility | `attr_predicted-aqueous-solubility@v1` | `preference` | — | `scoring` |
+| 58 | Predicted CYP3A4 substrate liability as a presystemic first-pass loss surrogate | `attr_predicted-cyp3a4-substrate-liability-as-a-presystemic-first-@v1` | `preference` | — | `scoring` |
+| 59 | Predicted drug-induced liver injury probability | `attr_predicted-drug-induced-liver-injury-probability@v1` | `preference` | — | `scoring` |
+| 60 | Predicted hERG channel blockade probability | `attr_predicted-herg-channel-blockade-probability@v1` | `preference` | — | `scoring` |
+| 61 | Predicted human liver microsomal intrinsic clearance | `attr_predicted-human-liver-microsomal-intrinsic-clearance@v1` | `preference` | — | `scoring` |
+| 62 | Predicted intestinal epithelial permeability (Caco-2 effective permeability) | `attr_predicted-intestinal-epithelial-permeability-caco-2-effectiv@v1` | `preference` | — | `scoring` |
+| 63 | Predicted oral bioavailability probability | `attr_predicted-oral-bioavailability-probability@v1` | `preference` | — | `scoring` |
+| 64 | Predicted P-glycoprotein interaction liability at the intestinal barrier | `attr_predicted-p-glycoprotein-interaction-liability-at-the-intest@v1` | `preference` | — | `scoring` |
+| 65 | Predicted passive transcellular permeability (PAMPA) | `attr_predicted-passive-transcellular-permeability-pampa@v1` | `preference` | — | `scoring` |
+| 66 | Predicted probability of clinical toxicity | `attr_predicted-probability-of-clinical-toxicity@v1` | `preference` | — | `scoring` |
+| 67 | Predicted probability of human intestinal absorption | `attr_predicted-probability-of-human-intestinal-absorption@v1` | `preference` | — | `scoring` |
 | 68 | Rat plasma clearance | `attr_rat-plasma-clearance@v1` | `preference` | `{"comparator": "<=", "unit": "mL/min/kg", "value": 124}` | `deferred` |
-| 69 | Reported aqueous solubility of the compound | `attr_reported-aqueous-solubility-of-the-compound@v1` | `preference` | — | `not_entered` |
+| 69 | Reported aqueous solubility of the compound | `attr_reported-aqueous-solubility-of-the-compound@v1` | `preference` | — | `deferred` |
 | 70 | Reported human oral bioavailability against a same-class benchmark | `attr_reported-human-oral-bioavailability-against-a-same-class-ben@v1` | `preference` | `{"comparator": ">=", "unit": "%", "value": 58}` | `deferred` |
-| 71 | Reported inter-individual variability in oral exposure | `attr_reported-inter-individual-variability-in-oral-exposure@v1` | `preference` | — | `not_entered` |
-| 72 | Reported intestinal epithelial permeability (Caco-2 apparent permeability) | `attr_reported-intestinal-epithelial-permeability-caco-2-apparent-@v1` | `preference` | — | `not_entered` |
-| 73 | Reported peak-to-trough fluctuation in steady-state plasma concentration | `attr_reported-peak-to-trough-fluctuation-in-steady-state-plasma-c@v1` | `exploratory_consideration` | — | `not_entered` |
-| 74 | Reported selectivity of the required VEGFR arm over off-target EGFR | `attr_reported-selectivity-of-the-required-vegfr-arm-over-off-targ@v1` | `preference` | — | `not_entered` |
-| 75 | Required-receptor engagement coverage documented on curated mechanism records | `attr_required-receptor-engagement-coverage-documented-on-curated-@v1` | `preference` | — | `not_entered` |
-| 76 | Required receptors designated in the report's primary (strongly inhibited) target tier | `attr_required-receptors-designated-in-the-report-s-primary-strong@v1` | `preference` | — | `not_entered` |
-| 77 | Required receptors documented as inhibited at clinically achievable concentrations | `attr_required-receptors-documented-as-inhibited-at-clinically-ach@v1` | `preference` | — | `not_entered` |
+| 71 | Reported inter-individual variability in oral exposure | `attr_reported-inter-individual-variability-in-oral-exposure@v1` | `preference` | — | `deferred` |
+| 72 | Reported intestinal epithelial permeability (Caco-2 apparent permeability) | `attr_reported-intestinal-epithelial-permeability-caco-2-apparent-@v1` | `preference` | — | `deferred` |
+| 73 | Reported peak-to-trough fluctuation in steady-state plasma concentration | `attr_reported-peak-to-trough-fluctuation-in-steady-state-plasma-c@v1` | `exploratory_consideration` | — | `deferred` |
+| 74 | Reported selectivity of the required VEGFR arm over off-target EGFR | `attr_reported-selectivity-of-the-required-vegfr-arm-over-off-targ@v1` | `preference` | — | `deferred` |
+| 75 | Required-receptor engagement coverage documented on curated mechanism records | `attr_required-receptor-engagement-coverage-documented-on-curated-@v1` | `preference` | — | `scoring` |
+| 76 | Required receptors designated in the report's primary (strongly inhibited) target tier | `attr_required-receptors-designated-in-the-report-s-primary-strong@v1` | `preference` | — | `deferred` |
+| 77 | Required receptors documented as inhibited at clinically achievable concentrations | `attr_required-receptors-documented-as-inhibited-at-clinically-ach@v1` | `preference` | — | `deferred` |
 | 78 | Selectivity margin over off-target protein kinases | `attr_selectivity-margin-over-off-target-protein-kinases@v1` | `preference` | — | `deferred` |
 | 79 | Serious adverse event rate | `attr_serious-adverse-event-rate@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 30.0}` | `deferred` |
 | 80 | Simultaneous engagement of the five required receptors reported in a single primary report | `attr_simultaneous-engagement-of-the-five-required-receptors-repor@v1` | `preference` | — | `deferred` |
 | 81 | Stomatitis or oral mucositis incidence | `attr_stomatitis-or-oral-mucositis-incidence@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 35.0}` | `deferred` |
 | 82 | Susceptibility to CYP3A4 inducer-mediated exposure reduction | `attr_susceptibility-to-cyp3a4-inducer-mediated-exposure-reduction@v1` | `preference` | — | `deferred` |
 | 83 | Terminal half-life upper bound as an accumulation-risk flag | `attr_terminal-half-life-upper-bound-as-an-accumulation-risk-flag@v1` | `preference` | `{"comparator": "<=", "unit": "h", "value": 120}` | `deferred` |
-| 84 | Topological polar surface area relative to the stated oral-absorption level for kinase inhibitors | `attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1` | `preference` | `{"comparator": "<=", "unit": "Å²", "value": 90}` | `scoring` |
+| 84 | Topological polar surface area relative to the stated oral-absorption level for kinase inhibitors | `attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1` | `preference` | `{"comparator": "<=", "unit": "Å²", "value": 90}` | `not_entered_pending_decision` |
 | 85 | Treatment-related deaths reported | `attr_treatment-related-deaths-reported@v1` | `preference` | `{"comparator": "<=", "unit": "deaths", "value": 1}` | `deferred` |
-| 86 | Urinary recovery of the administered dose | `attr_urinary-recovery-of-the-administered-dose@v1` | `preference` | `{"comparator": "<=", "unit": "% of administered dose", "value": 16}` | `not_entered` |
-| 87 | VEGFR inhibitory potency advantage over first-generation VEGFR tyrosine kinase inhibitors (fold) | `attr_vegfr-inhibitory-potency-advantage-over-first-generation-veg@v1` | `preference` | `{"comparator": ">=", "unit": "fold", "value": 50}` | `not_entered` |
-| 88 | VEGFR1 curated potency | `attr_vegfr1-curated-potency@v2` | `preference` | — | `not_entered` |
-| 89 | VEGFR2 curated potency | `attr_vegfr2-curated-potency@v2` | `preference` | — | `not_entered` |
-| 90 | VEGFR3 curated potency | `attr_vegfr3-curated-potency@v2` | `preference` | — | `not_entered` |
-| 91 | Weakest curated potency across the three required VEGFR family receptors (pan-VEGFR engagement) | `attr_weakest-curated-potency-across-the-three-required-vegfr-fami@v1` | `preference` | `{"comparator": ">=", "unit": "pChEMBL", "value": 9.3}` | `not_entered` |
-| 92 | Weakest required-receptor potency across the five tumour-microenvironment targets | `attr_weakest-required-receptor-potency-across-the-five-tumour-mic@v1` | `preference` | `{"comparator": "<=", "unit": "nM", "value": 4.6}` | `not_entered` |
-| 93 | Worst reported treatment-emergent toxicity burden | `attr_worst-reported-treatment-emergent-toxicity-burden@v1` | `preference` | — | `not_entered` |
+| 86 | Urinary recovery of the administered dose | `attr_urinary-recovery-of-the-administered-dose@v1` | `preference` | `{"comparator": "<=", "unit": "% of administered dose", "value": 16}` | `deferred` |
+| 87 | VEGFR inhibitory potency advantage over first-generation VEGFR tyrosine kinase inhibitors (fold) | `attr_vegfr-inhibitory-potency-advantage-over-first-generation-veg@v1` | `preference` | `{"comparator": ">=", "unit": "fold", "value": 50}` | `deferred` |
+| 88 | VEGFR1 curated potency | `attr_vegfr1-curated-potency@v2` | `preference` | — | `scoring` |
+| 89 | VEGFR2 curated potency | `attr_vegfr2-curated-potency@v2` | `preference` | — | `scoring` |
+| 90 | VEGFR3 curated potency | `attr_vegfr3-curated-potency@v2` | `preference` | — | `scoring` |
+| 91 | Weakest curated potency across the three required VEGFR family receptors (pan-VEGFR engagement) | `attr_weakest-curated-potency-across-the-three-required-vegfr-fami@v1` | `preference` | `{"comparator": ">=", "unit": "pChEMBL", "value": 9.3}` | `not_entered_pending_decision` |
+| 92 | Weakest required-receptor potency across the five tumour-microenvironment targets | `attr_weakest-required-receptor-potency-across-the-five-tumour-mic@v1` | `preference` | `{"comparator": "<=", "unit": "nM", "value": 4.6}` | `deferred` |
+| 93 | Worst reported treatment-emergent toxicity burden | `attr_worst-reported-treatment-emergent-toxicity-burden@v1` | `preference` | — | `deferred` |
 
 ## Cards
 
@@ -316,7 +334,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -427,7 +445,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -550,7 +568,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -655,7 +673,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -775,7 +793,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -904,7 +922,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1033,7 +1051,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1165,7 +1183,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1258,7 +1276,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered_pending_decision` on `rules@v1` — awaiting a decision on an open review item
+- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1399,7 +1417,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1519,7 +1537,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1686,7 +1704,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1792,10 +1810,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v1`
-- rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_conformational-flexibility-rotatable-bond-count@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_conformational-flexibility-rotatable-bond-count@v1"}`
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_conformational-flexibility-rotatable-bond-count@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_conformational-flexibility-rotatable-bond-count@v1", "scoring_routes": [{"capability": "property_estimate", "question_kind": "computed_property"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3084}`
 
 ---
 
@@ -1924,7 +1942,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -2017,10 +2035,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- rule-set entry: `{"acceptable_value_sources": ["curated_measurement", "peer_reviewed"], "attribute_ref": "attr_csf1r-curated-potency@v2", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [{"capability": "literature_retrieval", "question_kind": "search"}], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_blocks_recommendation", "unknown_blocks_recommendation"], "rule_kind": "preference", "rule_ref": "rule_csf1r-curated-potency@v2", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}, {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 37}`
 
 ---
 
@@ -2134,7 +2152,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -2254,7 +2272,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -2376,10 +2394,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
-- scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_curated-mechanism-of-action-records-confirming-engagement-of@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": true, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_curated-mechanism-of-action-records-confirming-engagement-of@v1", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}]}`
+- scores while disputed: `True` · machine adjudicated: `False` · reads a collapsed attribute: `False`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 0}`
 
 ---
 
@@ -2490,7 +2508,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -2583,10 +2601,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- rule-set entry: `{"acceptable_value_sources": ["curated_measurement", "peer_reviewed"], "attribute_ref": "attr_fgfr1-curated-potency@v2", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [{"capability": "literature_retrieval", "question_kind": "search"}], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_blocks_recommendation", "unknown_blocks_recommendation"], "rule_kind": "preference", "rule_ref": "rule_fgfr1-curated-potency@v2", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}, {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 40}`
 
 ---
 
@@ -2763,7 +2781,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -2870,7 +2888,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -2987,7 +3005,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3113,7 +3131,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3236,7 +3254,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3350,7 +3368,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3476,7 +3494,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3591,7 +3609,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3723,7 +3741,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3852,7 +3870,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3981,7 +3999,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4097,7 +4115,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4232,7 +4250,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4370,7 +4388,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4496,7 +4514,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4638,7 +4656,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4760,7 +4778,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4898,7 +4916,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5024,9 +5042,9 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v1`
-- rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "disputed": true, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1"}`
-- scores while disputed: `True` · machine adjudicated: `False` · reads a collapsed attribute: `False`
+- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
+- rule-set entry: —
+- scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
 
 ---
@@ -5128,7 +5146,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5250,7 +5268,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5448,7 +5466,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5567,7 +5585,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5676,7 +5694,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5785,7 +5803,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5938,7 +5956,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6055,9 +6073,9 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v1`
-- rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_molecular-weight-against-the-class-typical-upper-size-edge-f@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "disputed": true, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_molecular-weight-against-the-class-typical-upper-size-edge-f@v1"}`
-- scores while disputed: `True` · machine adjudicated: `False` · reads a collapsed attribute: `False`
+- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
+- rule-set entry: —
+- scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
 
 ---
@@ -6175,7 +6193,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6289,7 +6307,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6381,7 +6399,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6503,7 +6521,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6626,7 +6644,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6740,7 +6758,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6913,7 +6931,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -7043,7 +7061,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -7148,7 +7166,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -7285,10 +7303,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-aqueous-solubility@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_predicted-aqueous-solubility@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
 
 ---
 
@@ -7431,10 +7449,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-cyp3a4-substrate-liability-as-a-presystemic-first-@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_predicted-cyp3a4-substrate-liability-as-a-presystemic-first-@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
 
 ---
 
@@ -7557,10 +7575,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-drug-induced-liver-injury-probability@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-drug-induced-liver-injury-probability@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
 
 ---
 
@@ -7691,10 +7709,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-herg-channel-blockade-probability@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-herg-channel-blockade-probability@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
 
 ---
 
@@ -7813,10 +7831,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-human-liver-microsomal-intrinsic-clearance@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-human-liver-microsomal-intrinsic-clearance@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
 
 ---
 
@@ -7968,10 +7986,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-intestinal-epithelial-permeability-caco-2-effectiv@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_predicted-intestinal-epithelial-permeability-caco-2-effectiv@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
 
 ---
 
@@ -8087,10 +8105,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-oral-bioavailability-probability@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-oral-bioavailability-probability@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
 
 ---
 
@@ -8224,10 +8242,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-p-glycoprotein-interaction-liability-at-the-intest@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_predicted-p-glycoprotein-interaction-liability-at-the-intest@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
 
 ---
 
@@ -8331,10 +8349,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-passive-transcellular-permeability-pampa@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-passive-transcellular-permeability-pampa@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
 
 ---
 
@@ -8463,10 +8481,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-probability-of-clinical-toxicity@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-probability-of-clinical-toxicity@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
 
 ---
 
@@ -8594,10 +8612,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-probability-of-human-intestinal-absorption@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_predicted-probability-of-human-intestinal-absorption@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
 
 ---
 
@@ -8713,7 +8731,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -8827,7 +8845,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -8941,7 +8959,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9063,7 +9081,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9177,7 +9195,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9290,7 +9308,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9400,7 +9418,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9532,10 +9550,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
-- scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- status `scoring` on `rules@v3`
+- rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_required-receptor-engagement-coverage-documented-on-curated-@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": true, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_required-receptor-engagement-coverage-documented-on-curated-@v1", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}, {"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}, {"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}, {"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}, {"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}]}`
+- scores while disputed: `True` · machine adjudicated: `False` · reads a collapsed attribute: `False`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 0}`
 
 ---
 
@@ -9667,7 +9685,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9792,7 +9810,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9939,7 +9957,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10053,7 +10071,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10228,7 +10246,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10343,7 +10361,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10448,7 +10466,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10568,7 +10586,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10679,9 +10697,9 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v1`
-- rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "disputed": true, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v1"}`
-- scores while disputed: `True` · machine adjudicated: `False` · reads a collapsed attribute: `False`
+- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
+- rule-set entry: —
+- scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
 
 ---
@@ -10804,7 +10822,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v1` — literature_retrieval was held out of this run: screened on database rules first; the literature stage is registered separately
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10919,7 +10937,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -11030,7 +11048,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -11123,10 +11141,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- rule-set entry: `{"acceptable_value_sources": ["curated_measurement", "peer_reviewed"], "attribute_ref": "attr_vegfr1-curated-potency@v2", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [{"capability": "literature_retrieval", "question_kind": "search"}], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_blocks_recommendation", "unknown_blocks_recommendation"], "rule_kind": "preference", "rule_ref": "rule_vegfr1-curated-potency@v2", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}, {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 42}`
 
 ---
 
@@ -11216,10 +11234,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- rule-set entry: `{"acceptable_value_sources": ["curated_measurement", "peer_reviewed"], "attribute_ref": "attr_vegfr2-curated-potency@v2", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [{"capability": "literature_retrieval", "question_kind": "search"}], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_blocks_recommendation", "unknown_blocks_recommendation"], "rule_kind": "preference", "rule_ref": "rule_vegfr2-curated-potency@v2", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}, {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 84}`
 
 ---
 
@@ -11309,10 +11327,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
-- rule-set entry: —
+- status `scoring` on `rules@v3` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- rule-set entry: `{"acceptable_value_sources": ["curated_measurement", "peer_reviewed"], "attribute_ref": "attr_vegfr3-curated-potency@v2", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [{"capability": "literature_retrieval", "question_kind": "search"}], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_blocks_recommendation", "unknown_blocks_recommendation"], "rule_kind": "preference", "rule_ref": "rule_vegfr3-curated-potency@v2", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}, {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 34}`
 
 ---
 
@@ -11433,7 +11451,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -11631,7 +11649,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -11949,7 +11967,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered` on `rules@v1` — no version of this rule entered the confirmed set
+- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
