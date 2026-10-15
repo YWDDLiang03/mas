@@ -129,6 +129,41 @@ The endgame commands, in order (identical to the iteration log's §7):
 - `mas_audit.md` announces a sealed Section 6 that is absent from the file (found while drafting
   the docs section).
 
+## 3b. Process lessons (recorded at the operator's request)
+
+The operator's verdict on this iteration: satisfied with the new machinery, satisfied with the
+Oct-14 baseline result, **not satisfied with the process that produced tonight's board**. Written
+down because the next run should not repeat it.
+
+**Operator errors, all avoidable.** (1) `rules confirm` was run without `--coverage-floor`, and the
+CLI default of 1.0 silently installed the eligibility gate as the ranking gate — a policy decided
+by a default. (2) Holding the literature capability out was a mid-run decision for speed; its real
+cost — coverage stops discriminating — was not visible until the board was out. (3) The repair path
+cost two more freezes and two more sweeps (v2→v3→v5) and grew the store 2.1 → 4.5 GB. (4) A run was
+"stopped" by killing a shell wrapper while the real python kept going; a monitor carried an
+always-false sentinel; cell counts were read as candidate counts; the disk-full condition was
+reported as fine minutes before it stalled everything; unbounded sqlite reads were issued against a
+4.4 GB store under write. (5) The net effect: a result was produced, but not the *registered*
+result, because the policy was set during the run instead of before it.
+
+**Systemic gaps the iteration exposed.** (1) There is no *measurement profile* step: the registered
+endpoint lives in a document, while the freeze/board pipeline has nowhere to record, before the
+run, "which criteria score, on which capability set, under which floors" — and nowhere to verify
+afterward that the run used it. (2) The coverage floor is fragile: its meaning silently depends on
+the scoring composition (adding predicted criteria saturated it). The structural repair is to
+stratify coverage by `determination_basis` so the ranking floor counts measured cells only.
+(3) A capability deferral is cheap to type and expensive in meaning; the freeze record should carry
+a statement of what it changes. (4) No preflight before a 60,000-cell sweep (disk, memory, expected
+store growth), and no watchdog on an outside servicer — a dead serving session burned 5.5 hours
+before a human noticed. (5) The one-shot measurements have no completion closed loop: the CQA
+intake was opened on 14 October and its report was never run; the loop "open → report → archive"
+must survive a session death.
+
+**The process that should exist.** Register a measurement profile (scoring composition + capability
+set + floors + expected effect) → freeze it → run → publish the board → verify the board against
+the profile → archive profile, board and recovery together. This iteration was missing the first
+and the last step.
+
 ## 4. Module reference
 
 Every module of `src/mas` (49 files, ~22,700 lines) at commit `9912dbb`. Entries state what the module is, entry points with `file:line`, the records it owns, current state, and the invariants a changer must not break. The five subsections are independent and follow dependency order.
