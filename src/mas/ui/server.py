@@ -105,8 +105,14 @@ def _nav(target: str) -> str:
     return f'<nav>{"".join(links)}<a href="{html.escape(twin, quote=True)}">this page as JSON</a></nav>'
 
 
-def _document(title: str, target: str, body: str) -> bytes:
+def _document(title: str, target: str, body: str, *, refresh_s: int | None = None) -> bytes:
+    # WHY a refresh is offered at all, and only on a live run page: every request is one fold of the
+    # journal, so a page opened while a run is in flight goes stale silently and the reader has to
+    # know to reload. Reloading is the whole update mechanism -- there is no push -- and a *finished*
+    # run must not keep reloading under someone reading it, so the caller decides.
+    refresh = f'<meta http-equiv="refresh" content="{int(refresh_s)}">' if refresh_s else ""
     return (f"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+            f"{refresh}"
             f"<title>mas workbench — {html.escape(title)}</title><style>{STYLE}</style></head>"
             f"<body>{_nav(target)}{body}</body></html>").encode("utf-8")
 
@@ -119,7 +125,9 @@ def _page(target: str, data: dict[str, Any]) -> Response:
     for key, value in data.items():
         if isinstance(value, (dict, list)):
             body.append(f"<h2>{html.escape(str(key))}</h2>{_cell(value)}")
-    return Response(int(HTTPStatus.OK), HTML, _document(title, target, "".join(body)))
+    # `target` arrives from `handle` with its query string attached ("/run?run=…"), so compare the path.
+    live = 10 if target.split("?")[0].rstrip("/") == "/run" and data.get("state") == "running" else None
+    return Response(int(HTTPStatus.OK), HTML, _document(title, target, "".join(body), refresh_s=live))
 
 
 def _json(data: dict[str, Any]) -> Response:
