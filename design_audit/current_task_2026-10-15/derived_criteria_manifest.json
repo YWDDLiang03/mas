@@ -2,22 +2,22 @@
  "baseline_label": "historical_baseline_pre_repair",
  "baseline_statement": "Pre-repair historical baseline. These records are exported unchanged from the live store. They are the output of a derivation whose merge stage performed zero merges across every round, whose proposer/critic debate deferred its disagreements to the review queue rather than settling them, and whose open disputes are still open. No criterion was improved, corrected or tidied during export; corrected records belong to a later version published with a diff.",
  "board": {
-  "artifact_sha256": "8d7c986c2211addbde43a37ea4c185d0149d69052f99a2f53376e3fec2ef55d6",
+  "artifact_sha256": "be5637fe0c1db4a47f4fe93e340495ba0ae62f5fe2cfbbd5328843afc9bb598e",
   "candidates_assessed": 3177,
-  "candidates_ranked": 16,
-  "evidence_snapshot_id": "evs_task_01M4X892V1EAER2GHWE1RE19ZN_1",
+  "candidates_ranked": 50,
+  "evidence_snapshot_id": "evs_task_01M4X892V1EAER2GHWE1RE19ZN_3",
   "leaderboard_id": "lbd_task_01M4X892V1EAER2GHWE1RE19ZN_1",
-  "published_at": "2026-10-15T19:06:01.090Z",
-  "round_id": "round_run_01M506J2Q5GK32R0GQ7R035M90_1",
-  "rule_set_ref": "rules@v3",
-  "run_id": "run_01M506J2Q5GK32R0GQ7R035M90",
-  "snapshot_id": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1"
+  "published_at": "2026-10-15T22:33:20.763Z",
+  "round_id": "round_run_01M50QPNFS2FAYN6B4PGVZXX27_1",
+  "rule_set_ref": "rules@v6",
+  "run_id": "run_01M50QPNFS2FAYN6B4PGVZXX27",
+  "snapshot_id": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3"
  },
  "counts": {
   "bounds": {
    "counts": "registered criteria carrying a numeric bound whose basis is a cited claim, a bound restating a task constraint, and no bound at all",
    "value": {
-    "no_cutoff_evidence_insufficient": 43,
+    "no_cutoff_evidence_insufficient": 44,
     "source_stated_with_claims": 0,
     "task_constraint_cutoff": 1
    }
@@ -39,7 +39,7 @@
   },
   "deferred_now": {
    "counts": "registered rules held out of the latest set entirely, because every evidence route they declare needs a capability that was not run",
-   "value": 67
+   "value": 78
   },
   "expert_decisions": {
    "counts": "`hd_` records; an expert decision needs a person at a terminal",
@@ -47,7 +47,7 @@
   },
   "machine_adjudications": {
    "counts": "items resolved by software with no person; recorded as `agent_verdict`, never as an expert approval",
-   "value": 0
+   "value": 3
   },
   "matching_facet_gaps": {
    "counts": "registered criteria whose records do not answer one of the four recovery-rubric facets from fields alone; the cards name the absence per criterion",
@@ -55,7 +55,7 @@
     "applicability": 93,
     "decision_semantics": 1,
     "operational_quantity": 67,
-    "threshold": 50
+    "threshold": 49
    }
   },
   "pool_lineages": {
@@ -90,13 +90,14 @@
    "counts": "attribute and rule *versions*, not criteria; a second version is a revision of one criterion, not another criterion",
    "value": {
     "attribute": 98,
-    "rule": 98
+    "rule": 99
    }
   },
   "review_queue": {
    "counts": "review items raised against this task, by state",
    "value": {
-    "open": 56
+    "machine_adjudicated": 3,
+    "open": 53
    }
   },
   "rule_sets": [
@@ -126,11 +127,38 @@
     "rule_set_ref": "rules@v3",
     "scoring": 19,
     "scoring_with_a_route_held_out": 5
+   },
+   {
+    "acceptance_label": "exploratory",
+    "collapsed_away": 0,
+    "deferred": 11,
+    "pending": 56,
+    "rule_set_ref": "rules@v4",
+    "scoring": 43,
+    "scoring_with_a_route_held_out": 0
+   },
+   {
+    "acceptance_label": "exploratory",
+    "collapsed_away": 0,
+    "deferred": 78,
+    "pending": 56,
+    "rule_set_ref": "rules@v5",
+    "scoring": 8,
+    "scoring_with_a_route_held_out": 5
+   },
+   {
+    "acceptance_label": "exploratory",
+    "collapsed_away": 0,
+    "deferred": 78,
+    "pending": 53,
+    "rule_set_ref": "rules@v6",
+    "scoring": 11,
+    "scoring_with_a_route_held_out": 5
    }
   ],
   "scoring_now": {
-   "counts": "rules in rules@v3, the latest confirmed set",
-   "value": 19
+   "counts": "rules in rules@v6, the latest confirmed set",
+   "value": 11
   },
   "scoring_with_a_route_held_out_now": {
    "counts": "rules in the latest set that score on some of their evidence routes while others are held out of this run; they are counted in `scoring_now`, never in `deferred_now`",
@@ -138,12 +166,12 @@
   },
   "unresolved_disputes": {
    "counts": "open review items raised because a proposer and a critic still disagreed after one revision",
-   "value": 25
+   "value": 24
   }
  },
  "export_kind": "historical_baseline",
  "export_metadata": {
-  "exported_at": "2026-10-15T19:17:56.054Z",
+  "exported_at": "2026-10-15T22:38:13.970Z",
   "exported_by": {
    "id": "yiwei3_duke",
    "identity_basis": "recorded_attestation",
@@ -158,31 +186,31 @@
  },
  "file_digests": {
   "criteria_count_reconciliation.md": {
-   "bytes": 4476,
-   "sha256": "e638210f9f3946058035a31fd55ede07f39d9d6f5fefd0ea7b4918b2520825b8"
+   "bytes": 4637,
+   "sha256": "aabc12d55c090d517bb2d82ace8c2ece39dc54e174c7aa6f8e89a05c17e6682d"
   },
   "derived_criteria_review.json": {
-   "bytes": 2826570,
-   "sha256": "81673823766f463fc7640fbecccc964563b625219ada0236020dfff3953f5a63"
+   "bytes": 3040535,
+   "sha256": "f245d7f33b4709418b221946755a5fc020b0174c15e303d0dd36e7ad532f777c"
   },
   "derived_criteria_review.md": {
-   "bytes": 1708575,
-   "sha256": "56dc2deae77e28955f4d37ec847f0f1e17f68ba5d945f1a1c847bfbc191491a5"
+   "bytes": 1726853,
+   "sha256": "d511728ce1f962be691118f4c7d2bdbea4b639718ad11b1d8c95ac3f3e9532e3"
   }
  },
  "implementation": {
-  "code_commit": "ec600e5fd5849918fc38a697ca69dee8bb2c9413",
+  "code_commit": "7253fcb8c4810fc20074a841d3e1e39f9d9de231",
   "package_version": "0.1.0",
   "uncommitted_changes": false
  },
  "journal_position": {
-  "pinned_seq": 1452,
+  "pinned_seq": 1465,
   "task_stream": "task_01M4X892V1EAER2GHWE1RE19ZN"
  },
- "latest_rule_set_ref": "rules@v3",
+ "latest_rule_set_ref": "rules@v6",
  "payload_digest": {
   "over": "the canonical snapshot payload, which carries no export timestamp",
-  "sha256": "b658a89e76e342a00a4c44d023b75a54a254ad59c574d4eb4c0cdac0f4d196e8"
+  "sha256": "b5961080108475c31b77431c977f370a092ab8c46db9a20807cacee62bb5c9f1"
  },
  "recovery_comparison_set": {
   "by_origin": {
@@ -299,7 +327,10 @@
  "rule_set_refs": [
   "rules@v1",
   "rules@v2",
-  "rules@v3"
+  "rules@v3",
+  "rules@v4",
+  "rules@v5",
+  "rules@v6"
  ],
  "schema_version": 1,
  "store": {
