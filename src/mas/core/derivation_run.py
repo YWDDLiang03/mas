@@ -320,11 +320,23 @@ def derive_iterative(core: Core, broker, roster: ModelRoster, task_id: str, *, d
         # claims cited by pool items from earlier rounds stay resolvable
         for claim in ledger.claims(core, parents + [task_id]):
             claims.setdefault(claim["claim_id"], claim)
+        # The chain's admitted claims are also proposed *from*, not only cited: a round may follow one
+        # that read a hundred and seventy-nine documents and never reached its own proposal pass
+        # (round 5 died waiting on an unavailable provider, 15 October 2026), and the operator
+        # instructed that the new round carry that reading rather than re-buy it. The claims are not
+        # dimension-tagged -- one document's reading covers every dimension -- so each dimension's
+        # pass sees the same inherited set and its own fresh enumeration's claims, with the dimension
+        # focus carried by the prompt and mis-fits pruned by filter and distill. The stage record
+        # keeps the counts, so what was inherited is readable from the run, not inferred.
+        own_ids = {c["claim_id"] for e in enumerations for c in e["claims"]}
+        inherited = [c for c in claims.values() if c.get("admission_state") == "admitted"
+                     and c["claim_id"] not in own_ids]
         ctx = _stage_context(core, roster, task_id, run_id, context=context, catalog=catalog, claims=claims,
                              budget=budget, max_refines=max_refines)
         record["proposed"] = {}
         for enumeration, dimension in zip(enumerations, dimensions):
-            dim_claims = [c for c in enumeration["claims"] if c.get("admission_state") == "admitted"]
+            own = [c for c in enumeration["claims"] if c.get("admission_state") == "admitted"]
+            dim_claims = own + inherited
             ctx.pool.at("propose", 0)
             record["proposed"][dimension["dimension"]] = stage(
                 f"propose:{dimension['dimension']}", 0, lambda d=dimension, cl=dim_claims: stages.propose(ctx, d, cl))

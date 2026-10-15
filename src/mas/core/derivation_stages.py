@@ -289,7 +289,11 @@ ADJUDICATOR_SYSTEM = (
     "is the right answer whenever that is what you find. Keep each decision\'s `reason` specific to its group."
 )
 
-BATCH = {"critic": 30, "distill": 25, "refine": 20}
+# Claims offered to one proposer call. A round's proposal input is its own enumeration's claims plus
+# the chain's inherited ones (see `derivation_run.derive`), which on the manuscript chain runs to
+# roughly two thousand claims -- more than one prompt holds. The slices are the same evidence
+# split for the provider's sake, not a judgement about the claims.
+BATCH = {"critic": 30, "distill": 25, "refine": 20, "propose": 400}
 # Members offered to the adjudicator as one merge group. A whole unit-and-direction bucket can run to
 # dozens of criteria, and a prompt that large is one no model reads carefully and no reviewer can
 # check; a bucket wider than this is split into several groups instead.
@@ -501,22 +505,32 @@ def _view(entry: dict[str, Any], index: int, *, blind: bool = False) -> dict[str
 # --- PROPOSE -------------------------------------------------------------------------------
 
 def propose(ctx: StageContext, dimension: dict[str, str], claims: list[dict[str, Any]]) -> dict[str, Any]:
-    in_pool = [e["item"]["attribute"].get("name") for e in active(ctx.pool.fold())]
-    content = (ctx.base_prompt() + f"Dimension for this pass: {dimension['dimension']} - {dimension['focus']}\n"
-               f"Criteria already in the pool (propose only distinct ones): {json.dumps(in_pool, ensure_ascii=False)}\n\n"
-               f"Claims ({len(claims)}):\n{_claims_block(claims)}")
-    response = ctx.call("proposer", POOL_SYSTEM, content, PROPOSAL_SCHEMA, f"propose pool: {dimension['dimension']}")
-    added, refused = [], []
-    for proposal in response.data["proposals"]:
-        item = _item(proposal, dimension=dimension["dimension"])
-        problems = ctx.validate(item)
-        if any(p.startswith("reference_candidate_scan") for p in problems):
-            refused.append({"name": item["attribute"].get("name"), "reason": "names the disclosed reference outcome"})
-            continue
-        item["validator_problems"] = problems
-        added.append(ctx.pool.add(item, reason_text=f"proposed for {dimension['dimension']}"))
-    return {"added": len(added), "refused_at_entry": refused,
-            "considered_and_rejected": response.data.get("considered_and_rejected", [])}
+    # WHY slices of the evidence rather than one call: the input can carry the chain's inherited
+    # claims (see `derivation_run.derive`), which do not fit one prompt. The pool accumulates across
+    # the slices, and each slice is shown what is already in it, so a later slice proposes only what
+    # is still distinct; a batch is a provider limit, not a second pass over the same evidence.
+    added, refused, considered = [], [], []
+    batches = _chunks(claims, BATCH["propose"]) or [[]]
+    for index, batch in enumerate(batches):
+        in_pool = [e["item"]["attribute"].get("name") for e in active(ctx.pool.fold())]
+        content = (ctx.base_prompt() + f"Dimension for this pass: {dimension['dimension']} - {dimension['focus']}\n"
+                   f"Criteria already in the pool (propose only distinct ones): {json.dumps(in_pool, ensure_ascii=False)}\n\n"
+                   f"Claims ({len(batch)} of {len(claims)}):\n{_claims_block(batch)}")
+        question = f"propose pool: {dimension['dimension']}"
+        if len(batches) > 1:
+            question += f" (slice {index + 1}/{len(batches)})"
+        response = ctx.call("proposer", POOL_SYSTEM, content, PROPOSAL_SCHEMA, question)
+        for proposal in response.data["proposals"]:
+            item = _item(proposal, dimension=dimension["dimension"])
+            problems = ctx.validate(item)
+            if any(p.startswith("reference_candidate_scan") for p in problems):
+                refused.append({"name": item["attribute"].get("name"), "reason": "names the disclosed reference outcome"})
+                continue
+            item["validator_problems"] = problems
+            added.append(ctx.pool.add(item, reason_text=f"proposed for {dimension['dimension']}"))
+        considered += response.data.get("considered_and_rejected", [])
+    return {"added": len(added), "refused_at_entry": refused, "considered_and_rejected": considered,
+            "claims_considered": len(claims), "slices": len(batches)}
 
 
 # --- FILTER ----------------------------------------------------------------------------------
