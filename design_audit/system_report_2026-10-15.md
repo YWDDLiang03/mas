@@ -63,10 +63,35 @@ and is reported as outstanding; the deferral is a policy recorded in the frozen 
 change. Screen attempt 2 (`run_01M506J2Q5GK32R0GQ7R035M90`, `--seed 0 --workers 4`, `rules@v3`) is
 running as of this commit.
 
-**The board and the reference compound's rank are not in this commit**; they are added in a
-follow-up commit when attempt 2 completes, and nothing in this document estimates them. The
-criteria package under `design_audit/current_task_2026-10-15/` was exported before any board
-existed (`with_board=True` will pick it up on the re-export that follows).
+**The board (attempt 2, `rules@v3`) was published 19:06** — `lb_task_01M4X892V1EAER2GHWE1RE19ZN_1`,
+3,177 entries, `sweep_completeness: 1.0`, `ranking_coverage_floor: 0.5`, and **three readings that
+must be reported together and not picked between**:
+
+| reading | reference compound |
+|---|---|
+| **as published** — `mandated_coverage_floor: 1.0` (only candidates answering all five mandated receptor rules are positioned; 16 of 3,177) | **not positioned** — blocked by `attr_csf1r-curated-potency@v2` (4 of 5 mandated answered; `clears_hard_rules: true`) |
+| score order over all 3,177 (`coverage_fraction` 0.634, `unranked_for_coverage: 0`) | **#1,985** — and the top of this ordering is solvents and small molecules (Isopropyl Alcohol, DMSO, Ammonia, Water …), so the reading is not a drug ranking at all |
+| the Oct-14 baseline (95 rankable of 3,177, pre-repair criteria, `mandated_coverage_floor: None`) | **#4** |
+
+**Why the first two diverge, measured rather than inferred.** The literature pass was deferred for
+this screen (see the paragraph above), and with it went the criteria that used to hold 98 % of the
+universe out of the rankable set: coverage now denominates over the non-literature rules, every
+candidate clears the 0.5 floor, and the remaining gate is the mandated-receptor floor. The sweep
+called the curated routes fully and cleanly — `tool_drug_chembl_bioactivity`,
+`tool_drug_gtopdb_affinity` and `tool_drug_chembl_mechanism` exactly 15,885 times each (3,177 × 5
+receptors), **1 error in 88,957 tool calls** — so the missing receptor cells are the sources'
+sparsity, not a collection defect: 16 candidates have curated potency on all five receptors, ~33 on
+at least one. **The reference compound's missing cell is the one the earlier offline recomputation
+also had to fill from the manuscript's Table 1 (PMC5522050) rather than ChEMBL** — i.e. exactly what
+the deferred literature pass supplies.
+
+**What this means for the goal, stated plainly.** The registered endpoint (rank among candidates at
+or above the registered 0.5 coverage floor, eligibility reported separately) **cannot be evaluated
+on a literature-deferred criteria set**: its rankable set degenerates to the whole universe and its
+ordering is dominated by non-drugs. The repair is the one `improvement_plan.md` already flagged as
+the owner's open decision — **run the literature pass (at least over the ranked shortlist)** — not
+a change of floor. Re-picking floors after seeing these numbers would be the exact post hoc tuning
+the registration (written 14 October, before any board) exists to prevent, and is not done here.
 
 ## 2. What to run next, in order
 
