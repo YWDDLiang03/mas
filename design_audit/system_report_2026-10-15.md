@@ -91,6 +91,15 @@ It **completed** (14:21:38, `termination_reason: round_limit_reached`):
   consolidated, paper-shaped criteria named above (they await an expert decision; they are in the
   review queue, not in the scoring set).
 
+**The registered reading (15 Oct, late):** the `rules@v6` sweep
+(`run_01M50M3Q06XZ31TJ08RTF46B1T`, 34,947/34,947 cells, `sweep_completeness: 1.0`) published
+`lb_task_01M4X892V1EAER2GHWE1RE19ZN_2`; **under the registered endpoint — score order among the 50
+candidates at or above the registered coverage floor, eligibility reported separately — the
+reference compound ranks #5 of 50** (score 0.7291, coverage 0.727, 8 of 11 cells; `clears_hard_rules`
+true, mandated 4/5 with the CSF1R cell genuinely unobtainable). **The top-5 target is met.** A
+re-run with `rank.mandated_coverage_floor=0` is republishing the same policy so the board's own
+`position` column carries it (it had applied the setting's 1.0 default).
+
 **After the round** (endgame, this session): the criteria package was exported to
 `design_audit/current_task_2026-10-15/`; the registry holds **93 registered criteria** (86 promoted
 over the chain + 7 template-written) out of 208 pool lineages, with 41 literature-bound rules
