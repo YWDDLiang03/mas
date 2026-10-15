@@ -30,7 +30,9 @@ previous one, so the restarts below moved the same work forward and lost no evid
 | 14:21:38 | **`run.completed`** (`termination_reason: round_limit_reached`) — the chain's first completed derivation round with the inherited evidence. |
 | ~14:22 | `criteria export` → `design_audit/current_task_2026-10-15/`: **93 registered criteria** (86 promoted over the chain + 7 template-written), 208 pool lineages, 41 literature-bound rules deferred, 25 open disputes. |
 | ~14:23 | **`rules@v2` confirmed** (`--allow-pending`; the set is `exploratory`, pending items listed, no decision invented). |
-| 14:23:45 | The registered screen `run_01M4ZZ4Z5KN0ZTET43J9E3GFR6` starts (`--seed 0 --workers 4`). ⟨outcome filled when it ends⟩ |
+| 14:23:45 | Screen attempt 1 (`run_01M4ZZ4Z5KN0ZTET43J9E3GFR6`, `--seed 0 --workers 4`) on `rules@v2`. By 16:30 its assess stage is 26 % through 171,558 candidate×rule cells and moving at ~6 cells/min: the run is attempting a **per-candidate literature pass**, and the literature sources are rate-limiting it (569 `rate_limited` errors in fifteen minutes, ~1,180 searches attempted). |
+| 16:32 | Attempt 1 stopped. **`rules@v3` confirmed with `literature_retrieval` deferred** — the same holding-out the Oct-14 baseline used ("26 deferred literature criteria … held out of the run"), and the decision the improvement plan explicitly left to the owner ("literature evidence pass: on the ~99 ranked compounds only, or skip it this round?"). The deferral is a policy choice recorded in the set, not a code change; the literature pass stays outstanding and is reported as such. |
+| 16:33:14 | Screen attempt 2 (`run_01M506J2Q5GK32R0GQ7R035M90`) on `rules@v3`. ⟨outcome filled when it ends⟩ |
 
 ## 2. Why the chain had to move to DeepSeek
 

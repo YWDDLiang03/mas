@@ -50,15 +50,23 @@ over the chain + 7 template-written) out of 208 pool lineages, with 41 literatur
 deferred; **`rules@v2` was confirmed** (exploratory, pending items listed) as the freeze; the
 registered screen ran as `run_01M4ZZ4Z5KN0ZTET43J9E3GFR6` (`--seed 0 --workers 4`).
 
-**State at the time this package was committed:** the screen is still running. Its own progress fold
-(the workbench, `/run?run=run_01M4ZZ4Z5KN0ZTET43J9E3GFR6`) reports identity 3,178/3,178 complete and
-**assess 41,301 of 171,558 candidate×rule cells (24%)**, against a registered universe of 3,177.
-External sources are rate-limiting (426 tool errors and 868 retries in the first hour); the sweep is
-projected to finish roughly two hours after this commit. **The board and the reference compound's
-rank are therefore not in this commit**; they are added in a follow-up commit when the sweep
-completes, and nothing in this document estimates them. The criteria package under
-`design_audit/current_task_2026-10-15/` was exported before the board existed (`with_board=True`
-will pick it up on the re-export that follows the board).
+**State at the time this package was committed, and the deferral decision that followed.** Screen
+attempt 1 (`run_01M4ZZ4Z5KN0ZTET43J9E3GFR6`) ran under `rules@v2`; its assess stage planned
+**171,558 candidate×rule cells** (3,177 candidates — six times the Oct-14 sweep's cells, because the
+criteria set grew from 40 registered to 93), and it crawled: the run attempted a per-candidate
+literature pass, the literature sources rate-limited it (569 `rate_limited` errors in fifteen
+minutes), and it moved at ~6 cells/min. It was stopped at 16:32. **`rules@v3` was then confirmed
+with `literature_retrieval` deferred** — the same holding-out the Oct-14 baseline used, and the
+decision `improvement_plan.md` explicitly left to the project owner ("the literature evidence pass:
+on the ~99 ranked compounds only, or skip it this round?"). The literature pass remains **not run**
+and is reported as outstanding; the deferral is a policy recorded in the frozen set, not a code
+change. Screen attempt 2 (`run_01M506J2Q5GK32R0GQ7R035M90`, `--seed 0 --workers 4`, `rules@v3`) is
+running as of this commit.
+
+**The board and the reference compound's rank are not in this commit**; they are added in a
+follow-up commit when attempt 2 completes, and nothing in this document estimates them. The
+criteria package under `design_audit/current_task_2026-10-15/` was exported before any board
+existed (`with_board=True` will pick it up on the re-export that follows).
 
 ## 2. What to run next, in order
 
