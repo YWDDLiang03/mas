@@ -19,6 +19,10 @@ CORE_DEFAULTS: dict[str, tuple[Any, str]] = {
     "const_sweep_tool_failure_share": (0.5, "fraction"),
     "const_tool_retry_limit": (3, "attempts"),
     "const_ranking_coverage_floor": (0.5, "fraction"),
+    # The share of the task's own mandated criteria a candidate must have answered to be ranked
+    # (`assessor.mandated_coverage`, applied by `leaderboard.build_snapshot`). The `rank.*` setting
+    # carries the same id, so a run with settings registers its own value.
+    "const_mandated_coverage_floor": (1.0, "fraction"),
     # Symbolic-regression scoring (design §5.7). The `sr.*` settings carry the same ids, so a run
     # with settings registers its own values; these are what a run without settings uses.
     "const_sr_generations": (4, "generations"),

@@ -141,6 +141,13 @@ def test_the_leaderboard_page_carries_the_known_ranks_scores_and_registered_labe
     assert data["coverage_fraction"] == 0.75 and data["sweep_completeness"] == 1.0
     assert data["precision_among_admitted"] is None and data["rows_not_shown"] == 0
     assert data["snapshots"][0]["snapshot_id"] == data["snapshot_id"]
+    # the floor over the task's own criteria, beside the ranking coverage floor: this task registers
+    # no adapter-template criterion, so it mandates nothing and the floor applies to nobody -- which
+    # the page reports as a number and an empty list rather than by omitting it
+    assert data["mandated_coverage_floor"] == 1.0 and data["mandated_criteria"] == []
+    assert data["ineligible_for_mandated_coverage"] == 0
+    assert rows["cand_ik-ALPHA"]["clears_mandated_criteria"] is None
+    assert rows["cand_ik-ALPHA"]["mandated_blocked_by"] == []
     shown = page(bench, f"/leaderboard?task={task_id}")
     assert "cand_ik-ALPHA" in shown and "recommended" in shown and "no human review yet" in shown
 

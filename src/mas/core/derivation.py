@@ -150,9 +150,14 @@ REVISION_CHECKS = ("objective_conformance", "evidence_support", "unit_applicabil
 # supports (§5.4), the proposer is asked for one, and the registry reads it when it computes what
 # the criterion needs before it may score. Stripped here, the declaration would never reach the
 # record -- a field the schema accepts and nothing downstream reads (§5.3).
+#
+# WHY `determination_basis_precedence` is in this list: it is a validated attribute field
+# (`criteria.check_basis_precedence`) and the only way an attribute may accept a prediction under a
+# measurement, so a proposal stripped of it is refused for mixing bases -- the same unsatisfiable
+# loop `acceptable_determination_bases` was in before it was added here.
 ATTRIBUTE_FIELDS = ("name", "definition", "measurement_kind", "unit", "direction", "acceptable_value_sources",
-                    "acceptable_determination_bases", "aggregation", "value_transform", "evidence_request",
-                    "evidence_requests", "rationale", "bound_support")
+                    "acceptable_determination_bases", "determination_basis_precedence", "aggregation",
+                    "value_transform", "evidence_request", "evidence_requests", "rationale", "bound_support")
 
 # WHY one shared constant: both prompt builders describe the rule schema, and when the description drifts from what
 # `check_rule` accepts a proposer spends revisions discovering the real contract. This listed two of the five
@@ -513,9 +518,13 @@ def derive(core: Core, broker, roster: ModelRoster, task_id: str, *, dimensions:
               f"Evidence catalog (bind each attribute's evidence_request to one entry):\n{json.dumps(catalog, ensure_ascii=False, indent=1)}\n\n"
               f"Attribute fields: name, definition, measurement_kind (quantitative|ordinal|categorical|qualitative_determination), "
               f"unit, direction (higher_better|lower_better|within_range|target_value|non_directional|undetermined), "
-              f"acceptable_value_sources (evidence kinds: curated_measurement, database_entry, peer_reviewed, preprint, "
-              f"reference_text, tertiary_reference, user_supplied_document), "
+              f"acceptable_value_sources (evidence kinds: curated_measurement, database_entry, model_prediction, "
+              f"peer_reviewed, preprint, reference_text, tertiary_reference, user_supplied_document), "
               f"acceptable_determination_bases (defaults to measured and derived), "
+              f"determination_basis_precedence when one quantity is read from sources of different bases and the "
+              f"weaker one is only to fill gaps -- [\"measured\", \"predicted\"] uses the measurement where "
+              f"there is one and the prediction only where there is none, never both in one aggregate; it must "
+              f"list every accepted basis exactly once and may not put predicted first, "
               f"value_transform when the attribute is about a derived quantity rather than the value the source "
               f"returns -- {{kind: excess_above|shortfall_below|distance_outside_band, bound or low and high, "
               f"basis, source_refs}}; without it the raw value is what gets ranked, however the definition "

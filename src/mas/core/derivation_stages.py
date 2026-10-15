@@ -13,7 +13,9 @@ gate, not the model, decides what enters the pool's next state:
            measurable quantity, justified direction); revisions are re-validated.
   MERGE    deterministic pairing (same evidence route, unit and direction, overlapping
            wording), then the adjudicator decides; a reduction may cite only its parents' claims, and
-           inherits the quantity its group already agreed on instead of restating it.
+           inherits the quantity its group already agreed on -- and the support record behind any
+           bound it keeps unchanged -- instead of restating it. `REDUCTION_FIELDS` is the whole
+           division of labour: what the gate fills in, and what `MERGE_SCHEMA` therefore requires.
   REFINE   proposer with the reviser prompt fixes validator problems and critic
            findings; after `max_refines` attempts an item waits for the next round.
   PROMOTE  a final blind check, then criteria.propose: clean items are registered as
@@ -67,29 +69,158 @@ DISTILLER_SYSTEM = PROPOSER_SYSTEM + (
 # The registered reductions over a family, offered to the adjudicator and enforced by the gate.
 FAMILY_AGGREGATIONS = tuple(vocab.DOMAINS["criterion_family_aggregation"])
 
+# WHO ANSWERS EACH REQUIREMENT A REDUCTION'S CHILD HAS TO MEET. Four validators read the child a merge or a
+# consolidation produces -- `criteria.check_attribute`, `criteria.check_rule`, `bound_support.validate` and
+# this gate -- and three successive live reductions were refused because a requirement one of them makes was
+# answered by nobody: the group had already settled it and the gate asked the adjudicator for it anyway, or
+# the gate demanded it and `MERGE_SCHEMA` did not require it. Measured over the merges this project has run
+# against a real repaired pool: round 1 refused 4 of 4 proposed reductions, on `direction` (3) and
+# `acceptable_value_sources` (1); round 2 refused 3 of 3, all three on `name` -- which the model had in fact
+# written, as a sibling of `attribute` rather than inside it, where `derivation._normalize_proposal` drops it
+# -- and two of those also on the support record for a cutoff they kept from a parent. Behind both, masked
+# because `check_attribute` raises on the first field it finds missing, all three children had collected
+# every member's `literature_retrieval` route into one attribute, which the same validator refuses because
+# the reading path builds one query per attribute.
+#
+# So this table, and not the prose of a prompt, is where the division of labour lives. `MERGE_SCHEMA`'s
+# `required` lists are derived from it, so a field classified as the adjudicator's is one the provider's JSON
+# mode makes it write, in the object the gate reads it from; the inheritance tuples are derived from it, so a
+# field classified as the group's is one the gate fills in. A requirement added to any of the four validators
+# and not added here fails
+# `test_a_reduction_stating_only_what_the_classification_table_leaves_to_it_is_applied`, which builds a child
+# out of exactly the fields the table leaves to the adjudicator and asserts the gate applies it: a fourth
+# refusal of this kind arrives as a failing test rather than as a reduction nobody can explain.
+#
+# The classes, which are the three answers to "determined by the group, the adjudicator's own, or required
+# and uninheritable":
+GROUPED = "grouped"                      # `quantity_key` grouped on it, so no member of a group can differ
+AGREED = "agreed"                        # not keyed: inherited over the members folded in, refused if they differ
+AGREED_IN_A_MERGE = "agreed_in_a_merge"  # inherited where a merge's members agree, left to the child where not
+WITH_THE_BOUND = "with_the_bound"        # inherited with the bound it supports, for a bound kept unchanged
+DECIDED = "decided"                      # the adjudicator's, and required: `MERGE_SCHEMA` requires exactly these
+DECIDED_IF = "decided_if"                # the adjudicator's, required under a condition this schema cannot state
+GATE = "gate"                            # this gate writes it; the adjudicator is never asked for it
+
+# (where the child states it, field, who answers it, why it is that one's to answer).
+REDUCTION_FIELDS = (
+    ("attribute", "name", DECIDED,
+     "check_attribute; and no member's name can stand in -- `_ids_for` slugs the registry id out of it, and "
+     "one live group pairs 'Meal-induced AUC increase' with 'Meal-induced AUC reduction'"),
+    ("attribute", "definition", DECIDED, "check_attribute; the clearest of the members' wordings is a choice"),
+    ("attribute", "evidence_requests", DECIDED,
+     "check_attribute needs a route; which routes a reduction keeps is its own decision, bounded by "
+     "`_reach_beyond_parents` (no source no member had) and by check_attribute's one literature route per "
+     "attribute, since the reading path builds one query"),
+    ("attribute", "unit", GROUPED, "quantity_key keys on the canonical unit; check_attribute requires one for a "
+                                   "quantitative attribute, and check_rule compares the cutoff's against it"),
+    ("attribute", "direction", GROUPED, "quantity_key keys on it; `worst_member` is `max` under lower_better and "
+                                        "`min` under higher_better, so _consolidation cannot compile without it"),
+    ("attribute", "value_transform", GROUPED,
+     "quantity_key keys on it (F5): a raw descriptor and its own excess above a bound are two quantities"),
+    ("attribute", "measurement_kind", AGREED,
+     "check_attribute; it decides whether a claim's value counts as a value at all, so a member cannot have it "
+     "changed under it"),
+    ("attribute", "acceptable_value_sources", AGREED,
+     "check_attribute; with acceptable_determination_bases it decides which claims assessor.usable_claims "
+     "keeps, so admitting a kind a member refused scores that member's cell on evidence it refused"),
+    ("attribute", "acceptable_determination_bases", AGREED, "as acceptable_value_sources; validate_proposal also "
+                                                            "checks it against each bound source's own basis"),
+    ("attribute", "aggregation", AGREED_IN_A_MERGE,
+     "check_attribute defaults it to `consensus`, so a merge silent about it changes how its parents' pooled "
+     "values reduce without being refused -- both members of the live merge declared `max`. A consolidation's "
+     "is the GATE's: it is compiled from the declared family_aggregation"),
+    ("attribute", "bound_support", WITH_THE_BOUND, "the records for an inherited value_transform's bounds, which "
+                                                   "are the transform's and so the group's"),
+    ("rule", "rule_kind", DECIDED, "check_rule; members may differ, and whether the reduced criterion excludes or "
+                                   "ranks is the reduction's own claim"),
+    ("rule", "cutoff_basis", DECIDED, "check_rule; it says what kind of thing stands behind the number"),
+    ("rule", "cutoff", DECIDED_IF,
+     "check_rule requires one unless cutoff_basis is none_evidence_insufficient. `_cutoff_restated` rewrites "
+     "its unit into the group's own spelling, because check_rule compares the two literally"),
+    ("rule", "predicate_form", DECIDED_IF, "check_rule defaults it to `threshold`; an ordering rule must be a "
+                                           "preference"),
+    ("rule", "on_missing", DECIDED_IF, "check_rule defaults it; `exclude` is only for a hard exclusion"),
+    ("rule", "on_inapplicable", DECIDED_IF, "as on_missing"),
+    ("rule", "on_conflict", DECIDED_IF, "as on_missing"),
+    ("rule", "bound_support", WITH_THE_BOUND,
+     "bound_support.validate asks §5.4's four fields of every declared record and refuses a bound nothing "
+     "states. The record belongs to the bound: a cutoff kept unchanged from a parent keeps that parent's "
+     "record, and a cutoff the child changes needs its own -- that one is required and uninheritable"),
+    ("decision", "attribute", DECIDED, "the object the three fields above are read from; stated beside it they "
+                                       "are dropped by `_normalize_proposal` and read by nothing"),
+    ("decision", "rule", DECIDED, "check_rule runs on it for every reduction"),
+    ("decision", "supporting_claim_ids", DECIDED,
+     "validate_proposal refuses a proposal citing none, and `_reach_beyond_parents` refuses one citing a claim "
+     "no parent had"),
+    ("decision", "expected_change", DECIDED, "no validator refuses its absence; the pool stores it and the "
+                                             "criterion card shows it, as PROPOSAL_SCHEMA already requires of a "
+                                             "proposer"),
+    ("decision", "falsification_test", DECIDED, "as expected_change"),
+    ("consolidation", "members", DECIDED, "_consolidation: two or more, in one dimension -- the subset the "
+                                          "abstraction folds in, so a member that does not fit is left out"),
+    ("consolidation", "shared_property", DECIDED, "_consolidation: what makes the family one screening decision, "
+                                                  "and not a restatement of the unit the group shares"),
+    ("consolidation", "family_aggregation", DECIDED, "_consolidation: the reduction to one number, computable "
+                                                     "against the inherited direction"),
+    ("item", "dimension", GATE, "taken from the parents; `_consolidation` has already refused a family spanning two"),
+    ("item", "refine_count", GATE, "the largest in the group, so merging is not the cheapest way past max_refines"),
+    ("item", "consolidation", GATE,
+     "built here from `members`, `shared_property` and `family_aggregation` with the lineages it subsumes "
+     "resolved, or carried over from a merged member's own family (`_merged_consolidation`)"),
+    ("item", "validator_problems", GATE, "recomputed against the child; a reduction is applied only with none"),
+)
+
+
+def _answered_by(who: str, where: str) -> tuple[str, ...]:
+    return tuple(field for place, field, answerer, _ in REDUCTION_FIELDS if answerer == who and place == where)
+
+
+def _required_of(where: str) -> list[str]:
+    """The fields the adjudicator must state at `where`. A gate requirement the schema does not require is a
+    requirement the model will keep missing: all three reductions of round 2 were refused for a `name` the
+    model wrote outside `attribute`, where nothing reads it, because the schema named `attribute` only as the
+    optional holder of `evidence_requests` and so never said the name belonged inside it."""
+    return list(_answered_by(DECIDED, where))
+
+
+# The child's own criterion fields, which a merge and a consolidation state alike. The nested `required`
+# lists are what `models.validate` enforces on every reply, and what its repair round quotes back.
+_DECIDED_BY_THE_ADJUDICATOR = {
+    "attribute": {"type": "object", "required": _required_of("attribute"),
+                  "properties": {"name": {"type": "string"}, "definition": {"type": "string"},
+                                 # The merged attribute may keep every route its parents had, which is how two
+                                 # bindings of one quantity become one attribute read from both databases --
+                                 # but at most one of them may read literature, because the reading path
+                                 # builds one query per attribute (`evidence.literature_query`).
+                                 "evidence_requests": {"type": "array", "items": {"type": "object"}}}},
+    "rule": {"type": "object", "required": _required_of("rule"),
+             "properties": {"rule_kind": {"type": "string", "enum": list(criteria.RULE_KINDS)},
+                            "cutoff_basis": {"type": "string", "enum": list(criteria.CUTOFF_BASES)}}},
+    "supporting_claim_ids": {"type": "array", "items": {"type": "string"}},
+    "expected_change": {"type": "string"},
+    "falsification_test": {"type": "string"},
+}
+
 MERGE_SCHEMA = {
     "type": "object", "required": ["decisions"],
     "properties": {"decisions": {"type": "array", "items": {
         "type": "object", "required": ["group", "action", "reason"],
         "properties": {"group": {"type": "integer"},
                        "action": {"type": "string", "enum": ["merge", "consolidate", "keep_separate"]},
-                       "merged": {"type": "object", "properties": {"attribute": {"type": "object", "properties": {
-                           # The merged attribute may keep every route its parents had, which is how two
-                           # bindings of one quantity become one attribute read from both databases.
-                           "evidence_requests": {"type": "array", "items": {"type": "object"}}}}}},
+                       "merged": {"type": "object", "required": _required_of("decision"),
+                                  "properties": dict(_DECIDED_BY_THE_ADJUDICATOR)},
                        # A consolidation carries the same criterion fields as a merge plus the three that make
                        # the abstraction checkable: which members it folds in (so it may take part of a group,
                        # and so a reviewer sees what was subsumed), the property it claims they share, and how
                        # the family reduces to one number.
                        "consolidated": {
-                           "type": "object", "required": ["members", "shared_property", "family_aggregation"],
-                           "properties": {"members": {"type": "array", "items": {"type": "integer"}},
+                           "type": "object",
+                           "required": _required_of("decision") + _required_of("consolidation"),
+                           "properties": {**_DECIDED_BY_THE_ADJUDICATOR,
+                                          "members": {"type": "array", "items": {"type": "integer"}},
                                           "shared_property": {"type": "string"},
                                           "family_aggregation": {"type": "string",
-                                                                 "enum": list(FAMILY_AGGREGATIONS)},
-                                          "attribute": {"type": "object", "properties": {
-                                              "evidence_requests": {"type": "array",
-                                                                    "items": {"type": "object"}}}}}},
+                                                                 "enum": list(FAMILY_AGGREGATIONS)}}},
                        "reason": {"type": "string"}}}}},
 }
 
@@ -103,22 +234,35 @@ ADJUDICATOR_SYSTEM = (
     "criterion keeps the clearest definition and cites the claims (from the members' citations only) that support "
     "it. Otherwise keep the members separate and say what distinguishes them. Never name a specific candidate "
     "compound. "
-    "A reduction states only what it decides: a `name` of its own, a `definition`, the `rule`, "
-    "`supporting_claim_ids`, `expected_change`, `falsification_test`, the `evidence_requests` it keeps, and, for a "
-    "consolidation, `members`, `shared_property` and `family_aggregation`. The name is required and no member's "
-    "name can stand in for it -- a family named after one of its endpoints misdescribes itself -- so name the "
-    "quantity the child measures. "
+    "A reduction states only what it decides, and where it states it is part of the answer: `name`, "
+    "`definition` and `evidence_requests` are fields of `attribute` and go inside it, while `rule`, "
+    "`supporting_claim_ids`, `expected_change`, `falsification_test` and -- for a consolidation -- `members`, "
+    "`shared_property` and `family_aggregation` sit beside `attribute`. A name written outside the attribute is "
+    "a name nothing reads. The name is required and no member's name can stand in for it -- a family named "
+    "after one of its endpoints misdescribes itself -- so name the quantity the child measures. The `rule` "
+    "states at least a `rule_kind` and a `cutoff_basis`, and a `cutoff` unless that basis is "
+    "none_evidence_insufficient. "
     "What the group already settled is filled in for you and is not yours to restate: `unit`, `direction`, "
     "`value_transform`, `measurement_kind`, `acceptable_value_sources` and `acceptable_determination_bases` come "
     "from the members, which are in one group because they agree on them. Write none of those six. A value that "
     "contradicts what the members agree on refuses the reduction rather than overriding them; and where the "
     "members do not agree on one of the six -- on what evidence may answer them, or on what kind of value "
     "answers them -- the reduction is refused rather than rescoping a member's evidence silently, so consolidate "
-    "the members that agree and leave the others out. "
+    "the members that agree and leave the others out. A merge whose members all reduce their pooled values the "
+    "same way inherits that `aggregation` too; where they differ, say which reduction the merged quantity takes. "
+    "A cutoff you keep unchanged from a member keeps that member's support record with it -- the number the "
+    "passage states, the claim it was read from, what the passage is doing with it and why that applies to this "
+    "population are already recorded against that bound -- so do not restate them. State a cutoff of your own "
+    "only where the reduction needs a different number, and then it needs its own support record, because a "
+    "record justifies the one number it was written for. "
     "Members may differ only in which database answers the same question -- the same measurement curated by two "
     "sources. That is one quantity: merge them and give the merged attribute evidence_requests, the list of the "
     "members' evidence routes to keep, so the merged criterion reads both sources and pools their values under its "
     "aggregation. Keep a route only if a member declared it; a merge may not reach for a source no member had. "
+    "Several routes mean several databases, and only one of them may read literature: a literature-bound "
+    "reduction declares exactly one `literature_retrieval` route, because the reading path builds one query per "
+    "attribute, so collecting its members' queries into one attribute is refused. Write the single query the "
+    "quantity the child measures needs. "
     "A group of distinct measurements is not a merge, and the pool still has to reduce from many derived "
     "criteria to the few a screen decides on. That is `consolidate`: a family of specific endpoints replaced by "
     "the one criterion a screen would actually apply -- eight grade >=3 toxicity incidences by one grade >=3 "
@@ -225,8 +369,9 @@ class StageContext:
                 "Attribute fields: name, definition, measurement_kind (quantitative|ordinal|categorical|"
                 "qualitative_determination), unit, direction (higher_better|lower_better|within_range|target_value|"
                 "non_directional|undetermined), acceptable_value_sources (evidence kinds: curated_measurement, "
-                "database_entry, peer_reviewed, preprint, reference_text (textbooks), tertiary_reference "
-                "(encyclopedias, wikis), user_supplied_document), aggregation (max|min|median|consensus), "
+                "database_entry, model_prediction, peer_reviewed, preprint, reference_text (textbooks), "
+                "tertiary_reference (encyclopedias, wikis), user_supplied_document), "
+                "aggregation (max|min|median|consensus), "
                 "acceptable_determination_bases (defaults to measured and derived), "
                 "value_transform when the attribute is about a derived quantity rather than the value the source "
                 "returns -- {kind: excess_above|shortfall_below|distance_outside_band, bound or low and high, "
@@ -808,6 +953,15 @@ def _source_key(route: Any) -> str:
 #                          actually folds in says the same thing, measured over those members and not over
 #                          the group: a consolidation names the subset it subsumes, so a member whose
 #                          evidence policy differs can be left out instead of refusing the whole family.
+#   `_AGREED_IN_A_MERGE`   `aggregation`, and only for a merge. It is the one inherited field whose absence
+#                          is not a refusal -- `check_attribute` reads a missing one as `consensus` -- so a
+#                          merge that says nothing about it silently reduces its parents' pooled values a
+#                          different way: both members of the live merge declare `max` and its child would
+#                          have scored `consensus` over two literature routes. A consolidation's is compiled
+#                          from its `family_aggregation` instead, so completing it here would make
+#                          `replaced_declared_aggregation` name a value the adjudicator never wrote; and
+#                          because the group never settled it (the three live groups split `max`/`median`
+#                          twice), a disagreement leaves it to the child rather than refusing the merge.
 # Still the adjudicator's, because the group settles none of them: the name, the definition, the rule, which
 # of the members' claims support the child, which of their routes it keeps, and -- for a consolidation --
 # the members, the shared property and the family reduction (whose `aggregation` `merge_stage` derives).
@@ -823,8 +977,13 @@ def _source_key(route: Any) -> str:
 # (both unitless, mixing ordinal with qualitative and qualitative with categorical members) -- and on none of
 # the three in any of the 9 groups of the live merge, so the refusal costs no reduction that has ever been
 # proposed while the completion rescues 4.
-_FIXED_BY_GROUPING = ("unit", "direction", "value_transform")
-_AGREED_BY_MEMBERS = ("measurement_kind", "acceptable_value_sources", "acceptable_determination_bases")
+# Read off `REDUCTION_FIELDS` rather than written out twice: the table is what `MERGE_SCHEMA` asks the
+# adjudicator for, so a field moved between the two halves has to stop being asked for in the same edit that
+# makes the gate fill it in -- which is the contract `test_the_adjudicator_is_asked_for_what_a_reduction_
+# decides_and_told_what_its_group_fixes` checks.
+_FIXED_BY_GROUPING = _answered_by(GROUPED, "attribute")
+_AGREED_BY_MEMBERS = _answered_by(AGREED, "attribute")
+_AGREED_IN_A_MERGE = _answered_by(AGREED_IN_A_MERGE, "attribute")
 
 
 def _acts_as(attribute: dict[str, Any], field: str) -> Any:
@@ -903,6 +1062,113 @@ def _inherited_from(members: list[dict[str, Any]], fields: tuple[str, ...],
                               f"on {settled!r}; a reduction inherits what its group measures rather than "
                               f"restating it")
     return dict(proposal, attribute=attribute, rule=_cutoff_restated(attribute, proposal.get("rule") or {})), None
+
+
+def _completed_where_agreed(members: list[dict[str, Any]], fields: tuple[str, ...],
+                            item: dict[str, Any]) -> dict[str, Any]:
+    """`item` with the fields its members happen to agree on filled in, and left alone where they do not.
+
+    WHY this does not refuse the way `_inherited_from` does: nothing in the registry refuses a child silent
+    about `aggregation` -- `check_attribute` reads a missing one as `consensus` -- so a disagreement here is
+    not a reduction the gate has to stop, it is a question only the child can answer. Refusing it would turn
+    the completion into the fourth refusal class this table exists to prevent: of the three live groups the
+    adjudicator reduced, two have members declaring different reductions (`max` with `median`), and the one
+    merge among them has two members both declaring `max` -- which is the case completion is for.
+    """
+    attribute = dict(item.get("attribute") or {})
+    for field in fields:
+        settled = members[0]["item"]["attribute"].get(field)
+        if settled is None or attribute.get(field) not in (None, "", [], {}):
+            continue
+        if len({_acts_as(e["item"]["attribute"], field) for e in members}) == 1:
+            attribute[field] = settled
+    return dict(item, attribute=attribute)
+
+
+def _bounds_and_records(attribute: dict[str, Any], rule: dict[str, Any]) -> tuple[dict, dict]:
+    """Every number this criterion compares a candidate against, and every declared record, both by
+    parameter path -- the two halves `bound_support.validate` pairs up."""
+    return ({b["parameter_path"]: b for b in bound_support.bounds(attribute or {}, rule or {})},
+            bound_support.support_records(attribute or {}, rule or {}))
+
+
+def _is_one_bound(held: dict[str, Any], kept: dict[str, Any]) -> bool:
+    """Whether two bounds at one parameter path are the same number, on the same scale, drawn the same way
+    and claimed on the same kind of authority.
+
+    All four have to match before a support record may travel, because the record justifies exactly this
+    number: `basis` because a record reading a passage says nothing about an `expert_set` 58, the comparator
+    because `interpretation` is checked against the direction the bound points, the canonical unit because
+    `UNIT_SYNONYMS` maps spellings and converts nothing, and `kind` because a transform's floor and its
+    ceiling are different parameters of one attribute.
+    """
+    return (held["kind"] == kept["kind"] and held.get("comparator") == kept.get("comparator")
+            and held.get("basis") == kept.get("basis")
+            and canonical_unit(held.get("unit")) == canonical_unit(kept.get("unit"))
+            and float(held["value"]) == float(kept["value"]))
+
+
+def _supported_as_its_parents(parents: list[dict[str, Any]], item: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+    """`item` with the support record for every bound it keeps unchanged completed from the parent that holds
+    that bound, or the reason this reduction is refused -- the members justifying one number two ways.
+
+    WHY a support record is inherited at all, and why it is the third thing a reduction inherits. A §5.4
+    record states the number a passage gives, the claim it was read from, what that passage is doing with it
+    and why that applies to this population; `bound_support.validate` refuses a declared record missing any
+    of the four. A reduction that keeps its parent's cutoff has changed none of that -- the record belongs to
+    the bound, and the bound is the parent's -- so asking the adjudicator to restate it is asking it to
+    restate a finding, exactly as asking for the unit was. Measured on the merge of 14 October 2026: two of
+    the three reductions kept a parent's cutoff unchanged (58% oral bioavailability, 120 h terminal
+    half-life), restated the record almost in full and dropped `applicability_rationale`, and both were
+    refused for it with the cited claim, the number and the arithmetic all correct.
+    WHY the guard is the bound and not the path: a record is support for one number, so carrying it onto a
+    different one would manufacture support. Each bound the child holds is matched against the same path in
+    each parent (`_is_one_bound`), and only a parent holding that identical bound may hand its record over.
+    The parents of the live merge disagree outright -- `>= 58 %` against `> 1 %` -- which is the ordinary
+    case and needs no special handling: the child kept one of the two, so exactly one parent is a candidate
+    and the other is simply not. A child stating a cutoff no parent holds inherits nothing and is refused by
+    §5.4 if its record is incomplete, which is right: it is a new number and needs its own justification.
+    Where two parents do hold the identical bound and justify it differently, the reduction is refused rather
+    than the gate choosing a reading for it.
+    Only fields the child left empty are filled, so a child that writes its own rationale keeps it; and the
+    completed record is rewritten onto whichever of the rule and the attribute holds the parameter (§5.3),
+    because `support_records` reads both and a record filed against the other object travels with the wrong
+    version.
+    """
+    kept, declared = _bounds_and_records(item["attribute"], item["rule"])
+    held = [(e, *_bounds_and_records(e["item"]["attribute"], e["item"]["rule"])) for e in parents]
+    completed: dict[str, dict[str, Any]] = {}
+    for path, bound in sorted(kept.items()):
+        record = declared.get(path) or {}
+        offered: dict[str, list[tuple[dict, dict]]] = {}
+        for entry, bounds, records in held:
+            if path in bounds and path in records and _is_one_bound(bounds[path], bound):
+                offered.setdefault(canonical_text({k: v for k, v in records[path].items()
+                                                   if k != "parameter_path"}), []).append((entry, records[path]))
+        absent = sorted({field for same in offered.values() for field in same[0][1]
+                         if field != "parameter_path" and record.get(field) in (None, "", [], {})})
+        if not offered or not absent:
+            continue
+        if len(offered) > 1:
+            who = sorted(f"{e['criterion_id']}@v{e['version']}" for same in offered.values() for e, _ in same)
+            return item, (f"the reduction keeps the {bound['value']} {bound.get('unit') or ''}".rstrip()
+                          + f" bound at {path} that {len(who)} of the members it folds in hold, and they justify "
+                            f"that number differently ({', '.join(who)}); a support record stands behind one "
+                            f"reading of one passage, so the reduction states its own record for that number "
+                            f"rather than inheriting a reading its members disagree on")
+        _, source = next(iter(offered.values()))[0]
+        completed[path] = dict(record, parameter_path=path, **{field: source[field] for field in absent})
+    if not completed:
+        return item, None
+    attribute, rule = dict(item["attribute"]), dict(item["rule"])
+    for path, record in completed.items():
+        for holder in (attribute, rule):
+            if holder.get("bound_support"):
+                holder["bound_support"] = [r for r in holder["bound_support"]
+                                           if not (isinstance(r, dict) and r.get("parameter_path") == path)]
+        holder = rule if kept[path]["kind"] == "cutoff" else attribute
+        holder["bound_support"] = list(holder.get("bound_support") or []) + [record]
+    return dict(item, attribute=attribute, rule=rule), None
 
 
 def _merged_consolidation(parents: list[dict[str, Any]],
@@ -1060,6 +1326,10 @@ def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> 
             # because only one of them was ever authored.
             item["attribute"]["aggregation"] = consolidation["executes_as_aggregation"]
         else:
+            # A merge's own reduction over its pooled values, where its members agree on one -- before
+            # `_merged_consolidation`, which reads `aggregation` as part of what an attribute measures and
+            # would otherwise see the child's silence as a change away from a consolidated parent's family.
+            item = _completed_where_agreed(parents, _AGREED_IN_A_MERGE, item)
             # A merge over a group that contains a consolidated member carries that member's family forward
             # or is refused; it may not quietly retire the record of what the abstraction replaced.
             inherited, problem = _merged_consolidation(parents, item)
@@ -1068,6 +1338,14 @@ def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> 
                 continue
             if inherited:
                 item["consolidation"] = inherited
+        # Last of the three inheritances, because it is keyed on the child's finished bounds: the cutoff has
+        # by now been restated in the group's unit and an inherited `value_transform` has brought its own
+        # bounds with it, so what is matched against the parents is the set of numbers the child will really
+        # be scored on.
+        item, problem = _supported_as_its_parents(parents, item)
+        if problem:
+            not_reduced(decision["group"], "refused", action, problem)
+            continue
         child_routes = {route_key(r) for r in criteria.evidence_routes(item["attribute"])}
         # An invalid child, one citing evidence its parents did not, or one reaching for a data source no
         # parent was bound to, is not applied: a reduction combines what the pool already has, and that holds

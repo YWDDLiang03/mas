@@ -305,3 +305,186 @@ def test_mechanism_claims_declare_a_curated_basis_while_potency_claims_keep_meas
     entry = next(e for e in EVIDENCE_CATALOG if e["question_kind"] == "mechanism_records")
     assert entry["determination_basis"] == "curated"
     assert 'acceptable_determination_bases: ["curated"]' in entry["note"]
+
+
+# --- the mandated receptor criterion's three routes ---------------------------------------------
+
+TASK_WITH_ONE_REQUIRED_RECEPTOR = {
+    "task_context_id": "task_t", "version": 1,
+    "scope_entities": [{"entity_kind": "target", "identifier": "CHEMBL1844", "label": "CSF1R", "role": "required",
+                        "identifier_scheme": "chembl_target"}],
+    "constraints": [{"text": "oral administration", "kind": "route", "hardness": "hard"}]}
+
+
+def _mandated_potency():
+    from mas.adapters.drug.registration import objective_templates
+    item = next(i for i in objective_templates(TASK_WITH_ONE_REQUIRED_RECEPTOR)
+                if i["attribute"]["name"] == "CSF1R curated potency")
+    return item
+
+
+def test_the_mandated_receptor_potency_reads_two_curations_and_the_literature_as_one_quantity():
+    """A required receptor's potency is one quantity (the comment above the template), and the
+    literature is a third curation of it: a published selectivity table reports exactly this for
+    exactly these targets, and it is where the quantity exists for the compounds no curation has
+    reached -- 74 of the 3,177 candidates carry any curated potency at the five required receptors.
+
+    One attribute with three routes, pooled by the `median` it already declared, so the quantity is
+    not registered twice; and every route's evidence kind is accepted, so none of the three pays for
+    a call whose values are then all set aside.
+    """
+    from mas.core import criteria
+
+    item = _mandated_potency()
+    attribute, rule = item["attribute"], item["rule"]
+    criteria.check_attribute(attribute)
+    criteria.check_rule(rule, attribute)
+    routes = criteria.evidence_routes(attribute)
+    assert [(r["capability"], r["question_kind"]) for r in routes] == [
+        ("interaction_evidence_lookup", "pchembl_values"),
+        ("interaction_evidence_lookup", "gtopdb_affinity"),
+        ("literature_retrieval", "search")]
+    assert attribute["acceptable_value_sources"] == ["curated_measurement", "peer_reviewed"]
+    for route in routes:
+        entry = next(e for e in EVIDENCE_CATALOG if e["capability"] == route["capability"]
+                     and e["question_kind"] == route["question_kind"])
+        assert entry["evidence_kind"] in attribute["acceptable_value_sources"], route["question_kind"]
+        assert entry["determination_basis"] in ("measured", "derived"), "the default accepted bases"
+    # the task's decision, kept as code: no predicted route and no gap-filling on this attribute
+    assert "determination_basis_precedence" not in attribute
+    assert all(r["capability"] != "predicted_property_lookup" for r in routes)
+
+
+def test_the_literature_route_asks_for_this_receptors_potency_and_is_read_by_capability():
+    """The query is about the receptor's potency for this compound, not about the compound: a
+    pharmacokinetics paper naming it does not answer here. And the template is found by capability --
+    on a three-route attribute the first route is a database one with no template at all, which
+    produced a bare-name query."""
+    from mas.core import criteria, evidence
+
+    attribute = dict(_mandated_potency()["attribute"], attribute_id="attr_csf1r", version=1)
+    route = criteria.literature_route(attribute)
+    assert route["parameters"]["search_limit"] == 10 and "CSF1R" in route["parameters"]["relevance_terms"]
+    query = evidence.literature_query(attribute, ["Surufatinib", "HMPL-012"])
+    assert query == ('(Surufatinib OR "HMPL-012") AND "CSF1R" AND '
+                     '(IC50 OR Ki OR Kd OR EC50 OR potency OR selectivity OR "kinase selectivity")')
+    assert "{names}" not in query
+
+
+def test_the_literature_route_only_pays_off_with_the_molar_conversion():
+    """The pairing this route depends on: the attribute is on the pChEMBL scale and a selectivity
+    table prints a molar IC50. Without `assessor.UNIT_CONVERSIONS` every claim the route produces is
+    set aside `unit_unresolved` and the reading is paid for and discarded."""
+    from mas.core import assessor
+
+    attribute = _mandated_potency()["attribute"]
+    assert attribute["unit"] == "pChEMBL"
+    claim = {"claim_id": "c1", "admission_state": "admitted", "evidence_kind": "peer_reviewed",
+             "determination_basis": "measured", "value": 0.004, "unit": "uM"}
+    usable, set_aside = assessor.usable_claims([claim], attribute)
+    assert set_aside == [] and round(usable[0]["value"], 3) == 8.398
+
+
+# --- an accepted evidence kind has to be one something produces ---------------------------------
+
+def _oral_literature_companion():
+    from mas.adapters.drug.registration import objective_templates
+    return next(i for i in objective_templates(TASK_WITH_ONE_REQUIRED_RECEPTOR)
+                if i["attribute"]["name"].startswith("Oral administration reported"))
+
+
+def test_the_oral_route_companion_accepts_the_kind_the_readers_actually_emit():
+    """It declared `peer_reviewed_primary`, which no tool produces: the readers stamp the source
+    registry's kind on every claim and that registry has no `primary` variant. So every claim this
+    criterion ever read was set aside `evidence_kind_not_accepted` and it could never carry a value
+    -- the one route meant to answer the oral-route question for the 1,262 of 3,177 candidates
+    ChEMBL has no route flag for, because its route flags come from approved-product records."""
+    from mas.adapters.literature import registry
+    from mas.core import assessor, criteria
+
+    attribute = _oral_literature_companion()["attribute"]
+    assert attribute["acceptable_value_sources"] == ["peer_reviewed"]
+    assert registry.SOURCES["europepmc"].evidence_kind == "peer_reviewed"
+    criteria.check_attribute(attribute)
+    read = {"claim_id": "c1", "admission_state": "admitted", "evidence_kind": "peer_reviewed",
+            "determination_basis": "asserted", "value": True, "unit": None}
+    usable, set_aside = assessor.usable_claims([read], dict(attribute, attribute_id="attr_oral", version=1))
+    assert [c["claim_id"] for c in usable] == ["c1"] and set_aside == []
+    # the declaration as it was: admitted by the registry, and refused by the assessor on every claim
+    was = dict(attribute, acceptable_value_sources=["peer_reviewed_primary"])
+    _, refused = assessor.usable_claims([read], dict(was, attribute_id="attr_oral", version=1))
+    assert [c["set_aside_reason"] for c in refused] == ["evidence_kind_not_accepted"]
+
+
+def test_an_attribute_declaring_a_kind_nothing_produces_is_refused_at_registration():
+    """The class of bug, closed where the attribute is written. `check_attribute` only checked that
+    `acceptable_value_sources` was *present*, so a kind nothing emits read exactly like absent
+    evidence: the cell came back `unknown_missing` and nothing said the criterion was unanswerable
+    by construction."""
+    import pytest
+
+    from mas.core import criteria
+
+    attribute = _oral_literature_companion()["attribute"]
+    for refused in ("peer_reviewed_primary", "PEER_REVIEWED", "clinical_trial_registry", ""):
+        with pytest.raises(criteria.InvariantViolation, match="no tool of this system produces"):
+            criteria.check_attribute(dict(attribute, acceptable_value_sources=[refused]))
+    with pytest.raises(criteria.InvariantViolation, match="needs acceptable_value_sources"):
+        criteria.check_attribute({k: v for k, v in attribute.items() if k != "acceptable_value_sources"})
+    with pytest.raises(criteria.InvariantViolation, match="non-empty list"):
+        criteria.check_attribute(dict(attribute, acceptable_value_sources="peer_reviewed"))
+
+
+def test_a_kind_whose_tool_this_install_has_not_got_is_not_a_schema_defect(tmp_path):
+    """The false positive to avoid. `model_prediction` is a legitimate kind, and a machine without
+    the ADMET predictor registers no tool that produces one. That is an install gap, reported from
+    the live contracts (`evidence.producible_evidence_kinds`), not a defect in the attribute -- so
+    the registry's refusal is measured against the closed `evidence_kind` vocabulary, which says
+    what kind of thing exists at all, and never against what happens to be installed."""
+    from mas.adapters.drug.registration import register
+    from mas.core import criteria, evidence, vocab
+    from mas.core.broker import Broker
+    from mas.core.runtime import Core
+
+    predicted = {"name": "Predicted clearance", "definition": "d", "measurement_kind": "quantitative",
+                 "unit": "mL/min/kg", "direction": "lower_better", "aggregation": "median",
+                 "acceptable_value_sources": ["model_prediction"],
+                 "acceptable_determination_bases": ["predicted"],
+                 "evidence_request": {"capability": "predicted_property_lookup",
+                                      "question_kind": "admet_prediction", "identifier_scheme": "inchikey",
+                                      "parameters": {"endpoint": "Clearance_Hepatocyte_AZ"}}}
+    universe = tmp_path / "u.json"
+    universe.write_text(json.dumps({"source": "test", "universe": [{"inchikey": "AAA", "name": "x", "smiles": "C"}]}))
+    with Core.open(tmp_path / "root") as core:
+        installs = {}
+        for predict in (True, False):
+            broker = Broker(core, sleep=lambda s: None)
+            register(broker, universe_file=str(universe), predict=predict, cache_dir=str(tmp_path),
+                     upload_dir=str(tmp_path))
+            installs[predict] = evidence.producible_evidence_kinds(broker)
+    assert "model_prediction" in installs[True] and "model_prediction" not in installs[False]
+    criteria.check_attribute(predicted), "the attribute is sound either way"
+    # and every kind a full install produces is a registered one, so the refusal above can never
+    # reject a kind some tool here emits -- including `preprint`, which `reading.read` stamps on a
+    # preprint hit and which therefore no tool contract declares
+    assert installs[True] == set(criteria.EVIDENCE_KINDS) == set(vocab.DOMAINS["evidence_kind"])
+    assert "preprint" not in {c.evidence_kind_produced for c in Broker(None, sleep=lambda s: None).contracts()}
+
+
+def test_every_kind_the_adapters_declare_is_one_the_vocabulary_registers():
+    """The drift guard the registry needs and cannot run itself: the core may not import an adapter,
+    so the closed list in `vocab.DOMAINS["evidence_kind"]` is checked against the adapters here. The
+    hand-written tuple it replaces listed five kinds and omitted the three this adapter's own
+    literature registration produces, which is why it could not be used to check anything."""
+    from mas.adapters.drug.registration import EVIDENCE_KINDS
+    from mas.adapters.literature import registry
+    from mas.core import criteria, vocab
+
+    assert set(EVIDENCE_KINDS) == set(criteria.EVIDENCE_KINDS)
+    assert {"reference_text", "tertiary_reference", "user_supplied_document"} <= set(EVIDENCE_KINDS)
+    assert {s.evidence_kind for s in registry.SOURCES.values()} <= set(vocab.DOMAINS["evidence_kind"])
+    assert {e["evidence_kind"] for e in EVIDENCE_CATALOG} <= set(vocab.DOMAINS["evidence_kind"])
+    # every catalog entry's kind is accepted by at least one of its routes' attributes somewhere, and
+    # the reverse direction -- a kind in the vocabulary that nothing produces -- is what is refused
+    for kind in criteria.EVIDENCE_KINDS:
+        assert vocab.label("evidence_kind", kind)

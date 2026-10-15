@@ -9,7 +9,8 @@ import json
 import pytest
 
 from mas.adapters.drug.registration import EVIDENCE_CATALOG
-from mas.core import assessor, criteria, derivation_run, derivation_stages, pool, review, task, vocab
+from mas.core import (assessor, bound_support, criteria, derivation_run, derivation_stages, models, pool,
+                      review, task, vocab)
 from mas.core.broker import Broker, ProviderResponse, ToolContract
 from mas.core.budget import Budget
 from mas.core.controller import RunController, RunError
@@ -152,8 +153,9 @@ class RoundOne:
             decisions = []
             for group in groups:
                 first = group["members"][0]
-                merged = dict(first, attribute=dict(first["attribute"], name="Oral bioavailability",
-                                                    definition="fraction of an oral dose reaching circulation"))
+                merged = dict(first, attribute=child_attribute(
+                    first["attribute"], name="Oral bioavailability",
+                    definition="fraction of an oral dose reaching circulation"))
                 merged.pop("index")
                 decisions.append({"group": group["group"], "action": "merge", "merged": merged, "reason": "same quantity"})
             return {"decisions": decisions}
@@ -468,6 +470,13 @@ def pooled(*routes, base=CHEMBL_POTENCY, **extra):
     return attribute
 
 
+def child_attribute(attribute, *routes, **extra):
+    """One attribute as a reduction states it. `MERGE_SCHEMA` requires `evidence_requests`, which is the one
+    spelling `ADJUDICATOR_SYSTEM` offers, so a reply keeping a route under the singular `evidence_request`
+    never reaches the gate -- `models.validate` asks for it again first."""
+    return pooled(*(routes or criteria.evidence_routes(attribute)), base=attribute, **extra)
+
+
 def test_one_quantity_curated_by_two_databases_is_grouped_for_merge_though_its_wording_barely_overlaps():
     """Measured on the registry, 14 October 2026: ten promoted rules for five quantities, because each
     receptor had one attribute bound to ChEMBL and one bound to IUPHAR/BPS. Grouping keyed on
@@ -494,14 +503,30 @@ def test_one_quantity_curated_by_two_databases_is_grouped_for_merge_though_its_w
     assert [sorted(e["criterion_id"] for e in g) for g in both] == [["cri_1", "cri_2"]]
 
 
-def test_an_attribute_mixing_a_literature_route_with_a_database_route_is_refused():
-    """Two routes on one attribute are two broker calls pooled under one aggregation. A literature route
-    is not that: it is a search, a read and a quote-checked extraction, and pooling a claim read from a
-    paper with a database record under one median needs a policy nobody has set."""
+def test_a_literature_route_joins_database_routes_only_where_one_scale_and_one_reduction_are_declared():
+    """Two routes on one attribute are two broker calls pooled under one aggregation. A literature
+    route is not that: it is a search, a read and a quote-checked extraction. `evidence.gather` now
+    runs both halves for one cell, so what is left to decide is pooling -- and the policy is set for
+    exactly one shape of quantity: a quantitative attribute with a unit, reduced by a numeric
+    aggregation, where every claim is checked against that one scale (`assessor.usable_claims`
+    converts a commensurable unit and sets anything else aside). That is what a required receptor's
+    potency is: one quantity, two curations and a published selectivity table, pooled by `median`.
+
+    Everything else is still refused, because nothing about it is defined: `consensus` asks whether
+    sources agree, and agreement between a curated record and a read passage is a question nobody
+    has answered; an attribute with no unit has no scale to check a passage against.
+    """
     literature_route = {"capability": "literature_retrieval", "question_kind": "search",
                         "parameters": {"query_template": "({names}) AND CSF1R affinity"}}
-    with pytest.raises(criteria.InvariantViolation, match="mixes a literature route"):
-        criteria.check_attribute(pooled(CHEMBL_POTENCY["evidence_request"], literature_route))
+    three_routes = pooled(CHEMBL_POTENCY["evidence_request"], GTOPDB_AFFINITY["evidence_request"], literature_route)
+    criteria.check_attribute(three_routes)
+    assert criteria.is_literature_bound(three_routes)
+    assert criteria.literature_route(three_routes) is literature_route, "by capability, never by position"
+    for refused in (dict(three_routes, aggregation="consensus"),
+                    dict(three_routes, measurement_kind="categorical", unit=None),
+                    {k: v for k, v in three_routes.items() if k != "aggregation"}):
+        with pytest.raises(criteria.InvariantViolation, match="mixes a literature route"):
+            criteria.check_attribute(refused)
     with pytest.raises(criteria.InvariantViolation, match="literature routes"):
         criteria.check_attribute(pooled(literature_route, dict(literature_route, parameters={"query_template": "({names})"})))
     with pytest.raises(criteria.InvariantViolation, match="same evidence route twice"):
@@ -665,7 +690,8 @@ def consolidate_script(*, members=None, shared_property=SHARED_PROPERTY, family_
         for group in groups:
             folded = [m for m in group["members"] if members is None or m["index"] in members]
             cited = claims if claims is not None else sorted({c for m in folded for c in m["supporting_claim_ids"]})
-            item = dict(proposal(attribute or burden_attribute(), "unused"), supporting_claim_ids=cited)
+            item = dict(proposal(child_attribute(attribute or burden_attribute()), "unused"),
+                        supporting_claim_ids=cited)
             decisions.append({"group": group["group"], "action": "consolidate",
                               "consolidated": dict(item, members=[m["index"] for m in folded],
                                                    shared_property=shared_property,
@@ -1001,8 +1027,7 @@ def merge_leaving_out(*omitted, name=None, cites=True, keep_routes="all"):
             attribute = {k: v for k, v in members[0]["attribute"].items() if k not in omitted}
             if name:
                 attribute["name"] = name
-            if keep_routes == "all":
-                attribute = pooled(*routes, base=attribute)
+            attribute = child_attribute(attribute, *(routes if keep_routes == "all" else ()))
             cited = sorted({c for m in members for c in m["supporting_claim_ids"]}) if cites else []
             decisions.append({"group": group["group"], "action": "merge",
                               "merged": dict(proposal(attribute, "unused"), supporting_claim_ids=cited),
@@ -1039,18 +1064,16 @@ def test_a_consolidation_inherits_the_direction_its_group_was_formed_on_instead_
 
 
 def test_a_merge_inherits_the_evidence_kinds_its_members_agreed_on_and_is_still_refused_for_citing_no_claim(core):
-    """The live merge's child, reproduced: no name, no cited claims, no `acceptable_value_sources`, both
-    members' literature routes. Two of those three refusals are the reduction's own and stay. A reduction may
-    cite only its parents' claims, so citing none is a criterion resting on no evidence at all; and the name is
-    the one field a group cannot settle -- `_ids_for` slugs the registry id out of it, and a family named after
-    one of its endpoints ("Alopecia incidence" for a toxicity burden) misdescribes itself, so it is refused and
-    the prompt says plainly that it is required. What the members did settle is no longer asked for."""
-    ctx = family_pool(core, merge_leaving_out("name", "acceptable_value_sources", cites=False),
+    """The live merge's child, reproduced: no cited claims, no `acceptable_value_sources`, both members'
+    literature routes. Citing no claim is the reduction's own defect and stays -- a reduction may cite only its
+    parents' claims, so citing none is a criterion resting on no evidence at all. What the members did settle
+    is no longer asked for."""
+    ctx = family_pool(core, merge_leaving_out("acceptable_value_sources", name="Grade >=3 toxicity incidence",
+                                              cites=False, keep_routes="first"),
                       members=TOXICITY_FAMILY[:2], task_id="task_merge_live", run_id="run_merge_live")
     stats = derivation_stages.merge_stage(ctx, 1)
     assert stats["groups"] == 1 and stats["merged"] == 0 and stats["refused"] == 1
     (refusal,) = [d for d in stats["not_reduced"] if d["outcome"] == "refused"]
-    assert "attribute needs name" in refusal["reason"]
     assert "evidence_support: no supporting claims cited" in refusal["reason"]
     assert "acceptable_value_sources" not in refusal["reason"], \
         "both members declared ['peer_reviewed']; the child inherits it rather than being asked for it"
@@ -1149,19 +1172,496 @@ def test_a_reductions_cutoff_is_restated_in_the_unit_its_group_fixed_so_a_synony
 
 
 def test_the_adjudicator_is_asked_for_what_a_reduction_decides_and_told_what_its_group_fixes():
-    """The prompt and the gate are one contract: every field the gate fills in has to be a field the prompt
-    stops asking for, or a model that answers the prompt exactly is refused for the omission. It used to say a
-    merged criterion "has the same fields as the members", which is how a child arrived without the direction
-    and the value sources its members all declared."""
+    """The prompt, the schema and the gate are one contract: every field the gate fills in has to be a field
+    the prompt stops asking for, and every field the gate demands has to be one the prompt asks for and the
+    schema requires -- or a model that answers the prompt exactly is refused for the difference. It used to
+    say a merged criterion "has the same fields as the members", which is how a child arrived without the
+    direction and the value sources its members all declared; then it listed the child's own fields flat,
+    which is how three reductions arrived with the name written outside the attribute."""
     system = derivation_stages.ADJUDICATOR_SYSTEM
     assert "same fields as the members" not in system
-    for field in derivation_stages._FIXED_BY_GROUPING + derivation_stages._AGREED_BY_MEMBERS:
+    for field in (derivation_stages._FIXED_BY_GROUPING + derivation_stages._AGREED_BY_MEMBERS
+                  + derivation_stages._AGREED_IN_A_MERGE):
         assert field in system, field
-    for decided in ("`name`", "`definition`", "`rule`", "`supporting_claim_ids`", "`evidence_requests`",
-                    "`shared_property`", "`family_aggregation`"):
-        assert decided in system, decided
+    for where in ("attribute", "rule", "decision", "consolidation"):
+        for field in derivation_stages._required_of(where):
+            assert f"`{field}`" in system, (where, field)
     assert "The name is required" in system
     assert "Write none of those six" in system
+    # the two rules the gate enforces that the prompt used to leave it to find out: one literature route per
+    # attribute, and the support record that comes with a cutoff kept unchanged
+    assert "exactly one `literature_retrieval` route" in system
+    assert "keeps that member's support record with it" in system
+    assert "needs its own support record" in system
+
+
+def test_a_merge_whose_members_pool_their_values_differently_is_not_refused_for_it(core):
+    """The one inherited field whose absence no validator refuses, so completing it must not start refusing.
+    `check_attribute` reads a missing `aggregation` as `consensus`; where a merge's members agree on a
+    reduction the child gets it, and where they do not the question is the child's and the merge stands. The
+    live merge's two members both declare `max`, and two of the three live groups split `max` with `median`,
+    so both halves of this are cases the pool actually holds."""
+    disagreeing = [BIOAVAILABILITY_GROUP[0],
+                   dict(BIOAVAILABILITY_GROUP[1],
+                        attribute=dict(BIOAVAILABILITY_GROUP[1]["attribute"], aggregation="median"))]
+    ctx = live_pool(core, live_script(live_decision(LIVE_BIOAVAILABILITY_CHILD, action="merge")), disagreeing,
+                    task_id="task_live_two_reductions")
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["merged"] == 1 and stats["refused"] == 0, stats["not_reduced"]
+    attribute = next(e for e in pool.fold(core, "task_live_two_reductions").values()
+                     if e["parents"])["item"]["attribute"]
+    assert attribute.get("aggregation") is None, "a disagreement is the child's to settle, not the gate's"
+    criteria.check_attribute(attribute)
+
+
+# --- the second live merge, and the table that says who answers what -------------------------
+# The three reductions the gate refused on 14 October 2026, reproduced from the recorded reply (trace
+# `art_e8c55505cab5`) replayed against the pool at that merge stage's own `input_pool_hash`: of 6 groups over
+# 115 lineages the adjudicator kept 3 separate on specific pharmacological grounds and proposed 1 merge and
+# 2 consolidations, and the gate refused all three -- every one on `name`, and two of them also on the
+# support record for a cutoff they had kept from a parent unchanged. The lineages' real cutoffs, support
+# records and claim quotes are reproduced too, because what makes the support-record refusal the gate's
+# doing rather than the model's is that the number, the claim, the arithmetic and the interpretation behind
+# that cutoff were already correct and already recorded, against the very bound the child kept.
+LIVE_QUOTES = (
+    ("claim_bioavailability_58", "The oral bioavailability is reasonable at 58%.", {"value": 58, "unit": "%"}),
+    ("claim_bioavailability_1", "The principal reason is poor oral bioavailability of less than 1%",
+     {"value_high": 1, "unit": "%"}),
+    ("claim_half_life_120", "Cabozantinib has a half-life of 55 h and an extended terminal plasma half-life of "
+                            "99-120 h and demonstrates an approximate five-fold accumulation by the 15th day of "
+                            "daily administration", {"value_low": 99, "value_high": 120, "unit": "h"}),
+    ("claim_half_life_51", "Single 160 mg dose geometric mean elimination half-lives of regorafenib are: 28 h "
+                           "(14-58), M-2 25 h (14-32) and M5 51 h (32-70)", {"value_low": 14, "value_high": 58,
+                                                                             "unit": "h"}),
+    ("claim_food_20", "Following food intake, nintedanib exposure increases by roughly 20% compared to fasting "
+                      "conditions, with delayed absorption.", {"value": 20, "unit": "%"}),
+    ("claim_food_32", "food modestly decreases its exposure (high-fat meal AUC 22%, light-fat AUC 32%)", {}),
+    ("claim_acid_46", "Omeprazole AUC 46%/Cmax 61%; ranitidine AUC 15-33%", {}),
+)
+LIVE_CLAIMS = {claim_id: {"claim_id": claim_id, "source_ref": f"src_{claim_id}", "evidence_kind": "peer_reviewed",
+                          "determination_basis": "measured", "location": {"quoted_span": quote}, **recorded}
+               for claim_id, quote, recorded in LIVE_QUOTES}
+
+
+def live_support(claim_id, number, unit, *, inference, measurement, rationale):
+    """One §5.4 record as the live lineages carry them: the number the passage states, the claim it was read
+    from, what that passage is doing with it, why that applies here, and the step to a screening bound."""
+    return {"parameter_path": "rule.cutoff.value", "claim_id": claim_id, "source_number": number,
+            "source_unit": unit, "conversion": {"kind": "identity"}, "statement_kind": "reports_measurement",
+            "applicability_rationale": rationale,
+            "interpretation": {"measurement": measurement, "inference": inference,
+                               "population_rationale": rationale}}
+
+
+def live_member(name, unit, direction, dimension, *, query, aggregation, claims, cutoff=None, comparator="<=",
+                support=None):
+    """One lineage of a live merge group: a literature-bound criterion with its own query and, where it has a
+    cutoff, the support record that cutoff was admitted on."""
+    attribute = dict(lit_attribute(name, unit, direction=direction), aggregation=aggregation,
+                     acceptable_determination_bases=["measured"],
+                     evidence_request={"capability": "literature_retrieval", "question_kind": "search",
+                                       "parameters": {"query_template": query, "search_limit": 10}})
+    if cutoff is None:
+        rule = {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": None,
+                "cutoff_basis": "none_evidence_insufficient", "on_missing": "unknown_no_penalty"}
+    else:
+        rule = {"rule_kind": "preference", "predicate_form": "threshold", "cutoff_basis": "source_stated_value",
+                "cutoff": {"comparator": comparator, "value": cutoff, "unit": unit},
+                "on_missing": "unknown_no_penalty", "bound_support": [support]}
+    return {"attribute": attribute, "rule": rule, "supporting_claim_ids": list(claims), "dimension": dimension,
+            "expected_change": f"candidates with a better {name.lower()} rank higher",
+            "falsification_test": f"the ranking is unchanged when {name.lower()} is"}
+
+
+BIOAVAILABILITY_GROUP = [
+    live_member("Reported human oral bioavailability against a same-class benchmark", "%", "higher_better",
+                "oral_bioavailability", query='({names}) AND "oral bioavailability"', aggregation="max",
+                claims=["claim_bioavailability_58"], cutoff=58, comparator=">=",
+                support=live_support("claim_bioavailability_58", 58, "%", inference="at_least_the_reported_value",
+                                     measurement="the passage reports a measured oral bioavailability of 58% and "
+                                                 "calls it reasonable for an orally dosed kinase inhibitor",
+                                     rationale="candidates are orally administered kinase inhibitors, the "
+                                               "population in which 58% was measured and judged reasonable for "
+                                               "oral use")),
+    live_member("Oral bioavailability relative to the band described as poor and development-limiting", "%",
+                "higher_better", "oral_bioavailability", query='({names}) AND "oral absorption"',
+                aggregation="max", claims=["claim_bioavailability_1"], cutoff=1, comparator=">",
+                support=live_support("claim_bioavailability_1", 1, "%",
+                                     inference="outside_the_reported_range_is_out_of_population",
+                                     measurement="the passage reports that bioavailability below 1% was the "
+                                                 "reason oral development failed",
+                                     rationale="the sub-1% band is the source's own description of the "
+                                               "population that cannot be developed as an oral agent")),
+]
+HALF_LIFE_GROUP = [
+    live_member("Terminal half-life upper bound as an accumulation-risk flag", "h", "lower_better",
+                "metabolic_stability", query='({names}) AND "terminal half-life"', aggregation="max",
+                claims=["claim_half_life_120"], cutoff=120,
+                support=live_support("claim_half_life_120", 120, "h", inference="at_most_the_reported_value",
+                                     measurement="the passage reports an extended terminal plasma half-life "
+                                                 "range of 99-120 h with five-fold accumulation by the "
+                                                 "fifteenth day of daily dosing",
+                                     rationale="candidates are oral agents intended for repeated daily dosing, "
+                                               "the regimen that range was observed under, so a half-life "
+                                               "beyond its upper edge accumulates further")),
+    live_member("Active metabolite terminal half-life", "h", "lower_better", "metabolic_stability",
+                query='({names}) AND "active metabolite"', aggregation="median", claims=["claim_half_life_51"],
+                cutoff=51,
+                support=live_support("claim_half_life_51", 51, "h", inference="at_most_the_reported_value",
+                                     measurement="the passage reports a geometric-mean terminal half-life of "
+                                                 "51 h for the long-lived active metabolite",
+                                     rationale="candidates are dosed continuously in the same oncology "
+                                               "population, where a longer-lived metabolite is the less "
+                                               "favourable direction")),
+]
+CO_ADMINISTRATION_GROUP = [
+    live_member("Meal-induced AUC increase", "%", "lower_better", "oral_bioavailability",
+                query='({names}) AND "food effect"', aggregation="median", claims=["claim_food_20"]),
+    live_member("Meal-induced AUC reduction", "%", "lower_better", "oral_bioavailability",
+                query='({names}) AND "food intake"', aggregation="max", claims=["claim_food_32"]),
+    live_member("Acid-reducing agent-induced AUC reduction", "%", "lower_better", "oral_bioavailability",
+                query='({names}) AND "acid-reducing"', aggregation="max", claims=["claim_acid_46"]),
+]
+# The two live children that kept a parent's cutoff: the record as sent, with the claim, the number, the
+# arithmetic and the interpretation all correct and `applicability_rationale` left out -- which is what the
+# gate refused both whole reductions for, while the parent holding that identical bound states it.
+LIVE_BIOAVAILABILITY_CHILD = {
+    "name": "Oral bioavailability against a same-class benchmark",
+    "definition": "Reported human oral bioavailability of the candidate, ranked against the 58% a cited source "
+                  "reports for an orally dosed kinase inhibitor and characterises as reasonable",
+    "rule": {"rule_kind": "preference", "predicate_form": "threshold", "cutoff_basis": "source_stated_value",
+             "cutoff": {"comparator": ">=", "value": 58, "unit": "%"}, "on_missing": "unknown_no_penalty",
+             "bound_support": [{"parameter_path": "rule.cutoff.value", "claim_id": "claim_bioavailability_58",
+                                "source_number": 58, "source_unit": "%", "conversion": {"kind": "identity"},
+                                "statement_kind": "reports_measurement",
+                                "interpretation": {"inference": "at_least_the_reported_value",
+                                                   "measurement": "the passage reports a measured oral "
+                                                                  "bioavailability of 58%",
+                                                   "population_rationale": "candidates are orally dosed kinase "
+                                                                           "inhibitors, as the passage's subject "
+                                                                           "was"}}]},
+    "supporting_claim_ids": ["claim_bioavailability_58"],
+    "expected_change": "candidates reported at or above 58% rank above candidates reported lower",
+    "falsification_test": "candidates below the benchmark reach comparable clinical exposure",
+}
+LIVE_HALF_LIFE_CHILD = {
+    "name": "Worst-case terminal half-life (parent or active metabolite)",
+    "definition": "Terminal elimination half-life of the parent drug or of its active metabolite, whichever is "
+                  "longer, against the 120 h upper edge of the range reported for an approved oral inhibitor",
+    "members": [0, 1],
+    "shared_property": "terminal half-life of the parent drug or its active metabolite, which governs "
+                       "accumulation and delayed offset during chronic oral dosing",
+    "family_aggregation": "worst_member",
+    "rule": {"rule_kind": "preference", "predicate_form": "threshold", "cutoff_basis": "source_stated_value",
+             "cutoff": {"comparator": "<=", "value": 120, "unit": "h"}, "on_missing": "unknown_no_penalty",
+             "bound_support": [{"parameter_path": "rule.cutoff.value", "claim_id": "claim_half_life_120",
+                                "source_number": 120, "source_unit": "h", "conversion": {"kind": "identity"},
+                                "statement_kind": "reports_measurement",
+                                "interpretation": {"inference": "at_most_the_reported_value",
+                                                   "measurement": "the passage reports a terminal plasma "
+                                                                  "half-life range of 99-120 h",
+                                                   "population_rationale": "candidates are oral agents dosed "
+                                                                           "daily, as the passage's subject was"}}]},
+    "supporting_claim_ids": ["claim_half_life_120"],
+    "expected_change": "candidates whose worst-case terminal half-life exceeds 120 h rank lower",
+    "falsification_test": "a candidate above the bound shows no accumulation-related toxicity",
+}
+LIVE_CO_ADMINISTRATION_CHILD = {
+    "name": "Worst-case co-administration-induced AUC change",
+    "definition": "The largest percentage change in human oral AUC when the agent is given with food or with an "
+                  "acid-reducing agent, relative to the reference condition",
+    "members": [0, 1, 2],
+    "shared_property": "magnitude of oral exposure change when the agent is co-administered with food or an "
+                       "acid-reducing agent, which decides dosing consistency and administration restrictions",
+    "family_aggregation": "worst_member",
+    "rule": {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": None,
+             "cutoff_basis": "none_evidence_insufficient", "on_missing": "unknown_no_penalty"},
+    "supporting_claim_ids": ["claim_food_20", "claim_food_32", "claim_acid_46"],
+    "expected_change": "candidates with a smaller worst-case AUC change rank higher",
+    "falsification_test": "candidates with larger changes keep consistent exposure without restrictions",
+}
+
+
+def live_pool(core, script, members, *, task_id, run_id=None):
+    """A pool holding those lineages, and the context to run the merge stage over them."""
+    writer = pool.Pool(core, task_id, by=OPERATOR, run_id=run_id or f"run_{task_id}").at("propose", 0)
+    for member in members:
+        writer.add(dict(member), reason_text=f"proposed for {member['dimension']}")
+    return derivation_stages.StageContext(
+        core=core, roster=roster_for(script), task_id=task_id, run_id=run_id or f"run_{task_id}",
+        task_context={"objective_text": SPEC["objective_text"], "constraints": [],
+                      "scope_entities": SPEC["scope_entities"]},
+        catalog=EVIDENCE_CATALOG, claims_by_id=dict(LIVE_CLAIMS), reference_labels=[], pool=writer)
+
+
+def live_decision(child, *, action, routes="one", nested=True, **override):
+    """One decision in the shape the schema now requires, or in the shape the adjudicator really sent it.
+
+    `nested=False` is half of the recorded shape -- `name` and `definition` beside `attribute` rather than
+    inside it, where `derivation._normalize_proposal` drops them -- and `routes="all"` is the other half,
+    every member's `literature_retrieval` query collected into one attribute.
+    """
+    def decide(group):
+        declared = dict(child, **override)
+        queries = [r for m in group["members"] for r in criteria.evidence_routes(m["attribute"])]
+        attribute = {"evidence_requests": queries if routes == "all" else queries[:1]}
+        if nested:
+            attribute["name"], attribute["definition"] = declared.pop("name"), declared.pop("definition")
+        return {"group": group["group"], "action": action,
+                "merged" if action == "merge" else "consolidated": dict(declared, attribute=attribute),
+                "reason": "the reason the live reply gave for this group"}
+    return decide
+
+
+def live_script(*decisions):
+    """An adjudicator replying with one prepared decision per group, in group order."""
+    def script(request):
+        assert request.metadata.get("question") == "adjudicate merges", request.metadata
+        groups = json.loads(request.messages[0]["content"].split("Groups:\n", 1)[1].split("\n\nCited claims:")[0])
+        return {"decisions": [decisions[group["group"]](group) for group in groups]}
+    return script
+
+
+def test_the_schema_requires_the_name_inside_the_attribute_where_the_gate_reads_it_and_not_beside_it():
+    """Why all three live reductions were refused for a `name` the model had written. The prompt listed the
+    child's fields flat -- a name, a definition, the rule, the claims -- and all but three of those really are
+    flat, so the model put `name` and `definition` beside `attribute` and gave `attribute` only the
+    `evidence_requests` that `MERGE_SCHEMA` named. `_normalize_proposal` keeps `ATTRIBUTE_FIELDS` of the
+    attribute object and nothing from outside it, so the name was dropped and `check_attribute` refused the
+    child for not having one. A gate requirement the schema does not require is a requirement the model will
+    keep missing, so the schema now requires it where the gate reads it and the repair round says so."""
+    group = {"group": 0, "members": [derivation_stages._view({"item": m}, i)
+                                     for i, m in enumerate(BIOAVAILABILITY_GROUP)]}
+    as_sent = {"decisions": [live_decision(LIVE_BIOAVAILABILITY_CHILD, action="merge", nested=False)(group)]}
+    assert models.validate(as_sent, derivation_stages.MERGE_SCHEMA) == \
+           ["$.decisions[0].merged.attribute: missing name", "$.decisions[0].merged.attribute: missing definition"]
+    nested = {"decisions": [live_decision(LIVE_BIOAVAILABILITY_CHILD, action="merge")(group)]}
+    assert models.validate(nested, derivation_stages.MERGE_SCHEMA) == []
+    # and every field the schema requires is a field the table says the adjudicator answers, not one the
+    # group settles: a schema that asked for an inherited field would be the first defect in the mirror
+    required = set(derivation_stages._required_of("attribute") + derivation_stages._required_of("rule")
+                   + derivation_stages._required_of("decision")
+                   + derivation_stages._required_of("consolidation"))
+    inherited = set(derivation_stages._FIXED_BY_GROUPING + derivation_stages._AGREED_BY_MEMBERS
+                    + derivation_stages._AGREED_IN_A_MERGE)
+    assert required & inherited == set()
+    assert {"name", "definition", "evidence_requests"} <= required
+
+
+def test_a_reduction_keeping_a_parents_cutoff_keeps_that_parents_support_record_for_that_number(core):
+    """The second blocker, on the live merge and the live consolidation that hit it. Both children kept a
+    parent's cutoff exactly -- 58% oral bioavailability, 120 h terminal half-life -- restated its support
+    record almost in full and left out `applicability_rationale`, and `bound_support.validate` refuses a
+    declared record missing any of §5.4's four fields. The record belongs to the bound and the bound is the
+    parent's, so it is inherited as the unit and the direction are, and only the fields the child left empty
+    are filled: what the child does say about that number stands as its own."""
+    for child, action, members, task_id in ((LIVE_BIOAVAILABILITY_CHILD, "merge", BIOAVAILABILITY_GROUP,
+                                            "task_live_bioavailability"),
+                                           (LIVE_HALF_LIFE_CHILD, "consolidate", HALF_LIFE_GROUP,
+                                            "task_live_half_life")):
+        ctx = live_pool(core, live_script(live_decision(child, action=action)), members, task_id=task_id)
+        stats = derivation_stages.merge_stage(ctx, 1)
+        assert stats["groups"] == 1 and stats["refused"] == 0, stats["not_reduced"]
+        entry = next(e for e in pool.fold(core, task_id).values() if e["parents"])
+        (record,) = entry["item"]["rule"]["bound_support"]
+        parent = next(m for m in members if m["rule"]["cutoff"] == entry["item"]["rule"]["cutoff"])
+        assert record["applicability_rationale"] == parent["rule"]["bound_support"][0]["applicability_rationale"]
+        # what the child did write about that number is not overwritten by the parent's wording
+        assert record["interpretation"]["measurement"] == \
+               child["rule"]["bound_support"][0]["interpretation"]["measurement"]
+        # and the completed record is support the registry accepts for the number the criterion carries
+        assert bound_support.messages(bound_support.validate(
+            entry["item"]["attribute"], entry["item"]["rule"],
+            claims=[LIVE_CLAIMS[c] for c in entry["item"]["supporting_claim_ids"]])) == []
+        assert ctx.validate(entry["item"]) == []
+
+
+def test_a_reduction_stating_a_cutoff_no_member_holds_still_needs_its_own_support_record(core):
+    """The guard on the inheritance, and the reason it is the bound and not the parameter path. A support
+    record justifies one number: carried onto another one it would manufacture support, which is the defect
+    (R4) `bound_support` exists to stop -- a cutoff of 90 citing a claim that states 30. So a child that
+    states a number no member holds inherits nothing, and an incomplete record for it is refused. The live
+    merge's own members disagree outright, `>= 58 %` against `> 1 %`, which needs no special handling: the
+    child kept one of the two, so one parent holds that bound and the other simply does not."""
+    ctx = live_pool(core, live_script(live_decision(
+        LIVE_BIOAVAILABILITY_CHILD, action="merge",
+        rule=dict(LIVE_BIOAVAILABILITY_CHILD["rule"], cutoff={"comparator": ">=", "value": 40, "unit": "%"}))),
+        BIOAVAILABILITY_GROUP, task_id="task_live_own_number")
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["refused"] == 1 and stats["merged"] == 0
+    (refusal,) = [d for d in stats["not_reduced"] if d["outcome"] == "refused"]
+    assert "declares no applicability_rationale" in refusal["reason"]
+    assert "rule.cutoff.value reads 40 %" in refusal["reason"], "the refusal names the number nothing states"
+    # the number is the only thing that changed: the same child keeping the parent's 58 is applied
+    ctx = live_pool(core, live_script(live_decision(LIVE_BIOAVAILABILITY_CHILD, action="merge")),
+                    BIOAVAILABILITY_GROUP, task_id="task_live_kept_number")
+    assert derivation_stages.merge_stage(ctx, 1)["merged"] == 1
+
+
+def test_two_members_justifying_one_kept_bound_differently_refuse_the_reduction_rather_than_the_gate_choosing(core):
+    """What the gate does when the inheritance is ambiguous. A record states what a passage reports and why
+    that reading applies here, so two members holding the identical bound on two different passages offer two
+    readings of one number, and picking one of them would be the gate deciding which evidence the surviving
+    criterion rests on. The reduction is refused and the reason names both members, so the adjudicator's next
+    reply can state the record it means."""
+    members = [dict(BIOAVAILABILITY_GROUP[0]),
+               live_member("Oral bioavailability against the same benchmark read from a second report", "%",
+                           "higher_better", "oral_bioavailability", query='({names}) AND "oral absorption"',
+                           aggregation="max", claims=["claim_bioavailability_1"], cutoff=58, comparator=">=",
+                           support=live_support("claim_bioavailability_1", 58, "%",
+                                                inference="at_least_the_reported_value",
+                                                measurement="a second report gives the same 58% for the class",
+                                                rationale="the second report studied the same orally dosed "
+                                                          "population, so its benchmark applies as well"))]
+    ctx = live_pool(core, live_script(live_decision(LIVE_BIOAVAILABILITY_CHILD, action="merge")), members,
+                    task_id="task_live_two_readings")
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["refused"] == 1 and stats["merged"] == 0
+    (refusal,) = [d for d in stats["not_reduced"] if d["outcome"] == "refused"]
+    assert "justify that number differently" in refusal["reason"]
+    assert refusal["reason"].count("@v1") == 2, "the refusal names both members, or nobody can act on it"
+    assert not [e for e in pool.fold(core, "task_live_two_readings").values() if e["parents"]]
+
+
+def test_the_three_reductions_the_second_live_merge_proposed_are_applied_once_the_gate_stops_asking_for_what_it_knows(core):
+    """The whole second live merge, end to end: the 6 groups, the 3 the adjudicator kept separate and the 3 it
+    reduced. Every refusal was the gate's -- `name`, which the model wrote outside the attribute, and the
+    support record for a cutoff two of the children kept unchanged -- so with the schema requiring the name
+    where the gate reads it and the record inherited with its bound, all three are applied: one merge of one
+    quantity benchmarked twice, and two consolidations compiled to the reduction their declared family
+    implies (`worst_member` as `max`, since the groups are `lower_better`)."""
+    members = BIOAVAILABILITY_GROUP + HALF_LIFE_GROUP + CO_ADMINISTRATION_GROUP
+    by_name = {"Reported human oral bioavailability against a same-class benchmark":
+               live_decision(LIVE_BIOAVAILABILITY_CHILD, action="merge"),
+               "Terminal half-life upper bound as an accumulation-risk flag":
+               live_decision(LIVE_HALF_LIFE_CHILD, action="consolidate"),
+               "Meal-induced AUC increase": live_decision(LIVE_CO_ADMINISTRATION_CHILD, action="consolidate")}
+
+    def script(request):
+        groups = json.loads(request.messages[0]["content"].split("Groups:\n", 1)[1].split("\n\nCited claims:")[0])
+        return {"decisions": [by_name[group["members"][0]["attribute"]["name"]](group) for group in groups]}
+
+    ctx = live_pool(core, script, members, task_id="task_live_merge")
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert (stats["groups"], stats["merged"], stats["consolidated"], stats["refused"]) == (3, 1, 2, 0), \
+        stats["not_reduced"]
+    children = {e["item"]["attribute"]["name"]: e for e in pool.fold(core, "task_live_merge").values()
+                if e["parents"]}
+    assert sorted(children) == ["Oral bioavailability against a same-class benchmark",
+                                "Worst-case co-administration-induced AUC change",
+                                "Worst-case terminal half-life (parent or active metabolite)"]
+    for name, entry in children.items():
+        criteria.check_attribute(entry["item"]["attribute"])
+        criteria.check_rule(entry["item"]["rule"], entry["item"]["attribute"])
+        assert ctx.validate(entry["item"]) == []
+    for name in ("Worst-case co-administration-induced AUC change",
+                 "Worst-case terminal half-life (parent or active metabolite)"):
+        consolidation = children[name]["item"]["consolidation"]
+        assert consolidation["executes_as_aggregation"] == "max"
+        assert children[name]["item"]["attribute"]["aggregation"] == "max"
+    # the merge pools its parents' values the way both of them did, rather than under the `consensus` a
+    # silent child would have been given by `check_attribute`'s default
+    assert children["Oral bioavailability against a same-class benchmark"]["item"]["attribute"]["aggregation"] \
+        == "max"
+    # 7 lineages in, 3 out and 7 retired: the reduction this pool exists to perform
+    folded = pool.fold(core, "task_live_merge")
+    assert len([e for e in folded.values() if e["state"] == "merged_away"]) == 7
+    assert len(pool.active(folded, ("candidate",))) == 3
+
+
+def test_a_literature_bound_reduction_collecting_its_members_queries_is_refused_and_that_one_is_the_adjudicators(core):
+    """The refusal hiding behind the other two, which only showed once `name` was in place: all three live
+    children declared every member's `literature_retrieval` route on one attribute, and `check_attribute`
+    allows one, because `evidence.literature_query` builds one query per attribute and a second would never
+    be asked. That is not a field the group settled -- which query stands for the family is a judgement, and
+    keeping one member's silently would give a toxicity-burden criterion a diarrhea query -- so the gate is
+    right to refuse it and the prompt now states the rule rather than inviting the collection."""
+    ctx = live_pool(core, live_script(live_decision(LIVE_BIOAVAILABILITY_CHILD, action="merge", routes="all")),
+                    BIOAVAILABILITY_GROUP, task_id="task_live_two_queries")
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["refused"] == 1 and stats["merged"] == 0
+    (refusal,) = [d for d in stats["not_reduced"] if d["outcome"] == "refused"]
+    assert "declares 2 literature routes" in refusal["reason"]
+    assert "exactly one `literature_retrieval` route" in derivation_stages.ADJUDICATOR_SYSTEM
+
+
+def test_a_support_record_is_inherited_for_a_transform_bound_too_and_filed_where_the_parameter_lives():
+    """Every number a candidate is compared against is one supported parameter, and a `value_transform`'s
+    bounds are the other kind -- `quantity_key` keys on the transform, so a group's members carry the same
+    one, and the record for its bound is the group's exactly as a kept cutoff's is. `support_records` reads
+    the rule's list and the attribute's, so the completed record is filed on the object that holds the
+    parameter (§5.3): filed on the other one it would travel with the wrong version through promotion."""
+    transform = {"kind": "excess_above", "bound": 500, "basis": "source_stated_value",
+                 "source_refs": ["claim_mass_500"]}
+    record = {"parameter_path": "attribute.value_transform.bound", "claim_id": "claim_mass_500",
+              "source_number": 500, "source_unit": "g/mol", "conversion": {"kind": "identity"},
+              "statement_kind": "reports_measurement",
+              "applicability_rationale": "the passage's 380-500 Da band is the range reported for clinically "
+                                         "relevant kinase inhibitors, which is the population screened here"}
+    parent_attribute = dict(lit_attribute("Molecular weight above the reported band", "g/mol",
+                                          direction="lower_better"), value_transform=transform,
+                            bound_support=[record])
+    parents = [{"criterion_id": "cri_1", "version": 3,
+                "item": {"attribute": parent_attribute,
+                         "rule": {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": None,
+                                  "cutoff_basis": "none_evidence_insufficient"}}}]
+    # the child keeps the transform the group is keyed on and says nothing about the bound behind it
+    child = {"attribute": dict(lit_attribute("Excess molecular weight over the reported band", "g/mol",
+                                             direction="lower_better"), value_transform=transform),
+             "rule": {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": None,
+                      "cutoff_basis": "none_evidence_insufficient"}}
+    completed, problem = derivation_stages._supported_as_its_parents(parents, child)
+    assert problem is None
+    assert completed["attribute"]["bound_support"] == [record], "filed on the attribute, which holds the bound"
+    assert not completed["rule"].get("bound_support")
+    # and a child whose transform draws its line somewhere else inherits nothing: the record justifies 500
+    elsewhere = {"attribute": dict(completed["attribute"], bound_support=None,
+                                   value_transform=dict(transform, bound=300)),
+                 "rule": dict(child["rule"])}
+    untouched, problem = derivation_stages._supported_as_its_parents(parents, elsewhere)
+    assert problem is None and not untouched["attribute"].get("bound_support")
+
+
+def test_a_reduction_stating_only_what_the_classification_table_leaves_to_it_is_applied(core):
+    """The guard on the whole class of defect. `REDUCTION_FIELDS` says, for every requirement the four
+    validators make of a reduction's child, who answers it; this builds a child out of exactly the fields the
+    table leaves to the adjudicator -- nothing classified as the group's, the members', the bound's or the
+    gate's -- and asserts the gate applies it. A requirement added to `check_attribute`, `check_rule`,
+    `bound_support.validate` or this gate without a row in the table fails here instead of becoming the
+    fourth live reduction refused for a field nobody was asked for."""
+    decided = {where: derivation_stages._required_of(where)
+               for where in ("attribute", "rule", "decision", "consolidation")}
+    assert decided["decision"] and decided["attribute"] and decided["consolidation"]
+
+    def only_what_is_decided(group):
+        child = {"attribute": {"name": "Grade >=3 treatment-related toxicity burden",
+                               "definition": "Share of treated patients with any grade >=3 treatment-related "
+                                             "adverse event",
+                               "evidence_requests": criteria.evidence_routes(group["members"][0]["attribute"])},
+                 "rule": {"rule_kind": "preference", "cutoff_basis": "none_evidence_insufficient"},
+                 "supporting_claim_ids": sorted({c for m in group["members"] for c in m["supporting_claim_ids"]}),
+                 "expected_change": "a candidate with a worse grade >=3 burden ranks lower",
+                 "falsification_test": "the ranking does not move when the burden does",
+                 "members": [m["index"] for m in group["members"]], "shared_property": SHARED_PROPERTY,
+                 "family_aggregation": "worst_member"}
+        assert sorted(child) == sorted(set(decided["decision"]) | set(decided["consolidation"])), \
+            "this child states the table's `decided` fields and nothing else"
+        assert sorted(child["attribute"]) == sorted(decided["attribute"])
+        assert sorted(child["rule"]) == sorted(decided["rule"])
+        return {"group": group["group"], "action": "consolidate", "consolidated": child,
+                "reason": "three endpoints a screen applies as one grade >=3 toxicity burden"}
+
+    ctx = family_pool(core, live_script(only_what_is_decided), task_id="task_table", run_id="run_table")
+    stats = derivation_stages.merge_stage(ctx, 1)
+    assert stats["consolidated"] == 1 and stats["refused"] == 0, stats["not_reduced"]
+    attribute = next(e for e in pool.fold(core, "task_table").values() if e["parents"])["item"]["attribute"]
+    # and each field the table calls the group's or the members' reaches the child from them: what the
+    # members declare is what the child carries, and what none of them declares is nothing to inherit
+    members = [e["item"]["attribute"] for e in pool.active(pool.fold(core, "task_table"), ("merged_away",))]
+    for field in derivation_stages._FIXED_BY_GROUPING + derivation_stages._AGREED_BY_MEMBERS:
+        assert attribute.get(field) == members[0].get(field), field
+    assert attribute["direction"] == "lower_better" and attribute["unit"] == "%"
+    assert attribute["acceptable_value_sources"] == ["peer_reviewed"]
 
 
 # --- a reduction that survives being revised --------------------------------------------------
@@ -1210,7 +1710,7 @@ class FamilyScript:
 def consolidates_the_family(group):
     """The adjudication the family pool is built for: every member folded into one burden criterion."""
     return {"group": group["group"], "action": "consolidate",
-            "consolidated": dict(proposal(burden_attribute(), "unused"),
+            "consolidated": dict(proposal(child_attribute(burden_attribute()), "unused"),
                                  supporting_claim_ids=sorted({c for m in group["members"]
                                                               for c in m["supporting_claim_ids"]}),
                                  members=[m["index"] for m in group["members"]],
@@ -1224,7 +1724,7 @@ def merges_onto(name: str):
     def decide(group):
         member = next(m for m in group["members"] if m["attribute"]["name"] == name)
         return {"group": group["group"], "action": "merge",
-                "merged": dict(proposal(member["attribute"], "unused"),
+                "merged": dict(proposal(child_attribute(member["attribute"]), "unused"),
                                supporting_claim_ids=sorted({c for m in group["members"]
                                                             for c in m["supporting_claim_ids"]})),
                 "reason": "one toxicity burden, described twice"}
@@ -1246,9 +1746,9 @@ def test_a_revised_consolidation_still_names_the_endpoints_it_subsumed_and_keeps
     family it stands for. What it may not do is cost the criterion the record of what it replaced."""
     script = FamilyScript(consolidates_the_family,
                           revision={"rationale": "a screen stops a chronic oral drug on dose-limiting toxicity",
-                                    "evidence_request": dict(burden_attribute()["evidence_request"],
-                                                             parameters={"query_template": "({names}) AND "
-                                                                                           "grade 3 toxicity burden"})})
+                                    "evidence_requests": [dict(burden_attribute()["evidence_request"],
+                                                               parameters={"query_template": "({names}) AND "
+                                                                                             "grade 3 toxicity burden"})]})
     ctx = family_pool(core, script)
     assert derivation_stages.merge_stage(ctx, 1)["consolidated"] == 1
     before, _ = consolidated_child(core)

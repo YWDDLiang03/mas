@@ -72,10 +72,14 @@ from .reading import value_in_quote
 STATEMENT_KINDS = ("states_decision_threshold", "reports_measurement", "provides_heuristic")
 # Bases that assert a source states the number, so a cited claim has to state it.
 SOURCED_BASES = ("source_stated_value", "regulatory_or_standard_reference")
-# Bases that assert a person's or the task's own authority instead of a source's. They are not
-# traceable to a claim -- asking a claim to state an expert's judgement would report a missing
-# source where none was ever claimed -- and they need that authority instead (`criteria.needs_expert`).
-AUTHORITY_BASES = ("expert_set", "task_constraint")
+# Bases that assert an authority of their own -- a person's judgement, the task's own text, or the
+# decision boundary of the model that produced the value -- instead of a source's statement. They
+# are not traceable to a claim: asking a claim to state an expert's judgement, or a classifier's
+# 0.5, would report a missing source where none was ever claimed. They need that authority instead
+# (`criteria.needs_expert`), and `model_decision_boundary` is here rather than left unclassified for
+# exactly that reason -- an unclassified basis would come out `unaudited`, which this module's
+# `STATES` comment says is not a pass, and would then score anyway.
+AUTHORITY_BASES = ("expert_set", "task_constraint", "model_decision_boundary")
 # Bases that say in so many words that no number is executable, so there is nothing to support.
 UNBOUNDED_BASES = ("none_evidence_insufficient", "measured_distribution")
 # How a support record may get from the number a passage states to the executable parameter.

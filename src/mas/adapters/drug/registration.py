@@ -6,7 +6,8 @@ The core never imports this module; a composition root (the CLI or a script) cal
 
 from __future__ import annotations
 
-from mas.adapters.literature import tools as literature_tools
+from mas.adapters.literature import registry as literature_registry, tools as literature_tools
+from mas.adapters.predict import admet
 
 from .chembl import ChEMBLBioactivity, ChEMBLMechanism, TargetCache
 from .gtopdb import GtoPdbAffinity, GtoPdbData
@@ -23,17 +24,43 @@ CAPABILITY_BINDINGS = {
     "property_estimate": "attribute_estimate",
     "literature_retrieval": "source_retrieval",
     "record_field_lookup": "attribute_estimate",
+    "predicted_property_lookup": "attribute_estimate",
 }
 
 # Evidence kinds the adapter's sources produce (used in attributes' acceptable_value_sources).
-EVIDENCE_KINDS = ("curated_measurement", "database_entry", "peer_reviewed", "preprint")
+#
+# Derived rather than written out: the hand-written tuple listed five kinds and omitted the
+# `reference_text`, `tertiary_reference` and `user_supplied_document` that this adapter's own
+# literature registration produces, so it could not be used to check anything. It is the union of
+# the kinds this adapter's catalog entries declare (filled in below, where the entries are) and the
+# kinds the literature sources carry. The authoritative registry of the kinds a claim may carry at
+# all is `vocab.DOMAINS["evidence_kind"]`; what a given machine can produce is
+# `evidence.producible_evidence_kinds(broker)`, which is narrower whenever an optional tool is
+# absent.
+EVIDENCE_KINDS: tuple[str, ...] = ()
 
 
 def register(broker, *, literature: bool = True, universe_file: str | None = None, cache_dir: str | None = None,
-             upload_dir: str | None = None) -> None:
+             upload_dir: str | None = None, predict: bool | None = None, predict_python: str | None = None) -> None:
     """Register the adapter's tools. With a universe file, identity resolves from it first (PubChem stays as fallback)
     and a target's bioactivity and mechanism records are each fetched once per target. Literature sources are
-    registered for every task; which of them a search uses is the `search.sources` setting."""
+    registered for every task; which of them a search uses is the `search.sources` setting.
+
+    `predict` governs the predicted-property panel, which needs a universe file (that is where a compound's
+    structure is found) and an interpreter with the predictor installed:
+
+      None (the default)  register it when that interpreter is found, and not otherwise. A machine without the
+                          predictor keeps every other route and the panel is simply absent: a route bound to it
+                          returns `not_attempted / not_configured`, which says "this installation has no such
+                          tool" rather than "this compound has no such property".
+      True                register it whatever is found, so a missing environment refuses loudly, once per cell,
+                          with `environment_missing`. This is for a run that must not quietly score without the
+                          panel -- a criterion bound to it would otherwise be silently unanswered.
+      False               leave it out.
+
+    `predict_python` names the interpreter (the `predict.python` setting); without it the search order of
+    `predict.admet.candidates` applies. `mas predict check` prints what is found and warms nothing.
+    """
     if universe_file:
         broker.register(UniverseIdentity(universe_file))
         broker.register(UniverseRecordField(universe_file))
@@ -42,8 +69,29 @@ def register(broker, *, literature: bool = True, universe_file: str | None = Non
     for provider in (PubChemIdentity(), PubChemProperty(properties), ChEMBLBioactivity(targets),
                      ChEMBLMechanism(targets), GtoPdbAffinity(GtoPdbData(cache_dir))):
         broker.register(provider)
+    if universe_file and (predict if predict is not None else admet.available(predict_python)):
+        broker.register(admet.AdmetPrediction(admet.StructureIndex(universe_file),
+                                              admet.PanelCache(cache_dir, python=predict_python)))
     if literature:
         literature_tools.register(broker, cache_dir=cache_dir, upload_dir=upload_dir)
+
+
+def _panel_entries() -> dict[str, str]:
+    """One line per endpoint of the predictor's panel, built from the panel itself so the catalog
+    cannot drift from what the tool answers."""
+    lines = {}
+    for endpoint, spec in admet.ENDPOINTS.items():
+        metric = ", ".join(f"{name.upper()} {value:g}" for name, value in (spec["metric"] or {}).items())
+        if spec["training_dataset"] is None:
+            how = "computed by RDKit from the structure; not a trained model"
+        else:
+            how = ("a classifier's probability of its positive class, in [0,1]"
+                   if spec["task_type"] == "classification" else "a regression value")
+            how += f"; TDC dataset {spec['training_dataset']} ({spec['training_rows']} rows)"
+            how += f"; held out {metric}" if metric else ""
+            how += f"; {spec['species']}" if spec["species"] else ""
+        lines[endpoint] = f"{spec['name']} [{spec['category']}] in {spec['unit']}: {how}"
+    return lines
 
 # What the proposer may bind an attribute's evidence_request to. Parameters in angle
 # brackets are filled by the proposer; {names} is filled per candidate at run time.
@@ -105,6 +153,45 @@ EVIDENCE_CATALOG.append(
              "not thereby more potent than one measured at pChEMBL 9. Bind it as evidence of engagement alongside a "
              "potency attribute, never as that attribute's source."})
 
+EVIDENCE_CATALOG.append(
+    {"capability": "predicted_property_lookup", "question_kind": "admet_prediction", "identifier_scheme": "inchikey",
+     "parameters": {"endpoint": f"<one of the {len(admet.ENDPOINTS)} endpoint ids listed under `endpoints` below>"},
+     "units": dict(admet.UNITS), "endpoints": _panel_entries(),
+     "evidence_kind": "model_prediction", "determination_basis": "predicted",
+     "note":
+         "A local ADMET model panel (ADMET-AI: a Chemprop-RDKit ensemble per endpoint, trained on the "
+         "Therapeutics Data Commons dataset named in each line above) run over the compound's own structure. "
+         "EVERY VALUE HERE IS A PREDICTION, NOT A MEASUREMENT. An attribute bound to this entry must declare "
+         "acceptable_value_sources: [\"model_prediction\"] and acceptable_determination_bases: [\"predicted\"] "
+         "and nothing else -- the registry refuses `predicted` alongside any other basis, because a predicted "
+         "value standing in for a measurement is a surrogate inside a verdict, so a predicted quantity is its "
+         "own attribute with its own rule and is never a second route on a measured one. Without that "
+         "declaration the default bases (measured, derived) set every value aside and the cell reads as no data. "
+         "WHAT IT BUYS: it is computable for every compound that has a structure, so a criterion bound here "
+         "scores the whole universe, where a measured absorption or toxicity quantity exists for a few dozen "
+         "well-studied drugs and defers for everyone else. "
+         "WHAT A VALUE IS: a classification endpoint returns the probability of its positive class as a number "
+         "in [0,1] (unit `probability`), and the natural decision boundary of a binary classifier is 0.5 -- "
+         "thresholding there is cutoff_basis model_decision_boundary, which needs no cited claim (no claim "
+         "states a model's own line) and goes to review like any bound that claims an authority of its own. A "
+         "regression endpoint returns a number in the unit given above; read the direction from what the "
+         "endpoint measures (higher clearance is worse, higher solubility is better). "
+         "HOW GOOD IT IS: each line gives the held-out metric of that endpoint's model. They are not alike: "
+         "AUROC near 0.9 and AUROC near 0.7 are different grades of evidence, and a NEGATIVE R^2 (Half_Life_Obach, "
+         "VDss_Lombardo) means the model does not beat predicting the training mean -- an endpoint like that "
+         "carries no information about a particular compound and must not carry a criterion. Prefer a preference "
+         "or an exploratory consideration to a hard exclusion: a hard exclusion on a predicted value deletes a "
+         "candidate on a model's output. "
+         "THE ELEVEN `Physicochemical` ENDPOINTS are RDKit calculations that the package reports in the same "
+         "frame as its predictions; they are stamped `predicted` with the rest because this is one route with "
+         "one basis. `property_estimate / computed_property` (PubChem) is the route for a descriptor that "
+         "should count as `derived` -- do not bind both for one quantity, which would score it twice. "
+         "A compound the universe has no structure for yields unknown, never a failure, so pair this with "
+         "on_missing unknown_no_penalty."})
+
+EVIDENCE_KINDS = tuple(sorted({entry["evidence_kind"] for entry in EVIDENCE_CATALOG if entry.get("evidence_kind")}
+                              | set(literature_registry.EVIDENCE_KINDS)))
+
 # Assessment dimensions offered to derivation; each is enumerated separately (design §8.3).
 DIMENSIONS = [
     {"dimension": "target_coverage", "focus": "potency and selectivity against the required targets"},
@@ -135,10 +222,36 @@ def objective_templates(task_context: dict) -> list[dict]:
             # got double credit, and five quantities that do not exist inflated the coverage denominator -- 34 of
             # 3,177 compounds cleared the ranking floor where 99 clear it once each receptor is one quantity. Both
             # routes declare `curated_measurement` on the pChEMBL scale, so `median` aggregates them as one set.
+            #
+            # WHY the literature is the third route and not a fourth criterion: the same argument, one step
+            # further. A published kinase selectivity table reports exactly this quantity for exactly these
+            # targets, and it is where the quantity exists for compounds no curation has reached -- 74 of the
+            # 3,177 candidates carry any curated potency at the five required receptors. A separate literature
+            # criterion would be the same measurement registered twice, with the double counting and the inflated
+            # denominator the collapse above exists to undo. So it is one attribute with three routes, pooled by
+            # the `median` it already declared: one quantity, every curation and every report of it that was
+            # found. This needs two things the route cannot provide by itself -- `peer_reviewed` among the
+            # accepted sources, because that is the evidence kind a paper's claims carry, and the molar-to-pChEMBL
+            # conversion in `assessor.UNIT_CONVERSIONS`, because a table prints "IC50 = 4 nM" and this attribute
+            # is on the pChEMBL scale. Without the conversion every literature claim here is set aside
+            # `unit_unresolved` and the route costs reading and returns nothing.
+            #
+            # WHY the affinity predictor is NOT a route here, and why this attribute declares no
+            # `determination_basis_precedence` (an explicit decision, not an omission): gap-filling would make
+            # the cell fall back to a predicted potency wherever no measurement exists, and the board then
+            # percentile-ranks that prediction against measured values across candidates. A random-forest
+            # prediction shrinks toward its training mean, so the extremes of the ranking are collected by the
+            # candidates that carry real measurements and the predicted ones pile up in the middle -- the
+            # ordering would be reporting how well studied a compound is, under the name of how potent it is.
+            # A required receptor's potency stays measured or curated; a predicted affinity, if it is wanted,
+            # is its own attribute with its own rule, which is what the catalog already says.
             "attribute": {"name": f"{label} curated potency", "measurement_kind": "quantitative", "unit": "pChEMBL",
-                          "definition": f"Median pChEMBL value over curated point measurements against {label} "
-                                        f"({entity['identifier']}), across every available expert curation",
-                          "direction": "higher_better", "acceptable_value_sources": ["curated_measurement"],
+                          "definition": f"Median pChEMBL value (-log10 of the molar IC50, Ki, Kd or EC50) over "
+                                        f"point measurements against {label} ({entity['identifier']}), pooled "
+                                        f"across every available expert curation and every reported measurement "
+                                        f"in the peer-reviewed literature",
+                          "direction": "higher_better",
+                          "acceptable_value_sources": ["curated_measurement", "peer_reviewed"],
                           "aggregation": "median",
                           "evidence_requests": [
                               {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values",
@@ -146,7 +259,20 @@ def objective_templates(task_context: dict) -> list[dict]:
                                "parameters": {"target_chembl_id": entity["identifier"]}},
                               {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity",
                                "identifier_scheme": "inchikey",
-                               "parameters": {"target_chembl_id": entity["identifier"]}}],
+                               "parameters": {"target_chembl_id": entity["identifier"]}},
+                              # The query is about this receptor's potency for this compound, not about the
+                              # compound: the terms are the ones a selectivity table's caption and abstract
+                              # carry, and the receptor's own label is required rather than optional, so a
+                              # pharmacokinetics paper naming the compound does not answer here. The ChEMBL
+                              # target id is in the definition and not in the query -- no paper cites it.
+                              {"capability": "literature_retrieval", "question_kind": "search",
+                               "identifier_scheme": None,
+                               "parameters": {
+                                   "query_template": f'({{names}}) AND "{label}" AND (IC50 OR Ki OR Kd OR EC50 '
+                                                     f'OR potency OR selectivity OR "kinase selectivity")',
+                                   "relevance_terms": [label, "IC50", "Ki", "Kd", "EC50", "nM", "selectivity",
+                                                       "potency", "inhibition"],
+                                   "search_limit": 10}}],
                           "rationale": f"{label} is a required target of the task"},
             "rule": {"rule_kind": "preference", "predicate_form": "ordering", "cutoff": None,
                      "cutoff_basis": "none_evidence_insufficient", "on_missing": "unknown_no_penalty"}})
@@ -178,10 +304,13 @@ def objective_templates(task_context: dict) -> list[dict]:
                          "cutoff": {"comparator": "==", "value": True, "unit": None}, "cutoff_basis": "task_constraint",
                          "on_missing": "unknown_blocks_recommendation"}})
             # The companion that can answer for a compound no approval register covers. It is a separate
-            # criterion rather than a second route on the one above because `check_attribute` refuses an
-            # attribute that mixes a literature route with a database route: the two take different code
-            # paths and pooling a read passage with a record field under one aggregation needs a policy
-            # nobody has set. Contextual, not a second hard gate, so one requirement is not scored twice.
+            # criterion rather than a second route on the one above because this quantity is categorical
+            # and pooled by `consensus`: `check_attribute` permits a literature route beside database
+            # routes only on a quantitative attribute with a unit reduced by a numeric aggregation, where
+            # every claim is checked against one scale. "Does a record state an oral route" and "does a
+            # trial report say it was taken by mouth" have no such scale, and what agreement between the
+            # two means is the policy nobody has set. Contextual, not a second hard gate, so one
+            # requirement is not scored twice.
             items.append({
                 "source_field": f"constraints[{index}]",
                 "attribute": {"name": "Oral administration reported in the clinical literature",
@@ -189,7 +318,17 @@ def objective_templates(task_context: dict) -> list[dict]:
                               "definition": "Whether a clinical report of the compound states that it was "
                                             "administered by mouth",
                               "direction": "non_directional",
-                              "acceptable_value_sources": ["peer_reviewed_primary"], "aggregation": "consensus",
+                              # `peer_reviewed` and not `peer_reviewed_primary`: the readers stamp
+                              # the source registry's kind on every claim
+                              # (`adapters/literature/registry.Source.evidence_kind`), and that
+                              # registry has no `primary` variant -- a journal article arrives as
+                              # `peer_reviewed`. The stricter-sounding word named no kind at all, so
+                              # every claim this criterion ever read was set aside
+                              # `evidence_kind_not_accepted` and the one route meant to answer the
+                              # oral-route question for the 1,262 candidates ChEMBL has no route
+                              # flag for could never carry a value. `criteria.check_attribute` now
+                              # refuses an unproducible kind outright.
+                              "acceptable_value_sources": ["peer_reviewed"], "aggregation": "consensus",
                               "acceptable_determination_bases": ["asserted", "measured"],
                               "evidence_request": {
                                   "capability": "literature_retrieval", "question_kind": "search",

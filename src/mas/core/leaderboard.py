@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import vocab
+from . import assessor, vocab
 from .canonical import sha256_hex
 from .clock import utc_now
 from .ids import new_id
@@ -117,9 +117,18 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
                    cells: dict[str, list[dict[str, Any]]], scores: dict[str, tuple[float | None, float]],
                    identities: dict[str, dict[str, Any]], parent: dict[str, Any] | None, sweep_completeness: float,
                    budget: dict[str, Any], strategy: str = "strat@v1", tool_coverage: dict[str, Any] | None = None,
-                   ranking_coverage_floor: float = 0.5) -> dict[str, Any]:
-    has_preferences = any(e["rule_kind"] == "preference" for e in rule_set["entries"])
-    has_hard = any(e["rule_kind"] == "hard_exclusion" for e in rule_set["entries"])
+                   ranking_coverage_floor: float = 0.5,
+                   mandated_rule_refs: list[str] | tuple[str, ...] = (),
+                   mandated_coverage_floor: float = assessor.DEFAULT_MANDATED_COVERAGE_FLOOR,
+                   calibration_guard: dict[str, Any] | None = None) -> dict[str, Any]:
+    # WHY the demoted kinds come from the cells rather than from the rule set's entries: the
+    # calibration guard demotes a hard exclusion for this run (`controller._calibration_guard`), the
+    # registry's rule is untouched, and the cells are what carry the kind this board was computed
+    # with. Reading `entries[].rule_kind` here would report an all-pass set this board never applied.
+    demoted = set((calibration_guard or {}).get("demoted") or {})
+    kinds = ["preference" if e.get("rule_ref") in demoted else e["rule_kind"] for e in rule_set["entries"]]
+    has_preferences = any(kind == "preference" for kind in kinds)
+    has_hard = any(kind == "hard_exclusion" for kind in kinds)
     result_kind = vocab.require("result_kind", "both_reported" if (has_hard and has_preferences)
                                else "ranked_under_score" if has_preferences else "all_pass_set")
     entries = []
@@ -127,6 +136,9 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
         candidate_cells = cells.get(candidate_id, [])
         score, pref_coverage = scores.get(candidate_id, (None, 0.0))
         identity = identities.get(candidate_id, {})
+        # What this candidate answers of the criteria the task itself mandates
+        # (`assessor.mandated_coverage`), and which of them it does not.
+        own = assessor.mandated_coverage(candidate_cells, mandated_rule_refs)
         entries.append({
             "candidate_ref": candidate_id, "identity_labels": [identity.get("preferred_label") or identity.get("input_label")],
             "state": summary["state"], "state_reason": summary["state_reason"], "preference_score": score,
@@ -149,17 +161,50 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
                                   else not summary["n_fail_hard"] and not summary["n_unknown_hard"]),
             "n_fail_hard": summary.get("n_fail_hard"), "n_unknown_hard": summary.get("n_unknown_hard"),
             "gate_blocked_by": summary.get("blocking_unknowns") or [],
+            # The same three things about the task's *own* criteria, in the same vocabulary: the
+            # answer, the count behind it and what is missing when it is false. A candidate below the
+            # floor keeps its entry, its state and its cells and is reported as ineligible for a
+            # position with the criteria it is missing named -- it is not dropped, because "nobody has
+            # measured this compound at four of the five required receptors" is a finding about the
+            # evidence and the one thing a silent drop would hide. None where the task mandates
+            # nothing or this candidate has no mandated cell: unknown, never a pass.
+            "clears_mandated_criteria": (None if own["coverage"] is None
+                                         else own["coverage"] >= mandated_coverage_floor),
+            "n_mandated": own["n"], "n_mandated_answered": own["answered_n"],
+            "mandated_coverage": own["coverage"], "mandated_blocked_by": own["unanswered"],
+            # The mandated criteria the floor does not measure because they gate rather than rank
+            # (`assessor.mandated_coverage`), and which of them this candidate has no value for.
+            # On the entry so that the gate's effect stays visible where its position is decided: a
+            # candidate ranked with `mandated_gates_unanswered` non-empty is one the gate is holding
+            # off a recommendation, not one that answered everything the task asked.
+            "mandated_gates": own["gates"], "mandated_gates_unanswered": own["gates_unanswered"],
             "counter_evidence_refs": sorted({r for c in candidate_cells for r in c["conflicting_claim_refs"]}),
             "measured_vs_predicted_counts": {kind: sum(c["value_kind"] == kind for c in candidate_cells)
                                              for kind in ("measured", "curated", "derived", "predicted")},
+            # Which of this candidate's values stand in for a measurement it has none of
+            # (`determination_basis_precedence`). Beside the counts above rather than inside them:
+            # the counts say what kind of value each cell carried, this says which cells carried the
+            # weaker of the two bases their attribute accepts because the stronger one was silent.
+            "gap_filled_criteria": summary.get("gap_filled_criteria") or [],
+            "determination_bases": summary.get("determination_bases") or {},
             "review_status": "none", "verdicts": {c["attribute_ref"]: c["verdict"] for c in candidate_cells},
         })
     for entry in entries:
+        notes = []
+        if entry["clears_mandated_criteria"] is False:
+            notes.append(f"{entry['n_mandated'] - entry['n_mandated_answered']} of the {entry['n_mandated']} criteria "
+                         f"the task itself requires are unanswered ({', '.join(entry['mandated_blocked_by'])}); "
+                         f"{entry['mandated_coverage']:.2f} answered, floor {mandated_coverage_floor:.2f}")
         if entry["preference_score"] is not None and entry["preference_coverage"] < ranking_coverage_floor:
-            entry["rank_note"] = (f"too little preference evidence to rank (coverage {entry['preference_coverage']:.2f} "
-                                  f"below {ranking_coverage_floor:.2f})")
+            notes.append(f"too little preference evidence to rank (coverage {entry['preference_coverage']:.2f} "
+                         f"below {ranking_coverage_floor:.2f})")
+        if notes:
+            entry["rank_note"] = "; ".join(notes)
+    # Eligible for a position: cleared the gates, has a score, has enough scoring inputs, and has
+    # been answered on the task's own criteria. `is not False` and not a truth test, because None is
+    # "the task mandates nothing here" and must not read as a failure.
     ranked = [e for e in entries if e["state"] in ("recommended", "provisional") and e["preference_score"] is not None
-              and e["preference_coverage"] >= ranking_coverage_floor]
+              and e["preference_coverage"] >= ranking_coverage_floor and e["clears_mandated_criteria"] is not False]
     ranked.sort(key=lambda e: (-e["preference_score"], STATE_ORDER[e["state"]], -e["preference_coverage"], -(e["coverage"] or 0),
                                e["candidate_ref"]))
     if has_preferences:
@@ -205,9 +250,35 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
                             "coverage_fraction": (len(value_bearing) / len(applicable)) if applicable else 0.0,
                             "sweep_completeness": sweep_completeness, "abstention_n_by_reason": abstentions,
                             "ranking_coverage_floor": ranking_coverage_floor,
-                            "unranked_for_coverage": sum(1 for e in entries if "rank_note" in e),
+                            # Counted from the condition and not from the presence of a `rank_note`,
+                            # which now also carries the mandated floor's reason: the two numbers
+                            # answer different questions and a reader comparing boards needs each of
+                            # them to go on meaning what it meant.
+                            "unranked_for_coverage": sum(1 for e in entries if e["preference_score"] is not None
+                                                         and e["preference_coverage"] < ranking_coverage_floor),
+                            # The floor over the task's own criteria, and how many candidates it
+                            # holds off the ranking. Recorded whether or not it excluded anybody, so
+                            # the number the board was built with is reproducible from the board.
+                            "mandated_coverage_floor": mandated_coverage_floor,
+                            "mandated_rule_refs": sorted(mandated_rule_refs),
+                            "ineligible_for_mandated_coverage": sum(1 for e in entries
+                                                                    if e["clears_mandated_criteria"] is False),
+                            "eligible_on_mandated_criteria": sum(1 for e in entries
+                                                                 if e["clears_mandated_criteria"] is True),
+                            # How many ranked candidates hold a position while a mandated *gate* is
+                            # unanswered for them. The floor does not measure gates
+                            # (`assessor.mandated_coverage`), which is a deliberate decision; this
+                            # is the number that decision costs, stated on every board rather than
+                            # left to be recomputed from the entries.
+                            "ranked_with_a_mandated_gate_unanswered": sum(
+                                1 for e in entries if e["position"] and e.get("mandated_gates_unanswered")),
                             "budget": budget},
         "interaction_estimate_provider": "none", "human_review_summary": _review_summary(rule_set),
+        # What the calibration guard measured for this board, whether or not it demoted anything: the
+        # share of the task's mandated population each hard exclusion removed. Always present when
+        # the run computed it, because "every gate was checked and none was over the limit" is a
+        # finding a reader needs as much as a demotion is (§9.2: an absent number reads as unknown).
+        "calibration_guard": calibration_guard,
         "published_at": utc_now(),
     }
     return snapshot

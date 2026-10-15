@@ -253,7 +253,12 @@ def build_dataset(*, mode: str, rules: list[dict[str, Any]], cells_by_candidate:
 
 
 def _feature(item: dict[str, Any], attribute: dict[str, Any]) -> Feature:
-    bases = attribute.get("acceptable_determination_bases") or assessor.DEFAULT_DETERMINATION_BASES
+    # In precedence order where the attribute declares one, because then the order is the meaning:
+    # ["measured", "predicted"] says every value of this feature is a measurement or, where the
+    # candidate has none, a prediction standing in for one. Shown to the proposer as a list, so an
+    # alphabetical one would have read as "predicted, then measured" -- the opposite.
+    bases = (criteria.basis_precedence(attribute)
+             or attribute.get("acceptable_determination_bases") or assessor.DEFAULT_DETERMINATION_BASES)
     return Feature(ref=_attr_ref(attribute), name=attribute["name"], definition=attribute["definition"],
                    unit=attribute.get("unit"), direction=attribute.get("direction", "non_directional"),
                    rule_ref=item["entry"]["rule_ref"],
@@ -814,12 +819,16 @@ def _install(ctx: ScoringContext, *, task_context: dict[str, Any], rule_set: dic
         "fitter_version": record["fitter_version"], "provenance": record["provenance"],
         "tie_break": "candidate_id", "mode": attempt["mode"], "expression": record,
     }
-    deferred = rule_set.get("deferred") or []
+    # The deferral this run was confirmed with, held out again by the set this installs. Read
+    # through `criteria.deferred_capabilities`, which prefers the set's own record of the policy to
+    # the rows it produced: a route-level deferral is recorded on the rules that *entered*, so
+    # rebuilding the policy from the rows alone can lose a capability and ask, in the set that now
+    # decides the ranking, for reading this run deliberately did not buy.
     rule_set_ref = criteria.confirm_rule_set(
         ctx.core, ctx.task_id, by=ctx.by, ordering_method=ordering_method,
         coverage_floor=rule_set.get("coverage_floor", 1.0), allow_pending=bool(rule_set.get("pending")),
-        defer_capabilities=tuple(sorted({item["capability"] for item in deferred})),
-        defer_reason=(deferred[0]["reason"] if deferred else ""))
+        defer_capabilities=criteria.deferred_capabilities(rule_set),
+        defer_reason=criteria.deferral_reason(rule_set))
     review.request(ctx.core, ctx.task_id,
                    subject={"kind": "rule_set_version", "id": rule_set_ref, "ordering_method": "symbolic_expression"},
                    why_expert_required="a scoring expression fitted on this run's own results now decides the "

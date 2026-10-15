@@ -374,3 +374,101 @@ def test_a_consolidated_criterions_exported_card_states_what_will_be_computed(tm
     core, plain_task, _ = seeded
     assert [card["computation"]["family_reduction"]
             for card in criteria_export.snapshot(core, plain_task, with_board=False)["criteria"]] == [None]
+
+
+# --- a gap-filling criterion on its card ------------------------------------------------------
+
+GAP_FILLING = {
+    "name": "Potency at T1, curated where there is a curation",
+    "definition": "Median curated potency against T1 as a pChEMBL value; where no curation exists, the "
+                  "affinity model's predicted pChEMBL for the same target",
+    "measurement_kind": "quantitative", "unit": "pChEMBL", "direction": "higher_better",
+    "acceptable_value_sources": ["curated_measurement", "model_prediction"], "aggregation": "median",
+    "acceptable_determination_bases": ["measured", "predicted"],
+    "determination_basis_precedence": ["measured", "predicted"],
+    "evidence_requests": [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values",
+                           "parameters": {"target_chembl_id": "T1"}},
+                          {"capability": "predicted_property_lookup", "question_kind": "admet_prediction",
+                           "parameters": {"target_chembl_id": "T1"}}],
+}
+
+
+def test_a_gap_filling_criterion_says_on_its_card_which_basis_outranks_which(tmp_path):
+    """An attribute that accepts a prediction under a measurement is a different quantity from either
+    of its halves, and the only thing between that and a reader taking a predicted value for a
+    measured one is the card saying so. So the precedence is in the operational-quantity facet -- and
+    therefore inside the measurement identity two criteria are compared on -- and spelled out in the
+    card's prose beside the accepted bases."""
+    root = tmp_path / "root"
+    with Core.open(root) as core:
+        task_id, _ = task.record_version(core, TASK_SPEC, by=OPERATOR)
+        ledger.put_source(core, SOURCE)
+        claim_id = ledger.record_claim(core, "run_01TESTDERIVATION000000000", dict(CLAIM), by=PROPOSER,
+                                       admission_state="admitted", admission_reasons=["quote_verified"])
+        attribute = dict(GAP_FILLING, attribute_id="attr_potency-gap-filled",
+                         supporting_claim_refs=[claim_id])
+        criteria.propose(core, task_id, attribute, dict(SURVIVOR["rule"], rule_id="rule_potency-gap-filled"),
+                         by=PROPOSER)
+        criteria.confirm_rule_set(core, task_id, by=OPERATOR, coverage_floor=0.5, allow_pending=True)
+    with criteria_export.open_read_only(root) as core:
+        payload = criteria_export.snapshot(core, task_id, with_board=False)
+        (card,) = payload["criteria"]
+        assert card["meaning"]["determination_basis_precedence"] == ["measured", "predicted"]
+        assert card["matching_facets"]["operational_quantity"]["determination_basis_precedence"] == \
+            ["measured", "predicted"]
+        cards = criteria_export.render_markdown(payload).split("## Cards", 1)[1].split("## Lifecycle", 1)[0]
+        assert "**basis precedence** measured > predicted" in cards
+        assert "a lower-priority basis is used only where every higher one is silent" in cards
+
+
+# --- a criterion that scores with one of its routes held out ------------------------------------
+
+POOLED = {
+    "name": "Potency at T1, curated and reported",
+    "definition": "Median curated or reported potency against T1, as a pChEMBL value",
+    "measurement_kind": "quantitative", "unit": "pChEMBL", "direction": "higher_better",
+    "acceptable_value_sources": ["curated_measurement", "peer_reviewed"], "aggregation": "median",
+    "evidence_requests": [
+        {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values",
+         "parameters": {"target_chembl_id": "T1"}},
+        {"capability": "literature_retrieval", "question_kind": "search",
+         "parameters": {"query_template": '({names}) AND "T1" AND IC50', "relevance_terms": ["T1"],
+                        "search_limit": 10}}],
+}
+
+
+def _seed_route_deferred(root) -> str:
+    """A store whose one criterion reads two databases' worth of routes, one of them held out."""
+    with Core.open(root) as core:
+        task_id, _ = task.record_version(core, TASK_SPEC, by=OPERATOR)
+        criteria.propose(core, task_id, dict(POOLED), dict(SURVIVOR["rule"]), by=PROPOSER)
+        criteria.confirm_rule_set(core, task_id, by=OPERATOR, coverage_floor=0.5,
+                                  defer_capabilities=("literature_retrieval",),
+                                  defer_reason="the literature runs on a shortlist")
+        return task_id
+
+
+def test_the_export_reports_a_route_deferred_rule_as_scoring_and_names_what_was_held_out(tmp_path):
+    """`_use` keyed per-criterion status off `deferred[]` by `rule_ref`, so a rule that entered the
+    set and scores on its database routes was reported as `deferred` -- the opposite of what
+    happened. The row is still there, because that list is what a re-confirmation reads, so the
+    status comes from the entry and the held-out sources are named in the reason."""
+    root = tmp_path / "root"
+    task_id = _seed_route_deferred(root)
+    with criteria_export.open_read_only(root) as core:
+        payload = criteria_export.snapshot(core, task_id, with_board=False)
+    (card,) = payload["criteria"]
+    use = card["use"]
+    assert use["status"] == "scoring" and use["deferral_scope"] == "route"
+    assert "literature_retrieval was held out of this run" in use["reason"]
+    assert [r["capability"] for r in use["scoring_routes"]] == ["interaction_evidence_lookup"]
+    assert [r["capability"] for r in use["deferred_routes"]] == ["literature_retrieval"]
+    # and the counts keep the two facts apart: it is a scoring rule, not a rule held out of the set,
+    # so the reconciliation that adds scoring to deferred to reach the registry total still adds up
+    counts = payload["counts"]
+    assert counts["scoring_now"]["value"] == 1 and counts["deferred_now"]["value"] == 0
+    assert counts["scoring_with_a_route_held_out_now"]["value"] == 1
+    (view,) = payload["rule_sets"]
+    assert view["counts"]["deferred"] == 0 and view["counts"]["scoring_with_a_route_held_out"] == 1
+    assert view["deferred_capabilities"] == ["literature_retrieval"]
+    assert len(view["deferred"]) == 1, "the row itself is kept, marked route-level"

@@ -7,9 +7,10 @@ agent_verdict`, never `human_scientific_approval`; it folds the queue item into 
 machine_adjudication` into the rule set, its acceptance label and the board. `review.decide` is
 untouched by this module: an `hd_` is still created only by a person confirming at a terminal.
 
-Six routes: the first four chosen by *why* the item needed an expert (`criteria.needs_expert`), the
+Seven routes: the first four chosen by *why* the item needed an expert (`criteria.needs_expert`), the
 fifth by what the subject attribute's own definition states, for an item that needed no expert at
-all, and the sixth by what its support record declares about a bound it cannot call a threshold:
+all, the sixth by what its support record declares about a bound it cannot call a threshold, and the
+seventh by what the tool that produced the values says about the line the rule compares them with:
 
   task_constraint_restated       the cutoff restates a constraint the task context itself states,
                                  so the authority is the user's own task text and no judgement is
@@ -51,6 +52,20 @@ all, and the sixth by what its support record declares about a bound it cannot c
                                  up the cutoff and ranks on the measurement instead, anything else
                                  stops scoring. A granted bound is recorded `interpretation_granted`,
                                  never `sourced_threshold`.
+  predictor_boundary_adopted     `cutoff_basis: model_decision_boundary` says the line is the one the
+                                 model that produced the values defines, and no claim in the ledger
+                                 states it -- so there was nothing to trace, nobody to ask, and the
+                                 item fell through to route 2 or 3. The provenance the predictor
+                                 attaches to every value it returns does state it
+                                 (`conditions.decision_boundary`), together with what the endpoint is
+                                 and how well it holds out, so the authority is a record the tool
+                                 wrote and this route checks the rule against it: the bound must equal
+                                 the documented boundary exactly, in the documented unit, and the
+                                 endpoint's held-out metric must be present and show real skill
+                                 (`MIN_GATING_AUROC`, `MIN_GATING_R2`). Deterministic, no model call.
+                                 It adopts the *number* and nothing else: a hard exclusion is still a
+                                 hard exclusion an agent may not apply, so it goes on through the
+                                 irreversibility composition below and ranks instead of excluding.
 
 WHY route 6 exists at all, and why it is the only route that can leave an exclusion excluding on
 anything other than the task's own text. Measured on the clean derivation of 14 October 2026: of 35 derived criteria exactly one carried a
@@ -83,6 +98,7 @@ import re
 from typing import Any
 
 from . import bound_support, criteria, ledger, review, vocab
+from .canonical import canonical_text
 from .clock import utc_now
 from .ids import new_id
 from .journal import actor as make_actor
@@ -101,6 +117,8 @@ ROUTE_EFFECT = {
                            "carries the quantity it names",
     "bound_interpretation_granted": "put the declared interpretation of the bound to the adjudicator, which may "
                                     "let it score as a cutoff",
+    "predictor_boundary_adopted": "adopt the decision boundary the predictor documents for this endpoint, so the "
+                                  "rule may score on it",
 }
 ROUTES = tuple(ROUTE_EFFECT)
 VERDICTS = ("uphold_proposal", "uphold_objection", "revise", "cannot_resolve")
@@ -404,6 +422,146 @@ def grantable_interpretation(rule: dict[str, Any], attribute: dict[str, Any],
                         "applicability_rationale": records[p].get("applicability_rationale")} for p in paths]}
 
 
+# --- route 7: does the predictor itself document this boundary, well enough to gate on? ---------
+#
+# The floors a predicted endpoint has to clear before a rule may compare candidates against its own
+# decision line. Both are stated here as the code's own answer and are overridable per run
+# (`config.predict.min_gate_auroc`, `config.predict.min_gate_r2`), because they are a judgement about
+# how much skill is enough and not a fact about the panel.
+#
+# AUROC 0.70 for a classifier: 0.5 is chance, and 0.7 is the long-standing convention (Hosmer &
+# Lemeshow) below which discrimination is called poor -- a model that ranks a positive above a
+# negative two times in three is not a line to delete or demote a drug candidate on. Measured on the
+# installed panel: hERG 0.839, DILI 0.8815, AMES 0.8816, ClinTox 0.9275 and the five CYP inhibition
+# endpoints (0.886-0.941) clear it; `CYP2C9_Substrate_CarbonMangels` (0.6279) and `NR-ER` (0.7488, on
+# an AUPRC of 0.458) are the kind of endpoint it keeps out, and `Bioavailability_Ma` (0.7164),
+# `CYP3A4_Substrate` (0.7048) and `Skin_Reaction` (0.718) sit just above it -- which is why the floor
+# is a setting: a run that wants 0.80 says so and gets it, with the number recorded as a constant.
+#
+# R^2 0.50 for a regression: 0 means the model does no better than predicting the training mean, so
+# anything at or below 0 carries no information about a particular compound and the floor must be
+# strictly above it. 0.5 is the usual external-validation standard for a QSAR model (q^2 > 0.5,
+# Golbraikh & Tropsha). It admits Solubility_AqSolDB (0.8166), Lipophilicity_AstraZeneca (0.7712),
+# HydrationFreeEnergy_FreeSolv (0.8877), Caco2_Wang (0.7065), PPBR_AZ (0.5889) and LD50_Zhu (0.5959),
+# and refuses exactly the endpoints that must never carry a gate: Half_Life_Obach (-2.39) and
+# VDss_Lombardo (-1.21), both worse than the training mean, and the two clearance models (0.264,
+# 0.277), which explain about a quarter of the variance of the thing they predict.
+MIN_GATING_AUROC = 0.70
+MIN_GATING_R2 = 0.50
+# The metric each kind of endpoint is judged on, and the floor it has to clear. AUROC and R^2 and not
+# AUPRC or MAE: AUPRC moves with the positive rate of the dataset, so it is not comparable across
+# endpoints, and MAE is in the endpoint's own unit, so there is no one number to compare it with.
+GATING_METRICS = {"classification": ("auroc", MIN_GATING_AUROC), "regression": ("r2", MIN_GATING_R2)}
+# Determination bases whose values come out of a model, and so may carry a model's own boundary. A
+# measured value has no decision boundary to adopt: whoever drew a line on measurements is the
+# authority for it, which is what the other six routes are about.
+MODEL_BASES = ("predicted", "simulated")
+# The keys this route reads out of the provenance a provider attaches to a value it returns
+# (`claim["conditions"]`). Named here because they are the contract: any provider whose values carry
+# a documented decision boundary, the endpoint's task type, its held-out metric and its unit can be
+# gated on through this route, and one whose values do not cannot. No adapter is named in the core.
+PROVENANCE_KEYS = ("decision_boundary", "task_type", "holdout_metric", "unit")
+
+
+def _metric_floors(settings: dict[str, Any] | None) -> dict[str, tuple[str, float]]:
+    """The per-task-type (metric, floor) pairs for this run: the registered settings, else the code's."""
+    values = settings or {}
+    return {"classification": ("auroc", float(values.get("predict.min_gate_auroc", MIN_GATING_AUROC))),
+            "regression": ("r2", float(values.get("predict.min_gate_r2", MIN_GATING_R2)))}
+
+
+def predictor_boundary(rule: dict[str, Any], attribute: dict[str, Any], claims: list[dict[str, Any]], *,
+                       settings: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Whether the predictor's own documented boundary is what this rule compares candidates against.
+
+    Always a record, never None, so that a refusal is as recordable as an adoption: `adoptable` says
+    whether the route may fire and `refusals[]` says, in words, every condition that failed. Each
+    condition is checked against the provenance the *tool* wrote on the values -- nothing a proposer
+    supplies can establish any of them, which is what this route has in common with route 1.
+
+    The conditions, and why each one is a condition:
+      * the rule claims `cutoff_basis: model_decision_boundary` -- otherwise this is somebody's line,
+        not the model's, and a different route answers for it;
+      * the attribute accepts the basis the values come on, so the claims this bound would be applied
+        to are claims the cell would actually use rather than set aside;
+      * exactly one boundary is documented across the claims consulted. Two different ones would mean
+        the cell pools two endpoints, and which of them the rule is thresholding is then unknown;
+      * the rule's cutoff equals that boundary exactly, in the documented unit. Not "near 0.5" and not
+        0.5 by assumption: a rule thresholding a classifier at 0.8 has drawn its own line, which is a
+        judgement somebody has to own, and the registry has no field for a boundary that was rounded;
+      * the endpoint's held-out metric is recorded and clears the floor for its task type. A missing
+        metric is a refusal rather than a benefit of the doubt, and a negative R^2 -- a model that
+        does not beat predicting the training mean -- can never clear a floor above zero.
+    """
+    from .assessor import DEFAULT_DETERMINATION_BASES
+
+    floors = _metric_floors(settings)
+    cutoff = rule.get("cutoff") or {}
+    out: dict[str, Any] = {"field": "evidence_provenance", "match": "predictor_documents_this_boundary",
+                           "adoptable": False, "refusals": [], "claim_ids": [], "cutoff_value": cutoff.get("value"),
+                           "cutoff_unit": cutoff.get("unit"), "endpoint": None, "decision_boundary": None,
+                           "task_type": None, "holdout_metric": None, "metric_floor": None,
+                           "metric_name": None, "metric_value": None, "model": None, "training_dataset": None,
+                           "training_rows": None, "predictor": None}
+    if rule.get("cutoff_basis") != "model_decision_boundary":
+        out["refusals"].append(f"cutoff_basis is {rule.get('cutoff_basis')!r}, not model_decision_boundary")
+        return out
+    if not isinstance(cutoff.get("value"), (int, float)) or isinstance(cutoff.get("value"), bool):
+        out["refusals"].append("the rule compares candidates against no number, so there is no boundary to adopt")
+        return out
+    accepted = set(attribute.get("acceptable_determination_bases") or DEFAULT_DETERMINATION_BASES)
+    stated = [c for c in claims
+              if c.get("determination_basis") in MODEL_BASES and c.get("determination_basis") in accepted
+              and isinstance(c.get("conditions"), dict)
+              and c["conditions"].get("decision_boundary") is not None]
+    if not stated:
+        out["refusals"].append(
+            f"none of the {len(claims)} claim(s) this criterion cites carries a provenance stating a decision "
+            f"boundary on a basis the attribute accepts ({sorted(accepted)}); the boundary a rule gates on has to "
+            f"be one the tool that produced the values documents")
+        return out
+    out["claim_ids"] = sorted({c["claim_id"] for c in stated})
+    provenances = {canonical_text({k: c["conditions"].get(k) for k in PROVENANCE_KEYS}): c["conditions"]
+                   for c in stated}
+    if len(provenances) > 1:
+        out["refusals"].append(f"the {len(stated)} claim(s) consulted document {len(provenances)} different "
+                               f"boundaries or endpoints; which one this rule thresholds is not established")
+        return out
+    provenance = next(iter(provenances.values()))
+    out.update(endpoint=provenance.get("endpoint"), decision_boundary=provenance.get("decision_boundary"),
+               task_type=provenance.get("task_type"), holdout_metric=provenance.get("holdout_metric"),
+               model=provenance.get("model"), training_dataset=provenance.get("training_dataset"),
+               training_rows=provenance.get("training_rows"),
+               predictor=" ".join(str(provenance.get(k)) for k in ("predictor_package", "predictor_version")
+                                  if provenance.get(k)) or None)
+    if cutoff["value"] != provenance["decision_boundary"]:
+        out["refusals"].append(f"the rule compares candidates against {cutoff['value']} and the predictor "
+                               f"documents its boundary at {provenance['decision_boundary']}; a line the model "
+                               f"does not state is a judgement somebody has to own")
+    if provenance.get("unit") != cutoff.get("unit"):
+        out["refusals"].append(f"the boundary is documented in {provenance.get('unit')!r} and the rule's cutoff is "
+                               f"in {cutoff.get('unit')!r}")
+    metric_name, floor = floors.get(out["task_type"], (None, None))
+    if metric_name is None:
+        out["refusals"].append(f"task_type {out['task_type']!r} has no metric this route knows how to judge "
+                               f"({', '.join(sorted(floors))})")
+    else:
+        out["metric_floor"], out["metric_name"] = floor, metric_name
+        value = (out["holdout_metric"] or {}).get(metric_name)
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            out["refusals"].append(f"the endpoint records no held-out {metric_name}, so nothing establishes that it "
+                                   f"has any skill at all; a boundary on an unmeasured model is not a gate")
+        else:
+            out["metric_value"] = float(value)
+            if float(value) < floor:
+                out["refusals"].append(
+                    f"the endpoint's held-out {metric_name} is {value:g}, below the {floor:g} this run requires"
+                    + (" -- a negative R^2 is worse than predicting the training mean, so the value carries no "
+                       "information about a particular compound" if metric_name == "r2" and value < 0 else ""))
+    out["adoptable"] = not out["refusals"]
+    return out
+
+
 def granted_bounds(record: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
     """The parameter paths one machine adjudication granted, by path, for `bound_support.validate`.
 
@@ -429,16 +587,32 @@ def _cited_claims(core: Core, task_id: str, attribute: dict[str, Any], item: dic
     one. Nothing is read at all unless the definition states a bound there would be something to
     trace, or a support record declares an interpretation there would be something to grant, which is
     what keeps `route_preview` cheap for the routes that cite no claim at all.
+
+    A `model_decision_boundary` cutoff is the one case that reads claims the attribute does *not*
+    cite. The boundary is documented on the values the tool returns and on nothing else -- a
+    derivation cites what it read in papers, so a predicted criterion's cited claims are literature
+    and never the predictor's own provenance -- so route 7 is handed this attribute's claims from the
+    streams that recorded them. The widening is gated on that basis alone, so no other route pays for
+    it, and `admitted_only` stays on: a quarantined claim establishes nothing.
     """
     cited = set(attribute.get("supporting_claim_refs") or [])
     declares = any(isinstance(r.get("interpretation"), dict)
                    for r in bound_support.support_records(attribute, rule or {}).values())
-    if not cited or (_restatable(attribute) is None and not declares):
+    boundary = (rule or {}).get("cutoff_basis") == "model_decision_boundary"
+    if not boundary and (not cited or (_restatable(attribute) is None and not declares)):
         return []
     bundle = item.get("inspection_bundle") or {}
     streams = [task_id] + ([bundle["derivation_run"]] if bundle.get("derivation_run")
                            else core.journal.streams("run_"))
-    return [c for c in ledger.claims(core, streams) if c["claim_id"] in cited]
+    attribute_ref = (f"{attribute['attribute_id']}@v{attribute['version']}"
+                     if attribute.get("attribute_id") and attribute.get("version") else None)
+    found = ledger.claims(core, streams)
+    out = [c for c in found if c["claim_id"] in cited]
+    if boundary and attribute_ref:
+        seen = {c["claim_id"] for c in out}
+        out += [c for c in found if c["claim_id"] not in seen and c.get("attribute_ref") == attribute_ref
+                and c.get("determination_basis") in MODEL_BASES]
+    return out
 
 
 # --- route selection ----------------------------------------------------------------------------
@@ -448,8 +622,9 @@ def _is_dispute(item: dict[str, Any]) -> bool:
 
 
 def route_of(rule: dict[str, Any], attribute: dict[str, Any], context: dict[str, Any],
-             item: dict[str, Any], claims: list[dict[str, Any]] | None = None) -> tuple[str, dict[str, Any] | None]:
-    """The route that resolves this item, and what it cites (routes 1, 5 and 6 cite something).
+             item: dict[str, Any], claims: list[dict[str, Any]] | None = None,
+             settings: dict[str, Any] | None = None) -> tuple[str, dict[str, Any] | None]:
+    """The route that resolves this item, and what it cites (routes 1, 5, 6 and 7 cite something).
 
     Order matters where a rule qualifies for more than one route, and it runs from the most
     conservative outcome to the least: an `expert_set` hard exclusion is demoted to a
@@ -469,6 +644,14 @@ def route_of(rule: dict[str, Any], attribute: dict[str, Any], context: dict[str,
     asking costs nothing and demoting first would make the declaration unaskable. It cannot fire
     without that declaration, and `grantable_interpretation` refuses every bound a machine can
     already see through.
+
+    Route 7 is tried before both of them, and it is placed there because it adds nothing to the
+    object it reads: like route 1 it checks the rule against a record somebody else wrote -- there,
+    the user's task text; here, the provenance the tool stamped on the values -- and like route 1 it
+    changes no kind and no cutoff. It cannot reach a rule that claims another authority (an
+    `expert_set` or `task_constraint` cutoff is answered above it), and the irreversibility of a hard
+    exclusion is not its to settle: an adopted boundary still goes through the composition in
+    `adjudicate`, which demotes an exclusion no task text mandates.
     """
     if _is_dispute(item):
         return "dispute_adjudicated", None
@@ -483,6 +666,14 @@ def route_of(rule: dict[str, Any], attribute: dict[str, Any], context: dict[str,
                 else "no_authority_available"), None
     if rule["cutoff_basis"] == "expert_set":
         return "no_authority_available", None
+    if rule["cutoff_basis"] == "model_decision_boundary":
+        boundary = predictor_boundary(rule, attribute, claims or [], settings=settings)
+        if boundary["adoptable"]:
+            return "predictor_boundary_adopted", boundary
+        # The predictor does not document this line, or documents it on an endpoint with no
+        # established skill. Then nothing stands behind the number and the ordinary fallbacks apply;
+        # `adjudicate` puts the refusals in the reason, so the record says which condition failed
+        # rather than reporting an expert nobody ever claimed.
     grantable = grantable_interpretation(rule, attribute, claims or [])
     if grantable is not None:
         return "bound_interpretation_granted", grantable
@@ -494,7 +685,7 @@ def route_of(rule: dict[str, Any], attribute: dict[str, Any], context: dict[str,
     return "no_authority_available", None
 
 
-def route_preview(core: Core, item: dict[str, Any]) -> dict[str, Any]:
+def route_preview(core: Core, item: dict[str, Any], settings: dict[str, Any] | None = None) -> dict[str, Any]:
     """Which route would resolve this item, without writing anything. Never raises."""
     unknown = {"route": None, "route_label": None, "would": None,
                "why_not": "only an open rule-version item is resolvable without a person"}
@@ -508,7 +699,7 @@ def route_preview(core: Core, item: dict[str, Any]) -> dict[str, Any]:
         claims = _cited_claims(core, task_id, attribute, item, rule)
     except (KeyError, StopIteration):
         return dict(unknown, why_not="the rule or the task context this item names is not in this store root")
-    route, _restated = route_of(rule, attribute, context, item, claims)
+    route, _restated = route_of(rule, attribute, context, item, claims, settings)
     return {"route": route, "route_label": vocab.label("adjudication_route", route), "would": ROUTE_EFFECT[route],
             "why_not": None}
 
@@ -795,11 +986,15 @@ def _apply_revision(rule: dict[str, Any], revision: dict[str, Any], attribute: d
 # --- adjudicating -----------------------------------------------------------------------------------
 
 def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None = None,
-               budget: Any = None) -> dict[str, Any]:
+               budget: Any = None, settings: dict[str, Any] | None = None) -> dict[str, Any]:
     """Resolve one open review queue item without a person, and record how.
 
     Raises `AdjudicationError` when the item is not resolvable this way at all (not a rule version,
     already resolved, or a dispute with no adjudicator to call). Never creates an `hd_`.
+
+    `settings` are the run's resolved setting values, for the one route that reads a number of its
+    own: route 7's metric floors (`predict.min_gate_auroc`, `predict.min_gate_r2`). Absent, the
+    module's own constants apply and the record says which floor it used either way.
     """
     if item["subject"]["kind"] != "rule_version":
         raise AdjudicationError(f"{item['item_id']} is a {item['subject']['kind']} item; only a rule version "
@@ -811,10 +1006,10 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
     rule_ref = item["subject"]["id"]
     rule = criteria.load(core, rule_ref, task_id)
     attribute = criteria.load(core, rule["attribute_ref"], task_id)
-    route, restated = route_of(rule, attribute, context, item,
-                               _cited_claims(core, task_id, attribute, item, rule))
+    claims_read = _cited_claims(core, task_id, attribute, item, rule)
+    route, restated = route_of(rule, attribute, context, item, claims_read, settings)
     adjudication_id = new_id("adj")
-    by, dispute, revision, grant = MACHINE, None, None, None
+    by, dispute, revision, grant, boundary_refused = MACHINE, None, None, None, None
 
     if route == "dispute_adjudicated":
         if roster is None:
@@ -884,6 +1079,17 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
                   f"transformation, so every cell carried the raw value its source returns; the transformation is "
                   f"declared as the definition already describes it, on a bound claims "
                   f"{', '.join(restated['claim_ids'])} state, and the definition itself is unchanged")
+    elif route == "predictor_boundary_adopted":
+        resolution = "approve"
+        reason = (f"the rule compares candidates against {restated['cutoff_value']} "
+                  f"{restated['cutoff_unit'] or ''}".rstrip()
+                  + f", which is exactly the decision boundary {restated['predictor'] or 'the predictor'} "
+                    f"documents for {restated['endpoint']} on the values this criterion scores "
+                    f"(claims {', '.join(restated['claim_ids'])}); its held-out "
+                    f"{restated['metric_name']} is {restated['metric_value']:g}, at or above the "
+                    f"{restated['metric_floor']:g} this run requires. The authority is the predictor's own "
+                    f"record of its model, not anybody's judgement, so the boundary may score -- and nothing "
+                    f"else about the rule changes")
     elif route == "irreversible_without_authority":
         resolution = "demote_to_preference"
         reason = ("a hard exclusion deletes candidates from the result; an agent may not do that on its own "
@@ -892,6 +1098,17 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         resolution = "demote_to_exploratory_consideration"
         reason = (f"cutoff_basis {rule['cutoff_basis']} makes the cutoff an expert's judgement, and no expert "
                   f"has given one")
+    if rule["cutoff_basis"] == "model_decision_boundary" and route != "predictor_boundary_adopted":
+        # The basis claims the model's own line rather than an expert's, so the fallback reason above
+        # is false about it: it was not an expert's judgement and no expert was wanted. What actually
+        # happened is that the predictor's record does not support this rule's number, and the record
+        # says which condition failed -- a negative R^2, a missing metric, a line the model does not
+        # draw -- because that is the one thing the author of the rule can act on.
+        refused = predictor_boundary(rule, attribute, claims_read, settings=settings)
+        reason = (f"cutoff_basis model_decision_boundary claims the line the model that produced the values "
+                  f"defines, and the predictor's own record does not establish it here: "
+                  + "; ".join(refused["refusals"]))
+        boundary_refused = refused
 
     # WHY the routes compose: a disputed proposal may itself be a hard exclusion or an expert-set
     # cutoff, and `criteria.propose` raises the dispute item *instead of* the confirmation item for
@@ -910,6 +1127,17 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         # acceptance reason, `exploratory`, and a board saying no person confirmed it -- and a run
         # with nobody to ask that may never state a requirement cannot derive criteria at all
         # (measured: 1 of 35 derived criteria carried a cutoff, and that one restated the task).
+        #
+        # WHY route 7 is NOT excepted, although it too approves without asking anybody: it
+        # establishes the number, not the consequence. A classifier's decision boundary says where
+        # the model divides its two classes; it does not say that a candidate on the far side is
+        # unsuitable, and that second step is exactly what route 6 puts to an adjudicator as a
+        # separate question. So a documented boundary adopted on a hard exclusion keeps its cutoff,
+        # scores every candidate at the model's own line, and stops deleting them. Measured on the
+        # manuscript universe, that conservatism is also the empirically right answer: the predicted
+        # DILI and hERG gates at 0.5 remove 100% of the candidates that carry a curated potency at a
+        # required receptor, so an exclusion applied there would have emptied the board of the class
+        # the task is about (`assessor.calibration_guard` is the guard on the gates that do survive).
         resolution = "demote_to_preference"
         reason += "; it is still a hard exclusion the task text does not state, so it stops excluding"
 
@@ -980,6 +1208,10 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
             "hard_exclusion": grant["hard_exclusion"],
             "interpretations": {b["parameter_path"]: b["interpretation"] for b in restated["bounds"]},
             "inferences": {b["parameter_path"]: b["inference"] for b in restated["bounds"]}},
+        # What the predictor's own record says about this rule's number: the adopted boundary with
+        # its endpoint, metric and floor on route 7, or -- where the basis claimed a model boundary
+        # and the route refused it -- every condition that failed. `None` for every other basis.
+        "predictor_boundary": restated if route == "predictor_boundary_adopted" else boundary_refused,
         "verdict": (dispute or grant or {}).get("verdict"),
         "reasoning": (dispute or grant or {}).get("reasoning"),
         "cited_claim_ids": (dispute or grant or {}).get("cited_claim_ids") or [],
@@ -999,7 +1231,8 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
 
 
 def adjudicate_open(core: Core, task_id: str | None = None, *, roster: ModelRoster | None = None,
-                    only_item: str | None = None, budget: Any = None) -> list[dict[str, Any]]:
+                    only_item: str | None = None, budget: Any = None,
+                    settings: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """Adjudicate the open rule-version items of one task (or every task), oldest first.
 
     An item this cannot resolve is left open with the reason, never half-resolved: the queue is the
@@ -1016,7 +1249,7 @@ def adjudicate_open(core: Core, task_id: str | None = None, *, roster: ModelRost
         if item["state"] not in ("open", "in_review"):
             continue
         try:
-            out.append(adjudicate(core, item, roster=roster, budget=budget))
+            out.append(adjudicate(core, item, roster=roster, budget=budget, settings=settings))
         except (AdjudicationError, ModelError) as error:
             out.append({"queue_item_ref": item["item_id"], "subject": item["subject"], "route": None,
                         "resolution": None, "left_open_because": str(error)})

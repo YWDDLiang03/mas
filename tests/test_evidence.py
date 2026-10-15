@@ -481,3 +481,36 @@ def test_a_document_whose_claims_cannot_be_extracted_is_skipped_rather_than_endi
     # and the repair budget that let a single prose reply through is now two, not one
     from mas.core import models
     assert inspect.signature(models.call_role).parameters["max_repairs"].default == 2
+
+
+def test_an_attribute_declaring_databases_and_literature_is_gathered_on_both_paths(core):
+    """One quantity, two curations and a published report of it (`criteria.check_attribute` permits
+    the mixture for a quantitative attribute pooled by a numeric aggregation). `gather` dispatched on
+    `is_literature_bound` and returned at the first branch, so such a cell's databases were never
+    called at all and it read as though no record existed. Both halves are asked; the cell's claims
+    are their union; and the scale still decides what counts -- the extracted figures here are
+    percentages, which this attribute has no conversion for and does not score on."""
+    from mas.core import criteria
+
+    literature_route = {"capability": "literature_retrieval", "question_kind": "search",
+                        "parameters": {"query_template": '({names}) AND "CSF1R" AND (IC50 OR Ki)',
+                                       "relevance_terms": ["CSF1R", "IC50"], "search_limit": 4}}
+    mixed = dict(POOLED_POTENCY, acceptable_value_sources=["curated_measurement", "peer_reviewed"],
+                 evidence_requests=CSF1R_ROUTES + [literature_route])
+    criteria.check_attribute(mixed)
+    broker, roster, model, reader_tool = literature_cell(core)
+    chembl, gtopdb = Curation("pchembl_values", "tool_chembl", [7.0, 7.4]), Curation("gtopdb_affinity", "tool_gtopdb", [9.0])
+    broker.register(chembl)
+    broker.register(gtopdb)
+    claims, error_ref, searched = read_cell(core, broker, roster, attribute=mixed)
+    assert chembl.calls == gtopdb.calls == ["CHEMBL1844"], "the curated routes are asked"
+    assert sorted(reader_tool.reads) == sorted(PAPERS), "and so is the literature route"
+    assert error_ref is None
+    assert searched == ["interaction_evidence_lookup", "literature_retrieval", "document_reading"]
+    assert sorted(c["value"] for c in claims if c["unit"] == "pChEMBL") == [7.0, 7.4, 9.0]
+    assert sorted(c["value"] for c in claims if c["unit"] == "%") == sorted(PAPERS.values())
+
+    cell, _ = assessor.assess_cell(candidate=CANDIDATE, attribute=mixed, rule=ORDERING, rule_set_ref="rules@v1",
+                                   claims=claims, resolved=True, searched=searched)
+    assert cell["verdict"] == "pass" and cell["value"] == 7.4 and len(cell["value_source_claim_refs"]) == 3
+    assert {entry["reason"] for entry in cell["set_aside_claims"]} == {"unit_unresolved"}

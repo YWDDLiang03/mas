@@ -20,5 +20,5 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["live: needs network access to PubChem and ChEMBL"]
+markers = ["live: needs something the offline suite does not have: network access to PubChem, ChEMBL and Europe PMC, or the local predictor environment"]
 addopts = "-m 'not live'"

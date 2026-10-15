@@ -12,14 +12,30 @@ from .runtime import Core
 MEASUREMENT_KINDS = ("quantitative", "ordinal", "categorical", "qualitative_determination")
 DIRECTIONS = ("higher_better", "lower_better", "within_range", "target_value", "non_directional", "undetermined")
 RULE_KINDS = ("hard_exclusion", "preference", "exploratory_consideration")
+# Where the authority for a decision-bearing number comes from. `model_decision_boundary` is the
+# line the model that produced the value defines rather than a line anybody drew here: a binary
+# classifier returns the probability of its positive class, so 0.5 separates its two classes by the
+# definition of the task it was trained on. It is registered as a general basis because the claim it
+# makes is general -- any model that classifies states a boundary, and a screen that compares a
+# candidate against it is using the model's own line. It is NOT a licence to score unexamined:
+# `bound_support.AUTHORITY_BASES` holds it, so the bound needs a decision before it may score, for
+# the same reason an `expert_set` one does -- no claim in the ledger states the number, and whether
+# this population should be screened at the model's line is a judgement, not an arithmetic.
 CUTOFF_BASES = ("measured_distribution", "regulatory_or_standard_reference", "source_stated_value",
-                "expert_set", "task_constraint", "none_evidence_insufficient")
+                "expert_set", "task_constraint", "model_decision_boundary", "none_evidence_insufficient")
 COMPARATORS = (">=", "<=", ">", "<", "==", "in", "not_in")
 ON_STATE_POLICIES = ("unknown_no_penalty", "unknown_blocks_recommendation", "route_to_human", "exclude")
 AGGREGATIONS = ("max", "min", "median", "consensus")
-# Bases a value may be determined on. `predicted` is never mixed with the others inside one
-# attribute: a predicted value standing in for a measurement is a surrogate inside a verdict
-# (design §4.11), so a predicted quantity needs its own attribute and its own rule.
+# The reductions that are defined over a pooled set of numbers from unlike kinds of source, which is
+# what lets one attribute read a quantity from databases and from the literature at once
+# (`check_attribute`). `consensus` is deliberately absent: it asks whether the sources agree, and
+# what agreement between a curated record and a read passage means is a policy nobody has set.
+POOLABLE_AGGREGATIONS = ("max", "min", "median")
+# Bases a value may be determined on. `predicted` is never *pooled* with the others inside one
+# aggregate: a predicted value averaged in with measurements is a surrogate inside a verdict
+# (design §4.11). Without a declared precedence that means a predicted quantity needs its own
+# attribute and its own rule; with one (`determination_basis_precedence` below) one attribute may
+# hold both bases and use exactly one of them per candidate, which is a different thing from mixing.
 #
 # `curated` is an expert assertion a database carries with its references — ChEMBL's
 # mechanism-of-action table states that a compound engages a target, which is documented
@@ -38,6 +54,95 @@ AGGREGATIONS = ("max", "min", "median", "consensus")
 # -- the reader was writing evidence into a basis the registry had no word for. That falls hardest
 # on the 26 literature-bound criteria, whose evidence is largely stated rather than tabulated.
 DETERMINATION_BASES = ("measured", "derived", "predicted", "simulated", "curated", "asserted")
+# The kinds of source an attribute may accept values from: the registered `evidence_kind` domain and
+# nothing else. Read from the vocabulary rather than restated here, so there is one registry of what
+# the system's tools can stamp on a claim and this validator cannot drift from it (see that domain's
+# note for why the registry is a closed list and not the live install's contracts).
+EVIDENCE_KINDS = tuple(sorted(vocab.DOMAINS["evidence_kind"]))
+# The basis the cell falls back to when the one above it has nothing to say about a candidate, as an
+# ordered list, highest priority first: `determination_basis_precedence: ["measured", "predicted"]`
+# reads "the measurement where there is one, the prediction only where there is none".
+#
+# WHY it exists. The invariant above is sound about aggregates and silent about gaps, and the
+# screening need it made inexpressible is the ordinary one: 74 of the 3,177 compounds of the
+# manuscript universe carry any curated potency at the five required receptors, so without
+# gap-filling 98% of the universe is `unknown` on the task's central quantity, and every candidate
+# the board could rank is a candidate somebody has already studied. The two ways out before this
+# field were both defects. One attribute accepting both bases pooled a model's output into a median
+# of measurements -- the surrogate §4.11 refuses. Two attributes, one per basis, scored one quantity
+# twice for every candidate that has both a measurement and a prediction: the double counting
+# `core/collapse.py` exists to undo (ten promoted rules for five quantities; 34 of 3,177 compounds
+# cleared the ranking floor where 99 clear it once each receptor is one quantity).
+#
+# WHAT IT IS NOT. It is not a licence to mix: `assessor.usable_claims` keeps the claims of the
+# highest-priority basis *actually present for that candidate* and sets every other claim aside
+# (`lower_precedence_basis`), so no aggregate ever spans two bases -- which is the invariant, stated
+# per candidate instead of per attribute. The cell then reports the basis it actually used, so a
+# gap-filled cell reads `predicted` and a measured one `measured`, and the two are told apart on
+# every surface that reports provenance.
+#
+# WHY `predicted` may not come first: a precedence whose top entry is the model's output would use
+# the prediction wherever one exists -- which is everywhere a structure exists -- and the measurement
+# nowhere, so the attribute would be a predicted quantity wearing a measured one's name. The field is
+# for filling gaps under a measurement, never for preferring a prediction to one. Deliberately *not*
+# "predicted must be last": a prediction from a model with a declared holdout metric is not obviously
+# weaker evidence than a paper's bare assertion (`asserted`), and ordering those two is the
+# proposer's call, not this registry's.
+PRECEDENCE_FIELD = "determination_basis_precedence"
+
+
+def basis_precedence(attribute: dict[str, Any]) -> list[str] | None:
+    """The declared basis precedence of an attribute, or None when it declares none.
+
+    Reading only: the declaration is validated by `check_basis_precedence`, which `check_attribute`
+    runs, so a record in the store has already been checked and a malformed one reads as absent
+    here rather than crashing the assessor that is scoring a cell with it.
+    """
+    declared = attribute.get(PRECEDENCE_FIELD)
+    if not isinstance(declared, list) or not declared:
+        return None
+    bases = attribute.get("acceptable_determination_bases")
+    if not isinstance(bases, list) or sorted(declared) != sorted(set(bases)) or len(set(declared)) != len(declared):
+        return None
+    return list(declared)
+
+
+def check_basis_precedence(attr: dict[str, Any]) -> list[str] | None:
+    """Validate a declared `determination_basis_precedence` and return it, or None when absent.
+
+    Four requirements, each of them the reason a weaker one would not do:
+      * every entry is a registered basis -- it is the same closed list an attribute may accept;
+      * `acceptable_determination_bases` is declared explicitly, because "every accepted basis"
+        cannot be ordered while the accepted set is the assessor's implicit default;
+      * the two lists hold the same bases, each exactly once: a basis accepted and left out of the
+        precedence would have no rank, so `usable_claims` could not say whether it outranks anything,
+        and a basis ranked but not accepted ranks claims that are set aside before they get here;
+      * `predicted` is not first (see `PRECEDENCE_FIELD`).
+    """
+    declared = attr.get(PRECEDENCE_FIELD)
+    if declared is None:
+        return None
+    if not isinstance(declared, list) or not declared:
+        raise InvariantViolation("schema", f"{PRECEDENCE_FIELD} is a non-empty list of determination bases "
+                                          f"when given, highest priority first")
+    for basis in declared:
+        _choice(PRECEDENCE_FIELD, basis, DETERMINATION_BASES)
+    if len(set(declared)) != len(declared):
+        raise InvariantViolation("schema", f"{PRECEDENCE_FIELD} on {attr.get('name')!r} ranks a basis twice: "
+                                          f"{declared}")
+    bases = attr.get("acceptable_determination_bases")
+    if not isinstance(bases, list) or not bases:
+        raise InvariantViolation("schema", f"{PRECEDENCE_FIELD} on {attr.get('name')!r} needs an explicit "
+                                          f"acceptable_determination_bases to order")
+    if sorted(set(bases)) != sorted(declared):
+        raise InvariantViolation("schema", f"{PRECEDENCE_FIELD} on {attr.get('name')!r} is {declared} and the "
+                                          f"attribute accepts {sorted(set(bases))}; the precedence lists every "
+                                          f"accepted basis exactly once, so that every claim it keeps has a rank")
+    if declared[0] == "predicted":
+        raise InvariantViolation("schema", f"{PRECEDENCE_FIELD} on {attr.get('name')!r} puts predicted first, so "
+                                          f"the prediction would be used wherever one exists and the measurement "
+                                          f"nowhere; a precedence fills gaps under a measurement")
+    return list(declared)
 # Deterministic transformations an attribute may declare between the value its bound source returns
 # and the quantity the attribute is about, with the parameters each one needs.
 #
@@ -149,8 +254,36 @@ def subject_parameters(request: dict[str, Any]) -> dict[str, Any]:
 def is_literature_bound(attribute: dict[str, Any]) -> bool:
     """True when any route reads literature: that route needs the search-and-read path, so the
     attribute takes it. One route is enough because the path is a property of the cell, not of a
-    route -- and `check_attribute` refuses an attribute that mixes the two kinds anyway."""
+    route -- an attribute may now carry a literature route *beside* database routes
+    (`check_attribute`), and such a cell is gathered on both paths (`evidence.gather`)."""
     return any(_as_route(route).get("capability") == "literature_retrieval" for route in evidence_routes(attribute))
+
+
+def literature_route(attribute: dict[str, Any]) -> dict[str, Any] | None:
+    """The attribute's one literature route, or None when it has none.
+
+    The reading path builds one query per attribute and `check_attribute` admits at most one such
+    route, so "the" is exact. Read by name rather than positionally: on an attribute that also
+    declares database routes, `evidence_routes(...)[0]` is a database route with no query template,
+    which produced a bare-name query and searched for the compound rather than for the quantity.
+    """
+    return next((route for route in evidence_routes(attribute)
+                 if _as_route(route).get("capability") == "literature_retrieval"), None)
+
+
+def is_task_mandated(attribute: dict[str, Any]) -> bool:
+    """True for an attribute an adapter template built out of one field of the task context.
+
+    The two halves together, because neither alone says it: `proposed_by.role` says a template
+    wrote it rather than a proposer, and `derived_from.field` names the task-context field it was
+    built from. That link is what `adjudication.restated_constraint` rests its one approving route
+    on -- "a link an adapter template wrote when it built the criterion *from* the constraint, which
+    no proposer can forge" -- so the same pair identifies the criteria the task itself mandates
+    wherever that population is needed (`criteria_export._origin`'s `task_mandated_template`,
+    `assessor.calibration_guard`'s reference set).
+    """
+    return ((attribute.get("proposed_by") or {}).get("role") == "adapter_template"
+            and bool((attribute.get("derived_from") or {}).get("field")))
 
 
 def check_attribute(attr: dict[str, Any]) -> None:
@@ -159,6 +292,25 @@ def check_attribute(attr: dict[str, Any]) -> None:
             raise InvariantViolation("schema", f"attribute needs {field}")
     _choice("measurement_kind", attr["measurement_kind"], MEASUREMENT_KINDS)
     _choice("direction", attr["direction"], DIRECTIONS)
+    # Every accepted source kind is one some tool of this system can actually stamp on a claim
+    # (`vocab.DOMAINS["evidence_kind"]`). WHY it is checked and not merely required to be present:
+    # an attribute naming a kind nothing produces has every claim it reads set aside
+    # (`assessor.usable_claims`, `evidence_kind_not_accepted`) and its cell reads `unknown_missing`,
+    # so the mistake looks exactly like absent evidence -- it survived in the registry for as long
+    # as it did because nothing distinguished the two. The refusal is deliberately NOT measured
+    # against the tools registered in this install: an install without the ADMET predictor produces
+    # no `model_prediction`, and an attribute asking for one is unanswerable *here* rather than
+    # wrong, which is a run-time gap (`evidence.producible_evidence_kinds`) and not a schema defect.
+    sources = attr["acceptable_value_sources"]
+    if not isinstance(sources, list):
+        raise InvariantViolation("schema", "acceptable_value_sources is a non-empty list of evidence kinds")
+    for kind in sources:
+        if kind not in EVIDENCE_KINDS:
+            raise InvariantViolation("schema", f"acceptable_value_sources on {attr.get('name')!r} names "
+                                               f"{kind!r}, which no tool of this system produces; the kinds a "
+                                               f"claim can carry are {EVIDENCE_KINDS}, and an attribute accepting "
+                                               f"anything else has every claim it reads set aside and its cell "
+                                               f"reads as absent evidence")
     _choice("aggregation", attr.get("aggregation", "consensus"), AGGREGATIONS)
     check_value_transform(attr.get("value_transform"), attr.get("name", ""))
     if attr.get("value_transform") and attr["measurement_kind"] != "quantitative":
@@ -171,11 +323,16 @@ def check_attribute(attr: dict[str, Any]) -> None:
             raise InvariantViolation("schema", "acceptable_determination_bases is a non-empty list when given")
         for basis in bases:
             _choice("acceptable_determination_bases", basis, DETERMINATION_BASES)
-        if "predicted" in bases and len(bases) > 1:
-            # A predicted value standing in for a measurement is a surrogate inside a verdict
-            # (design §4.11): a predicted quantity is its own attribute, with its own rule.
-            raise InvariantViolation("schema", f"attribute {attr['name']!r} accepts predicted values alongside "
-                                              f"{sorted(set(bases) - {'predicted'})}; give predicted values their own attribute")
+    precedence = check_basis_precedence(attr)
+    if bases is not None and "predicted" in bases and len(bases) > 1 and precedence is None:
+        # A predicted value pooled with measurements is a surrogate inside a verdict (design §4.11):
+        # without a declared precedence a predicted quantity is its own attribute, with its own rule.
+        # With one, exactly one basis is used per candidate and nothing is pooled.
+        raise InvariantViolation("schema", f"attribute {attr['name']!r} accepts predicted values alongside "
+                                          f"{sorted(set(bases) - {'predicted'})}; give predicted values their own "
+                                          f"attribute, or declare {PRECEDENCE_FIELD} (e.g. "
+                                          f"{['measured', 'predicted']}) so that one basis is used per candidate "
+                                          f"and the two are never pooled")
     routes = evidence_routes(attr)
     if not routes:
         raise InvariantViolation("schema", "attribute needs evidence_request")
@@ -192,13 +349,34 @@ def check_attribute(attr: dict[str, Any]) -> None:
                                               f"the second asks nothing new and its values would be aggregated twice")
         seen.add(route_key(request))
     literature = [r for r in routes if r["capability"] == "literature_retrieval"]
-    if literature and len(literature) != len(routes):
-        # The two kinds take different code paths (a broker call per route against a record source;
-        # a search, a read and checked extraction for literature), and pooling a claim read from a
-        # paper with a claim from a database record under one aggregation needs a policy no one has set.
+    if literature and len(literature) != len(routes) and \
+            (attr["measurement_kind"] != "quantitative" or not attr.get("unit")
+             or attr.get("aggregation") not in POOLABLE_AGGREGATIONS):
+        # WHY mixing is permitted at all now, and only here. The two kinds take different code paths
+        # -- a broker call per route against a record source; a search, a read and checked extraction
+        # for literature -- which `evidence.gather` now runs both of for one cell, taking the union
+        # exactly as it already did for two databases. What was genuinely missing was a policy for
+        # pooling a passage with a record, and for one shape of quantity that policy is now set: a
+        # quantitative attribute with a declared unit reduced by a numeric aggregation is one number
+        # on one scale, every contributing claim is checked against that unit (`assessor.usable_claims`,
+        # which converts where an exact documented conversion exists and sets the claim aside
+        # otherwise), and `median` over the pooled set is the same reduction the attribute already
+        # declared for its two curations. The need is measured: 74 of the 3,177 candidates of the
+        # manuscript universe carry any curated potency at the five required receptors, and a
+        # published selectivity table is where the rest of that quantity is reported.
+        #
+        # Everything else is still refused, because nothing about it is defined. `consensus` asks
+        # whether sources agree, and agreement between a curated record and a read passage is a
+        # question nobody has answered; a categorical or unitless attribute has no scale to check a
+        # passage against, so the oral-route gate and its literature companion stay two criteria
+        # (`adapters/drug/registration.objective_templates`).
         raise InvariantViolation("schema", f"attribute {attr['name']!r} mixes a literature route with "
-                                          f"{sorted({r['capability'] for r in routes if r['capability'] != 'literature_retrieval'})}; "
-                                          f"give the literature quantity its own attribute")
+                                          f"{sorted({r['capability'] for r in routes if r['capability'] != 'literature_retrieval'})} "
+                                          f"and is {attr['measurement_kind']} / unit {attr.get('unit')!r} / aggregation "
+                                          f"{attr.get('aggregation', 'consensus')!r}; a literature route may be pooled with "
+                                          f"database routes only on a quantitative attribute with a unit reduced by one of "
+                                          f"{POOLABLE_AGGREGATIONS}, where every claim is checked against one scale -- "
+                                          f"otherwise give the literature quantity its own attribute")
     if len(literature) > 1:
         # One query per attribute is what the reading path builds (`evidence.literature_query`), so a
         # second template would never be used -- and an instruction the pipeline then undoes is worse
@@ -403,6 +581,68 @@ def chosen_after_results(ordering_method: dict[str, Any] | None) -> bool:
     return (ordering_method or {}).get("kind") == "symbolic_expression"
 
 
+# --- deferral: which capabilities a run holds out, and what that costs a rule ---------------------
+#
+# A confirmation may hold capabilities out of its run (`--defer-capability literature_retrieval`:
+# sweep the universe on the database routes, read the literature over a shortlist afterwards). The
+# unit of that deferral is the *route*, not the rule, because an attribute may read one quantity from
+# several routes of unlike kinds (`check_attribute`): the mandated receptor potency is read from
+# ChEMBL, from IUPHAR/BPS and from a published selectivity table. Holding the whole rule out because
+# one of its three routes needs the held-out capability left the two curations unasked and scored the
+# task's own quantity nowhere -- and the mandated-coverage floor, the calibration guard's reference
+# population and every count taken from those cells are computed from exactly those cells.
+DEFERRAL_SCOPES = ("rule", "route")
+
+
+def deferral_scope(row: dict[str, Any]) -> str:
+    """Whether a `deferred[]` row holds a whole rule out of the set or only some of its routes.
+
+    A row written before route-level deferral existed carries no scope and held the whole rule out,
+    so that is the default: a reader of an older rule set is told what that set actually did.
+    """
+    return row.get("scope") or "rule"
+
+
+def deferred_capabilities(rule_set: dict[str, Any]) -> tuple[str, ...]:
+    """The capabilities a confirmed set held out of its run, for a re-confirmation to hold out again.
+
+    Read from the set's own `deferred_capabilities` where it has one, and rebuilt from the
+    `deferred[]` rows otherwise, which is all an older record carries.
+
+    WHY the field as well as the rows: a route-level row is recorded on a rule that *entered* the
+    set, so if every rule naming a held-out capability were held out for some other reason (an
+    unsupported bound, no decision yet) the rows would be empty and a re-confirmation -- which is
+    what `sr_stage._install` does when it installs a fitted ordering method -- would silently
+    un-defer the capability and ask for reading the run had decided not to buy.
+    """
+    declared = rule_set.get("deferred_capabilities")
+    if declared:
+        return tuple(sorted(set(declared)))
+    return tuple(sorted({capability for row in (rule_set.get("deferred") or [])
+                         for capability in (row.get("capabilities") or [row["capability"]])}))
+
+
+def deferral_reason(rule_set: dict[str, Any]) -> str:
+    """The reason a confirmed set gave for its deferral, from the record or from its first row."""
+    rows = rule_set.get("deferred") or []
+    return rule_set.get("defer_reason") or (rows[0].get("reason") if rows else "") or ""
+
+
+def entry_deferred_capabilities(entry: dict[str, Any]) -> tuple[str, ...]:
+    """The capabilities held out of this run for one *scoring* rule (`confirm_rule_set`).
+
+    What the controller passes to `evidence.gather` so the run skips those routes and asks the
+    others: the rule scores, on the evidence its entry says it scores on.
+    """
+    return tuple(sorted({route["capability"] for route in (entry.get("deferred_routes") or [])}))
+
+
+def route_summary(request: Any) -> dict[str, Any]:
+    """One route as a rule-set entry records it: the source asked and the question asked of it."""
+    route = _as_route(request)
+    return {"capability": route.get("capability"), "question_kind": route.get("question_kind")}
+
+
 def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_method: dict[str, Any] | None = None,
                      coverage_floor: float = 1.0, constants: list[dict[str, Any]] | None = None,
                      allow_pending: bool = False, defer_capabilities: tuple[str, ...] = (),
@@ -434,6 +674,13 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     separate line for any rule still *excluding* candidates on such a bound. Its state is
     `interpretation_granted`, never `sourced_threshold`, and it makes the set `exploratory` on its
     own grounds as well as through `machine_adjudicated[]`.
+
+    `defer_capabilities` holds capabilities out of this run, per *route* and not per rule
+    (DEFERRAL_SCOPES). A rule every one of whose routes names a held-out capability has nothing to
+    read and stays out of the set, listed in `deferred[]` with `scope: rule`. A rule that keeps at
+    least one route enters and scores on those routes, with the held-out ones recorded on its entry
+    (`deferred_routes`, beside the `scoring_routes` the values actually come from) and a
+    `scope: route` row in `deferred[]` naming both.
 
     A rule whose attribute a `collapse` merged away (`core/collapse.py`: several registrations of one
     quantity) does not enter at all and is listed in `collapsed_away[]`; a rule reading an attribute
@@ -472,15 +719,27 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
             continue
         adjudication_record = adjudicated.get(rule_ref)
         attr = load(core, rule["attribute_ref"], task_id)
-        # WHY the *matching* route's capability is the one recorded: the deferral round-trips through
-        # this field (`sr_stage` rebuilds `defer_capabilities` from it), so for an attribute with
-        # several routes, recording another of its capabilities would quietly un-defer the rule on
-        # the next confirmation.
-        held_out = next((r["capability"] for r in evidence_routes(attr) if r["capability"] in defer_capabilities), None)
-        if held_out:
+        # Which of this attribute's routes this run holds out, and whether that leaves the rule
+        # anything to score on (see DEFERRAL_SCOPES above).
+        #
+        # WHY the *matching* routes are the ones recorded: the deferral round-trips through this
+        # record (`sr_stage` re-confirms with `deferred_capabilities` read back off it), so recording
+        # another of the attribute's capabilities would quietly un-defer the route next time.
+        routes = evidence_routes(attr)
+        held_capabilities = [route_summary(r)["capability"] for r in routes
+                             if route_summary(r)["capability"] in defer_capabilities]
+        deferred_routes = [route_summary(r) for r in routes
+                           if route_summary(r)["capability"] in defer_capabilities]
+        scoring_routes = [route_summary(r) for r in routes
+                          if route_summary(r)["capability"] not in defer_capabilities]
+        if held_capabilities and not scoring_routes:
+            # Every route needs a capability this run is not running, so the rule has nothing left to
+            # read and does not enter the set at all: the rule-level deferral, unchanged.
             # A deferred rule carries its authority too, but it stays out of `machine_adjudicated`:
             # that list is what the set rests on, and a rule held out of this run rests on nothing.
-            deferred.append({"rule_ref": rule_ref, "capability": held_out, "reason": defer_reason,
+            deferred.append({"rule_ref": rule_ref, "scope": "rule", "capability": held_capabilities[0],
+                             "capabilities": sorted(set(held_capabilities)), "routes": deferred_routes,
+                             "scores_on": [], "reason": defer_reason,
                              "authority": "machine_adjudication" if adjudication_record else None})
             continue
         # Every number this rule compares a candidate against, and what stands behind it
@@ -581,6 +840,12 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                         "confirmed_by": confirmed_by,
                         "authority": vocab.require("decision_authority", authority),
                         "acceptable_value_sources": attr["acceptable_value_sources"],
+                        # Which sources this run asked for this rule's values and which it held out,
+                        # so a reader of a cell can tell a value read from the curated databases
+                        # alone from one that also used a literature reading. Recorded on every
+                        # entry, including the ordinary one where nothing is held out, because an
+                        # absent list would read as unknown rather than as "nothing was held out".
+                        "scoring_routes": scoring_routes, "deferred_routes": deferred_routes,
                         "on_states": [rule["on_missing"], rule["on_inapplicable"], rule["on_conflict"]],
                         "cutoff_basis": rule["cutoff_basis"], "disputed": rule_ref in set(open_refs),
                         # One state per number this rule compares a candidate against, so a reader of
@@ -593,6 +858,17 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                                           "traces": {b["parameter_path"]: b["trace_kind"] for b in support["bounds"]},
                                           "range_endpoints": sorted(b["parameter_path"] for b in support["bounds"]
                                                                     if b["range_endpoint"])}})
+        if deferred_routes:
+            # The rule entered and scores; a row still appears here, marked `route`, because this is
+            # the list every other surface reads the deferral off -- `sr_stage` for the capabilities
+            # a re-confirmation must hold out again, `criteria_export` for what each criterion did
+            # this run. `scores_on` says what it was asked instead, so the row cannot be read as
+            # "this rule scored nothing".
+            deferred.append({"rule_ref": rule_ref, "scope": "route", "capability": deferred_routes[0]["capability"],
+                             "capabilities": sorted({r["capability"] for r in deferred_routes}),
+                             "routes": deferred_routes,
+                             "scores_on": [r["capability"] for r in scoring_routes], "reason": defer_reason,
+                             "authority": "machine_adjudication" if adjudication_record else None})
     if not entries:
         held = len(bounds_unsupported) + len(bounds_withheld)
         raise InvariantViolation("unconfirmed", "no rule version may enter the set yet"
@@ -657,7 +933,11 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
               "confirmed_by": [e["confirmed_by"] for e in entries], "pending": open_refs,
               "pending_but_scoring": scoring_disputed, "machine_adjudicated": machine_adjudicated,
               "machine_collapsed": machine_collapsed, "collapsed_away": collapsed_away,
-              "deferred": deferred, "bounds_unsupported": bounds_unsupported, "bounds_withheld": bounds_withheld,
+              "deferred": deferred,
+              # The run policy itself, beside the rows it produced: what a re-confirmation has to
+              # hold out again (`deferred_capabilities`), which the rows alone cannot always say.
+              "deferred_capabilities": sorted(set(defer_capabilities)), "defer_reason": defer_reason or None,
+              "bounds_unsupported": bounds_unsupported, "bounds_withheld": bounds_withheld,
               "bounds_granted": bounds_granted, "decisions_not_carried": decisions_not_carried,
               "acceptance_label": vocab.require("acceptance_label", "exploratory" if acceptance_reasons else "prespecified"),
               "acceptance_reasons": acceptance_reasons, "preregistration_ref": preregistration_ref}
@@ -669,7 +949,10 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                         summary=f"confirmed {record['rule_set_ref']} ({len(entries)} rules, {len(open_refs)} pending "
                                 f"of which {len(scoring_disputed)} score anyway, {len(machine_adjudicated)} adjudicated "
                                 f"by an agent, {len(machine_collapsed)} reading a collapsed attribute, "
-                                f"{len(collapsed_away)} collapsed away, {len(deferred)} deferred, "
+                                f"{len(collapsed_away)} collapsed away, "
+                                f"{sum(1 for d in deferred if deferral_scope(d) == 'rule')} deferred whole, "
+                                f"{sum(1 for d in deferred if deferral_scope(d) == 'route')} scoring with a route "
+                                f"held out, "
                                 f"{len(bounds_unsupported) + len(bounds_withheld)} held out over bound support, "
                                 f"{len(bounds_granted)} scoring on a bound an agent granted)")
     return record["rule_set_ref"]

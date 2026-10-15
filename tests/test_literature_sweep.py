@@ -862,3 +862,266 @@ def test_the_sweep_hands_every_literature_cell_the_configured_document_floor(cor
     assert {entry["reason"] for cell in cells.values() for entry in cell["set_aside_claims"]} == \
         {"below_min_source_documents"}
     assert len(ledger.claims(core, [run_id])) == 6, "the evidence is in the ledger, it is just not scored on"
+
+
+# --- a molar concentration answering a pChEMBL attribute ------------------------------------
+# The defect this closes, measured on the live registry of 14 October 2026: of the 26
+# literature-bound criteria not one is a potency, although a published kinase selectivity table is
+# exactly where multi-target potency is reported -- because such a table prints "IC50 = 0.004 uM"
+# and every potency attribute declares `pChEMBL`, so each of those claims was admitted to the
+# ledger and then set aside `unit_unresolved` (the test above pins that behaviour for a pair nothing
+# converts, and it is unchanged). The curated databases cover 74 of the 3,177 candidates at the five
+# required receptors; for the rest the literature is the only route.
+#
+# The reference values are the reference compound's own selectivity table, PMC5522050 Table 1
+# (CC BY). Two of them are independent evidence that the conversion is the right one: VEGFR3 and
+# FGFR1 reproduce that receptor's ChEMBL curated median (9.00, 7.82) to the decimal.
+PMC5522050_TABLE_1 = {"VEGFR3": (0.001, 9.000), "FGFR1": (0.015, 7.824), "CSF1R": (0.004, 8.398),
+                      "VEGFR1": (0.002, 8.699), "VEGFR2": (0.024, 7.620)}
+
+POTENCY = {"name": "CSF1R curated potency", "definition": "Median pChEMBL value against CSF1R",
+           "measurement_kind": "quantitative", "unit": "pChEMBL", "direction": "higher_better",
+           "aggregation": "median", "acceptable_value_sources": ["curated_measurement", "peer_reviewed"],
+           "evidence_requests": [
+               {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values",
+                "identifier_scheme": "ik", "parameters": {"target_chembl_id": "CHEMBL1844"}},
+               {"capability": "literature_retrieval", "question_kind": "search",
+                "parameters": {"query_template": '({names}) AND "CSF1R" AND (IC50 OR Ki)',
+                               "relevance_terms": ["CSF1R", "IC50"], "search_limit": 10}}]}
+
+
+def potency_claim(value, unit, claim_id="c1", **extra):
+    return {"claim_id": claim_id, "admission_state": "admitted", "evidence_kind": "peer_reviewed",
+            "determination_basis": "measured", "value": value, "unit": unit, "unit_as_reported": unit,
+            "source_ref": "src_doi_10.1038/PMC5522050",
+            "location": {"location_kind": "table", "quoted_span": f"IC50 = {value} {unit}"}, **extra}
+
+
+def test_a_molar_ic50_from_a_table_answers_a_pchembl_attribute_to_the_decimal():
+    """`pChEMBL = -log10(concentration in mol/L)`, which is how ChEMBL computes its own
+    `pchembl_value`: a documented identity, not a modelling choice. Checked against the five rows of
+    the published table, and against the spellings of a micromolar and a nanomolar concentration
+    that `UNIT_SYNONYMS` already folds."""
+    for receptor, (micromolar, expected) in PMC5522050_TABLE_1.items():
+        usable, set_aside = assessor.usable_claims([potency_claim(micromolar, "uM")], POTENCY)
+        assert set_aside == [] and round(usable[0]["value"], 3) == expected, receptor
+    # the same concentration, every unit and spelling the table could have printed it in
+    for value, unit in ((0.004, "uM"), (0.004, "µM"), (0.004, "μM"), (0.004, "umol/L"),
+                        (4.0, "nM"), (4.0, "nmol/l"), (4000.0, "pM"), (4e-6, "mM"), (4e-9, "M")):
+        usable, _ = assessor.usable_claims([potency_claim(value, unit)], POTENCY)
+        assert round(usable[0]["value"], 3) == 8.398, unit
+    assert assessor.unit_conversion("nM", "pChEMBL")["identity"] == "pChEMBL = -log10(concentration in mol/L)"
+
+
+def test_the_converted_claim_keeps_what_the_source_said_and_the_stored_claim_is_untouched():
+    """The cell's value is on the attribute's scale and the record of how it got there travels with
+    it, so a reader can check the arithmetic against the quote. The claim the ledger holds still says
+    what the paper said: `usable_claims` returns copies and mutates nothing."""
+    original = potency_claim(0.004, "uM")
+    before = dict(original)
+    usable, _ = assessor.usable_claims([original], POTENCY)
+    converted = usable[0]["unit_conversion"]
+    assert original == before, "the stored claim is not rewritten"
+    assert (converted["value_as_reported"], converted["unit_as_reported"]) == (0.004, "uM")
+    assert (converted["from_unit"], converted["to_unit"]) == ("uM", "pChEMBL")
+    assert usable[0]["unit"] == "pChEMBL" and usable[0]["claim_id"] == original["claim_id"]
+    # and the cell says so where a person reads it
+    _, reason = assessor.assess_cell(candidate={"candidate_id": "ALPHA"}, attribute=dict(POTENCY, attribute_id="attr_p", version=1),
+                                     rule=dict(ORDERING, rule_id="rule_p", version=1), rule_set_ref="rules@v1",
+                                     claims=[potency_claim(0.004, "uM")], resolved=True)
+    assert reason["unit_conversions"][0]["value_as_reported"] == 0.004
+    assert "converted to pChEMBL (pChEMBL = -log10(concentration in mol/L))" in reason["uncertainty_statement"]
+
+
+def test_a_concentration_of_zero_or_less_is_refused_by_name_rather_than_scored():
+    """A non-positive concentration has no logarithm. Refused with a registered reason: returning
+    `inf` would score the candidate at infinite potency, and raising would end a sweep over one
+    reader's bad number."""
+    for value in (0.0, -0.004):
+        usable, set_aside = assessor.usable_claims([potency_claim(value, "uM")], POTENCY)
+        assert usable == [] and set_aside[0]["set_aside_reason"] == "non_positive_concentration"
+    assert "non_positive_concentration" in assessor.SET_ASIDE_REASONS
+
+
+def test_only_a_commensurable_pair_converts_and_everything_else_stays_unit_unresolved():
+    """The permitted conversions are an explicit table, so a pair nobody registered refuses rather
+    than guesses: a percentage is not a duration, and the identity runs one way -- a pChEMBL value
+    carries no concentration unit to go back to."""
+    hours = dict(POTENCY, unit="h", name="Time to steady state")
+    usable, set_aside = assessor.usable_claims([potency_claim(29.0, "%")], hours)
+    assert usable == [] and set_aside[0]["set_aside_reason"] == "unit_unresolved"
+    assert assessor.unit_conversion("%", "h") is None
+    nanomolar = dict(POTENCY, unit="nM")
+    usable, set_aside = assessor.usable_claims([potency_claim(8.4, "pChEMBL")], nanomolar)
+    assert usable == [] and set_aside[0]["set_aside_reason"] == "unit_unresolved"
+    assert assessor.unit_conversion("pChEMBL", "nM") is None
+    # 'nm' is nanometres and 'm' is metres: an unrecognized spelling converts nothing
+    for unit in ("nm", "m", "mol"):
+        assert assessor.unit_conversion(unit, "pChEMBL") is None
+
+
+def test_a_reported_range_converts_both_ends_and_keeps_low_below_high():
+    """A decreasing conversion reverses the ends of a range: 1-10 nM is pChEMBL 8-9, not 9-8. Both
+    ends reach the cell, which is what makes a range straddling a cutoff a conflict and not a pass."""
+    usable, _ = assessor.usable_claims(
+        [potency_claim(None, "nM", value_low=1.0, value_high=10.0)], POTENCY)
+    assert (round(usable[0]["value_low"], 3), round(usable[0]["value_high"], 3)) == (8.0, 9.0)
+
+
+def test_a_curated_record_and_a_read_table_pool_into_one_median_on_the_attributes_scale():
+    """What the conversion is for: one quantity, two curations and a published selectivity table,
+    reduced by the `median` the attribute already declared. The curated record arrives on the
+    pChEMBL scale and the paper's row arrives in micromolar, and the cell is one number."""
+    attribute = dict(POTENCY, attribute_id="attr_csf1r", version=1)
+    curated = {"claim_id": "c_db", "admission_state": "admitted", "evidence_kind": "curated_measurement",
+               "determination_basis": "measured", "value": 9.0, "unit": "pChEMBL", "source_ref": "src_db_chembl",
+               "location": {"location_kind": "record_field", "quoted_span": "9.0"}}
+    cell, _ = assessor.assess_cell(candidate={"candidate_id": "ALPHA"}, attribute=attribute,
+                                   rule=dict(ORDERING, rule_id="rule_csf1r", version=1), rule_set_ref="rules@v1",
+                                   claims=[curated, potency_claim(0.004, "uM", claim_id="c_lit")], resolved=True)
+    assert cell["verdict"] == "pass" and round(cell["value"], 3) == round((9.0 + 8.398) / 2, 3)
+    assert cell["unit"] == "pChEMBL" and sorted(cell["value_source_claim_refs"]) == ["c_db", "c_lit"]
+
+
+# --- deferral is per route, not per rule --------------------------------------------------------
+#
+# The mandated receptor potency is one quantity read from three routes: ChEMBL, IUPHAR/BPS and a
+# published selectivity table. Until 15 October 2026 `confirm_rule_set` held the whole rule out of
+# the set if *any* of its routes named a deferred capability, so a sweep confirmed with
+# `--defer-capability literature_retrieval` -- which is every full-universe run, because one
+# document read per compound is out of reach at 3,177 -- scored the task's own quantity nowhere,
+# not even on the two curations that need no reading. Everything computed from those cells went
+# with it: the mandated-coverage floor and the calibration guard's reference population.
+
+POTENCY_THREE_ROUTES = dict(
+    POTENCY, name="CSF1R potency, curated and reported",
+    evidence_requests=[
+        {"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values",
+         "identifier_scheme": "ik", "parameters": {"target_chembl_id": "CHEMBL1844"}},
+        {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity",
+         "identifier_scheme": "ik", "parameters": {"target_chembl_id": "CHEMBL1844"}},
+        {"capability": "literature_retrieval", "question_kind": "search",
+         "parameters": {"query_template": '({names}) AND "CSF1R" AND (IC50 OR Ki)',
+                        "relevance_terms": ["CSF1R", "IC50"], "search_limit": 10}}])
+
+CURATED_POTENCY = {("ALPHA", "pchembl_values"): 9.0, ("ALPHA", "gtopdb_affinity"): 8.6,
+                   ("BETA", "pchembl_values"): 7.0}
+
+
+class FakeCuration:
+    """Two independent curations of one quantity, behind one capability, as the real pair is."""
+
+    contract = ToolContract(
+        tool_id="tool_fake_curation", capability="interaction_evidence_lookup",
+        capability_kind="relationship_evidence_lookup",
+        question_kinds=("pchembl_values", "gtopdb_affinity"), contract_version="1",
+        implementation_version="fake-1", purpose_statement="test curated potency",
+        evidence_kind_produced="curated_measurement", claim_strength_ceiling="measured",
+        identity_inputs=("identifier",))
+
+    def __init__(self):
+        self.asked: list[tuple[str, str]] = []
+
+    def invoke(self, question_kind, inputs):
+        self.asked.append((inputs["identifier"], question_kind))
+        value = CURATED_POTENCY.get((inputs["identifier"], question_kind))
+        if value is None:
+            return ProviderResponse(values=[], data_version="fake")
+        return ProviderResponse(
+            values=[{"name": question_kind, "value": value, "unit": "pChEMBL", "value_kind": "measured",
+                     "source_record_ref": f"fake:{inputs['identifier']}:{question_kind}"}],
+            data_version="fake", upstream_refs=[f"fake:{inputs['identifier']}"])
+
+
+def three_route_task(core) -> str:
+    """One three-route potency rule, one literature-only rule and one database-only rule, with
+    `literature_retrieval` held out of the run."""
+    task_id, _ = task.record_version(core, SPEC, by=OPERATOR)
+    criteria.propose(core, task_id, MW, MW_RULE, by=OPERATOR)
+    criteria.propose(core, task_id, POTENCY_THREE_ROUTES, dict(ORDERING), by=OPERATOR)
+    criteria.propose(core, task_id, BIOAVAILABILITY, dict(ORDERING), by=OPERATOR)
+    for item in review.items(core, [task_id]).values():
+        review.decide(core, item, decision="approve", actor=EXPERT, reason_text="", entry="interactive",
+                      historical_list_exposure="not_exposed")
+    criteria.confirm_rule_set(core, task_id, by=OPERATOR, coverage_floor=0.5,
+                              defer_capabilities=("literature_retrieval",),
+                              defer_reason="full-universe screen; the literature runs on a shortlist")
+    return task_id
+
+
+POTENCY_RULE_REF = "rule_csf1r-potency-curated-and-reported@v1"
+LITERATURE_ONLY_RULE_REF = "rule_reported-oral-bioavailability-in-humans@v1"
+
+
+def test_a_three_route_rule_enters_the_set_with_only_its_literature_route_held_out(core):
+    """The repair. The rule scores on the two curations and its entry says so: `scoring_routes` are
+    what the values may come from and `deferred_routes` are what this run did not ask, so a reader
+    of a cell can tell a database-only value from one that also used a reading."""
+    rule_set = criteria.rule_set(core, three_route_task(core))
+    entry = next(e for e in rule_set["entries"] if e["rule_ref"] == POTENCY_RULE_REF)
+    assert [(r["capability"], r["question_kind"]) for r in entry["scoring_routes"]] == [
+        ("interaction_evidence_lookup", "pchembl_values"),
+        ("interaction_evidence_lookup", "gtopdb_affinity")]
+    assert entry["deferred_routes"] == [{"capability": "literature_retrieval", "question_kind": "search"}]
+    assert criteria.entry_deferred_capabilities(entry) == ("literature_retrieval",)
+    # and a row still appears in `deferred[]`, marked as route-level: that list is what `sr_stage`
+    # and the export read the deferral off, and a rule missing from it would be silently un-deferred
+    row = next(d for d in rule_set["deferred"] if d["rule_ref"] == POTENCY_RULE_REF)
+    assert criteria.deferral_scope(row) == "route" and row["capabilities"] == ["literature_retrieval"]
+    assert row["scores_on"] == ["interaction_evidence_lookup", "interaction_evidence_lookup"]
+    # the rule whose *only* route is deferred still leaves the set whole, which is the unchanged half
+    whole = next(d for d in rule_set["deferred"] if d["rule_ref"] == LITERATURE_ONLY_RULE_REF)
+    assert criteria.deferral_scope(whole) == "rule" and whole["scores_on"] == []
+    assert LITERATURE_ONLY_RULE_REF not in [e["rule_ref"] for e in rule_set["entries"]]
+    # an entry with nothing held out says so with an empty list rather than with a missing field
+    database_only = next(e for e in rule_set["entries"] if e["rule_ref"] == "rule_molecular-weight@v1")
+    assert database_only["deferred_routes"] == [] and len(database_only["scoring_routes"]) == 1
+
+
+def test_a_re_confirmation_does_not_un_defer_a_route_level_deferral(core):
+    """`sr_stage._install` re-confirms the set when it installs a fitted ordering method, with the
+    deferral read back off the record. The capability has to survive that round trip: a set that
+    re-confirmed without it would ask, in the set that now decides the ranking, for reading the run
+    had decided not to buy. Read through `criteria.deferred_capabilities`, which prefers the
+    recorded policy to the rows -- the rows of a route-level deferral belong to rules that entered,
+    so a rule held out for some other reason would drop its capability from the rebuilt set."""
+    task_id = three_route_task(core)
+    first = criteria.rule_set(core, task_id)
+    assert criteria.deferred_capabilities(first) == ("literature_retrieval",)
+    again = criteria.rule_set(core, task_id, criteria.confirm_rule_set(
+        core, task_id, by=OPERATOR, coverage_floor=0.5,
+        defer_capabilities=criteria.deferred_capabilities(first),
+        defer_reason=criteria.deferral_reason(first)))
+    entry = next(e for e in again["entries"] if e["rule_ref"] == POTENCY_RULE_REF)
+    assert criteria.entry_deferred_capabilities(entry) == ("literature_retrieval",)
+    assert LITERATURE_ONLY_RULE_REF not in [e["rule_ref"] for e in again["entries"]]
+    # an older record carries no policy field at all, and the rows are all it has; a rule-level row
+    # must still rebuild the capability from them
+    legacy = {"deferred": [{"rule_ref": LITERATURE_ONLY_RULE_REF, "capability": "literature_retrieval",
+                            "reason": "held out"}]}
+    assert criteria.deferred_capabilities(legacy) == ("literature_retrieval",)
+    assert criteria.deferral_scope(legacy["deferred"][0]) == "rule"
+
+
+def test_the_sweep_asks_the_curated_routes_of_a_rule_whose_reading_is_held_out(core):
+    """What the deferral is for, through the controller: the curated routes are called for every
+    candidate and the cell carries their median, while the search tool, the reader and the model are
+    never touched. Before this, the rule was not in the set at all and the quantity the task is
+    about was measured on nobody."""
+    model = ReaderModel()
+    controller, search, reader = make_controller(core, model)
+    curation = FakeCuration()
+    controller.broker.register(curation)
+    run_id = controller.start(three_route_task(core), by=OPERATOR, sweep_seed=3)
+    assert controller.current_state(run_id) == "completed"
+    assert sorted(curation.asked) == [("ALPHA", "gtopdb_affinity"), ("ALPHA", "pchembl_values"),
+                                      ("BETA", "gtopdb_affinity"), ("BETA", "pchembl_values")]
+    assert search.queries == [] and reader.reads == [] and model.calls == []
+    cells = {event.payload["candidate_ref"].split("-")[-1]: core.artifacts.payload(event.payload["artifact_id"])
+             for event in core.journal.replay(run_id)
+             if event.event_type == "candidate.assessed"
+             and event.payload["attribute_ref"].startswith("attr_csf1r")}
+    assert cells["ALPHA"]["value"] == pytest.approx((9.0 + 8.6) / 2) and cells["ALPHA"]["verdict"] == "pass"
+    assert cells["BETA"]["value"] == pytest.approx(7.0), "one curation answering is still an answer"
+    assert {c["determination_basis"] for c in cells.values()} == {"measured"}
+    assert [len(cells[c]["value_source_claim_refs"]) for c in ("ALPHA", "BETA")] == [2, 1]

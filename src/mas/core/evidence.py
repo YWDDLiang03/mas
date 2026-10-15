@@ -9,6 +9,13 @@ Two paths, chosen by the capabilities of the attribute's evidence routes
 * `literature_retrieval`: a query built from the attribute's query template and the
   candidate's labels, then reading of the best hits and checked claim extraction.
 
+An attribute may declare both kinds (`criteria.check_attribute` permits it for a quantitative
+attribute pooled by a numeric aggregation, which is how a required receptor's potency is read
+from two curations *and* from a published selectivity table). Both halves are then gathered and
+the cell's claims are their union -- minus any route whose capability this run holds out
+(`gather(defer_capabilities=...)`, from the rule set's entry: `criteria.DEFERRAL_SCOPES`), so a
+staged sweep reads such an attribute from its databases now and from the literature later.
+
 The literature path is per *candidate*, not per cell: `read_literature` reads the union of
 every literature attribute's selection once and `gather` hands each cell the claims tagged
 for its own attribute (`LiteratureReading`).
@@ -37,6 +44,28 @@ class BudgetBlocked(Exception):
 # records are assertions rather than measurements must say so per value (`determination_basis`).
 DB_BASIS = {"measured": "measured", "curated": "measured", "derived": "derived", "predicted": "predicted",
             "simulated": "predicted"}
+
+
+def producible_evidence_kinds(broker) -> set[str]:
+    """Every evidence kind the tools registered in *this* install can stamp on a claim.
+
+    The ground truth of what is produced, as opposed to `criteria.EVIDENCE_KINDS`, which is the
+    closed registry of what any kind of tool could produce. The two answer different questions and
+    both are needed: a kind in neither is a schema defect (`criteria.check_attribute` refuses it),
+    while a kind in the registry and not here is a tool this machine has not got -- an install gap,
+    which must not be refused as though the attribute were wrong.
+
+    Two sources, because claims are written on two paths. A database claim carries its tool's
+    `evidence_kind_produced` (`claims_from_tool_result`). A literature claim carries the source
+    registry's kind for the document, except that `reading.read` stamps `preprint` on a hit the
+    search returned as one -- so `preprint` is producible exactly when a reader is registered, and
+    no contract declares it.
+    """
+    contracts = list(broker.contracts())
+    kinds = {c.evidence_kind_produced for c in contracts}
+    if any(c.capability_kind == "document_reading" for c in contracts):
+        kinds.add("preprint")
+    return kinds
 
 
 def determination_basis(value: dict[str, Any]) -> str:
@@ -73,7 +102,11 @@ def claims_from_tool_result(core: Core, stream_id: str, result, *, candidate: di
         source_id = ledger.put_source(core, {
             "source_id": f"src_db_{result.invocation['tool_id']}_{record_ref}",
             "identifiers": [{"scheme": "db_record", "value": str(record_ref)}],
-            "title": f"{result.invocation['tool_id']} record {record_ref}", "source_status": "database_entry",
+            "title": f"{result.invocation['tool_id']} record {record_ref}",
+            # A model's output is not a record anybody holds: `ledger.SOURCE_STATUSES` registers
+            # `model_prediction_record` for it, and calling it a database entry would tell every
+            # reader of the source table that a number somebody looked up what a model computed.
+            "source_status": "model_prediction_record" if evidence_kind == "model_prediction" else "database_entry",
             "access_state": "metadata_only", "license": result.provenance.get("license_id"),
             "data_version": result.provenance.get("data_version")})
         problems = []
@@ -103,7 +136,12 @@ def claims_from_tool_result(core: Core, stream_id: str, result, *, candidate: di
 
 def literature_query(attribute: dict[str, Any], labels: list[str]) -> str:
     names = " OR ".join(f'"{label}"' if " " in label or "-" in label else label for label in labels if label)
-    template = (criteria.evidence_routes(attribute)[0].get("parameters") or {}).get("query_template", "({names})")
+    # The *literature* route's template, not the first route's: an attribute may read one quantity
+    # from two databases and from the literature, and there the first route is a database one with no
+    # template at all, which fell back to the bare-name query -- a search for the compound rather
+    # than for the quantity.
+    route = criteria.literature_route(attribute) or {}
+    template = (route.get("parameters") or {}).get("query_template", "({names})")
     return template.replace("{names}", names)
 
 
@@ -215,7 +253,7 @@ def _select_documents(core: Core, broker, stream_id: str, *, attribute: dict[str
                       sources: list[str] | None, limit_per_query: int | None, max_documents: int,
                       case_sources: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
     """One literature attribute's query and the documents it selects, highest relevance first."""
-    request = criteria.evidence_routes(attribute)[0]
+    request = criteria.literature_route(attribute) or criteria.evidence_routes(attribute)[0]
     query = literature_query(attribute, labels)
 
     def run_search() -> list[dict[str, Any]]:
@@ -347,40 +385,59 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
            reading_attributes: list[dict[str, Any]] | None = None,
            sources: list[str] | None = None, limit_per_query: int | None = None,
            max_chars: int | None = None, document_workers: int = 1,
-           candidate_reading: LiteratureReading | None = None) -> tuple[list[dict], str | None, list[str]]:
-    """Gather claims for one cell. Returns (claims, tool_error_ref, source kinds searched)."""
+           candidate_reading: LiteratureReading | None = None,
+           defer_capabilities: tuple[str, ...] = ()) -> tuple[list[dict], str | None, list[str]]:
+    """Gather claims for one cell. Returns (claims, tool_error_ref, source kinds searched).
+
+    `defer_capabilities` are the capabilities this run holds out (`criteria.DEFERRAL_SCOPES`,
+    `criteria.entry_deferred_capabilities`): those routes are not asked and the others are. The
+    cell is then gathered on part of its attribute's declared evidence, which is a thing the run
+    decided and the rule set's entry records -- not a thing this function may decide, so an empty
+    tuple asks every route, as before.
+    """
     routes = criteria.evidence_routes(attribute)
     attr_ref = f"{attribute['attribute_id']}@v{attribute['version']}"
     who = make_actor("agent", "evidence-retriever", "retriever")
-    if not criteria.is_literature_bound(attribute):
-        # Every route of one attribute is asked, and the cell's claims are the union: the attribute
-        # names one quantity, and `assessor.assess_cell` already aggregates all of an attribute's
-        # claims under its declared aggregation, so two databases answering become one median rather
-        # than two cells. A route that fails does not discard what another route returned -- the
-        # error reference is kept so the cell says a source errored, with the claims it did get.
-        claims, error_ref, searched = [], None, []
-        for request in routes:
-            inputs = dict(request.get("parameters", {}))
-            inputs.update({"identifier": next((i["value"] for i in identity["identifiers"] if i["scheme"] == request.get("identifier_scheme")), None)
-                           if request.get("identifier_scheme") else identity.get("candidate_id"),
-                           "identifiers": identity["identifiers"]})
-            result = broker.call(stream_id, request["capability"], request["question_kind"], inputs, requesting_actor=who,
-                                 ids=ids, budget=budget)
-            if result.absence_reason == "budget_exceeded":
-                # The cell is not assessed rather than assessed on the routes that fit in the budget:
-                # a quantity scored from one of its two declared sources is not that quantity, and
-                # the cell is re-gathered in full when the run resumes.
-                raise BudgetBlocked()
-            if request["capability"] not in searched:
-                searched.append(request["capability"])
-            error_ref = error_ref or (result.result_id if result.outcome in ("failed", "unknown_outcome") else None)
-            if result.ok:
-                contract = next((c for c in broker.contracts() if c.tool_id == result.invocation["tool_id"]), None)
-                claims += claims_from_tool_result(core, stream_id, result, candidate=candidate, attribute_ref=attr_ref,
-                                                  evidence_kind=contract.evidence_kind_produced if contract else "database_entry",
-                                                  link_basis=identity["identity_link_basis"], ids=ids)
+    # Every route of one attribute is asked, and the cell's claims are the union: the attribute
+    # names one quantity, and `assessor.assess_cell` already aggregates all of an attribute's
+    # claims under its declared aggregation, so two databases answering become one median rather
+    # than two cells. A route that fails does not discard what another route returned -- the
+    # error reference is kept so the cell says a source errored, with the claims it did get.
+    #
+    # The two kinds of route are both asked where an attribute declares both (`criteria.check_attribute`
+    # permits that for a quantitative attribute pooled by a numeric aggregation). The database part
+    # runs here per route; the literature part is a per-candidate reading handed in below. Dispatching
+    # on `is_literature_bound` alone returned at the first branch, so a mixed attribute's databases
+    # were never called at all and its cell read as though no record existed.
+    claims, error_ref, searched = [], None, []
+    for request in [r for r in routes if r.get("capability") != "literature_retrieval"
+                    and r.get("capability") not in defer_capabilities]:
+        inputs = dict(request.get("parameters", {}))
+        inputs.update({"identifier": next((i["value"] for i in identity["identifiers"] if i["scheme"] == request.get("identifier_scheme")), None)
+                       if request.get("identifier_scheme") else identity.get("candidate_id"),
+                       "identifiers": identity["identifiers"]})
+        result = broker.call(stream_id, request["capability"], request["question_kind"], inputs, requesting_actor=who,
+                             ids=ids, budget=budget)
+        if result.absence_reason == "budget_exceeded":
+            # The cell is not assessed rather than assessed on the routes that fit in the budget:
+            # a quantity scored from one of its two declared sources is not that quantity, and
+            # the cell is re-gathered in full when the run resumes.
+            raise BudgetBlocked()
+        if request["capability"] not in searched:
+            searched.append(request["capability"])
+        error_ref = error_ref or (result.result_id if result.outcome in ("failed", "unknown_outcome") else None)
+        if result.ok:
+            contract = next((c for c in broker.contracts() if c.tool_id == result.invocation["tool_id"]), None)
+            claims += claims_from_tool_result(core, stream_id, result, candidate=candidate, attribute_ref=attr_ref,
+                                              evidence_kind=contract.evidence_kind_produced if contract else "database_entry",
+                                              link_basis=identity["identity_link_basis"], ids=ids)
+    if not criteria.is_literature_bound(attribute) or "literature_retrieval" in defer_capabilities:
+        # No literature route, or the run holds that capability out: the cell is the union of the
+        # database routes that were asked. A mixed attribute's databases are still asked, which is
+        # the whole point of deferring per route -- the quantity is read from the curations now and
+        # the reading is bought over a shortlist later.
         return claims, error_ref, searched
-    # One cell of a literature attribute. The reading is a per-candidate unit (`read_literature`),
+    # The literature half of the cell. The reading is a per-candidate unit (`read_literature`),
     # so the sweep reads it once and hands it to every literature cell of that candidate; a caller
     # that assesses a single cell on its own gets a reading of that one attribute's selection, which
     # is what the cell used to read for itself.
@@ -391,4 +448,5 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
             max_documents=max_documents, case_sources=case_sources, reading_attributes=reading_attributes,
             sources=sources, limit_per_query=limit_per_query, max_chars=max_chars,
             document_workers=document_workers)
-    return candidate_reading.claims_for(attr_ref), candidate_reading.error_ref, candidate_reading.searched
+    return (claims + candidate_reading.claims_for(attr_ref), error_ref or candidate_reading.error_ref,
+            searched + [kind for kind in candidate_reading.searched if kind not in searched])

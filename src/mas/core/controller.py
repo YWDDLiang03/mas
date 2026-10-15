@@ -32,6 +32,19 @@ DATABASE_FIRST = 0
 LITERATURE_LAST = 1
 
 
+def _reads_literature(item: dict[str, Any]) -> bool:
+    """Whether this run reads the literature for one rule of its set.
+
+    Not `criteria.is_literature_bound` alone: an attribute may declare a literature route beside
+    its database routes, and a run that holds `literature_retrieval` out scores that rule on the
+    databases (`criteria.DEFERRAL_SCOPES`). Such a cell costs no search, no document and no model
+    turn, so it belongs in the database phase and must not be offered to the reader as one of the
+    attributes a paper is read for.
+    """
+    return (criteria.is_literature_bound(item["attribute"])
+            and "literature_retrieval" not in item.get("deferred_capabilities", ()))
+
+
 class RunError(RuntimeError):
     def __init__(self, code: str, message: str):
         super().__init__(f"{code}: {message}")
@@ -194,9 +207,13 @@ class RunController:
         for entry in rule_set["entries"]:
             rule = criteria.load(self.core, entry["rule_ref"], task_id)
             attr = criteria.load(self.core, entry["attribute_ref"], task_id)
-            state.rules.append({"entry": entry, "rule": rule, "attribute": attr})
-        state.rules.sort(key=lambda r: (LITERATURE_LAST if criteria.is_literature_bound(r["attribute"])
-                                        else DATABASE_FIRST, r["entry"]["rule_ref"]))
+            # The capabilities this run holds out for this rule, from the entry the confirmation
+            # wrote (`criteria.DEFERRAL_SCOPES`): the rule scores on its other routes, and this is
+            # what makes the run ask those and not the deferred one.
+            state.rules.append({"entry": entry, "rule": rule, "attribute": attr,
+                                "deferred_capabilities": criteria.entry_deferred_capabilities(entry)})
+        state.rules.sort(key=lambda r: (LITERATURE_LAST if _reads_literature(r) else DATABASE_FIRST,
+                                        r["entry"]["rule_ref"]))
         return state
 
     def current_state(self, run_id: str) -> str | None:
@@ -275,8 +292,8 @@ class RunController:
         # literature rules, because that is the unit the reading is bought in: one read of one paper
         # for one candidate is extracted for every literature attribute at once, so every literature
         # cell of a candidate is assessed against that candidate's whole reading (`_literature_pass`).
-        database_rules = [r for r in st.rules if not criteria.is_literature_bound(r["attribute"])]
-        literature_rules = [r for r in st.rules if criteria.is_literature_bound(r["attribute"])]
+        database_rules = [r for r in st.rules if not _reads_literature(r)]
+        literature_rules = [r for r in st.rules if _reads_literature(r)]
         for index, item in enumerate(database_rules):
             rule_ref = item["entry"]["rule_ref"]
             # The literature phase is one more reservation holder, not one per literature rule: its
@@ -412,7 +429,7 @@ class RunController:
             return assessor.assess_cell(candidate=candidate, attribute=attribute, rule=rule,
                                         rule_set_ref=st.rule_set["rule_set_ref"], claims=[], resolved=False,
                                         not_assessed_reason=reason)
-        needs_llm = criteria.is_literature_bound(attribute)
+        needs_llm = _reads_literature(item)
         out_of_budget = assessor.assess_cell(candidate=candidate, attribute=attribute, rule=rule,
                                              rule_set_ref=st.rule_set["rule_set_ref"], claims=[], resolved=True,
                                              not_assessed_reason="budget_exhausted")
@@ -435,8 +452,9 @@ class RunController:
                 reading_attributes=[{"name": r["attribute"]["name"], "definition": r["attribute"]["definition"],
                                      "unit": r["attribute"].get("unit"),
                                      "ref": f"{r['attribute']['attribute_id']}@v{r['attribute']['version']}"}
-                                    for r in st.rules if criteria.is_literature_bound(r["attribute"])],
-                candidate_reading=candidate_reading)
+                                    for r in st.rules if _reads_literature(r)],
+                candidate_reading=candidate_reading,
+                defer_capabilities=item.get("deferred_capabilities", ()))
         except evidence.BudgetBlocked:
             return out_of_budget
         return assessor.assess_cell(candidate=candidate, attribute=attribute, rule=rule,
@@ -478,6 +496,61 @@ class RunController:
                              "completed": completed, "planned": planned_cells},
                    budget=st.budget.snapshot())
 
+    def _calibration_guard(self, st: RunState, by_candidate: dict[str, list[dict]],
+                           rules_info: dict[str, dict[str, Any]], mandated: list[str],
+                           ids: dict[str, Any]) -> tuple[dict[str, list[dict]], dict[str, dict[str, Any]], dict]:
+        """Demote every hard exclusion that removes too much of the task's mandated population.
+
+        `assessor.calibration_guard` decides; this applies the decision and records it. Applying it
+        means rewriting `rule_kind` on the run's own cell records and on `rules_info`, which is what
+        the roll-up, the preference score and the snapshot all read -- a demotion recorded only
+        beside them would leave the exclusion excluding while every surface said it had been demoted,
+        which is the defect `adjudication`'s module docstring describes.
+
+        WHY it is not a new rule version, where a machine adjudication writes one: the guard's input
+        is this run's assessed cells, so it cannot run before the sweep, and by then the rule set is
+        confirmed and the cells are written. The rule in the registry is unchanged and still a hard
+        exclusion; what this run did with it is recorded on the run and on the board it published.
+        A reader who wants the registry's answer gets the hard exclusion; a reader of this board is
+        told, with the measured share, that it ranked here instead of excluding.
+        """
+        guard = assessor.calibration_guard(
+            by_candidate, rules_info, mandated_rule_refs=mandated,
+            max_removed_share=st.settings.get("assess.max_reference_exclusion_share",
+                                              assessor.DEFAULT_MAX_REFERENCE_EXCLUSION))
+        if not guard["demoted"]:
+            return by_candidate, rules_info, guard
+        demoted = guard["demoted"]
+        rules_info = {ref: (dict(info, rule_kind="preference") if ref in demoted else info)
+                      for ref, info in rules_info.items()}
+        # The loaded rule records too, because the scoring stage reads the kind off them when it
+        # decides which quantities it may offer as features (`sr_stage.build_dataset`): left alone,
+        # the demoted criterion would rank under the weighted-preference score and be invisible to
+        # the expression fitted against that very score. The registry's own record is untouched --
+        # `confirm_rule_set` reads the store, not this list -- so a rule set written after this run
+        # still carries the hard exclusion.
+        for item in st.rules:
+            if item["entry"]["rule_ref"] in demoted:
+                item["rule"] = dict(item["rule"], rule_kind="preference")
+        by_candidate = {candidate: [dict(cell, rule_kind="preference",
+                                         demoted_by_calibration_guard=demoted[cell["rule_ref"]])
+                                    if cell["rule_ref"] in demoted else cell for cell in cells]
+                        for candidate, cells in by_candidate.items()}
+        record = {"guard_id": new_id("cal"), "run_id": st.run_id, "task_id": st.task_context["task_context_id"],
+                  "rules@v": st.rule_set["rule_set_ref"], **guard,
+                  # Never `agent_verdict` and never a person's: no model was called and nobody was
+                  # asked. It is a share the software measured over records already in the store, the
+                  # same standing `collapse` records for itself.
+                  "approval_kind": vocab.require("approval_kind", "software_status"),
+                  "confirmed_by_a_person": False, "actor": CONTROLLER, "measured_at": utc_now()}
+        artifact_id = self.core.artifacts.put("calibration_guard", record)
+        self._emit(st.run_id, "decision.recorded", ids=ids, payload=dict(record, artifact_id=artifact_id),
+                   artifact_links=[{"kind": "calibration_guard", "id": artifact_id}],
+                   summary=f"{len(demoted)} hard exclusion(s) demoted to preferences on this run: each removes "
+                           f"more than {guard['limit']:.2f} of the {guard['reference_set_n']} candidates that "
+                           f"clear the task's mandated criteria (no person confirmed it)")
+        return by_candidate, rules_info, guard
+
     def _finish(self, st: RunState, ids: dict[str, Any], budget_cut: bool) -> str:
         run_id, task_id = st.run_id, st.task_context["task_context_id"]
         candidates = sorted(st.identities)
@@ -492,12 +565,17 @@ class RunController:
         # as an agent's and never as a person's. Without this the eligible set is empty whenever no
         # `hd_` exists, which is every autonomous run.
         machine_authority = bool(st.rule_set.get("machine_adjudicated"))
-        roll_ups = {c: assessor.roll_up(c, by_candidate[c], coverage_floor=st.rule_set.get("coverage_floor", 1.0),
-                                        recommended_requires_hd=requires_hd, pending_hard_rules=pending_hard,
-                                        machine_authority=machine_authority) for c in candidates}
         rules_info = {r["entry"]["rule_ref"]: {"rule_kind": r["rule"]["rule_kind"],
                                                "predicate_form": r["rule"].get("predicate_form", "threshold"),
                                                "direction": r["attribute"].get("direction")} for r in st.rules}
+        # The criteria the task itself mandates (`criteria.is_task_mandated`): one list, read by the
+        # calibration guard for its reference population and by the board for its coverage floor, so
+        # the two cannot drift into two definitions of "what the task requires".
+        mandated = [r["entry"]["rule_ref"] for r in st.rules if criteria.is_task_mandated(r["attribute"])]
+        by_candidate, rules_info, guard = self._calibration_guard(st, by_candidate, rules_info, mandated, ids)
+        roll_ups = {c: assessor.roll_up(c, by_candidate[c], coverage_floor=st.rule_set.get("coverage_floor", 1.0),
+                                        recommended_requires_hd=requires_hd, pending_hard_rules=pending_hard,
+                                        machine_authority=machine_authority) for c in candidates}
         scores = assessor.preference_scores(by_candidate, rules_info, weights)
         if sr_stage.enabled(st.settings):
             # Symbolic regression is strictly additive: it fits on cells already assessed, installs an
@@ -530,7 +608,11 @@ class RunController:
             evidence_snapshot_id=snapshot_id, roll_ups=roll_ups, cells=by_candidate, scores=scores,
             identities=st.identities, parent=parent, sweep_completeness=sweep_completeness, budget=st.budget.snapshot(),
             ranking_coverage_floor=float(constants.value(self.core, "const_ranking_coverage_floor",
-                                                         (EVAL_STREAM, st.run_id))))
+                                                         (EVAL_STREAM, st.run_id))),
+            mandated_rule_refs=mandated,
+            mandated_coverage_floor=float(constants.value(self.core, "const_mandated_coverage_floor",
+                                                         (EVAL_STREAM, st.run_id))),
+            calibration_guard=guard)
         all_snapshots = leaderboard.snapshots(self.core, task_id)
         snapshot["snapshot_id"] = f"lb_{task_id}_{len(all_snapshots) + 1}"
         snapshot_artifact = self.core.artifacts.put("leaderboard_snapshot", snapshot)

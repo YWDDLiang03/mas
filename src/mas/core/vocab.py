@@ -65,6 +65,40 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
         run_cancelled=("not reached (run cancelled)", "attention"),
     ),
     "value_kind": _domain("measured", "curated", "predicted", "simulated", "derived", "missing"),
+    # What kind of source a claim came from, stamped on every claim and matched against an
+    # attribute's `acceptable_value_sources` (`assessor.usable_claims`, which sets a claim aside as
+    # `evidence_kind_not_accepted` otherwise).
+    #
+    # WHY this domain exists. It did not, and `criteria.check_attribute` only checked that
+    # `acceptable_value_sources` was *present*, so an attribute could name a kind nothing produces
+    # and every claim it ever read was set aside. Measured on this store, 14 October 2026: the
+    # oral-route literature companion declared `peer_reviewed_primary`, a kind no tool emits, and
+    # the criterion could never carry a value -- the one criterion meant to answer the oral-route
+    # question for the 1,262 candidates ChEMBL has no route flag for. An attribute that accepts a
+    # kind nothing can produce is not a stricter attribute, it is an unanswerable one, and that has
+    # to fail where it is written rather than read as "no evidence was found".
+    #
+    # WHY the registry is here and not in an adapter. The ground truth of what is produced is the
+    # registered tools' `broker.ToolContract.evidence_kind_produced` plus `preprint`, which
+    # `reading.read` stamps on a document a search returned as a preprint and which therefore no
+    # contract declares (`evidence.producible_evidence_kinds` computes exactly that set for a live
+    # install). But that set is install-dependent: a machine without the ADMET predictor registers
+    # no tool producing `model_prediction`, and refusing an attribute against it would refuse a
+    # legitimate kind for want of an optional package. So the closed list lives here, where it says
+    # "no such kind anywhere" independently of what is installed, and the live set is for saying
+    # "no tool for it *here*". `tests/test_predict_admet.py` pins this domain equal to what a full
+    # install's contracts produce, so the two cannot drift; the core may not import an adapter to
+    # compute it, and a test may.
+    "evidence_kind": _labelled(
+        curated_measurement=("curated measurement", "positive"),
+        database_entry=("database record", "neutral"),
+        model_prediction=("model prediction", "attention"),
+        peer_reviewed=("peer-reviewed publication", "positive"),
+        preprint=("preprint (not peer-reviewed)", "attention"),
+        reference_text=("reference text", "neutral"),
+        tertiary_reference=("tertiary reference", "muted"),
+        user_supplied_document=("document you supplied", "neutral"),
+    ),
     "tool_outcome": _domain("ok", "partial", "empty", "not_attempted", "failed", "unknown_outcome"),
     "record_state": _domain("returned", "superseded", "stale"),
     "error_class": _domain(
@@ -123,6 +157,10 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
         dispute_adjudicated=("proposer/critic dispute adjudicated by an agent", "attention"),
         definition_restated=("restates the attribute's own definition", "neutral"),
         bound_interpretation_granted=("an agent granted the bound's declared interpretation", "attention"),
+        # Neutral, not `attention`, and deliberately: the software checked the rule's number against
+        # the record the tool that produced the values wrote, exactly as `task_constraint_restated`
+        # checks it against the user's own task text. Nothing was judged and nobody was asked.
+        predictor_boundary_adopted=("uses the predictor's own documented decision boundary", "neutral"),
     ),
     # WHY route 6's verdicts are their own domain rather than two more `adjudication_verdict` values:
     # the question is not whose side of a dispute stands, it is whether one number may act as a

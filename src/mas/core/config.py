@@ -92,6 +92,22 @@ SETTINGS: dict[str, Setting] = {
                                         maximum=50, unit="documents", const_id="const_read_max_candidate_documents"),
     "read.max_content_chars": _s(60000, "characters of a document offered to the reader", minimum=1000,
                                  maximum=500000, unit="characters"),
+    # the predicted-property panel (`adapters/predict/admet.py`). No const_id: it says where the
+    # predictor is installed, not what it computes, and every predicted value records the package
+    # version it came from (`data_version`), so a run's numbers stay identifiable without it.
+    "predict.python": _s("", "interpreter of the environment that holds the ADMET predictor (empty: "
+                             "$MAS_ADMET_PYTHON, else an `admet-env` beside the checkout)"),
+    # The two floors `adjudication`'s `predictor_boundary_adopted` route reads before it lets a
+    # classifier's own decision boundary gate (`adjudication.MIN_GATING_AUROC`, `MIN_GATING_R2`).
+    # They carry a `const_id` because they decide whether a criterion scores at all, which is as
+    # verdict-affecting as a cutoff: the same rule bound to the same endpoint gates under one value
+    # of these and is demoted to a preference under another.
+    "predict.min_gate_auroc": _s(0.70, "held-out AUROC a classification endpoint needs before a rule may gate on "
+                                       "its decision boundary", minimum=0.5, maximum=1.0, unit="auroc",
+                                 const_id="const_predict_min_gate_auroc"),
+    "predict.min_gate_r2": _s(0.50, "held-out R^2 a regression endpoint needs before a rule may gate on a bound "
+                                    "of its own", minimum=0.0, maximum=1.0, unit="r2",
+                              const_id="const_predict_min_gate_r2"),
     # how much a value has to rest on before it is scored
     # WHY this is a setting and not a fixed rule: it buys support by discarding evidence, and which of the
     # two a run needs is the operator's call. One admitted claim is enough for a literature cell today, so a
@@ -130,11 +146,38 @@ SETTINGS: dict[str, Setting] = {
     "assess.max_candidates": _s(0, "candidates assessed; 0 means the whole universe", minimum=0, maximum=1000000),
     "assess.workers": _s(1, "candidates whose literature is read and ruled on at once", minimum=1,
                          maximum=32),
+    # The calibration guard's one number (`assessor.calibration_guard`, applied by
+    # `controller._calibration_guard`). WHY 0.90 by default: the guard is meant to catch a gate that
+    # has stopped discriminating, not to second-guess a selective one, and at 0.90 fewer than one in
+    # ten of the candidates that clear the task's own mandated criteria survive the gate -- at which
+    # point the gate is making a statement about the population rather than about its members.
+    # Measured on the manuscript universe with the predicted-toxicity panel at the model's 0.5 line:
+    # a composite toxicity gate removes 100% of the 116 approved or phase-3 kinase inhibitors and
+    # DILI alone 99.1%, both demoted here; hERG alone removes 88.8% and is not, which is deliberate
+    # -- a gate that leaves one candidate in nine is still a gate, and a default that demoted it
+    # would be deciding on the operator's behalf how selective a screen may be. A run that wants the
+    # stricter reading sets this to 0.80 and gets it, with the share recorded either way.
+    "assess.max_reference_exclusion_share": _s(
+        0.90, "share of the candidates clearing the task's mandated criteria that a hard exclusion may remove "
+              "before it is demoted to a preference for the run", minimum=0.0, maximum=1.0, unit="fraction",
+        const_id="const_assess_max_reference_exclusion_share"),
     # ranking
     "rank.method": _s("weighted_preference", "how the leaderboard score is produced",
                       choices=("weighted_preference", "symbolic_expression")),
     "rank.coverage_floor": _s(0.5, "minimum share of scoring inputs a candidate needs to be ranked",
                               minimum=0.0, maximum=1.0, unit="fraction", const_id="const_ranking_coverage_floor"),
+    # The floor over the task's *own* criteria, beside the one above, which is over scoring inputs of
+    # every kind. WHY 1.0 by default: the task stated each mandated criterion as a requirement, so a
+    # candidate it cannot be answered for is not a candidate the task's objective has been measured
+    # on. Measured on the 14 October board, where the two floors come apart: 4 of its 9 criteria are
+    # structural descriptors available for every compound, so a candidate with those four and one of
+    # the five required receptors clears `rank.coverage_floor` at 0.5 -- and the top four entries
+    # each had one receptor of five, with an anthelmintic at rank 4, above candidates assessed on all
+    # five. A run that wants the looser reading sets this to 0.6 and gets it, with the number
+    # recorded on the snapshot either way.
+    "rank.mandated_coverage_floor": _s(
+        1.0, "share of the criteria the task itself mandates that a candidate must have answered to be ranked",
+        minimum=0.0, maximum=1.0, unit="fraction", const_id="const_mandated_coverage_floor"),
     "rank.top_n": _s(25, "rows shown by default on the leaderboard", minimum=1, maximum=1000),
     "sr.mode": _s("off", "what the symbolic regression models",
                   choices=("off", "potency", "leaderboard_score", "both")),

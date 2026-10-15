@@ -1185,3 +1185,178 @@ def test_the_expert_decision_guard_is_a_process_boundary_and_not_a_security_boun
     assert forged["decision_id"].startswith("hd_"), (
         "a direct caller can still mint an expert decision; the guard is a process boundary, and "
         "the public claim must stay narrow until an authenticated principal replaces it")
+
+
+# --- route 7: the predictor's own decision boundary ---------------------------------------------
+
+HERG = {"name": "Predicted hERG block", "measurement_kind": "quantitative", "unit": "probability",
+        "definition": "The panel's predicted probability that the compound blocks the hERG channel",
+        "direction": "lower_better", "acceptable_value_sources": ["model_prediction"], "aggregation": "median",
+        "acceptable_determination_bases": ["predicted"],
+        "evidence_request": {"capability": "predicted_property_lookup", "question_kind": "admet_prediction",
+                             "identifier_scheme": "inchikey", "parameters": {"endpoint": "hERG"}}}
+HERG_RULE = {"rule_kind": "preference", "predicate_form": "threshold",
+             "cutoff": {"comparator": "<", "value": 0.5, "unit": "probability"},
+             "cutoff_basis": "model_decision_boundary", "on_missing": "unknown_no_penalty"}
+HALF_LIFE_PREDICTED = {
+    "name": "Predicted half-life", "measurement_kind": "quantitative", "unit": "h",
+    "definition": "The panel's predicted terminal half-life", "direction": "higher_better",
+    "acceptable_value_sources": ["model_prediction"], "aggregation": "median",
+    "acceptable_determination_bases": ["predicted"],
+    "evidence_request": {"capability": "predicted_property_lookup", "question_kind": "admet_prediction",
+                         "identifier_scheme": "inchikey", "parameters": {"endpoint": "Half_Life_Obach"}}}
+
+
+def _provenance(endpoint: str, metric: dict, *, task_type: str = "classification", boundary=0.5,
+                unit: str = "probability") -> dict:
+    """The provenance a predictor attaches to each value it returns (`adapters/predict/admet.py`'s
+    `provenance`), reduced to the keys this route reads (`adjudication.PROVENANCE_KEYS`)."""
+    return {"predictor_package": "admet-ai", "predictor_version": "1.3.0", "endpoint": endpoint,
+            "endpoint_name": endpoint, "task_type": task_type, "holdout_metric": metric,
+            "decision_boundary": boundary, "unit": unit, "training_dataset": endpoint, "training_rows": 648,
+            "model": "Chemprop-RDKit ensemble over the TDC dataset of the same id"}
+
+
+def _prediction(core, task_id: str, attr_ref: str, *, value, unit: str, conditions: dict,
+                basis: str = "predicted", stream: str = "run_predict") -> str:
+    """One predicted value for one candidate, recorded as the sweep records it: in the run's own
+    stream, with the tool's provenance in `conditions` (`evidence.claims_from_tool_result`)."""
+    if not core.journal.replay(stream):
+        core.journal.append(stream, "run.created", actor=OPERATOR, payload={"for": "predicted values"})
+    return ledger.record_claim(core, stream, {
+        "source_ref": f"src_db_tool_predict_admet_panel_{conditions['endpoint']}",
+        "candidate_ref": "cand_1", "attribute_ref": attr_ref,
+        "location": {"location_kind": "record_field", "locator_value": f"{conditions['endpoint']}#value",
+                     "quoted_span": str(value), "span_checked_against_source": True},
+        "claim_text": f"{conditions['endpoint']} = {value} {unit}", "claim_text_marker": "verbatim",
+        "normalized_statement": f"{conditions['endpoint']} = {value} {unit}", "claim_type": "data_derived",
+        "evidence_kind": "model_prediction", "determination_basis": basis, "value": value, "unit": unit,
+        "polarity": "supports", "scope_match": "direct", "reading_depth": "not_read",
+        "conditions": conditions}, by=AGENT, admission_state="admitted", admission_reasons=["identifier_grounded"])
+
+
+def test_a_well_measured_classifier_may_gate_on_the_boundary_its_own_record_documents(core):
+    """The route the basis needed. `model_decision_boundary` reaches `authority_basis /
+    decision_required` and no claim in the ledger states 0.5, so with expert review switched off the
+    item used to fall through to route 2 and the criterion stopped scoring altogether. The authority
+    it was missing is a record: the provenance the predictor stamps on every value says where its
+    boundary is, what the endpoint is and how well it held out, so the route checks the rule against
+    that and adds no judgement of its own -- which is what it has in common with route 1.
+    """
+    task_id = _task(core)
+    attr_ref, rule_ref = criteria.propose(core, task_id, HERG, HERG_RULE, by=AGENT)
+    claim_id = _prediction(core, task_id, attr_ref, value=0.21, unit="probability",
+                           conditions=_provenance("hERG", {"auprc": 0.9062, "auroc": 0.8388}))
+    assert adjudication.route_preview(core, _item(core, task_id, rule_ref))["route"] == "predictor_boundary_adopted"
+
+    record = adjudication.adjudicate(core, _item(core, task_id, rule_ref))
+    assert record["route"] == "predictor_boundary_adopted" and record["resolution"] == "approve"
+    assert record["rule_ref_after"] == rule_ref, "approving changes nothing: same kind, same cutoff, same basis"
+    assert record["rule_kind_after"] == "preference" and record["scores_candidates"] is True
+    # the record carries every condition it checked, and what it checked them against
+    boundary = record["predictor_boundary"]
+    assert (boundary["endpoint"], boundary["decision_boundary"], boundary["cutoff_value"]) == ("hERG", 0.5, 0.5)
+    assert (boundary["metric_name"], boundary["metric_value"], boundary["metric_floor"]) == ("auroc", 0.8388, 0.70)
+    assert boundary["claim_ids"] == [claim_id] and boundary["refusals"] == []
+    assert "0.8388" in record["reason_text"] and "hERG" in record["reason_text"]
+    # and it is an agent's verdict labelled as one, with no `hd_` anywhere
+    assert record["approval_kind"] == "agent_verdict" and record["confirmed_by_a_person"] is False
+    assert record["authority"] == "machine_adjudication"
+    assert not core.artifacts.of_kind("expert_decision")
+    assert not record["cited_claim_ids"], "no model was called, so there is no agent citation to make"
+
+    ref = criteria.confirm_rule_set(core, task_id, by=OPERATOR)
+    rule_set = criteria.rule_set(core, task_id, ref)
+    (entry,) = rule_set["entries"]
+    assert entry["rule_kind"] == "preference" and entry["authority"] == "machine_adjudication"
+    assert entry["cutoff_basis"] == "model_decision_boundary"
+    assert entry["bound_support"]["states"]["rule.cutoff.value"] == "authority_basis"
+    assert rule_set["acceptance_label"] == "exploratory" and rule_set["machine_adjudicated"] == [rule_ref]
+
+
+def test_an_endpoint_with_a_negative_r2_can_never_carry_a_gate(core):
+    """`Half_Life_Obach` holds out at R^2 -2.39 and `VDss_Lombardo` at -1.21: both are worse than
+    predicting the training mean, so their output carries no information about a particular compound.
+    A bound on such an endpoint is refused however exactly it matches the documented boundary, and
+    the record says which condition failed -- the rule's author can act on that, where "no expert has
+    given one" would have been false as well as useless."""
+    task_id = _task(core)
+    attr_ref, rule_ref = criteria.propose(
+        core, task_id, HALF_LIFE_PREDICTED,
+        {"rule_kind": "preference", "predicate_form": "threshold",
+         "cutoff": {"comparator": ">=", "value": 6.0, "unit": "h"},
+         "cutoff_basis": "model_decision_boundary", "on_missing": "unknown_no_penalty"}, by=AGENT)
+    _prediction(core, task_id, attr_ref, value=14.2, unit="h",
+                conditions=_provenance("Half_Life_Obach", {"r2": -2.3857, "mae": 31.8474},
+                                       task_type="regression", boundary=6.0, unit="h"))
+    record = adjudication.adjudicate(core, _item(core, task_id, rule_ref))
+    assert record["route"] == "no_authority_available" and record["resolution"] != "approve"
+    assert record["rule_kind_after"] == "exploratory_consideration" and record["scores_candidates"] is False
+    assert record["predictor_boundary"]["adoptable"] is False
+    (refusal,) = record["predictor_boundary"]["refusals"]
+    assert "-2.3857" in refusal and "0.5" in refusal and "training mean" in refusal
+    assert "model_decision_boundary" in record["reason_text"] and "expert" not in record["reason_text"]
+    floors = adjudication.GATING_METRICS
+    assert floors["regression"] == ("r2", adjudication.MIN_GATING_R2) and adjudication.MIN_GATING_R2 > 0
+
+
+def test_a_boundary_the_model_does_not_draw_and_a_metric_it_does_not_record_are_both_refused(core):
+    """Each condition on its own. A rule thresholding a classifier at 0.8 has drawn its own line,
+    which is somebody's judgement and not the model's; an endpoint with no held-out metric
+    establishes no skill at all; and a value kind the attribute does not accept means the claims this
+    bound would be applied to are claims the cell would set aside."""
+    task_id = _task(core)
+    attr_ref, _ = criteria.propose(core, task_id, HERG, HERG_RULE, by=AGENT)
+    good = _provenance("hERG", {"auprc": 0.9062, "auroc": 0.8388})
+    claims = [{"claim_id": "claim_a", "determination_basis": "predicted", "conditions": good}]
+    attribute = dict(HERG, attribute_id="attr_x", version=1)
+
+    own_line = adjudication.predictor_boundary(
+        dict(HERG_RULE, cutoff={"comparator": "<", "value": 0.8, "unit": "probability"}), attribute, claims)
+    assert own_line["adoptable"] is False and "0.8" in own_line["refusals"][0]
+    assert "does not state" in own_line["refusals"][0]
+
+    unmeasured = adjudication.predictor_boundary(HERG_RULE, attribute,
+                                                 [dict(claims[0], conditions=_provenance("Lipinski", {}))])
+    assert unmeasured["adoptable"] is False and "no held-out auroc" in unmeasured["refusals"][0]
+
+    unaccepted = adjudication.predictor_boundary(HERG_RULE, dict(attribute, acceptable_determination_bases=["measured"]),
+                                                 claims)
+    assert unaccepted["adoptable"] is False and "a basis the attribute accepts" in unaccepted["refusals"][0]
+
+    nothing_stated = adjudication.predictor_boundary(HERG_RULE, attribute, [])
+    assert nothing_stated["adoptable"] is False and "0 claim(s)" in nothing_stated["refusals"][0]
+
+    two_endpoints = adjudication.predictor_boundary(
+        HERG_RULE, attribute, claims + [{"claim_id": "claim_b", "determination_basis": "predicted",
+                                         "conditions": _provenance("DILI", {"auroc": 0.8815})}])
+    assert two_endpoints["adoptable"] is False and "different" in two_endpoints["refusals"][0]
+
+    # the floors are the run's, not the module's, where a run states them
+    strict = adjudication.predictor_boundary(HERG_RULE, attribute, claims,
+                                             settings={"predict.min_gate_auroc": 0.95})
+    assert strict["adoptable"] is False and "below the 0.95" in strict["refusals"][0]
+    assert adjudication.predictor_boundary(HERG_RULE, attribute, claims)["adoptable"] is True
+
+
+def test_adopting_the_boundary_does_not_hand_an_agent_the_authority_to_delete_candidates(core):
+    """The route adopts a number, and the number is all it adopts. A model's decision boundary says
+    where its two classes divide; it does not say that candidates on one side are unsuitable, which
+    is the judgement route 3 withholds from an agent. So a hard exclusion on a documented boundary
+    is still demoted to a preference -- it scores at the model's own line and deletes nobody -- and
+    the record says both halves of what happened.
+    """
+    task_id = _task(core)
+    attr_ref, rule_ref = criteria.propose(core, task_id, HERG,
+                                          dict(HERG_RULE, rule_kind="hard_exclusion",
+                                               on_missing="unknown_blocks_recommendation"), by=AGENT)
+    _prediction(core, task_id, attr_ref, value=0.93, unit="probability",
+                conditions=_provenance("hERG", {"auprc": 0.9062, "auroc": 0.8388}))
+    record = adjudication.adjudicate(core, _item(core, task_id, rule_ref))
+    assert record["route"] == "predictor_boundary_adopted" and record["resolution"] == "demote_to_preference"
+    assert record["rule_kind_before"] == "hard_exclusion" and record["rule_kind_after"] == "preference"
+    assert "stops excluding" in record["reason_text"] and "0.8388" in record["reason_text"]
+    demoted = criteria.load(core, record["rule_ref_after"], task_id)
+    assert demoted["cutoff"] == {"comparator": "<", "value": 0.5, "unit": "probability"}, \
+        "the boundary survives the demotion; what the demotion removes is the deletion"
+    assert demoted["cutoff_basis"] == "model_decision_boundary"

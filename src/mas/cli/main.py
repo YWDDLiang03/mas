@@ -39,6 +39,12 @@
     mas models show
     mas config show [--explain] | validate | save NAME | estimate [--dimensions N] [--candidates N]
     mas sources list | check | sync bookshelf --book NBK... | template   evidence sources and their set-up
+    mas predict check [--universe FILE]        what the predicted-property panel can do here: the interpreter
+                                               found, the endpoints, the structures and what is already cached
+    mas predict warm --universe FILE [--smiles FILE] [--limit N] [--chunk N]
+                                               precompute the ADMET panel for every structure of a universe in
+                                               one subprocess, so a sweep reads cached rows instead of loading
+                                               the models. Opens no store, so it may run beside a sweep
     mas recovery intake TASK --from FILE.json [--rule-set rules@vN]
                                                record the sealed historical criteria list once, as
                                                evaluator-only content, after the criteria froze; the
@@ -67,6 +73,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -184,7 +191,8 @@ def _broker(core: Core, context: dict[str, Any] | None = None, args=None) -> Bro
     from mas.adapters.drug.registration import register
     broker = Broker(core)
     register(broker, universe_file=_universe_file(context), cache_dir=_cache_dir(args) if args else None,
-             upload_dir=str(_upload_dir(args)) if args else None)
+             upload_dir=str(_upload_dir(args)) if args else None,
+             predict_python=(_settings(args)["predict.python"] or None) if args else None)
     return broker
 
 
@@ -462,7 +470,9 @@ def _export_criteria(args) -> None:
           f"({counts['registered_from_pool']['value']} promoted from {counts['proposals_added_to_pool']['value']} "
           f"proposals, {counts['registered_from_templates']['value']} from adapter templates); "
           f"{counts['scoring_now']['value']} scoring on {record['latest_rule_set_ref']}, "
-          f"{counts['deferred_now']['value']} deferred, {counts['collapsed_away_now']['value']} collapsed away")
+          f"{counts['deferred_now']['value']} deferred, "
+          f"{counts['scoring_with_a_route_held_out_now']['value']} scoring with a route held out, "
+          f"{counts['collapsed_away_now']['value']} collapsed away")
     print(f"{counts['unresolved_disputes']['value']} unresolved proposer/critic disputes; "
           f"{counts['expert_decisions']['value']} expert decisions; "
           f"{counts['machine_adjudications']['value']} machine adjudications")
@@ -527,7 +537,13 @@ def cmd_rules(args) -> None:
         rules = criteria.rule_set(core, args.task)
         print(f"{rules['rule_set_ref']}  acceptance: {rules['acceptance_label']}  pending: {rules['pending']}")
         for item in rules.get("deferred", []):
-            print(f"  deferred {item['rule_ref']} ({item['capability']}): {item['reason']}")
+            # A route-level row is a rule that scores: printing it like a held-out rule would say
+            # the opposite of what happened, so the line says which routes were asked instead.
+            if criteria.deferral_scope(item) == "route":
+                print(f"  route deferred {item['rule_ref']} ({', '.join(item.get('capabilities') or [])} held out; "
+                      f"scores on {', '.join(item.get('scores_on') or []) or 'no route'}): {item['reason']}")
+            else:
+                print(f"  deferred {item['rule_ref']} ({item['capability']}): {item['reason']}")
         for item in rules.get("collapsed_away", []):
             # A rule held out of the set by a machine has to be visible here, not only in the journal:
             # a reader counting the rules would otherwise see one quantity where two were registered.
@@ -598,7 +614,7 @@ def cmd_review_adjudicate(args, core: Core) -> None:
                  "run, not about this command. Turn it on with --set interaction.mode=autonomous (which also clears "
                  "the checkpoints) or --set interaction.autonomous_adjudication=true.")
     results = adjudication.adjudicate_open(core, args.task, roster=_roster(args, required=False),
-                                           only_item=args.only_item)
+                                           only_item=args.only_item, settings=settings.values)
     if not results:
         print("no open review item to resolve")
         return
@@ -672,6 +688,32 @@ def cmd_board(args) -> None:
         if snap.get("abstention_reason"):
             print(f"  {vocab.label('result_kind', snap['result_kind'])}: "
                   f"{vocab.label('abstention_reason', snap['abstention_reason'])}")
+        guard = snap.get("calibration_guard") or {}
+        for rule_ref, demotion in sorted((guard.get("demoted") or {}).items()):
+            # A board where a hard exclusion stopped excluding reads as an unselective board unless
+            # it says so: this is the one line that tells a reader the gate ranked instead of gating,
+            # and the share it was measured on.
+            print(f"  {rule_ref} was demoted to a preference for this run: it removes "
+                  f"{demotion['removed_n']} of the {demotion['reference_set_n']} candidates clearing the task's "
+                  f"mandated criteria ({demotion['removed_share']:.1%}), above the registered "
+                  f"{demotion['limit']:.0%}")
+        if guard.get("abstained"):
+            print(f"  calibration guard: {guard['abstained']}")
+        if tuple_.get("mandated_coverage_floor") is not None and tuple_.get("mandated_rule_refs"):
+            # A board that ranks a candidate measured on one of the task's five required receptors
+            # above candidates measured on all five reads as a ranking of potency. This is the line
+            # that says which candidates the task's own criteria were answered for at all.
+            print(f"  mandated-criteria floor {tuple_['mandated_coverage_floor']:.2f} over "
+                  f"{len(tuple_['mandated_rule_refs'])} criteria the task requires: "
+                  f"{tuple_.get('eligible_on_mandated_criteria', 0)} candidate(s) answer it, "
+                  f"{tuple_.get('ineligible_for_mandated_coverage', 0)} are not ranked")
+            if tuple_.get("ranked_with_a_mandated_gate_unanswered"):
+                # The floor measures what ranks, not what gates, so a candidate may hold a position
+                # with a mandated gate unanswered. That is the gate's own policy holding it at
+                # `provisional`, and the board says so rather than leaving the position to speak.
+                print(f"  {tuple_['ranked_with_a_mandated_gate_unanswered']} ranked candidate(s) have a mandated "
+                      f"hard exclusion unanswered; the floor measures what ranks, and that gate still holds "
+                      f"them off a recommendation")
         method = snap.get("ordering_method") or {}
         if method.get("kind") == "symbolic_expression":
             print(f"  score = {method['expression_text']}  ({method['provenance']}; `mas score show` for the fit)")
@@ -682,6 +724,12 @@ def cmd_board(args) -> None:
             position = e["position"] or "-"
             print(f"  {str(position):>4}  {vocab.label('candidate', e['state']):<12} {score:>5}  "
                   f"{(e['identity_labels'][0] or e['candidate_ref'])[:28]:<28} {e['state_reason'][:60]}")
+            if e.get("clears_mandated_criteria") is False:
+                # Named, not dropped: the row stays on the board and says which of the task's own
+                # criteria nobody has answered for this candidate.
+                print(f"        ineligible for a position: {e['n_mandated'] - e['n_mandated_answered']} of "
+                      f"{e['n_mandated']} criteria the task requires are unanswered "
+                      f"({', '.join(e['mandated_blocked_by'][:4])})")
         if not args.all and len(snap["candidate_entries"]) > args.top:
             print(f"  … {len(snap['candidate_entries']) - args.top} more (show all with --all)")
 
@@ -923,6 +971,41 @@ def cmd_sources(args) -> None:
             print(f"  {manifest['chapters']} chapters, licence {manifest['license']}")
 
 
+def cmd_predict(args) -> None:
+    """The predicted-property panel: what it can do here, and precomputing it for a universe.
+
+    It opens no store. The panel is a function of a structure and nothing else -- not of a run, a
+    task or a criterion -- so warming it writes only to the adapter's cache directory and may run
+    while a sweep holds the store's write lock. Which is the point: the models take about as long
+    to load as to score two hundred molecules, so a sweep should never load them at all.
+    """
+    from mas.adapters.predict import admet
+    from mas.core.broker import ToolError
+    settings = _settings(args)
+    python = args.python or settings["predict.python"] or None
+    cache_dir = _cache_dir(args)
+    if args.action == "check":
+        _print(admet.check(args.universe, structure_file=args.smiles, cache_dir=cache_dir, python=python))
+        return
+    if not args.universe:
+        sys.exit("usage: mas predict warm --universe FILE.json")
+    started = time.monotonic()
+
+    def progress(step: dict[str, Any]) -> None:
+        done = step["computed"] + step["refused"]
+        if done % 100:
+            return
+        rate = done / max(time.monotonic() - started, 1e-9)
+        print(f"  {done} structure(s) scored, {step['refused']} refused, {rate:.1f}/s", flush=True)
+
+    try:
+        report = admet.warm_universe(args.universe, structure_file=args.smiles, cache_dir=cache_dir, python=python,
+                                     chunk_size=args.chunk, limit=args.limit, progress=progress)
+    except ToolError as error:
+        sys.exit(f"predict warm: {error}")
+    _print(report)
+
+
 def cmd_models(args) -> None:
     roster = _roster(args)
     _print(roster.role_bindings())
@@ -1104,6 +1187,15 @@ def main(argv: list[str] | None = None) -> int:
     so.add_argument("source", nargs="?")
     so.add_argument("--book", action="append", help="NCBI Bookshelf accession to sync (repeatable)")
     so.set_defaults(func=cmd_sources)
+
+    pr = sub.add_parser("predict")
+    pr.add_argument("action", choices=("check", "warm"))
+    pr.add_argument("--universe", help="universe JSON whose members' structures to score")
+    pr.add_argument("--smiles", help="structure file (default: universe_smiles.json beside the universe)")
+    pr.add_argument("--python", help="interpreter of the predictor environment (default: the predict.python setting)")
+    pr.add_argument("--chunk", type=int, default=256, help="structures per prediction batch inside the worker")
+    pr.add_argument("--limit", type=int, default=0, help="warm only the first N structures (0: all of them)")
+    pr.set_defaults(func=cmd_predict)
 
     m = sub.add_parser("models")
     m.add_argument("action", choices=("show",))

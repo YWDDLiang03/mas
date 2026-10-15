@@ -164,6 +164,17 @@ def board(core: Core, task_id: str, *, snapshot_id: str | None = None, top: int 
              "state_label": _label("candidate", entry["state"]), "score": entry["preference_score"],
              "preference_coverage": entry["preference_coverage"], "hard_rule_coverage": entry["coverage"],
              "missing": entry["missing"], "state_reason": entry["state_reason"],
+             # Whether the task's own criteria have been answered for this candidate, and which of
+             # them have not: a row with no position is either unrankable for want of scoring inputs
+             # or ineligible because the task's requirement is unmeasured, and those are different
+             # findings about different evidence.
+             "clears_mandated_criteria": entry.get("clears_mandated_criteria"),
+             "mandated_coverage": entry.get("mandated_coverage"),
+             "mandated_blocked_by": entry.get("mandated_blocked_by") or [],
+             # The mandated gates the floor does not measure, and those this candidate has no value
+             # for: a row may hold a position and still be held off a recommendation by one of them,
+             # and the row has to say which rather than leave the two readings of a position open.
+             "mandated_gates_unanswered": entry.get("mandated_gates_unanswered") or [],
              "rank_note": entry.get("rank_note"), "review_status": _label("review", entry["review_status"]),
              "candidate": link("/candidate", task=task_id, id=entry["candidate_ref"])}
             for entry in entries[:top]]
@@ -191,6 +202,14 @@ def board(core: Core, task_id: str, *, snapshot_id: str | None = None, top: int 
         "coverage_fraction": reported["coverage_fraction"], "sweep_completeness": reported["sweep_completeness"],
         "ranking_coverage_floor": reported["ranking_coverage_floor"],
         "unranked_for_coverage": reported["unranked_for_coverage"],
+        # The floor over the task's own mandated criteria and what it held off the ranking. `.get`,
+        # because a board published before this floor existed carries neither number, and an absent
+        # one reads as unknown rather than as nothing excluded (§9.2).
+        "mandated_coverage_floor": reported.get("mandated_coverage_floor"),
+        "mandated_criteria": reported.get("mandated_rule_refs") or [],
+        "eligible_on_mandated_criteria": reported.get("eligible_on_mandated_criteria"),
+        "ineligible_for_mandated_coverage": reported.get("ineligible_for_mandated_coverage"),
+        "ranked_with_a_mandated_gate_unanswered": reported.get("ranked_with_a_mandated_gate_unanswered"),
         "abstention_n_by_reason": reported["abstention_n_by_reason"], "budget": reported["budget"],
         "rows": rows, "rows_shown": len(rows), "rows_not_shown": max(0, len(entries) - len(rows)),
         "snapshots": [{"snapshot_id": s["snapshot_id"], "published_at": s["published_at"],
@@ -260,6 +279,10 @@ def _cells(core: Core, run_id: str, candidate_ref: str) -> list[dict[str, Any]]:
                      "verdict_label": _label("verdict", cell["verdict"]), "value": cell["value"],
                      "unit": cell["unit"], "value_kind": _label("value_kind", cell["value_kind"]),
                      "determination_basis": cell["determination_basis"], "reason_text": reason["reason_text"],
+                     # Whether this value is a gap-fill: the attribute accepts a stronger basis and
+                     # this candidate had nothing on it (`determination_basis_precedence`). None on
+                     # every cell whose attribute ranks no bases, so a surface can tell the two apart.
+                     "basis_precedence": cell.get("determination_basis_precedence"),
                      "evidence": cell["value_source_claim_refs"],
                      "counter_evidence": cell["conflicting_claim_refs"]})
     return rows

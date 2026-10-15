@@ -355,14 +355,14 @@ def test_an_attribute_may_accept_a_stated_claim_because_the_reader_writes_that_b
 
     attribute = {"attribute_id": "attr_t", "version": 1, "name": "Reported tolerability", "definition": "d",
                  "measurement_kind": "quantitative", "unit": "% of patients", "direction": "lower_better",
-                 "acceptable_value_sources": ["peer_reviewed_primary"], "aggregation": "median",
+                 "acceptable_value_sources": ["peer_reviewed"], "aggregation": "median",
                  "acceptable_determination_bases": ["asserted"],
                  "evidence_request": {"capability": "literature_retrieval", "question_kind": "search",
                                       "parameters": {"query_template": "({names}) AND tolerability",
                                                      "relevance_terms": ["tolerability"], "search_limit": 10}}}
     assert not criteria.check_attribute(attribute), "an attribute may now ask for a stated basis"
 
-    stated = {"claim_id": "c1", "admission_state": "admitted", "evidence_kind": "peer_reviewed_primary",
+    stated = {"claim_id": "c1", "admission_state": "admitted", "evidence_kind": "peer_reviewed",
               "determination_basis": "asserted", "value": 12.0, "unit": "% of patients"}
     usable, set_aside = assessor.usable_claims([stated], attribute)
     assert [c["claim_id"] for c in usable] == ["c1"], "the claim the reader wrote is now usable"

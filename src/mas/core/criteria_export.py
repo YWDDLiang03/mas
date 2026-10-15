@@ -380,6 +380,10 @@ def _matching_facets(attribute: dict[str, Any], rule: dict[str, Any],
         "transform": transform,
         "accepted_evidence_kinds": attribute.get("acceptable_value_sources"),
         "accepted_determination_bases": attribute.get("acceptable_determination_bases"),
+        # Part of the operational quantity and not a note beside it: "the measurement, and the
+        # prediction only where there is none" is a different quantity from either of its halves,
+        # and two criteria that differ only in this differ in what every cell of them carries.
+        "determination_basis_precedence": attribute.get(criteria.PRECEDENCE_FIELD),
         "capabilities": sorted({r.get("capability") for r in routes if r.get("capability")}),
         "question_kinds": sorted({r.get("question_kind") for r in routes if r.get("question_kind")}),
     }
@@ -446,7 +450,7 @@ def _origin(attribute: dict[str, Any], rule: dict[str, Any], pool_entry: dict[st
     proposer = attribute.get("proposed_by") or {}
     derived_from = attribute.get("derived_from") or {}
     if proposer.get("role") == "adapter_template":
-        kind = "task_mandated_template" if derived_from.get("field") else "adapter_template"
+        kind = "task_mandated_template" if criteria.is_task_mandated(attribute) else "adapter_template"
     elif derived_from.get("pool_criterion"):
         kind = "literature_derived"
     else:
@@ -502,7 +506,17 @@ def _use(rule_ref: str, attribute_ref: str, rule_sets: list[dict[str, Any]],
     deferred = next((d for d in (latest.get("deferred") or []) if d["rule_ref"] == rule_ref), None)
     collapsed = next((c for c in (latest.get("collapsed_away") or []) if c["rule_ref"] == rule_ref), None)
     if entry is not None:
-        status, reason = "scoring", None
+        # A rule may both score and carry a deferral row: the deferral is per route, so a criterion
+        # reading two curations and the literature scores on the curations while the reading is held
+        # out (`criteria.DEFERRAL_SCOPES`). Keyed off the entry and not off `deferred[]`, because
+        # keying it off the list reported a scoring rule as deferred, which is the opposite of what
+        # happened; the held-out sources are named in the reason instead.
+        status = "scoring"
+        reason = None
+        if deferred is not None and criteria.deferral_scope(deferred) == "route":
+            reason = (f"scores on {', '.join(deferred.get('scores_on') or []) or 'no route'}; "
+                      f"{', '.join(deferred.get('capabilities') or [deferred['capability']])} was held out of "
+                      f"this run: {deferred.get('reason') or 'no reason recorded'}")
     elif deferred is not None:
         status = "deferred"
         reason = f"{deferred['capability']} was held out of this run: {deferred.get('reason') or 'no reason recorded'}"
@@ -518,6 +532,12 @@ def _use(rule_ref: str, attribute_ref: str, rule_sets: list[dict[str, Any]],
     return {
         "status": status, "rule_set_ref": latest["rule_set_ref"], "reason": reason,
         "entry": entry, "deferral": deferred, "collapse": collapsed,
+        # Which sources this criterion's values came from this run, and which were held out, from
+        # the entry that scored it: a reader can tell a database-only value from one that also used
+        # a reading without resolving the attribute's routes again.
+        "scoring_routes": (entry or {}).get("scoring_routes"),
+        "deferred_routes": (entry or {}).get("deferred_routes"),
+        "deferral_scope": None if deferred is None else criteria.deferral_scope(deferred),
         "in_pending": rule_ref in (latest.get("pending") or []),
         "scores_while_disputed": rule_ref in (latest.get("pending_but_scoring") or []),
         "machine_adjudicated": rule_ref in (latest.get("machine_adjudicated") or []),
@@ -673,6 +693,7 @@ def _card(core: Core, task_id: str, base_id: str, attribute_entry: dict[str, Any
             "direction": attribute.get("direction"), "aggregation": attribute.get("aggregation"),
             "acceptable_value_sources": attribute.get("acceptable_value_sources"),
             "acceptable_determination_bases": attribute.get("acceptable_determination_bases"),
+            "determination_basis_precedence": attribute.get(criteria.PRECEDENCE_FIELD),
             "applicability": {"applies_to_result_kind": rule.get("applies_to_result_kind"),
                               "on_inapplicable": rule.get("on_inapplicable"),
                               "stated_in_definition_only": attribute.get("applicability") is None},
@@ -814,6 +835,22 @@ def _recovery_comparison_set(cards: list[dict[str, Any]], lifecycle: dict[str, A
     }
 
 
+def _held_out_whole(record: dict[str, Any]) -> list[dict[str, Any]]:
+    """The `deferred[]` rows that kept a rule out of the set entirely.
+
+    WHY counted apart from the route-level rows: every count of "deferred" in this export means
+    "registered rules that did not enter the latest set", and the reconciliation adds it to the
+    scoring rules to reach the registered total. A route-level row is a rule that *did* enter, so
+    counting it there would both overstate what was held out and double-count that rule.
+    """
+    return [row for row in (record.get("deferred") or []) if criteria.deferral_scope(row) == "rule"]
+
+
+def _scoring_with_a_route_held_out(record: dict[str, Any]) -> list[dict[str, Any]]:
+    """The `deferred[]` rows of rules that entered the set with some of their routes held out."""
+    return [row for row in (record.get("deferred") or []) if criteria.deferral_scope(row) == "route"]
+
+
 def _rule_set_view(record: dict[str, Any]) -> dict[str, Any]:
     return {
         "rule_set_ref": record["rule_set_ref"], "acceptance_label": record["acceptance_label"],
@@ -826,8 +863,10 @@ def _rule_set_view(record: dict[str, Any]) -> dict[str, Any]:
         "machine_adjudicated": record.get("machine_adjudicated") or [],
         "machine_collapsed": record.get("machine_collapsed") or [],
         "collapsed_away": record.get("collapsed_away") or [], "deferred": record.get("deferred") or [],
+        "deferred_capabilities": record.get("deferred_capabilities") or [],
         "counts": {"scoring": len(record["entries"]), "pending": len(record.get("pending") or []),
-                   "deferred": len(record.get("deferred") or []),
+                   "deferred": len(_held_out_whole(record)),
+                   "scoring_with_a_route_held_out": len(_scoring_with_a_route_held_out(record)),
                    "collapsed_away": len(record.get("collapsed_away") or [])},
     }
 
@@ -932,14 +971,21 @@ def _counts(cards: list[dict[str, Any]], folded: dict[str, dict[str, Any]], traj
             "counts": "attribute and rule *versions*, not criteria; a second version is a revision "
                       "of one criterion, not another criterion"},
         "rule_sets": [{"rule_set_ref": r["rule_set_ref"], "scoring": len(r["entries"]),
-                       "pending": len(r.get("pending") or []), "deferred": len(r.get("deferred") or []),
+                       "pending": len(r.get("pending") or []), "deferred": len(_held_out_whole(r)),
+                       "scoring_with_a_route_held_out": len(_scoring_with_a_route_held_out(r)),
                        "collapsed_away": len(r.get("collapsed_away") or []),
                        "acceptance_label": r["acceptance_label"]} for r in rule_sets],
         "scoring_now": {"value": len(latest.get("entries") or []),
                         "counts": f"rules in {latest.get('rule_set_ref')}, the latest confirmed set"},
-        "deferred_now": {"value": len(latest.get("deferred") or []),
-                         "counts": "registered rules held out of the latest set because a capability "
-                                   "they need was not run"},
+        "deferred_now": {"value": len(_held_out_whole(latest)),
+                         "counts": "registered rules held out of the latest set entirely, because "
+                                   "every evidence route they declare needs a capability that was "
+                                   "not run"},
+        "scoring_with_a_route_held_out_now": {
+            "value": len(_scoring_with_a_route_held_out(latest)),
+            "counts": "rules in the latest set that score on some of their evidence routes while "
+                      "others are held out of this run; they are counted in `scoring_now`, never "
+                      "in `deferred_now`"},
         "collapsed_away_now": {"value": len(latest.get("collapsed_away") or []),
                                "counts": "registered rules whose attribute a collapse merged away"},
         "collapses": {"value": {"applied": len(collapses),
@@ -1185,7 +1231,10 @@ def _card_markdown(card: dict[str, Any], index: int) -> list[str]:
         f"- **unit** {_inline(meaning['unit'])} · **measurement kind** `{meaning['measurement_kind']}` · "
         f"**direction** `{meaning['direction']}` · **aggregation** `{meaning['aggregation']}`",
         f"- **accepted evidence kinds** {_inline(meaning['acceptable_value_sources'])} · "
-        f"**accepted determination bases** {_inline(meaning['acceptable_determination_bases'])}",
+        f"**accepted determination bases** {_inline(meaning['acceptable_determination_bases'])}"
+        + (f" · **basis precedence** {' > '.join(meaning['determination_basis_precedence'])}"
+           f" (a lower-priority basis is used only where every higher one is silent, and the cell "
+           f"reports the basis it used)" if meaning.get("determination_basis_precedence") else ""),
         f"- **applicability**: {_inline(meaning['applicability'])}",
         f"- **expected change**: {_fence(meaning['expected_change'])}",
         f"- **falsification test**: {_fence(meaning['falsification_test'])}",
@@ -1357,16 +1406,19 @@ def render_markdown(payload: dict[str, Any]) -> str:
     ]
     for key in ("proposals_added_to_pool", "pool_lineages", "promoted_pool_items", "pruned_pool_items",
                 "registered_criteria", "registered_from_pool", "registered_from_templates",
-                "registry_versions", "scoring_now", "deferred_now", "collapsed_away_now", "collapses",
+                "registry_versions", "scoring_now", "deferred_now", "scoring_with_a_route_held_out_now",
+                "collapsed_away_now", "collapses",
                 "review_queue", "unresolved_disputes", "machine_adjudications", "expert_decisions",
                 "bounds", "comparable_from_fields", "matching_facet_gaps"):
         entry = counts[key]
         lines.append(f"| `{key}` | {_inline(entry['value'])} | {entry['counts']} |")
     lines += ["", "## Confirmed rule sets", "",
-              "| rule set | scoring | pending | deferred | collapsed away | label |", "|---|---|---|---|---|---|"]
+              "| rule set | scoring | pending | deferred | scoring with a route held out | "
+              "collapsed away | label |", "|---|---|---|---|---|---|---|"]
     for record in payload["rule_sets"]:
         c = record["counts"]
         lines.append(f"| `{record['rule_set_ref']}` | {c['scoring']} | {c['pending']} | {c['deferred']} | "
+                     f"{c['scoring_with_a_route_held_out']} | "
                      f"{c['collapsed_away']} | `{record['acceptance_label']}` |")
     for record in payload["rule_sets"]:
         if record["acceptance_reasons"]:
@@ -1528,6 +1580,17 @@ def render_reconciliation(payload: dict[str, Any]) -> str:
         lines.append(f"| `{record['rule_set_ref']}` | {c['scoring']} | {c['pending']} | {c['deferred']} | "
                      f"{c['collapsed_away']} | {c['scoring'] + c['deferred'] + c['collapsed_away']} "
                      f"of {registered} |")
+    route_held = latest["counts"].get("scoring_with_a_route_held_out") or 0
+    if route_held:
+        # Stated here because the arithmetic above would otherwise look wrong to a reader who had
+        # counted the `deferred[]` rows: a deferral is per route, so a rule may appear in that list
+        # and still score. It is counted once, under `scoring`, where it belongs.
+        lines += ["",
+                  f"{route_held} of the {scoring} scoring rules of `{latest['rule_set_ref']}` score on part of "
+                  f"their declared evidence: a capability this run held out "
+                  f"({', '.join(latest.get('deferred_capabilities') or []) or 'unrecorded'}) removes one or more "
+                  f"of their routes and the rest are asked. They appear in `deferred[]` with `scope: route` and "
+                  f"are counted once above, under scoring, never under deferred."]
     lines += [
         "",
         f"`{first['rule_set_ref']}`: {published} scoring plus {first['counts'].get('deferred')} deferred "
