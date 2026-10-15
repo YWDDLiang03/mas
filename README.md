@@ -14,6 +14,17 @@ The architecture design is in [`design_audit/`](design_audit/) (canonical: [`opt
 
 The concrete first use case is completing the manuscript rebuttal workflow and supporting evidence-based surufatinib prioritization under the stated task and targets. The package describes proposed work and does not claim completed screening experiments or verified drug rankings.
 
+## Session handoff — 2026-10-15 (read this first when picking the project up)
+
+| what | where |
+|---|---|
+| **System report** — where the project stands, the exact next commands, a reference for every module of `src/mas`, known gaps | [`design_audit/system_report_2026-10-15.md`](design_audit/system_report_2026-10-15.md) |
+| **Iteration log** — the bridge stall and account hold, rounds 5–10 on the case chain, every deviation and configuration change, the test log, the development log | [`design_audit/iteration_log_2026-10-15.md`](design_audit/iteration_log_2026-10-15.md) |
+| **Run log** — run ids, times, outcomes, and the stage records they wrote | iteration log §1 and §3; live detail in `var/primary/store/store.db` (git-ignored) |
+| **Test log** — `pytest tests/ -q` on 2026-10-15: 442 passed, 15 live deselected; `pytest tests/ -m live` for the network suite | iteration log §5 |
+| **Development log** — every commit with its WHY in the message | `git log --oneline dbb0394..HEAD` |
+| Previous iteration's state | [`design_audit/situation_report.md`](design_audit/situation_report.md) and [`design_audit/improvement_plan.md`](design_audit/improvement_plan.md) |
+
 ## Included materials
 
 The dated package directory contains the English prompts and notes, five reference PDFs, optional supplied datasets, selected Agentic Doping source excerpts, and provenance/checksum manifests. It was extracted from the validated local release without altering packaged file contents.

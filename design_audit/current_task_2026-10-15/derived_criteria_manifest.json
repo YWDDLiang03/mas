@@ -1,0 +1,289 @@
+{
+ "baseline_label": "historical_baseline_pre_repair",
+ "baseline_statement": "Pre-repair historical baseline. These records are exported unchanged from the live store. They are the output of a derivation whose merge stage performed zero merges across every round, whose proposer/critic debate deferred its disagreements to the review queue rather than settling them, and whose open disputes are still open. No criterion was improved, corrected or tidied during export; corrected records belong to a later version published with a diff.",
+ "board": null,
+ "counts": {
+  "bounds": {
+   "counts": "registered criteria carrying a numeric bound whose basis is a cited claim, a bound restating a task constraint, and no bound at all",
+   "value": {
+    "no_cutoff_evidence_insufficient": 43,
+    "source_stated_with_claims": 0,
+    "task_constraint_cutoff": 1
+   }
+  },
+  "collapsed_away_now": {
+   "counts": "registered rules whose attribute a collapse merged away",
+   "value": 0
+  },
+  "collapses": {
+   "counts": "collapse records; each merged several registrations of one quantity into one attribute reading every route",
+   "value": {
+    "applied": 0,
+    "withdrawn": 0
+   }
+  },
+  "comparable_from_fields": {
+   "counts": "registered criteria all four rubric facets can be read off without reading prose; the applicability gap is schema-wide, so this is zero while no attribute records applicability as a field",
+   "value": 0
+  },
+  "deferred_now": {
+   "counts": "registered rules held out of the latest set entirely, because every evidence route they declare needs a capability that was not run",
+   "value": 41
+  },
+  "expert_decisions": {
+   "counts": "`hd_` records; an expert decision needs a person at a terminal",
+   "value": 0
+  },
+  "machine_adjudications": {
+   "counts": "items resolved by software with no person; recorded as `agent_verdict`, never as an expert approval",
+   "value": 0
+  },
+  "matching_facet_gaps": {
+   "counts": "registered criteria whose records do not answer one of the four recovery-rubric facets from fields alone; the cards name the absence per criterion",
+   "value": {
+    "applicability": 93,
+    "decision_semantics": 1,
+    "operational_quantity": 67,
+    "threshold": 50
+   }
+  },
+  "pool_lineages": {
+   "counts": "distinct `cri_` lineages the pool ever held",
+   "value": 214
+  },
+  "promoted_pool_items": {
+   "counts": "pool lineages whose final state is `promoted`; each wrote one attribute and one rule into the registry",
+   "value": 86
+  },
+  "proposals_added_to_pool": {
+   "counts": "pool lineages created by the propose stage, over every round in this task",
+   "value": 208
+  },
+  "pruned_pool_items": {
+   "counts": "pool lineages that never reached the registry, by final state: deferred_next_round 4, filtered_out 7, merged_away 28, withdrawn 89",
+   "value": 128
+  },
+  "registered_criteria": {
+   "counts": "distinct attribute ids in the registry, each paired with one rule id; this is the promoted pool items plus the criteria the adapter templates registered without entering the pool",
+   "value": 93
+  },
+  "registered_from_pool": {
+   "counts": "registered criteria whose attribute a pool promotion wrote",
+   "value": 86
+  },
+  "registered_from_templates": {
+   "counts": "registered criteria an adapter template wrote directly, bypassing the pool",
+   "value": 7
+  },
+  "registry_versions": {
+   "counts": "attribute and rule *versions*, not criteria; a second version is a revision of one criterion, not another criterion",
+   "value": {
+    "attribute": 98,
+    "rule": 98
+   }
+  },
+  "review_queue": {
+   "counts": "review items raised against this task, by state",
+   "value": {
+    "open": 56
+   }
+  },
+  "rule_sets": [
+   {
+    "acceptance_label": "exploratory",
+    "collapsed_away": 0,
+    "deferred": 41,
+    "pending": 38,
+    "rule_set_ref": "rules@v1",
+    "scoring": 9,
+    "scoring_with_a_route_held_out": 0
+   }
+  ],
+  "scoring_now": {
+   "counts": "rules in rules@v1, the latest confirmed set",
+   "value": 9
+  },
+  "scoring_with_a_route_held_out_now": {
+   "counts": "rules in the latest set that score on some of their evidence routes while others are held out of this run; they are counted in `scoring_now`, never in `deferred_now`",
+   "value": 0
+  },
+  "unresolved_disputes": {
+   "counts": "open review items raised because a proposer and a critic still disagreed after one revision",
+   "value": 25
+  }
+ },
+ "export_kind": "historical_baseline",
+ "export_metadata": {
+  "exported_at": "2026-10-15T14:22:28.995Z",
+  "exported_by": {
+   "id": "yiwei3_duke",
+   "identity_basis": "recorded_attestation",
+   "kind": "human",
+   "role": "operator",
+   "via": {
+    "surface": "terminal"
+   }
+  },
+  "note": "exported_at is excluded from payload_digest on purpose",
+  "tool": "mas criteria export"
+ },
+ "file_digests": {
+  "criteria_count_reconciliation.md": {
+   "bytes": 4075,
+   "sha256": "d75412ed620477e82d6f060b3ea0dd4b38833caaf01fd835ce1a28fe149e94b0"
+  },
+  "derived_criteria_review.json": {
+   "bytes": 2678122,
+   "sha256": "2e3b2d21feddbd4305bf5d8b5206f4a9f8efeefb0a2d8dfd6692ae33769d8858"
+  },
+  "derived_criteria_review.md": {
+   "bytes": 1682170,
+   "sha256": "6fe965aabfa454efc774b69416935536b1fbca9ca4cdef31d72126e6cec0f901"
+  }
+ },
+ "implementation": {
+  "code_commit": "d0da99ad2a92f762ac5603c8b1bdcd148812f3c6",
+  "package_version": "0.1.0",
+  "uncommitted_changes": false
+ },
+ "journal_position": {
+  "pinned_seq": 1449,
+  "task_stream": "task_01M4X892V1EAER2GHWE1RE19ZN"
+ },
+ "latest_rule_set_ref": "rules@v1",
+ "payload_digest": {
+  "over": "the canonical snapshot payload, which carries no export timestamp",
+  "sha256": "a338c2ef50eeb1ca0a437a88800d9de2fa92097975988060bd23625894dec92e"
+ },
+ "recovery_comparison_set": {
+  "by_origin": {
+   "literature_derived": {
+    "attribute_refs": [
+     "attr_acid-reducing-agent-induced-auc-reduction@v1",
+     "attr_active-metabolite-terminal-half-life@v1",
+     "attr_adverse-event-driven-treatment-discontinuation-rate@v1",
+     "attr_age-related-pharmacokinetic-variability@v1",
+     "attr_alopecia-incidence@v1",
+     "attr_any-grade-diarrhea-incidence@v1",
+     "attr_any-grade-fatigue-incidence@v1",
+     "attr_any-grade-hyperphosphatemia-incidence@v1",
+     "attr_balance-of-potency-across-the-required-receptor-set@v1",
+     "attr_clearance-reduction-in-mild-hepatic-impairment@v1",
+     "attr_co-inhibition-burden-against-non-required-receptor-kinases@v1",
+     "attr_conformational-flexibility-rotatable-bond-count@v1",
+     "attr_count-of-documented-non-cyp450-elimination-routes@v1",
+     "attr_curated-csf1r-potency-relative-to-the-approved-csf1r-inhibit@v1",
+     "attr_curated-fgfr1-potency-relative-to-a-low-nanomolar-fgfr1-3-in@v1",
+     "attr_curated-mechanism-of-action-records-confirming-engagement-of@v1",
+     "attr_cyp450-mediated-drug-drug-interaction-liability-perpetrator@v1",
+     "attr_fgfr1-inclusive-fgfr-family-breadth@v1",
+     "attr_first-pass-extraction-ratio@v1",
+     "attr_fold-weakness-of-the-major-circulating-metabolite-at-the-req@v1",
+     "attr_grade-3-adverse-event-rate-on-the-recommended-dose@v1",
+     "attr_grade-3-diarrhea-incidence@v1",
+     "attr_grade-3-fatigue-incidence@v1",
+     "attr_grade-3-hyperphosphatemia-incidence@v1",
+     "attr_hepatic-clearance-as-a-fraction-of-liver-blood-flow@v1",
+     "attr_hepatic-elimination-route-redundancy-documented-for-the-agen@v1",
+     "attr_highest-required-receptor-residual-activity-in-a-1-micromola@v1",
+     "attr_human-liver-microsomal-half-life@v1",
+     "attr_human-liver-microsomal-stability-parent-remaining-at-60-min@v1",
+     "attr_human-oral-absorption-fraction-fa-reported-in-clinical-studi@v1",
+     "attr_human-terminal-plasma-elimination-half-life-relative-to-a-sa@v1",
+     "attr_interpatient-variability-in-terminal-half-life@v1",
+     "attr_intestinal-cyp3a4-inhibition-induced-increase-in-oral-exposu@v1",
+     "attr_kinases-inhibited-by-at-least-90-at-a-1-micromolar-screening@v1",
+     "attr_kinome-wide-inhibition-breadth-at-the-50-threshold@v1",
+     "attr_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1",
+     "attr_literature-reported-vegfr1-ic50@v1",
+     "attr_lowest-creatinine-clearance-at-which-the-agent-s-clearance-i@v1",
+     "attr_magnitude-of-meal-induced-change-in-oral-exposure-absolute-f@v1",
+     "attr_magnitude-of-meal-induced-reduction-in-peak-oral-exposure-cm@v1",
+     "attr_meal-induced-auc-increase@v1",
+     "attr_meal-induced-auc-reduction@v1",
+     "attr_minimum-percent-inhibition-across-the-five-required-receptor@v1",
+     "attr_molecular-weight-against-the-class-typical-upper-size-edge-f@v1",
+     "attr_nail-change-incidence@v1",
+     "attr_nail-toxicity-requiring-dose-reduction-or-interruption@v1",
+     "attr_oral-bioavailability-relative-to-the-band-described-as-poor-@v1",
+     "attr_oral-clearance-induction-by-enzyme-inducing-antiepileptic-dr@v1",
+     "attr_palmar-plantar-erythrodysesthesia-incidence@v1",
+     "attr_pan-vegfr-family-engagement-of-vegfr1-vegfr2-and-vegfr3-by-o@v1",
+     "attr_peak-on-treatment-natriuretic-peptide-elevation@v1",
+     "attr_pharmacogenomic-variability-in-drug-metabolism@v1",
+     "attr_predicted-aqueous-solubility@v1",
+     "attr_predicted-cyp3a4-substrate-liability-as-a-presystemic-first-@v1",
+     "attr_predicted-drug-induced-liver-injury-probability@v1",
+     "attr_predicted-herg-channel-blockade-probability@v1",
+     "attr_predicted-human-liver-microsomal-intrinsic-clearance@v1",
+     "attr_predicted-intestinal-epithelial-permeability-caco-2-effectiv@v1",
+     "attr_predicted-oral-bioavailability-probability@v1",
+     "attr_predicted-p-glycoprotein-interaction-liability-at-the-intest@v1",
+     "attr_predicted-passive-transcellular-permeability-pampa@v1",
+     "attr_predicted-probability-of-clinical-toxicity@v1",
+     "attr_predicted-probability-of-human-intestinal-absorption@v1",
+     "attr_rat-plasma-clearance@v1",
+     "attr_reported-aqueous-solubility-of-the-compound@v1",
+     "attr_reported-human-oral-bioavailability-against-a-same-class-ben@v1",
+     "attr_reported-inter-individual-variability-in-oral-exposure@v1",
+     "attr_reported-intestinal-epithelial-permeability-caco-2-apparent-@v1",
+     "attr_reported-peak-to-trough-fluctuation-in-steady-state-plasma-c@v1",
+     "attr_reported-selectivity-of-the-required-vegfr-arm-over-off-targ@v1",
+     "attr_required-receptor-engagement-coverage-documented-on-curated-@v1",
+     "attr_required-receptors-designated-in-the-report-s-primary-strong@v1",
+     "attr_required-receptors-documented-as-inhibited-at-clinically-ach@v1",
+     "attr_selectivity-margin-over-off-target-protein-kinases@v1",
+     "attr_serious-adverse-event-rate@v1",
+     "attr_simultaneous-engagement-of-the-five-required-receptors-repor@v1",
+     "attr_stomatitis-or-oral-mucositis-incidence@v1",
+     "attr_susceptibility-to-cyp3a4-inducer-mediated-exposure-reduction@v1",
+     "attr_terminal-half-life-upper-bound-as-an-accumulation-risk-flag@v1",
+     "attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1",
+     "attr_treatment-related-deaths-reported@v1",
+     "attr_urinary-recovery-of-the-administered-dose@v1",
+     "attr_vegfr-inhibitory-potency-advantage-over-first-generation-veg@v1",
+     "attr_weakest-curated-potency-across-the-three-required-vegfr-fami@v1",
+     "attr_weakest-required-receptor-potency-across-the-five-tumour-mic@v1",
+     "attr_worst-reported-treatment-emergent-toxicity-burden@v1"
+    ],
+    "count": 86
+   },
+   "task_mandated_template": {
+    "attribute_refs": [
+     "attr_approved-oral-route-on-record@v1",
+     "attr_csf1r-curated-potency@v2",
+     "attr_fgfr1-curated-potency@v2",
+     "attr_oral-administration-reported-in-the-clinical-literature@v1",
+     "attr_vegfr1-curated-potency@v2",
+     "attr_vegfr2-curated-potency@v2",
+     "attr_vegfr3-curated-potency@v2"
+    ],
+    "count": 7
+   }
+  },
+  "duplicate_measurement_identities": [],
+  "excluded_as_a_repeated_variant": [],
+  "excluded_as_pruned_pool_items": 128,
+  "included_count": 93,
+  "statement": "The derived set for a recovery mapping: every registered criterion whose quantity is not already carried by another registered criterion. Pruned pool items are in the lifecycle section and are not derived criteria. Nothing here is shaped by any knowledge of the sealed historical list."
+ },
+ "rule_set_refs": [
+  "rules@v1"
+ ],
+ "schema_version": 1,
+ "store": {
+  "opened": "read_only",
+  "root": "var/primary/store"
+ },
+ "task": {
+  "objective_text": "Identify a single orally administered agent that concurrently engages the stated tumour-microenvironment targets (CSF1R, VEGFR1, VEGFR2, VEGFR3, FGFR1), with a pharmacological profile suitable for clinical development",
+  "task_context_ref": "task_01M4X892V1EAER2GHWE1RE19ZN@v1"
+ },
+ "withheld": {
+  "artifact_kinds": [
+   "tool_result",
+   "trace"
+  ],
+  "reason": "private model traces and whole provider responses are not published; quoted spans, locators, source identities and document hashes are"
+ }
+}
