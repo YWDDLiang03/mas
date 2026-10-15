@@ -18,7 +18,9 @@ The concrete first use case is completing the manuscript rebuttal workflow and s
 
 | what | where |
 |---|---|
-| **System report** — where the project stands, the exact next commands, a reference for every module of `src/mas`, known gaps | [`design_audit/system_report_2026-10-15.md`](design_audit/system_report_2026-10-15.md) |
+| **Start here: handoff recipe** — the goal, the frozen-state inventory, the five-step reproducible path to both readings (inherit the store; no re-derivation, no literature crawl), how to read a board, and every known problem | [`design_audit/HANDOFF_2026-10-15.md`](design_audit/HANDOFF_2026-10-15.md) |
+| **System report** — the goal and problem list, where the project stands, the exact next commands, a reference for every module of `src/mas`, process lessons | [`design_audit/system_report_2026-10-15.md`](design_audit/system_report_2026-10-15.md) |
+| **Environment** — the service-host pins and the predictor's separate environment | [`requirements.txt`](requirements.txt) |
 | **Iteration log** — the bridge stall and account hold, rounds 5–10 on the case chain, every deviation and configuration change, the test log, the development log | [`design_audit/iteration_log_2026-10-15.md`](design_audit/iteration_log_2026-10-15.md) |
 | **Run log** — run ids, times, outcomes, and the stage records they wrote | iteration log §1 and §3; live detail in `var/primary/store/store.db` (git-ignored) |
 | **Test log** — `pytest tests/ -q` on 2026-10-15: 442 passed, 15 live deselected; `pytest tests/ -m live` for the network suite | iteration log §5 |
