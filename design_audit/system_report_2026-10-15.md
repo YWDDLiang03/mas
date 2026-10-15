@@ -29,8 +29,15 @@ produced on the frozen policy and reported with their limitations:
   (different task, pre-repair criteria, no freeze) — a result the owner is satisfied with but that
   is not an acceptance reading.
 - **B — CQA recovery**: how many of the sealed eleven historical criteria the derived set recovers,
-  "similar items counting". The intake exists (opened once, 14 Oct 22:50); the report is produced
-  by an isolated evaluator's mapping.
+  "similar items counting". **Measured once, and final on this task: exact 0/11, exact-or-near
+  4/11 (36.4%), missed 7** — compared by an isolated evaluator against the `rules@v1` frozen
+  snapshot (51 criteria, seq 857), with the exposure view `independent` (0 list reads before the
+  freeze at seq 857, 1 logged read by a deriving role afterwards, no declared exposures). A second
+  mapping or a different pinned snapshot is **refused by the design**
+  (`comparison_already_recorded`) so the number cannot be re-hunted; only a new case could
+  re-measure it. Against the owner's target ("most of the eleven") this is **not met**; the report's
+  own limits section states that a `missed` item may reflect the historical item's documentation
+  rather than the derivation, and that no pass threshold was registered before unsealing.
 
 **The wanted result, in the owner's terms:** inherit everything the store already holds (no
 re-derivation, **no literature crawling**), and reach a satisfactory, reproducible pair of readings
