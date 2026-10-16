@@ -851,7 +851,9 @@ def test_the_sweep_hands_every_literature_cell_the_configured_document_floor(cor
     settings = config_mod.resolve(project_file=None, environ={},
                                   # the fake search tool answers for every source, as it does when a run
                                   # binds no settings at all; only the floor is under test here
-                                  overrides={"evidence.min_source_documents": 2, "search.sources": []})
+                                  overrides={"evidence.min_source_documents": 2, "search.sources": [],
+                                             "evaluation.mode": "full", "qualification.policy": "legacy",
+                                             "evidence.mode": "retrieve"})
     assert ("const_evidence_min_source_documents", 2, "documents") in settings.registered_constants()
     controller, _, reader = make_controller(core, ReaderModel())
     run_id = controller.start(setup_task(core), by=OPERATOR, sweep_seed=3, settings=settings)

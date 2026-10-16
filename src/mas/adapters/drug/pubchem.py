@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import copy
 import threading
 from typing import Any
 from urllib.parse import quote
 
 from mas.adapters.literature import http
 from mas.core.broker import ProviderResponse, ToolContract, ToolError
+from mas.core.canonical import sha256_hex
 
 BASE = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
 IDENTITY_FIELDS = "InChIKey,IUPACName,MolecularFormula"
@@ -82,6 +84,7 @@ class PropertyCache:
 
 
 class PubChemProperty:
+    historical_projection_policy = "pubchem_descriptor_row_projection@v1"
     contract = ToolContract(
         tool_id="tool_drug_pubchem_property", capability="property_estimate", capability_kind="attribute_estimate",
         question_kinds=("computed_property",), contract_version="1", implementation_version="pug-rest-property-1",
@@ -91,15 +94,58 @@ class PubChemProperty:
 
     def __init__(self, cache: PropertyCache | None = None):
         self.cache = cache
+        self._historical_rows: dict[str, dict[str, Any]] = {}
+
+    @staticmethod
+    def _row_key(inputs: dict[str, Any]) -> str:
+        return sha256_hex({key: value for key, value in inputs.items() if key != "property"})
+
+    def seed_historical_result(self, result: dict[str, Any], source: dict[str, Any]) -> bool:
+        """Remember the first original row for otherwise identical descriptor inputs."""
+        invocation, provenance = result["invocation"], result["provenance"]
+        inputs = invocation["normalized_input"]
+        records = result["records"]
+        if (invocation["question_kind"] != "computed_property" or inputs.get("property") not in PROPERTIES
+                or not records or not isinstance(records[0], dict) or "CID" not in records[0]):
+            return False
+        key = self._row_key(inputs)
+        if key in self._historical_rows:
+            return False
+        row = copy.deepcopy(records[:1])
+        self._historical_rows[key] = {
+            "records": row, "data_version": provenance.get("data_version", "pubchem"),
+            "retrieved_at": provenance["retrieved_at"],
+            "source": {"strategy": self.historical_projection_policy, **source,
+                       "source_invocation_id": invocation["invocation_id"],
+                       "source_property": inputs["property"], "record_sha256": sha256_hex(row)},
+        }
+        return True
+
+    def historical_projection_manifest(self) -> dict[str, Any]:
+        return {"policy": self.historical_projection_policy, "rows": len(self._historical_rows),
+                "matching": "same tool, contract, implementation and all inputs except property",
+                "missing_field": "empty_without_retrieval", "entries_digest": sha256_hex([
+                    {"input_key": key, "source": self._historical_rows[key]["source"]}
+                    for key in sorted(self._historical_rows)])}
 
     def invoke(self, question_kind: str, inputs: dict[str, Any]) -> ProviderResponse:
         prop = inputs["property"]
         if prop not in PROPERTIES:
             raise ToolError("input_invalid", f"unsupported property {prop}", retryable=False)
-        records = self.cache.row(inputs["identifier"]) if self.cache is not None \
-            else _properties(f"inchikey/{inputs['identifier']}", prop)
+        history = self._historical_rows.get(self._row_key(inputs))
+        if history is not None:
+            records = copy.deepcopy(history["records"])
+        else:
+            records = self.cache.row(inputs["identifier"]) if self.cache is not None \
+                else _properties(f"inchikey/{inputs['identifier']}", prop)
         unit, cast = PROPERTIES[prop]
         values = [{"name": prop, "value": cast(r[prop]), "unit": unit, "value_kind": "derived",
                    "source_record_ref": f"pubchem_cid_{r['CID']}"} for r in records if r.get(prop) is not None][:1]
-        return ProviderResponse(values=values, records=records[:1], data_version="pubchem",
-                                upstream_refs=[f"pubchem:cid:{r['CID']}" for r in records[:1]])
+        return ProviderResponse(
+            values=values, records=records[:1], data_version=history["data_version"] if history is not None else "pubchem",
+            outcome="empty" if history is not None and not values else "ok",
+            upstream_refs=[f"pubchem:cid:{r['CID']}" for r in records[:1]],
+            source_retrieved_at=history["retrieved_at"] if history is not None else None,
+            local_derivation=dict(history["source"], selected_property=prop) if history is not None else None,
+            warnings=[f"{prop} is absent from the inherited PubChem row; no new retrieval was attempted"]
+            if history is not None and not values else [])

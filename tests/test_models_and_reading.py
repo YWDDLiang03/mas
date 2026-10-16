@@ -1,5 +1,6 @@
 import json
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -91,17 +92,37 @@ def test_redact_removes_secrets():
     assert redact("key sk-123 leaked", ["sk-123"]) == "key [REDACTED] leaked"
 
 
-def test_exchange_adapter_round_trip(tmp_path):
+def test_exchange_adapter_round_trip(tmp_path, monkeypatch):
     adapter = ExchangeAdapter("bridge", tmp_path / "x", poll_s=0.01, timeout_s=10)
     request = ModelRequest(role="reader", system="s", messages=[{"role": "user", "content": "q"}])
+    sharing_faults = {"requests": 1, "responses": 1}
+    original_read = Path.read_text
+
+    def briefly_locked(path, *args, **kwargs):
+        group = path.parent.name
+        if path.stem == request.request_id and sharing_faults.get(group) and path.exists():
+            sharing_faults[group] -= 1
+            raise PermissionError("synthetic Windows sharing violation")
+        return original_read(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", briefly_locked)
 
     def answer():
         path = tmp_path / "x" / "requests" / f"{request.request_id}.json"
-        while not path.exists():
-            pass
-        body = json.loads(path.read_text())
-        (tmp_path / "x" / "responses" / f"{body['request_id']}.json").write_text(
-            json.dumps({"request_id": body["request_id"], "data": {"claims": []}, "model_id": "subagent-opus"}))
+        deadline = time.monotonic() + adapter.timeout_s
+        while True:
+            try:
+                body = json.loads(path.read_text(encoding="utf-8"))
+                break
+            except (FileNotFoundError, PermissionError):
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(adapter.poll_s)
+        target = tmp_path / "x" / "responses" / f"{body['request_id']}.json"
+        temporary = target.with_suffix(".tmp")
+        temporary.write_text(json.dumps({"request_id": body["request_id"], "data": {"claims": []},
+                                         "model_id": "subagent-opus"}), encoding="utf-8")
+        temporary.replace(target)
 
     thread = threading.Thread(target=answer)
     thread.start()
@@ -109,6 +130,7 @@ def test_exchange_adapter_round_trip(tmp_path):
     thread.join()
     assert response.data == {"claims": []} and response.provider_path == "exchange_bridge"
     assert response.model_id == "subagent-opus"
+    assert sharing_faults == {"requests": 0, "responses": 0}
 
 
 # --- JATS reading --------------------------------------------------------------------

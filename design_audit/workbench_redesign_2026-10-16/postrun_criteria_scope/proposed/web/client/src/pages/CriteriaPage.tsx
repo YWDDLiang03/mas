@@ -1,0 +1,74 @@
+import { useEffect } from 'react';
+import { api } from '../api/client';
+import type { Criterion, CriterionDetail, Page, RevisionResult, Stage } from '../api/types';
+import { operationText, phaseText, stateText, useI18n } from '../i18n';
+import { useDebounced, useResource } from '../hooks/useResource';
+import { useViewState } from '../hooks/useViewState';
+import { Audit, Badge, dateText, Drawer, Empty, ErrorNotice, Loading, Pagination, Panel, Search, valueText } from '../components/UI';
+import { EvidenceCard } from '../components/EvidenceCard';
+import { StageTable } from './OverviewPage';
+import { CriteriaEvolution, stageCountScope } from '../components/CriteriaEvolution';
+import { CriterionEditor } from '../components/CriterionEditor';
+
+function Difference({ before, after }: { before: unknown; after: unknown }) {
+  const { t } = useI18n();
+  function fields(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== 'object') return value == null ? {} : { value };
+    const record = value as Record<string, unknown>;
+    const merged = { ...record, ...(record.attribute && typeof record.attribute === 'object' ? record.attribute : {}), ...(record.rule && typeof record.rule === 'object' ? record.rule : {}) };
+    return Object.fromEntries(['name', 'definition', 'role', 'rule_kind', 'direction', 'cutoff', 'unit', 'state'].filter(key => merged[key as keyof typeof merged] !== undefined).map(key => [key, merged[key as keyof typeof merged]]));
+  }
+  const left = fields(before), right = fields(after);
+  const changed = [...new Set([...Object.keys(left), ...Object.keys(right)])].filter(key => JSON.stringify(left[key]) !== JSON.stringify(right[key]));
+  const display = (field: string, value: unknown) => ['role', 'rule_kind', 'direction', 'state'].includes(field) && typeof value === 'string' ? stateText(value, t) : valueText(value);
+  const labels: Record<string, string> = { name: t('Name', '名称'), definition: t('Definition', '定义'), role: t('Role', '用途'), rule_kind: t('Role', '用途'), direction: t('Direction', '方向'), cutoff: t('Threshold', '阈值'), unit: t('Unit', '单位'), state: t('State', '状态'), value: t('Value', '内容') };
+  return changed.length ? <div className="difference"><div className="difference-head"><span>{t('Before', '之前')}</span><span>{t('After', '之后')}</span></div>{changed.map(field => <div className="difference-row" key={field}><span><small>{labels[field]}</small>{display(field, left[field])}</span><span><small>{labels[field]}</small>{display(field, right[field])}</span></div>)}</div> : null;
+}
+export function criterionDetailRef(criterion: Criterion) {
+  if (criterion.detail_ref) return criterion.detail_ref;
+  if (criterion.criterion_id.startsWith('cri_') && !criterion.criterion_id.includes('@v')) return `${criterion.criterion_id}@v${criterion.version}`;
+  return criterion.rule_ref || criterion.attribute_ref || criterion.criterion_id;
+}
+
+type CriteriaViewPage = Page<Criterion> & { criteria_scope?: string; rule_set_ref?: string };
+
+export function CriteriaPage({ task, item, revision, enabled, onOpen, onClose, onRevision, onEditTask }: { task: string; item: string; revision: number; enabled: boolean; onOpen: (id: string) => void; onClose: () => void; onRevision: (result: RevisionResult) => void; onEditTask: () => void }) {
+  const { t, language } = useI18n();
+  const [filters, setFilters] = useViewState(task, 'criteria', { query: '', state: 'working', stage: '', page: 1 });
+  const { query, stage } = filters;
+  const state = filters.state === 'active' ? 'working' : filters.state;
+  const page = filters.state === 'active' ? 1 : filters.page;
+  useEffect(() => {
+    if (filters.state === 'active') setFilters(current => ({ ...current, state: 'working', page: 1 }));
+  }, [filters.state, setFilters]);
+  const setQuery = (query: string) => setFilters(current => ({ ...current, query, page: 1 }));
+  const setState = (state: string) => setFilters(current => ({ ...current, state, page: 1 }));
+  const setStage = (stage: string) => setFilters(current => ({ ...current, stage, page: 1 }));
+  const setPage = (page: number) => setFilters(current => ({ ...current, page }));
+  const q = useDebounced(query);
+  const resource = useResource<CriteriaViewPage>(`${task}/criteria/${q}/${state}/${stage}/${page}`, signal => api.criteria(task, { q, state, stage, page }, signal), revision);
+  const stages = useResource<{ items: Stage[] }>(`${task}/stages`, signal => api.stages(task, signal), revision);
+  const detail = useResource<CriterionDetail>(item ? `${task}/criteria/${item}` : null, signal => api.criterion(task, item, signal), revision);
+  const stageSelected = stages.data?.items.find(value => value.stage_id === stage);
+  const scopeCaption = state === 'working'
+    ? resource.data?.criteria_scope === 'frozen'
+      ? t('Criteria enabled in the latest prepared evaluation. Pending work is listed separately.', '最近准备的评估所启用的标准。待处理工作单独列出。')
+      : t('The current working set while criteria are being developed.', '标准生成与整理中的当前工作集。')
+    : state === 'pending'
+      ? resource.data?.rule_set_ref
+        ? t('Unregistered proposals, open reviews and current rules outside the prepared evaluation.', '未注册提案、待复核项目，以及未入选本次评估的当前规则。')
+        : t('Unregistered proposals and current review items.', '未注册提案和当前待复核项目。')
+      : t('Open a criterion to explore its evidence and changes.', '打开一条标准，查看其证据与变化。');
+  const lineageNames = new Map(detail.data?.lineage?.nodes.map(node => [node.id || node.ref, node.name || t('Record missing', '记录缺失')]));
+
+  return <><div className="page-heading"><div><div className="eyebrow">{t('Criteria workspace', '标准工作区')}</div><h1>{t('From broad questions to useful criteria', '从广泛问题到有意义的标准')}</h1><p>{t('Follow generation, refinement, evidence and every saved revision.', '追踪生成、整理、证据以及每个已保存的版本。')}</p></div></div>
+    <Panel title={t('Criteria evolution', '标准演化')} caption={t('How the criteria expand and become more focused after each completed stage.', '查看每个已完成阶段如何展开和提炼标准。')} className="criteria-evolution-panel"><ErrorNotice message={stages.error} retry={stages.refresh} /><CriteriaEvolution stages={stages.data?.items || []} /></Panel>
+    <details className="stage-inspector"><summary>{t('Stage changes', '阶段变化')} <span>{stages.data?.items.length ?? '—'}</span></summary>{stages.data?.items.length ? <StageTable stages={stages.data.items} selected={stage} onSelect={id => { setStage(id === stage ? '' : id); setState(id === stage ? 'working' : ''); setPage(1); }} /> : <p className="subtle">{t('Stage counts will appear when recorded.', '阶段数量记录后会在这里显示。')}</p>}</details>
+    <Panel title={t('Research criteria', '研究标准')} caption={stageSelected ? `${phaseText(stageSelected.stage, t)} · ${t('iteration', '迭代')} ${stageSelected.iteration ?? '—'} · ${valueText(stageSelected.before_count)} → ${valueText(stageSelected.after_count)} · ${stageCountScope(stageSelected, t)}` : scopeCaption}><div className="table-toolbar"><Search value={query} onChange={value => { setQuery(value); setPage(1); }} placeholder={t('Search all criteria', '搜索全部标准')} /><label className="inline-select"><span className="sr-only">{t('State', '状态')}</span><select value={state} onChange={event => { setState(event.target.value); setPage(1); }}><option value="">{t('All versions', '全部版本')}</option><option value="working">{t('Working criteria', '当前标准')}</option><option value="pending">{t('Pending', '待处理')}</option>{['merged', 'retired'].map(value => <option key={value} value={value}>{stateText(value, t)}</option>)}</select></label>{stage && <button onClick={() => { setStage(''); setState('working'); setPage(1); }}>{t('Clear stage filter', '清除阶段筛选')}</button>}</div><ErrorNotice message={resource.error} retry={resource.refresh} />{!resource.data ? resource.loading && <Loading /> : resource.data.items.length ? <><div className="table-scroll"><table className="criteria-table"><thead><tr><th>{t('Criterion', '标准')}</th><th>{t('Role', '用途')}</th><th>{t('State', '状态')}</th><th>{t('Evidence', '证据')}</th><th>{t('Version', '版本')}</th><th>{t('Stage', '阶段')}</th></tr></thead><tbody>{resource.data.items.map(criterion => <tr key={`${criterion.criterion_id}/${criterion.version}`}><td><button className="name-button" onClick={() => onOpen(criterionDetailRef(criterion))}>{criterion.name}</button>{criterion.definition && <p className="cell-note clamp-two">{criterion.definition}</p>}</td><td>{stateText(criterion.role, t)}</td><td><Badge state={criterion.state} /></td><td className="numeric">{criterion.evidence_count ?? '—'}</td><td className="numeric">v{criterion.version}</td><td>{phaseText(criterion.stage, t)}{criterion.iteration != null && criterion.iteration > 0 && <span className="cell-note"> · {criterion.iteration}</span>}</td></tr>)}</tbody></table></div><Pagination page={resource.data} onChange={setPage} /></> : <Empty title={q || (state && state !== 'working') || stage ? t('No criteria match these filters', '没有匹配此筛选的标准') : t('Criteria have not been generated yet', '尚未生成标准')}><p>{t('This view uses the selected task’s actual criterion records.', '这里显示所选任务实际记录的标准。')}</p></Empty>}</Panel>
+    {item && <Drawer title={detail.data?.name || t('Criterion details', '标准详情')} onClose={onClose}>{!detail.data ? detail.error ? <ErrorNotice message={detail.error} retry={detail.refresh} /> : <Loading /> : <><div className="detail-meta"><Badge state={detail.data.state} /><Badge label={stateText(detail.data.role, t)} /><span>v{detail.data.version}</span><span>{detail.data.unit}</span></div><p className="detail-definition">{detail.data.definition}</p>{detail.data.reason && <p>{detail.data.reason}</p>}
+      <section className="detail-section"><h3>{t('Lineage', '形成沿革')}</h3>{detail.data.lineage?.nodes?.length ? <ol className="lineage-list">{detail.data.lineage.nodes.map((node, index) => <li key={node.id || node.ref || index}><span className="timeline-dot" /><div className="detail-meta">{node.relation && <small>{node.relation === 'parent' ? t('Parent criterion', '父标准') : node.relation === 'child' ? t('Child criterion', '子标准') : t('Selected version', '当前查看版本')}</small>}{node.version != null && <span>v{node.version}</span>}{node.state && <Badge state={node.state} />}</div>{node.detail_ref && !node.missing ? <button className="name-button" onClick={() => onOpen(node.detail_ref!)}>{node.name || t('Criterion', '标准')}</button> : <strong>{node.name || t('Record missing', '记录缺失')}</strong>}{node.definition && <p>{node.definition}</p>}{node.missing && <Audit data={{ ref: node.ref }} title={t('Missing record reference', '缺失记录的引用')} />}{node.operation && <p>{operationText(node.operation, t)}</p>}</li>)}</ol> : (detail.data.parents?.length || detail.data.children?.length) ? <Audit data={{ parents: detail.data.parents, children: detail.data.children }} title={t('Linked criterion versions', '关联的标准版本')} /> : <p className="subtle">{t('No earlier lineage is recorded for this criterion.', '此标准尚无早期沿革记录。')}</p>}</section>
+      {detail.data.lineage?.edges?.length ? <div className="lineage-edges">{detail.data.lineage.edges.map((edge, index) => <p key={index}><span>{lineageNames.get(edge.source) || t('Earlier criterion', '早期标准')}</span><span aria-hidden="true"> → </span><span>{lineageNames.get(edge.target) || t('Later criterion', '后续标准')}</span></p>)}</div> : null}
+      <section className="detail-section"><h3>{t('Changes and reasoning', '变化与理由')}</h3>{detail.data.history?.length ? detail.data.history.map((change, index) => <article className="history-entry" key={change.id || index}><div className="row spread"><strong>{change.operation ? operationText(change.operation, t) : phaseText(change.stage, t)}</strong><small>{dateText(change.at, language)}</small></div><p>{change.reason}</p><Difference before={change.before} after={change.after} /><Audit data={change} /></article>) : <p className="subtle">{t('No version changes are recorded yet.', '尚无版本变化记录。')}</p>}</section>
+      <section className="detail-section"><h3>{t('Supporting sources', '支持来源')}</h3>{detail.data.sources?.length ? detail.data.sources.map((source, index) => <EvidenceCard key={`${source.source_id}/${index}`} record={source} />) : <p className="subtle">{t('No supporting source is linked yet.', '尚未关联支持来源。')}</p>}</section>
+      {detail.data.historical_version && <div className="notice"><p>{t('This saved version is read-only. Open the current criterion to make changes.', '此保存版本只供查看。需要修改时，请打开当前标准。')}</p>{detail.data.current_ref && <button onClick={() => onOpen(detail.data!.current_ref!)}>{t('Open current criterion', '打开当前标准')}</button>}</div>}{enabled && !detail.data.historical_version && detail.data.editable === false && <div className="notice"><p>{t('Task requirements are edited through the research objective, so they keep their required status.', '任务要求通过研究目标修改，以保留其必需性质。')}</p><button onClick={onEditTask}>{t('Edit task', '编辑任务')}</button></div>}{enabled && !detail.data.historical_version && detail.data.editable !== false && <details className="detail-section"><summary>{t('Edit as a new version', '编辑并保存新版本')}</summary><CriterionEditor key={`${detail.data.criterion_id}/${detail.data.version}`} task={task} detail={detail.data} onSaved={result => { resource.refresh(); detail.refresh(); onRevision(result); }} /></details>}<Audit data={detail.data} /></>}</Drawer>}</>;
+}

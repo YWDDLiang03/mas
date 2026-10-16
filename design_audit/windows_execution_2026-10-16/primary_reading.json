@@ -1,0 +1,28 @@
+{
+  "snapshot_id": "lb_task_01M50JQYYQAMPBQTQ0N8YNQT22_1",
+  "run_id": "run_01M50KR3WM3ZBFKF6Z83BW77EX",
+  "rule_set": "rules@v1",
+  "reference": {
+    "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+    "identity_labels": [
+      "Surufatinib"
+    ],
+    "position": 5,
+    "preference_score": 0.729099933610358,
+    "preference_coverage": 0.7272727272727273,
+    "state": "provisional",
+    "clears_hard_rules": true,
+    "clears_mandated_criteria": false,
+    "n_mandated_answered": 4,
+    "n_mandated": 5,
+    "mandated_blocked_by": [
+      "attr_csf1r-curated-potency@v2"
+    ]
+  },
+  "rankable_n": 50,
+  "universe_n": 3177,
+  "sweep_completeness": 1.0,
+  "measurement_profile_ref": "art_dc699649c378",
+  "profile_conforms": true,
+  "top5_met": true
+}

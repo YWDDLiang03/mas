@@ -128,7 +128,7 @@ REVISION_SCHEMA = {
     "properties": {"revisions": {"type": "array", "items": {
         "type": "object", "required": ["index", "action", "reason"],
         "properties": {"index": {"type": "integer"}, "action": {"type": "string", "enum": ["revise", "withdraw"]},
-                       "proposal": {"type": "object"}, "reason": {"type": "string"}}}}},
+                       "proposal": {"type": ["object", "null"]}, "reason": {"type": "string"}}}}},
 }
 
 REVISER_SYSTEM = PROPOSER_SYSTEM + (
@@ -157,16 +157,24 @@ REVISION_CHECKS = ("objective_conformance", "evidence_support", "unit_applicabil
 # loop `acceptable_determination_bases` was in before it was added here.
 ATTRIBUTE_FIELDS = ("name", "definition", "measurement_kind", "unit", "direction", "acceptable_value_sources",
                     "acceptable_determination_bases", "determination_basis_precedence", "aggregation",
-                    "value_transform", "evidence_request", "evidence_requests", "rationale", "bound_support")
+                    "value_transform", "evidence_request", "evidence_requests", "rationale", "bound_support",
+                    "existence_semantics", "quantity_id", "aggregation_scope")
 
 # WHY one shared constant: both prompt builders describe the rule schema, and when the description drifts from what
 # `check_rule` accepts a proposer spends revisions discovering the real contract. This listed two of the five
 # predicate forms and never said that ordering ranks candidates, so a non-ranking rule had no form to reach for.
 SCHEMA_BLOCK_FORMS = (
+    "Numeric routes for different targets are pooled as raw observations by the current executor; "
+    "it cannot compute per-target medians followed by a minimum, spread or ratio. Keep independent "
+    "target criteria for those questions. An intentionally pooled raw summary must explicitly declare "
+    "attribute.aggregation_scope='pooled_observations', aggregation min|max|median, and a definition "
+    "that describes that raw pooling. Do not label a pooled value as a grouped composite.\n"
     "Rule fields: rule_kind (hard_exclusion|preference|exploratory_consideration), predicate_form "
-    "(threshold|ordering|range_membership|categorical_membership|qualitative_judgment); an ordering predicate ranks "
+    "(threshold|ordering|range_membership|categorical_membership|qualitative_judgment|recorded_observation); an ordering predicate ranks "
     "candidates, so it is only valid on a preference -- an exploratory_consideration uses qualitative_judgment "
-    "instead. cutoff {comparator (>=|<=|>|<|==), value, unit} or null, cutoff_basis "
+    "or explicitly recorded_observation to preserve a value and its evidence without a comparison or preference score. "
+    "recorded_observation requires a null cutoff and none_evidence_insufficient. "
+    "cutoff {comparator (>=|<=|>|<|==), value, unit} or null, cutoff_basis "
     "(source_stated_value|none_evidence_insufficient), on_missing/on_inapplicable/on_conflict "
     "(unknown_no_penalty|unknown_blocks_recommendation|route_to_human).\n"
     "Every number a candidate is compared against -- a rule cutoff, a bound inside a value_transform -- carries "
@@ -390,6 +398,46 @@ def _claims_block(claims: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def _route_output_problems(attribute: dict[str, Any], request: dict[str, Any],
+                           entry: dict[str, Any]) -> list[str]:
+    """Check a catalog's fixed output against the assessor's executable type/unit contract.
+
+    Free-form literature units and catalogs without a fixed output declaration remain unknown
+    here. A registered conversion is directional, exactly as it is in `usable_claims`.
+    """
+    units = entry.get("units")
+    if not isinstance(units, dict) or not units:
+        return []
+    parameters = request.get("parameters") or {}
+    selectors = [key for key in ("property", "endpoint", "field") if key in parameters
+                 and key in (entry.get("parameters") or {})]
+    if selectors:
+        selected = parameters[selectors[0]]
+        if not isinstance(selected, str) or selected not in units:
+            return [f"schema: route {entry['capability']}/{entry['question_kind']} has no declared output "
+                    f"for {selectors[0]}={selected!r}"]
+        returned_unit = units[selected]
+    elif len(set(units.values())) == 1:
+        returned_unit = next(iter(units.values()))
+    else:
+        # Several possible outputs without an explicit selector: do not guess which was meant.
+        return []
+    route = f"{entry['capability']}/{entry['question_kind']}"
+    if attribute.get("measurement_kind") == "quantitative":
+        if returned_unit is None:
+            return [f"schema: route {route} returns unitless categorical values; no executable numeric "
+                    f"aggregation converts them to {attribute.get('unit')!r} (including a target count)"]
+        target_unit = attribute.get("unit")
+        if assessor.canonical_unit(returned_unit) != assessor.canonical_unit(target_unit) \
+                and assessor.unit_conversion(returned_unit, target_unit) is None:
+            return [f"units: route {route} returns {returned_unit!r}, but the attribute declares {target_unit!r}; "
+                    "the assessor has no registered conversion in that direction"]
+    elif attribute.get("measurement_kind") == "categorical" and returned_unit is not None:
+        return [f"schema: route {route} returns numeric values in {returned_unit!r}; a categorical attribute "
+                "has no declared executable categorical projection for that output"]
+    return []
+
+
 def validate_proposal(proposal: dict[str, Any], *, claims_by_id: dict[str, dict[str, Any]],
                       reference_labels: list[str], catalog: list[dict[str, Any]]) -> list[str]:
     """Deterministic validator findings for one proposal (empty list = valid)."""
@@ -423,6 +471,7 @@ def validate_proposal(proposal: dict[str, Any], *, claims_by_id: dict[str, dict[
             problems.append(f"schema: evidence route {request.get('capability')}/{request.get('question_kind')} "
                             f"is not bound to a catalog entry")
             continue
+        problems += _route_output_problems(attribute, request, entry)
         if len(routes) > 1 and entry.get("evidence_kind") \
                 and entry["evidence_kind"] not in set(attribute.get("acceptable_value_sources") or ()):
             # Checked only for a pooled attribute, because that is where the mismatch hides: a single
@@ -466,20 +515,32 @@ def objective_criteria(core: Core, task_id: str, *, templates, by: dict[str, Any
 
     `templates(task_context)` returns [{"attribute", "rule", "source_field"}]. Each is proposed with
     `derived_from: task_context` and its source field, skipping any whose evidence key is already registered.
+    Templates explicitly setting `preserve_task_binding` deduplicate by evidence plus task field instead,
+    so a required observation cannot absorb a literal hard constraint on the same property.
     Hard exclusions among them still need an expert decision (trigger table).
     """
     from . import task as task_mod
     context = task_mod.get(core, task_id)
-    existing = {criteria.evidence_key(a) for a in criteria.registered_attributes(core, task_id)}
+    registered = criteria.registered_attributes(core, task_id)
+    existing = {criteria.evidence_key(a) for a in registered}
+    existing_bindings = {(criteria.evidence_key(a), (a.get("derived_from") or {}).get("field"))
+                         for a in registered if criteria.is_task_mandated(a)}
     who = make_actor("system", "objective-criteria", "adapter_template")
     added = []
     for item in templates(context):
-        if criteria.evidence_key(item["attribute"]) in existing:
+        key = criteria.evidence_key(item["attribute"])
+        # A generic scope observation and a literal hard constraint may read
+        # the same property. Preserve both task fields: measurement-only
+        # deduplication must never silently discard the user's hard requirement.
+        duplicate = ((key, item["source_field"]) in existing_bindings if item.get("preserve_task_binding")
+                     else key in existing)
+        if duplicate:
             continue
         attribute = dict(item["attribute"], derived_from={"task_context": f"{task_id}@v{context['version']}",
                                                            "field": item["source_field"]})
         attr_ref, rule_ref = criteria.propose(core, task_id, attribute, item["rule"], by=who)
-        existing.add(criteria.evidence_key(item["attribute"]))
+        existing.add(key)
+        existing_bindings.add((key, item["source_field"]))
         added.append({"attribute_ref": attr_ref, "rule_ref": rule_ref, "name": attribute["name"],
                       "rule_kind": item["rule"]["rule_kind"], "source_field": item["source_field"]})
     return added

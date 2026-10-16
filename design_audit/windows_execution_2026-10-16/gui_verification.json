@@ -1,0 +1,180 @@
+{
+  "recorded_at": "2026-10-15T22:34:20.578Z",
+  "control_channel": "codex_in_app_browser",
+  "browser_id": "2",
+  "tab_id": "2",
+  "base_url": "http://127.0.0.1:8769",
+  "status": "pass",
+  "verified": [
+    {
+      "step": "settings_open",
+      "evidence": "Initial browser AX showed English Settings and both literature/textbook workload mid."
+    },
+    {
+      "step": "settings_save",
+      "action": "Set both workload controls to mid and clicked Save settings",
+      "evidence": "Visible Saved status appeared; mixed-language toast recorded for correction."
+    },
+    {
+      "step": "language_switch",
+      "action": "Clicked 中文 then Choose a task and continue",
+      "evidence": "Operations URL had no lang query but UI remained Chinese; objective and form research content stayed English."
+    },
+    {
+      "step": "english_return",
+      "action": "Clicked English",
+      "evidence": "Run workspace became English, selected task R0JQX and active run link present."
+    },
+    {
+      "step": "task_selection",
+      "action": "Selected task ending NQT22 through visible dropdown",
+      "evidence": "Dropdown, criteria count and six primary nav links updated to the selected task."
+    },
+    {
+      "step": "active_run",
+      "action": "Followed current run link",
+      "evidence": "Real run showed iteration 3, distill, running; known estimated cost 1.527596 USD at observation."
+    },
+    {
+      "step": "criteria_navigation_and_filter",
+      "action": "Opened Criteria and searched CSF1R",
+      "evidence": "12 visible criterion rows; all contained CSF1R. Cleared search afterward."
+    },
+    {
+      "step": "results_empty_state",
+      "action": "Opened Results for R0JQX",
+      "evidence": "Correctly stated no result yet and offered run workspace navigation."
+    },
+    {
+      "step": "review_navigation",
+      "action": "Opened Review queue",
+      "evidence": "Page loaded; incorrect all-task scope recorded for correction."
+    },
+    {
+      "step": "task_language_retest",
+      "evidence": "After final history-job fix, selected NQT22 remained NQT22 after switching English to Chinese; restored R0JQX and English for final evaluation."
+    },
+    {
+      "step": "settings_save_final",
+      "evidence": "On 8769 selected both Medium labels, saved, and observed Settings saved. Choose a task to continue."
+    },
+    {
+      "step": "supplement_attach",
+      "job_id": "job_58c62db9d62f3565",
+      "evidence": "Clicked Add selected measurements and observed 1 sources attached and completed operation."
+    },
+    {
+      "step": "targeted_review",
+      "jobs": [
+        "job_1f8ed0700d2f17e3",
+        "job_762a1b5026e5ce4c",
+        "job_9afd4867cd1937df"
+      ],
+      "evidence": "Submitted the three current physical-property item references through Request machine review; each operation completed."
+    },
+    {
+      "step": "prepare_evaluation",
+      "job_id": "job_ab96a4360734aa83",
+      "measurement_profile": "art_5a84d471a676",
+      "evidence": "Entered rationale/effect, checked both explicit deferrals, submitted Prepare evaluation and observed 9 scoring criteria and the new named option."
+    },
+    {
+      "step": "start_full_run",
+      "job_id": "job_b7edc9f6e9dc0f9e",
+      "run_id": "run_01M50X7EYSBXPDCP0SG859666R",
+      "evidence": "Selected the new measurement, kept 4 workers, clicked Start full run, followed active run, and observed 6685/28593 assessments."
+    },
+    {
+      "step": "full_sweep_terminal",
+      "job_id": "job_b7edc9f6e9dc0f9e",
+      "evidence": "Actual GUI showed all 28593 assessments complete; recorded operation completed with exit 0."
+    },
+    {
+      "step": "complete_board",
+      "snapshot_id": "lb_task_01M50Q5EZE12GGDES5QNWR0JQX_1",
+      "evidence": "Actual results: 3177 compared, 50 rankable, Surufatinib #5, 89% preference coverage, required eligibility Met, provisional."
+    },
+    {
+      "step": "board_pagination",
+      "evidence": "Clicked Next to rows 201-400 and Previous to first page; snapshot stayed pinned."
+    },
+    {
+      "step": "gui_csv_download",
+      "evidence": "Clicked Export full results; downloaded C:/Users/admin/Downloads/mas-leaderboard.csv; 3177 unique rows, byte-identical to pinned API export.",
+      "sha256": "a03a3fcebef772f7984b6582ae52971d7b2ec6ac9de59cccabeac3f96fc5142d"
+    },
+    {
+      "step": "candidate_evidence",
+      "evidence": "Clicked Surufatinib; inspected 9 criterion assessments and 16 admitted evidence records, including CSF1R/FGFR1 supplement traces."
+    },
+    {
+      "step": "review_scope_final",
+      "evidence": "Clicked Review queue on final service; current task R0JQX, Pending 30, Earlier criterion requests 29."
+    },
+    {
+      "step": "narrow_table_final",
+      "evidence": "Inspected screenshots in unchanged browser viewport: candidate names, 0.696 score and 8.301 pChEMBL remain readable; horizontal scrolling available."
+    },
+    {
+      "step": "research_text_language_boundary_final",
+      "evidence": "Clicked Chinese in candidate page: UI headings changed to Chinese, exact criterion names CSF1R curated potency / FGFR1 curated potency and numerical values stayed unchanged; switched back to English."
+    },
+    {
+      "step": "deliverable",
+      "evidence": "Returned to unfiltered English complete results page and marked existing tab 2 as deliverable."
+    }
+  ],
+  "bugs_observed": [
+    {
+      "id": "mixed_language_saved_status",
+      "observed": "Saved · standard 预设, Continue by choosing a task.",
+      "status": "fixed_and_retested"
+    },
+    {
+      "id": "task_language_selection_reset",
+      "reproduction": [
+        "Open R0JQX operations URL",
+        "Select NQT22 in task dropdown",
+        "Click 中文"
+      ],
+      "observed": "Language links and address retained R0JQX, so Chinese page selected R0JQX again",
+      "status": "fixed_and_retested"
+    },
+    {
+      "id": "prepare_enabled_during_active_run",
+      "observed": "Prepare evaluation remained enabled while other research actions were disabled",
+      "status": "fixed_and_retested"
+    },
+    {
+      "id": "review_scope_mismatch",
+      "observed": "Task-scoped Review showed 177 pending from all tasks, versus current task 55",
+      "status": "fixed_and_retested",
+      "final_evidence": "Actual GUI: task R0JQX, 30 pending current-version requests, 29 historical requests folded separately; JSON link current_versions=1."
+    },
+    {
+      "id": "narrow_table_character_wrapping",
+      "observed": "At the unchanged approximately 677px browser width, candidate names, score digits, units and Evidence button broke into single characters.",
+      "status": "fixed_and_retested",
+      "fix": "Readable table minimum widths and horizontal scrolling; normal word wrap, no-wrap numeric/unit/action fields; precise-version attribute display names."
+    }
+  ],
+  "screenshots": [
+    "settings-saved-en-before-copy-fix.jpg",
+    "settings-saved-en.jpg",
+    "full-run-started.jpg",
+    "surufatinib-evidence.jpg",
+    "leaderboard-reference.jpg",
+    "surufatinib-final.jpg",
+    "leaderboard-final.jpg",
+    "surufatinib-zh-final.jpg"
+  ],
+  "remaining": [],
+  "finalized_at": "2026-10-15T23:49:38.813764+00:00",
+  "offline_verification": {
+    "path": "leaderboard_replay.json",
+    "status": "pass",
+    "difference_count": 0,
+    "scope": "Recorded separately from GUI actions: frozen-cell numerical reproduction."
+  },
+  "final_ui_source_sha256": "8ce97b966620cf16a48c849710fa3ee5ca181d8fb0a5f4b2fa06c0d0f306a7cb"
+}

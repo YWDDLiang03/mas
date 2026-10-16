@@ -1,0 +1,115 @@
+{
+  "source_task_id": "task_01M50P3BWJKG2RDF23YMYDXNS3",
+  "source_run_id": "run_01M50P3BWPYSSFMJF1QB3610KM",
+  "binding_ref": "art_029d4845d0d6",
+  "status": "verified_not_attached",
+  "document_ref": "art_04fbde456bfc",
+  "document_sha256": "b0a36eabecb8f210c6d2edd2b6a849a15ac2c4c6838e0af4ef7e20a7b12c0171",
+  "claims": [
+    {
+      "claim_id": "claim_01M50P3GVHYVV4XQ8K8XPQS1BB",
+      "attribute_ref": "supplement_CHEMBL3650@v1",
+      "value": 34,
+      "unit": "nM",
+      "scope": {
+        "population_or_system": "wild-type FGFR1",
+        "marker": "stated"
+      },
+      "admission_state": "admitted",
+      "admission_reasons": [
+        "quote_verified",
+        "value_in_quote",
+        "candidate_named_in_quote"
+      ]
+    },
+    {
+      "claim_id": "claim_01M50P3GVMBV0R6XFCEX5NJKWK",
+      "attribute_ref": "supplement_CHEMBL1844@v1",
+      "value": 5,
+      "unit": "nM",
+      "scope": {
+        "population_or_system": "wild-type CSF-1R",
+        "marker": "stated"
+      },
+      "admission_state": "admitted",
+      "admission_reasons": [
+        "quote_verified",
+        "value_in_quote",
+        "candidate_named_in_quote"
+      ]
+    },
+    {
+      "claim_id": "claim_01M50P3GVPN27TNERQ009CFGNV",
+      "attribute_ref": "supplement_CHEMBL3650@v1",
+      "value": null,
+      "unit": "μM",
+      "scope": {
+        "population_or_system": "FGFR1V561M, FGFR2V564I/F, FGFR3V555M mutants",
+        "marker": "stated"
+      },
+      "admission_state": "admitted",
+      "admission_reasons": [
+        "quote_verified",
+        "value_in_quote",
+        "candidate_named_in_quote"
+      ]
+    },
+    {
+      "claim_id": "claim_01M50P3GVRTDNM0R83XNJRTJR2",
+      "attribute_ref": "supplement_CHEMBL1844@v1",
+      "value": 4,
+      "unit": "nM",
+      "scope": {
+        "population_or_system": "CSF-1RT663I mutant",
+        "marker": "stated"
+      },
+      "admission_state": "admitted",
+      "admission_reasons": [
+        "quote_verified",
+        "value_in_quote",
+        "candidate_named_in_quote"
+      ]
+    }
+  ],
+  "model_calls": [
+    {
+      "model_id": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9186,
+        "output_tokens": 854
+      },
+      "cost_usd": 0.003781,
+      "schema_ok": true
+    }
+  ],
+  "cost_is_estimate": true,
+  "supplement_ref": "art_ae77c0685a78",
+  "supplement_digest": "d3cf744903cc14019622f500f324b2a065870dc96e4aa8aa6cb00f119744120d",
+  "accepted_n": 2,
+  "excluded_n": 2,
+  "verification": {
+    "test_command": ".venv/Scripts/python.exe -m pytest tests/test_supplements.py tests/test_measurement_profile.py tests/test_evidence.py tests/test_run_end_to_end.py -q",
+    "passed": 42,
+    "failed": 0,
+    "real_source_matched_targets": {
+      "CHEMBL1844": {
+        "value": 5,
+        "unit": "nM",
+        "pChEMBL": 8.301029995663981
+      },
+      "CHEMBL3650": {
+        "value": 34,
+        "unit": "nM",
+        "pChEMBL": 7.468521082957745
+      }
+    },
+    "unmatched_required_targets": [
+      "CHEMBL1868",
+      "CHEMBL279",
+      "CHEMBL1955"
+    ],
+    "original_frozen_task": "task_01M50JQYYQAMPBQTQ0N8YNQT22@v1",
+    "original_context_unchanged": true,
+    "attached_to_target_task": false
+  }
+}

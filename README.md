@@ -1,6 +1,56 @@
 # mas
 
-Agent-centered, self-improving multi-agent system: architecture-design handoff and reference materials.
+A research workbench for developing evidence-based criteria, screening candidates, and inspecting the reasoning behind each result.
+
+## Research workbench
+
+The React workbench connects a natural-language research objective to evidence-based criterion generation, review, qualification and ranking. Start at **Settings**, choose **New research** or **Use own data**, and describe the objective, required observations, hard constraints and preferences. Select a saved evidence collection and candidate library, or import candidate and measurement CSVs. Save a draft or start the full workflow once. Progress remains visible across pages; pause, continue and stop are saved across service restarts.
+
+For the approved existing-evidence workflow, each new task starts with no inherited criteria. Source claims are pinned, broad proposals retain their history, and review/refinement/merging establish the working criteria. Hard-condition decisions, required-target evidence and preference coverage remain distinct. Predictions are disclosed separately. The **Criteria** page shows saved stage counts, changes and lineage; **Candidates** separates qualified, pending, rejected and unassessed records and exports every candidate in the selected snapshot. The English/中文 switch changes interface text only.
+
+Run the current workbench on Windows:
+
+```powershell
+npm --prefix web/client ci
+npm --prefix web/client run build
+.\start_workbench.cmd -AllowOperations -Models var\primary\store\models_deepseek.toml -Config var\primary\store\mas.toml
+```
+
+The first two commands install and build the interface; repeat the build when the client changes. Restore the saved research store and local configuration before using the case-specific launch command above. Research databases, API keys and temporary test stores are kept outside Git. The local key is loaded by the configured model adapter; keep it outside source control. The default address is `http://127.0.0.1:8769/`. Existing CLI commands and historical snapshot links remain available. Runtime progress and drafts use a separate operational database, and page queries use a rebuildable incremental SQLite cache; scientific records remain append-only.
+
+### Progress, connected evidence and your own data
+
+The current workbench keeps all eight workflow stages visible, including after completion. Current activity, evidence batches, criterion counts, elapsed time and budget use saved events; an unknown denominator remains indeterminate. The overview exposes the research objective and data choices beside the **New research** and **Use own data** actions.
+
+Evidence and criteria link to each other at their exact saved versions, and candidate links preserve the selected result snapshot. Evidence details separate findings, assay conditions, saved original passages and available surrounding paragraphs. Optional **Research interpretation** explains the finding, relevance, conditions and limits with source references; it is cached separately from scientific facts and never changes qualification or scores.
+
+The CSV wizard provides templates, column mapping, a preview and row-level validation. It supports drug, carrier and general candidate data with exact candidate IDs, properties, values, units and conditions. Uploaded observations can also supplement the built-in drug library by exact ID. The general workflow evaluates the supplied observations and optionally selected saved evidence; domain-specific prediction tools require a suitable adapter. Start with the [CSV guide and examples](design_audit/workbench_usability_2026-10-16/CSV_GUIDE.md).
+
+The [usability and general-data acceptance report](design_audit/workbench_usability_2026-10-16/FINAL_ACCEPTANCE.md) records the actual Windows browser flow, final deployment, evidence navigation, narrow-window layout and HTTP timings. A clearly labeled synthetic carrier fixture completed the full workflow: two candidates qualified, one failed the hard condition, and four later assessments were explicitly skipped. Independent replay confirmed its values and ranking and verified that the existing Surufatinib result below was unchanged. The current build is served on port 8769; the former preview on 8770 redirects there.
+
+### Fresh full browser verification — 17 October 2026
+
+A new study was entered through Settings and New research, with **mid levels and four workers**. It started with zero inherited criteria and used only fixed saved evidence. The full **3,177-candidate** evaluation produced **10 qualified and ranked candidates**. **Surufatinib ranks 1 / 10**, with the oral hard condition passed, **5 / 5** required targets directly answered, and **10 / 17 (58.82%)** direct preference coverage. The other **3,167** candidates remain pending evidence.
+
+Working records grew **0 → 6 task requirements → 1,917 → 53**. The final evaluation uses **18 core decisions** (1 hard condition, 17 preferences) and **13 context entries**; **22** proposals remain outside the enabled evaluation. The original 35%-coverage, unranked result is preserved alongside the corrected evaluation. Completed tool facts from a stopped source run and fixed existing ADMET panels are now reused explicitly; four verified RDKit descriptors use a separate derived-evidence route. Weights, hard conditions and ranking coverage thresholds were held constant.
+
+Independent recomputation verified every qualification, score, coverage and rank across **98,487 cells**, with **34 / 34 checks passing** and the earlier snapshot's hashes unchanged. Recorded model cost for the scientific workflow is **$4.2101**. Some preferences remain research proxies with indirect literature support; human measured oral F% and Tmax remain unknown. The result is prioritization under this frozen research protocol.
+
+Use the [new saved result](http://127.0.0.1:8769/workbench/?view=candidates&lang=en&task=task_01M52CBE5GYPK9F0MCZYBMPH84&snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2), [complete CSV](design_audit/fresh_browser_2026-10-16/results-snapshot2/candidates.csv), [complete candidate JSON](design_audit/fresh_browser_2026-10-16/results-snapshot2/candidates.json), [independent audit](design_audit/fresh_browser_2026-10-16/audit/snapshot2-summary.md), and [user-experience review](design_audit/fresh_browser_2026-10-16/UI_REVIEW.md).
+
+### Previous workflow verification — 16 October 2026
+
+The earlier Windows acceptance run uses saved evidence, mid levels and four workers. It evaluated **3,177 candidates**; **10 qualified** and **3,167 remain pending evidence**. Surufatinib passed the enabled oral-administration hard condition, has evidence for all five required targets, and ranks **4 / 10** (tied in score with position 5). Its direct preference coverage is **11 / 21**, or **52.38%**. The corrected final result is snapshot 2, under `rules@v3`; the original result and both logP revisions remain available.
+
+CQA grew from an empty set to **1,807 proposals and task requirements**, then converged through recorded review and merging to **23 independent decisions across 24 execution records**. Nineteen registered criteria are deferred and eleven unregistered proposals remain pending with their reasons. Independent replay verified all 76,248 assessment cells and every candidate's score and ranking. The accepted hot-list P95 measurements range from 32 to 190 ms.
+
+Open the [final candidate results](http://127.0.0.1:8769/workbench/?view=candidates&lang=en&task=task_01M51AQ0JK0MYN47806ZD5XS1B&snapshot=lb_task_01M51AQ0JK0MYN47806ZD5XS1B_2), read the [final acceptance report](design_audit/workbench_redesign_2026-10-16/FINAL_ACCEPTANCE.md) and [CQA evolution report](design_audit/workbench_redesign_2026-10-16/CQA_EVOLUTION.md), or use the complete [CSV](design_audit/workbench_redesign_2026-10-16/final/wf_033db93e15fa4bb289c2e03606674f6b-snapshot2/candidates.csv) and [JSON](design_audit/workbench_redesign_2026-10-16/final/wf_033db93e15fa4bb289c2e03606674f6b-snapshot2/candidates.json). The [implementation status](design_audit/workbench_redesign_2026-10-16/IMPLEMENTATION_STATUS.md) records deployment, version archives and the remaining evidence/accounting unknowns.
+
+## Historical Windows run — before the workflow redesign
+
+This earlier mid-level browser run completed under its recorded policy. Surufatinib ranked **5 / 50 rankable candidates**, from **3,177 total**, with all five required receptor measurements present. Its overall status remains provisional while the oral-route hard condition awaits expert review. The complete CSV and frozen-cell numerical replay are saved; replay found zero differences. B recovery is **1 / 11**, reported as an assisted descriptive soft metric. Reduction retains 59 registered criteria plus 5 unregistered pending items, with 9 scoring in this measurement.
+
+See the [final acceptance report](design_audit/windows_execution_2026-10-16/FINAL_ACCEPTANCE_2026-10-16.md), [full CSV](var/acceptance-mid/browser-leaderboard.csv), and [historical snapshot](http://127.0.0.1:8769/leaderboard?task=task_01M50Q5EZE12GGDES5QNWR0JQX&snapshot=lb_task_01M50Q5EZE12GGDES5QNWR0JQX_1). The interface uses light blue, defaults to English, and offers a persistent English / 中文 switch; Chinese changes presentation only. The historical handoff and earlier readings below remain available.
 
 ## Start here
 
@@ -10,9 +60,9 @@ Agent-centered, self-improving multi-agent system: architecture-design handoff a
 - [Concept overview](MAS_MultiAgent_Design_Audit_EN_20261012/01_Concept_Overview_EN.md)
 - [Original Agentic Doping request, translated into English](MAS_MultiAgent_Design_Audit_EN_20261012/06_Agentic_Doping_Original_Prompt_English_Translation.md)
 
-The architecture design is in [`design_audit/`](design_audit/) (canonical: [`optimized_design.md`](design_audit/optimized_design.md); build order: [`v1_scope.md`](design_audit/v1_scope.md)). The implementation of v1 is under way in `src/mas/`; see [Running the system](#running-the-system). CDES is optional.
+The architecture design is in [`design_audit/`](design_audit/) (canonical: [`optimized_design.md`](design_audit/optimized_design.md); build order: [`v1_scope.md`](design_audit/v1_scope.md)). The Python implementation is in `src/mas/` and the React client in `web/client/`; see [Running the system](#running-the-system). CDES is optional.
 
-The concrete first use case is completing the manuscript rebuttal workflow and supporting evidence-based surufatinib prioritization under the stated task and targets. The package describes proposed work and does not claim completed screening experiments or verified drug rankings.
+The concrete first use case is completing the manuscript rebuttal workflow and supporting evidence-based surufatinib prioritization under the stated task and targets. Scientific findings are tied to the evidence, rules, implementation and snapshot recorded for each run.
 
 ## Session handoff — 2026-10-15 (read this first when picking the project up)
 
@@ -67,8 +117,15 @@ with its own id, its own queue state and `approval_kind: agent_verdict`. It need
 `interaction.autonomous_adjudication`, which is off until `interaction.mode = autonomous` turns it
 on and which cannot be on while `interaction.checkpoints` lists a checkpoint.
 
-Which route resolves an item depends on *why* it needed an expert; `mas review list` labels every
-open item with the route that would resolve it.
+The new workbench uses `qualification_first_v1`: source-supported hard conditions receive an
+explicit system review, and unresolved authority, conflicting evidence or incomplete review
+keeps the criterion pending. A high rejection rate produces a diagnostic and preserves the
+hard condition. A numerical preference with an available value is reported as data available;
+it does not grant eligibility. Qualified candidates are ranked under the saved scoring profile.
+
+The following demotion routes describe the retained **legacy policy**, used to read and reproduce
+older runs. They do not define the new workbench's qualification-first behavior. `mas review list`
+labels the review route for each open item.
 
 | why the item was raised | what happens | basis recorded |
 |---|---|---|
@@ -114,6 +171,31 @@ rather than a number to fill in.
 
     mas --store var/store ui serve                   # http://127.0.0.1:8765/
 
+On Windows, the launcher uses `.venv\Scripts\python.exe` when available, or `python` otherwise,
+and opens the workbench at `http://127.0.0.1:8769/` in the default browser (`-Port` overrides this).
+It reads the existing store and reports a missing
+`store.db` before starting; restore the inherited store first. No model key is needed just to browse.
+
+```powershell
+# From the repository root; default store: var\primary\store
+.\start_workbench.cmd
+# Enable local operations, retaining the exact service configuration:
+.\start_workbench.cmd -AllowOperations -Models var\primary\store\models_deepseek.toml
+# Another local store or a different interpreter:
+.\start_workbench.cmd -Store C:\MAS\store -Python C:\Python311\python.exe -NoBrowser
+```
+
+`ui serve --allow-operations` serves the React workbench and enables the persistent one-start investigation workflow. The browser records the objective, develops new criteria from the selected evidence, reviews and freezes the rules, screens the full library and publishes a snapshot. The older explicit-operation interface remains available with `--legacy-ui` for historical workflows.
+The default Settings workflow uses `standard`; literature and textbook volume default to `mid`.
+Current-task and edited settings persist atomically in `STORE/../workbench-state.json`.
+Frozen result snapshots remain selectable, and the leaderboard provides pagination and complete CSV export.
+The child process inherits `--models`, `--config`, `--preset`, `--profile` and every `--set`, uses
+seed 0, and records its actual PID, exit code, initiator, configuration hash and log location under
+`STORE/../workbench-jobs/`. The React workbench streams progress without reloading the page and restores interrupted investigations to a paused checkpoint. Legacy subprocess jobs remain visible in their original operation records. Operations are recorded as `agent/codex` by default;
+for a person operating directly, set `--operation-actor-kind human --operation-actor-name NAME`
+(launcher: `-ActorKind human -ActorName NAME`). Machine adjudication retains its own authority;
+expert decisions are made through the terminal. The default service remains read-only.
+
 The same read surfaces in a browser: tasks and runs, the leaderboard, a candidate's rationale
 with its claim quotes and mechanism note, run progress, the review queue, the criteria pool with
 lineage, and the resolved settings with the layer each value came from. Every page has a JSON
@@ -123,10 +205,13 @@ Three properties it keeps, each covered by a test:
 
 * **Loopback only.** It binds `127.0.0.1` (or `::1`) and refuses any other address, because the
   surface is unauthenticated. To reach it from another machine, forward the port over SSH.
-* **Read-only.** It opens the store root with no lock, so it works while a run is writing, and
-  every write path is refused before SQLite is reached. Any method but GET or HEAD is 405.
-* **No decisions.** A pending expert decision is shown, never made: `mas review decide` on the
-  terminal is the only way to answer one. Runs are started the same way.
+* **Read-only views.** It opens the store root with no lock, so it works while a run is writing,
+  and every view write path is refused before SQLite is reached. The default service refuses
+  every method but GET or HEAD with 405. Opt-in operations require a per-server token and a
+  same-origin request, then launch only the defined CLI actions in a real background process.
+* **Expert authority stays explicit.** A pending expert decision is shown; `mas review decide`
+  on the terminal records a person's decision. Opt-in browser operations can start runs and
+  request machine reviews, which retain their distinct machine identity.
 
 Keys are never rendered: a setting naming an API key shows where the key is read from, never a
 value, and no page opens a key file.

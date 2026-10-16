@@ -1,0 +1,11 @@
+{
+  "ui_sha256": "7f30622b75299fa0759fd391769456179d73cc807b59af492ecba64a6aef93c1",
+  "archive": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\var\\provenance\\workbench-v2-ui\\7f30622b75299fa0",
+  "files": {
+    "assets/index-C1u1eX5f.css": "7736d961bf4ee3846bb613c4aa76d0015fb8c9c61c9b8a77813896655c5f8fa9",
+    "assets/index-Cl8w0uLR.js": "c5e955fedba521c6da8254b5b312899ea2273e3084fb2335fd2b0b059c9f325f",
+    "index.html": "b9dae3b7e8d76ad4900c172a857ce121360065756d60a7656a687f33a58a89ca"
+  },
+  "deployed_at": "2026-10-16T16:21:26.081552+00:00",
+  "backend_restarted": false
+}

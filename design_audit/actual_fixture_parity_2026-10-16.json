@@ -1,0 +1,1168 @@
+{
+  "status": "passed",
+  "scope": "bounded actual-evidence execution-mode engineering fixture",
+  "fresh_workflow_parity_claimed": false,
+  "source_policy_parity_claimed": false,
+  "source_run_id": "run_01M50X7EYSBXPDCP0SG859666R",
+  "source_run_seq": 112236,
+  "binding": {
+    "artifact_id": "art_3616434ed6b3",
+    "sha256": "3616434ed6b3da87700c79b86e06b1bade45b0cf28c52016a5889d9136db7699",
+    "kind": "run_binding"
+  },
+  "task_context": {
+    "artifact_id": "art_ff17b6983003",
+    "sha256": "ff17b6983003898b3450a08c726814848ae909164520c970e9aa63dec83b2e61",
+    "kind": "task_context",
+    "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+    "seq": 1841,
+    "event_id": "evt_01M50WH20DMN96GKJQZRXA6FQR"
+  },
+  "frozen_rule_set": {
+    "artifact_id": "art_ec2224687de3",
+    "sha256": "ec2224687de3d3edbc4af951d9c131bf029965bc97ecd7c7dc53444090715fbb",
+    "kind": "rule_set"
+  },
+  "source_frozen_hard_rules": 0,
+  "universe_file": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\var\\primary\\universe_chembl.json",
+  "universe_sha256": "f53ab0739df24329b00b3cf59bccb4ccac4efdbfb0837bef05175590039280d7",
+  "source_connection": "sqlite_mode_ro_plus_application_write_guard",
+  "selection": "two lexicographically first fully observed known-oral candidates; nonoral/unknown ordered by target availability then ID; never source rank",
+  "selected": [
+    {
+      "group": "known_oral",
+      "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+      "label": null,
+      "state": "qualified",
+      "source_assessments": [
+        {
+          "artifact_id": "art_49fdb35c7b49",
+          "sha256": "49fdb35c7b499dfdf519bd931c31c0744794da44b82b05d6687f84177b8bd864",
+          "kind": "assessment",
+          "event_id": "evt_01M50X7Y2HR7HCYYSB89H16453",
+          "seq": 11330
+        },
+        {
+          "artifact_id": "art_9ac780ac8459",
+          "sha256": "9ac780ac8459c0dd387c1dad927ef2989c00eb9e8537b946d1f7f923fc35cd6b",
+          "kind": "assessment",
+          "event_id": "evt_01M50X944YC40EBACQATMY12H1",
+          "seq": 39630
+        },
+        {
+          "artifact_id": "art_c20380083b3c",
+          "sha256": "c20380083b3ccd2089f7fd37de564a0faf0a0676eafa5d29a3763b469bae7218",
+          "kind": "assessment",
+          "event_id": "evt_01M50XF58TAVTKA9YV9S8P00GC",
+          "seq": 88958
+        },
+        {
+          "artifact_id": "art_522fcce29b55",
+          "sha256": "522fcce29b55930193df4ecf89d1c9371581503b531e28936301a9ebcbc5d02c",
+          "kind": "assessment",
+          "event_id": "evt_01M50XFMHG704HZJGNEMVBNM4W",
+          "seq": 96877
+        },
+        {
+          "artifact_id": "art_d393098e8236",
+          "sha256": "d393098e82367d7442caf50ddfb6424b9992d263b16dd043d68bda1c613b0a1e",
+          "kind": "assessment",
+          "event_id": "evt_01M50XQN4Z6Z4RHH8RM9QVWCPS",
+          "seq": 103981
+        }
+      ]
+    },
+    {
+      "group": "known_oral",
+      "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+      "label": null,
+      "state": "qualified",
+      "source_assessments": [
+        {
+          "artifact_id": "art_329e36a02287",
+          "sha256": "329e36a022873e44a18db83d5a71691bdbf3638a760b842b3a12b3c37c1f437a",
+          "kind": "assessment",
+          "event_id": "evt_01M50X7TEH9155TWFSZRKM55ET",
+          "seq": 9247
+        },
+        {
+          "artifact_id": "art_8da16a6cb15b",
+          "sha256": "8da16a6cb15b2a4cba6b23f808fe2cc201672fab4b2b90b28a7fedaba3e7cf48",
+          "kind": "assessment",
+          "event_id": "evt_01M50X93PEDCG4NMDQ70HS67R9",
+          "seq": 39318
+        },
+        {
+          "artifact_id": "art_dd4808d9cc27",
+          "sha256": "dd4808d9cc27296e6d9739a2f7aec3559af632090e98eee3b2ccf8da6a46d4ab",
+          "kind": "assessment",
+          "event_id": "evt_01M50XF4NTX9B6KV0VHGG0D3CJ",
+          "seq": 88631
+        },
+        {
+          "artifact_id": "art_8f5b7dcc7e37",
+          "sha256": "8f5b7dcc7e375fbce7f25cd9cf7688c7f39696bb16a2eeb8384012edb197cf8d",
+          "kind": "assessment",
+          "event_id": "evt_01M50XFDB7XR3FGK10933601DE",
+          "seq": 93116
+        },
+        {
+          "artifact_id": "art_68838af62ef8",
+          "sha256": "68838af62ef8118a5076289c356fc0155853b0bff2c8cd4fa5522ee703ba4aa5",
+          "kind": "assessment",
+          "event_id": "evt_01M50XQTC7ZNVRQCHRYEX7HSV0",
+          "seq": 106713
+        }
+      ]
+    },
+    {
+      "group": "known_non_oral",
+      "candidate_ref": "cand_inchikey-RIJLVEAXPNLDTC-UHFFFAOYSA-N",
+      "label": null,
+      "state": "rejected",
+      "source_assessments": [
+        {
+          "artifact_id": "art_2e3898aa5d85",
+          "sha256": "2e3898aa5d85e7b75dba4b18c1bc21e2b9104a17d49b2a2303d26254d866a002",
+          "kind": "assessment",
+          "event_id": "evt_01M50X7QXPFQ5NZNPXBAA0PHK0",
+          "seq": 7814
+        },
+        {
+          "artifact_id": "art_9993d74f360c",
+          "sha256": "9993d74f360c31ef4b77ca4d71f6817de8097bfa42ab9eb1938a6e76b6771eec",
+          "kind": "assessment",
+          "event_id": "evt_01M50X9A1ZVRSBD4775HA1883N",
+          "seq": 43733
+        },
+        {
+          "artifact_id": "art_8237b564783f",
+          "sha256": "8237b564783f89007a9efcf67c6afb44c1c26738cf31ca0360e7333c84767880",
+          "kind": "assessment",
+          "event_id": "evt_01M50XF65FQVXKHSACEC3PKFFD",
+          "seq": 89443
+        },
+        {
+          "artifact_id": "art_ec96e40672c1",
+          "sha256": "ec96e40672c1535a1879ebd7864176b132a884f1b48be4701a23b01f6f5b1b89",
+          "kind": "assessment",
+          "event_id": "evt_01M50XFD23F243ZH8VSBY9ZKWJ",
+          "seq": 92973
+        },
+        {
+          "artifact_id": "art_d2603bda152a",
+          "sha256": "d2603bda152af92c6184019ba92751880ac86e2c2b279c1ad72cda94e4f34cec",
+          "kind": "assessment",
+          "event_id": "evt_01M50XR2QVV88TM3D2QB1SPCY9",
+          "seq": 111100
+        }
+      ]
+    },
+    {
+      "group": "unknown",
+      "candidate_ref": "cand_inchikey-MPVGZUGXCQEXTM-UHFFFAOYSA-N",
+      "label": null,
+      "state": "pending",
+      "source_assessments": [
+        {
+          "artifact_id": "art_93fbd44af783",
+          "sha256": "93fbd44af78374cbedfb566b845419393dee429b26e017ea9b1d53c36ea2561d",
+          "kind": "assessment",
+          "event_id": "evt_01M50X83H51PHFFBBB3QAHCX7B",
+          "seq": 14605
+        },
+        {
+          "artifact_id": "art_d23521d94199",
+          "sha256": "d23521d94199f270945d7e0d7c5ebb4583bc6d169c37b2277a217bee4c98e317",
+          "kind": "assessment",
+          "event_id": "evt_01M50X8Z48ZMH4YB9J2TVBN8CJ",
+          "seq": 36444
+        },
+        {
+          "artifact_id": "art_dcc5843becd1",
+          "sha256": "dcc5843becd1989200037d2419165e0b85308262642dcc89ebfe030881670ebd",
+          "kind": "assessment",
+          "event_id": "evt_01M50XEXH2GM04NBTH7B9FS4AJ",
+          "seq": 84932
+        },
+        {
+          "artifact_id": "art_441fee4c3bf3",
+          "sha256": "441fee4c3bf35820421f459870345176b1d6a4ed2bc05acf22b1463a9e444a4b",
+          "kind": "assessment",
+          "event_id": "evt_01M50XFJV4QD45DZXEKCN0M6CP",
+          "seq": 95997
+        },
+        {
+          "artifact_id": "art_a053177d8499",
+          "sha256": "a053177d8499e0f142788ed8af9d26e2c49d560636d393e734b4e173bf6ec5f5",
+          "kind": "assessment",
+          "event_id": "evt_01M50XR3K0CM9DAX28N8K63WM0",
+          "seq": 111566
+        }
+      ]
+    }
+  ],
+  "preference_sources": [
+    {
+      "artifact_id": "art_0d50df52dfb5",
+      "sha256": "0d50df52dfb57af1ec062f1648af913f79d940b9a39ccba623ef053c26eef0d0",
+      "kind": "attribute",
+      "ref": "attr_csf1r-curated-potency@v2",
+      "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "seq": 104,
+      "event_id": "evt_01M50Q5F60QS49VK2QKSXHGM17"
+    },
+    {
+      "artifact_id": "art_0dace6cf1e9d",
+      "sha256": "0dace6cf1e9df005457f5d9e56d3677fd77f16c1e2a34ed6e9c2270f2f6c9a2b",
+      "kind": "rule",
+      "ref": "rule_csf1r-curated-potency@v2",
+      "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "seq": 105,
+      "event_id": "evt_01M50Q5F61B79R73DGPKJR8QBY"
+    },
+    {
+      "artifact_id": "art_4a1f522ebce8",
+      "sha256": "4a1f522ebce8c9c8f57cc160da671f6c5f905afc125ce6fcb28296420c91a64f",
+      "kind": "attribute",
+      "ref": "attr_fgfr1-curated-potency@v2",
+      "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "seq": 112,
+      "event_id": "evt_01M50Q5F69EBDFXDSK554GGR97"
+    },
+    {
+      "artifact_id": "art_ebd8c06beeac",
+      "sha256": "ebd8c06beeac8c93acecb956a7f7546e21a6c193eed158d48aa8a6d2dbab0ad7",
+      "kind": "rule",
+      "ref": "rule_fgfr1-curated-potency@v2",
+      "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "seq": 113,
+      "event_id": "evt_01M50Q5F6A92ZDFV613ZN9WMEH"
+    },
+    {
+      "artifact_id": "art_ec0e8653aef9",
+      "sha256": "ec0e8653aef923f20f1f77f282494f62fb00bcaa80239d5bde5ba759a66669d4",
+      "kind": "attribute",
+      "ref": "attr_vegfr1-curated-potency@v2",
+      "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "seq": 106,
+      "event_id": "evt_01M50Q5F62H4M49C14WND7ZF17"
+    },
+    {
+      "artifact_id": "art_3700b2a0e0e2",
+      "sha256": "3700b2a0e0e22247c4f9b3456933b18f0afcba79dfd351bbc1424ea99f296086",
+      "kind": "rule",
+      "ref": "rule_vegfr1-curated-potency@v2",
+      "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "seq": 107,
+      "event_id": "evt_01M50Q5F63A0KY6DECEPHM5Y69"
+    },
+    {
+      "artifact_id": "art_31e9a480122e",
+      "sha256": "31e9a480122e63954a9f5454ee026a87e5eeaca9c5177b82e55de56d4f4a5c3e",
+      "kind": "attribute",
+      "ref": "attr_vegfr2-curated-potency@v4",
+      "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "seq": 1833,
+      "event_id": "evt_01M50W9653D45ZRKC76VJNRC2A"
+    },
+    {
+      "artifact_id": "art_d0b25b6ff49c",
+      "sha256": "d0b25b6ff49ca84aa818caf67fb508c30565573056ef3cb46099f3a4cc13f5ef",
+      "kind": "rule",
+      "ref": "rule_vegfr2-curated-potency@v4",
+      "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "seq": 1834,
+      "event_id": "evt_01M50W96653SC27EEB81096RP2"
+    },
+    {
+      "artifact_id": "art_e93d0ab64e8e",
+      "sha256": "e93d0ab64e8e91949b4bfe614e35b52debc1f411acc236c22a9c04590d862b2c",
+      "kind": "attribute",
+      "ref": "attr_vegfr3-curated-potency@v4",
+      "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "seq": 1835,
+      "event_id": "evt_01M50W9673976BZSB2196XERAS"
+    },
+    {
+      "artifact_id": "art_5466bc0bc1c7",
+      "sha256": "5466bc0bc1c79894076c6625f02eb709f3a03e164305e4d7e4d7677547429536",
+      "kind": "rule",
+      "ref": "rule_vegfr3-curated-potency@v4",
+      "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "seq": 1836,
+      "event_id": "evt_01M50W968144Y79ANCTFM53H7B"
+    }
+  ],
+  "source_claims": [
+    {
+      "artifact_id": "art_d20ba5261c70",
+      "sha256": "d20ba5261c7037af29ad208bde7f044b9e289949150824fef846de60ae873642",
+      "kind": "claim",
+      "event_id": "evt_01M50X7QXGF6F554CQHSE6PGHW",
+      "seq": 7810
+    },
+    {
+      "artifact_id": "art_41485d69af28",
+      "sha256": "41485d69af28522a18ef54830839637752a27dfe3e4fa42b3b274fd3608529dc",
+      "kind": "claim",
+      "event_id": "evt_01M50X7QXJJ0TJSDD7QJ7DQSRZ",
+      "seq": 7811
+    },
+    {
+      "artifact_id": "art_61c690fe0324",
+      "sha256": "61c690fe03249fa1e41c0bdf8418c3e8ab5c33f0f87a05deb78ea238f6ab3945",
+      "kind": "claim",
+      "event_id": "evt_01M50X7QXK6188KX1P6C6WYFV4",
+      "seq": 7812
+    },
+    {
+      "artifact_id": "art_732cf974fa9f",
+      "sha256": "732cf974fa9fffdebbdb5e53b67a8092248a13092ff99cfc6758b973cb5dac81",
+      "kind": "claim",
+      "event_id": "evt_01M50X7TE7EM8SY44W3CXA28MM",
+      "seq": 9240
+    },
+    {
+      "artifact_id": "art_955372d7a385",
+      "sha256": "955372d7a385f528935852f654d079f4cec7e0417dfd1fa065ffd064b4764a01",
+      "kind": "claim",
+      "event_id": "evt_01M50X7TE95ES7C2MEB26WXXQP",
+      "seq": 9241
+    },
+    {
+      "artifact_id": "art_9f4e05ca65cd",
+      "sha256": "9f4e05ca65cd649b2e50f02d995b60f3b133ac02b61a36abdcf4625d4473e3e5",
+      "kind": "claim",
+      "event_id": "evt_01M50X7TEATANPXXY22RMNE4KV",
+      "seq": 9242
+    },
+    {
+      "artifact_id": "art_c4c3e612d198",
+      "sha256": "c4c3e612d1980d8012f56bfbf2929eb4971b524f1ee4ab5d3cb68a8d568a9934",
+      "kind": "claim",
+      "event_id": "evt_01M50X7TEBFX9RNBYWM758515W",
+      "seq": 9243
+    },
+    {
+      "artifact_id": "art_2fc6fb5e57bc",
+      "sha256": "2fc6fb5e57bc744863212888a5270f62ad028912e288e11aa695714c09745488",
+      "kind": "claim",
+      "event_id": "evt_01M50X7TED0C0XG4MBA4M8R0JM",
+      "seq": 9244
+    },
+    {
+      "artifact_id": "art_fd681e25bbcd",
+      "sha256": "fd681e25bbcd6f00ba0db1277c3faebaece48282885830ba2d79b59715aaf4d8",
+      "kind": "claim",
+      "event_id": "evt_01M50X7TEFX7KMD06ZZAGR6QAX",
+      "seq": 9246
+    },
+    {
+      "artifact_id": "art_fcb31cfca794",
+      "sha256": "fcb31cfca79494f53c70515d3af18d88b665317661d878505af69b910a360551",
+      "kind": "claim",
+      "event_id": "evt_01M50X7Y130Q4PPPAQ0QGTNFV9",
+      "seq": 11325
+    },
+    {
+      "artifact_id": "art_5db716f7d622",
+      "sha256": "5db716f7d622a6d68e50bc33d8b9a1fa42d59fa7e22eab1d954e4a02ed836c5d",
+      "kind": "claim",
+      "event_id": "evt_01M50X7Y14P1EH5VXYVGNZNYFQ",
+      "seq": 11326
+    },
+    {
+      "artifact_id": "art_24db4cb12268",
+      "sha256": "24db4cb122682d36b77497cecaa8ccfb6dc810e71fddc7904b5b0430ab36f533",
+      "kind": "claim",
+      "event_id": "evt_01M50X7Y15CKRNGG608CDAVVXB",
+      "seq": 11327
+    },
+    {
+      "artifact_id": "art_3f86befbdadd",
+      "sha256": "3f86befbdadddea7cbfc5aa1487c41f9f4034291c56ddc3ca9b08ee98a59565f",
+      "kind": "claim",
+      "event_id": "evt_01M50X7Y17KAP122BBPA3QZRTT",
+      "seq": 11328
+    },
+    {
+      "artifact_id": "art_f7c924f0fba9",
+      "sha256": "f7c924f0fba97050a1ad619b20916e4cc22aa1278f1e751c9b907f15dfd63c70",
+      "kind": "claim",
+      "event_id": "evt_01M50X83GVH2EPVAZMPJ7XQ900",
+      "seq": 14598
+    },
+    {
+      "artifact_id": "art_0b233379d857",
+      "sha256": "0b233379d857aef361351e55e926b409d7026cb50f7479af49bada54e233b3bc",
+      "kind": "claim",
+      "event_id": "evt_01M50X83GWWZ3JK0T5NS7EGY0C",
+      "seq": 14599
+    },
+    {
+      "artifact_id": "art_fba174b7f4f8",
+      "sha256": "fba174b7f4f8a143b773659121bfd301b9492eb9a58a2da7138686ea3b455c05",
+      "kind": "claim",
+      "event_id": "evt_01M50X83GXCSA5J9GGT350HCVX",
+      "seq": 14600
+    },
+    {
+      "artifact_id": "art_cc23c7c9590d",
+      "sha256": "cc23c7c9590deaa1aaf79570b6030820026f74f4390ae3738adaab6b6c41069d",
+      "kind": "claim",
+      "event_id": "evt_01M50X83GZST0EGNMD686HGS18",
+      "seq": 14601
+    },
+    {
+      "artifact_id": "art_8d8cc9720b8e",
+      "sha256": "8d8cc9720b8e85105fd87d45166638675fe0d78c4a2701d83596b53a84ede355",
+      "kind": "claim",
+      "event_id": "evt_01M50X83H0HK3MD33J3R901284",
+      "seq": 14602
+    },
+    {
+      "artifact_id": "art_0a58ddcfb964",
+      "sha256": "0a58ddcfb964c873740f4834dd187b3d44f0c4029d6784c8ab1c53bb715d5d3d",
+      "kind": "claim",
+      "event_id": "evt_01M50X83H28Z3B9EZFV5A1EKW0",
+      "seq": 14604
+    },
+    {
+      "artifact_id": "art_c7f9a03e88a9",
+      "sha256": "c7f9a03e88a9bfa0362044a1026f4c8d63c3fcc230d63a40fbaebbea8a2ac2a7",
+      "kind": "claim",
+      "event_id": "evt_01M50X8Z45EGGMCH7CCGWH4C5A",
+      "seq": 36442
+    },
+    {
+      "artifact_id": "art_0304fb4dc906",
+      "sha256": "0304fb4dc906e1d30c878c0c48511009db517fb7de4d229235d3d8584e2efe3a",
+      "kind": "claim",
+      "event_id": "evt_01M50X93P4KSEE5XDN2NXBW43F",
+      "seq": 39310
+    },
+    {
+      "artifact_id": "art_435c22c62d3f",
+      "sha256": "435c22c62d3fc4312621fdffbd0f75ee7f99ed0dffa774adf1c3c75a87284008",
+      "kind": "claim",
+      "event_id": "evt_01M50X93P51SMKEKC72VGHNZSB",
+      "seq": 39311
+    },
+    {
+      "artifact_id": "art_2821886795f2",
+      "sha256": "2821886795f28f97ce39c8c182d783970bc4547fb65907d814b35477afcd73f2",
+      "kind": "claim",
+      "event_id": "evt_01M50X93P65FPN29YVE33EDWGG",
+      "seq": 39312
+    },
+    {
+      "artifact_id": "art_7b923c93ff8e",
+      "sha256": "7b923c93ff8ea4126e9d46948d9e07fc688e2c760077ea052a242ec5645db059",
+      "kind": "claim",
+      "event_id": "evt_01M50X93P8Q03N65XJHEV20AV5",
+      "seq": 39313
+    },
+    {
+      "artifact_id": "art_dd0828e080ed",
+      "sha256": "dd0828e080ed8bde7dfd5542b7ffe6d2ed9c0e39d43673c0e654621dbc8de818",
+      "kind": "claim",
+      "event_id": "evt_01M50X93P9B9JZXDXA643JEE83",
+      "seq": 39314
+    },
+    {
+      "artifact_id": "art_f628b720f320",
+      "sha256": "f628b720f320c8b5b6ce6a741486cb1d86bfaccd41d2242cb657028ee4497088",
+      "kind": "claim",
+      "event_id": "evt_01M50X93PBGGBSEX2DBQ4KW449",
+      "seq": 39315
+    },
+    {
+      "artifact_id": "art_4e4cd08d71af",
+      "sha256": "4e4cd08d71afb8942cbf557e9786488183bf13442972bc94e47e294f7979c4ba",
+      "kind": "claim",
+      "event_id": "evt_01M50X93PCKBPSQPKFWJ07BGXH",
+      "seq": 39317
+    },
+    {
+      "artifact_id": "art_6885cf473eac",
+      "sha256": "6885cf473eac6978933d39cb72f61e6f7b704c16426232d7816ca43e9f6c5692",
+      "kind": "claim",
+      "event_id": "evt_01M50X944SQJ8C49Z9J548EB1J",
+      "seq": 39626
+    },
+    {
+      "artifact_id": "art_e85cc6b51dc8",
+      "sha256": "e85cc6b51dc885b8738ced9568a2ba11690ccc70fe6a63779254baeae128ad3b",
+      "kind": "claim",
+      "event_id": "evt_01M50X944TZSYSJ12N2HA31Z8S",
+      "seq": 39627
+    },
+    {
+      "artifact_id": "art_e10a5ea56ae9",
+      "sha256": "e10a5ea56ae9ccf055e032e657016b3b32445bebf9be45411d1d130a1c810ea0",
+      "kind": "claim",
+      "event_id": "evt_01M50X944W4Z6K3HQ9M6Z1F4WG",
+      "seq": 39628
+    },
+    {
+      "artifact_id": "art_4c2c4ee61862",
+      "sha256": "4c2c4ee618620880a6c46077c616d34ff0969b7a05b57c0572395673d16644a2",
+      "kind": "claim",
+      "event_id": "evt_01M50XEXGFD3TM0QVPYF13C3GV",
+      "seq": 84922
+    },
+    {
+      "artifact_id": "art_b19c709c5c9d",
+      "sha256": "b19c709c5c9d49c6cd2c5565dcdcda9c1c3603c5d68bec406ecdc1665a07c4f8",
+      "kind": "claim",
+      "event_id": "evt_01M50XEXGHMK8DVCMTT9WYQN92",
+      "seq": 84923
+    },
+    {
+      "artifact_id": "art_a7e8af1ec8b6",
+      "sha256": "a7e8af1ec8b67f025623e084c32c62379147295b4720aa85855ce8e349780b6b",
+      "kind": "claim",
+      "event_id": "evt_01M50XEXGKBF66R2Q4A7GWNFXK",
+      "seq": 84924
+    },
+    {
+      "artifact_id": "art_e1fa98036f09",
+      "sha256": "e1fa98036f092eba70e0d34fff20d73a35503b183d9fabe471599f5722048cbe",
+      "kind": "claim",
+      "event_id": "evt_01M50XEXGNTK8X1BZ4QRHYZMEH",
+      "seq": 84925
+    },
+    {
+      "artifact_id": "art_8cd1ffc5f222",
+      "sha256": "8cd1ffc5f222ee7ec1569162cc55843d09e8203930dd08a0772bd3fc81760d05",
+      "kind": "claim",
+      "event_id": "evt_01M50XEXGPKZZRDJPRAM8T8RQ5",
+      "seq": 84926
+    },
+    {
+      "artifact_id": "art_5251ad27f3d2",
+      "sha256": "5251ad27f3d2b514ac12059022be8f22bff4cf17d891ed38766f75553836c5dc",
+      "kind": "claim",
+      "event_id": "evt_01M50XEXGRCB24F389HM68HFJV",
+      "seq": 84927
+    },
+    {
+      "artifact_id": "art_a48433efdeb4",
+      "sha256": "a48433efdeb4549599e7182df3a0acf2804a30f3a8dafe13a6e127409c352195",
+      "kind": "claim",
+      "event_id": "evt_01M50XEXGTVBRHRQMP71F540N1",
+      "seq": 84928
+    },
+    {
+      "artifact_id": "art_b39f451adab1",
+      "sha256": "b39f451adab1f9121f33cd0c5b016d470b6a5aba881bd15521a0784ef39b3c06",
+      "kind": "claim",
+      "event_id": "evt_01M50XEXGW1GD9Y73TDJ434JEB",
+      "seq": 84929
+    },
+    {
+      "artifact_id": "art_c2f2eb9177cb",
+      "sha256": "c2f2eb9177cbd950983efeb3045d7b9ebae6c6b24f48ff1291c9043b4d801973",
+      "kind": "claim",
+      "event_id": "evt_01M50XEXGZ6810B83A9Z5VMRQW",
+      "seq": 84931
+    },
+    {
+      "artifact_id": "art_cf33ffa6f832",
+      "sha256": "cf33ffa6f83241eebc8ea04aa97e20c09f1e003b77f5afacf251e5197942a2e9",
+      "kind": "claim",
+      "event_id": "evt_01M50XF4N7CXRGA57S9F4K99DQ",
+      "seq": 88622
+    },
+    {
+      "artifact_id": "art_21c58387fbe5",
+      "sha256": "21c58387fbe54bb87f9ebc5a13d09feb7a166997ccaa298219ed827443a71e62",
+      "kind": "claim",
+      "event_id": "evt_01M50XF4NA3ACQVFAR7RQEXDTM",
+      "seq": 88623
+    },
+    {
+      "artifact_id": "art_cfe9a55eae6d",
+      "sha256": "cfe9a55eae6daeede34185542237db0b54547c1a0caa995408d76ff1df99c089",
+      "kind": "claim",
+      "event_id": "evt_01M50XF4NC98QGY8XY5J09GWZ3",
+      "seq": 88624
+    },
+    {
+      "artifact_id": "art_1cff797dbda8",
+      "sha256": "1cff797dbda85badac47d06a4022195abbe40d40c529df8cacdc90cec3eb7adb",
+      "kind": "claim",
+      "event_id": "evt_01M50XF4NEM7E9TQ143RH5JDM2",
+      "seq": 88625
+    },
+    {
+      "artifact_id": "art_0c37ae0bc437",
+      "sha256": "0c37ae0bc437b9825a14214340a75fba6b61f5c93cb960185b4c8e2e26760fd4",
+      "kind": "claim",
+      "event_id": "evt_01M50XF4NGPKHH683MS4R45BAP",
+      "seq": 88626
+    },
+    {
+      "artifact_id": "art_f5e8d571d21c",
+      "sha256": "f5e8d571d21c846adcf37e45b9191a39bd93f3fda3a9ce4135b313c162421b30",
+      "kind": "claim",
+      "event_id": "evt_01M50XF4NJKR0V63BSYJ4FPH87",
+      "seq": 88627
+    },
+    {
+      "artifact_id": "art_8d1f9b9de3ab",
+      "sha256": "8d1f9b9de3abece6e27d47c0924a893735273605aa6bba7ab2a5ed1a0fbcad09",
+      "kind": "claim",
+      "event_id": "evt_01M50XF4NM7FPCDNQANHQTFHXJ",
+      "seq": 88628
+    },
+    {
+      "artifact_id": "art_b389bc405fd4",
+      "sha256": "b389bc405fd41c3dc73b024bb4e7f05f1cbb84542dbaf78139de126c778b5ea1",
+      "kind": "claim",
+      "event_id": "evt_01M50XF4NQDYGWQMTJE78G5CDN",
+      "seq": 88630
+    },
+    {
+      "artifact_id": "art_57c08c7b4a96",
+      "sha256": "57c08c7b4a96d418e847e89ab0210532768dadaa8069a64805e985be593d8ca1",
+      "kind": "claim",
+      "event_id": "evt_01M50XF58JJAWHJ7XY4CR3TJAE",
+      "seq": 88954
+    },
+    {
+      "artifact_id": "art_a1306e57ce30",
+      "sha256": "a1306e57ce301c29432d2803d543bfbec8fb027093191219b7eedbd05cd16999",
+      "kind": "claim",
+      "event_id": "evt_01M50XF58MZD7QZDSQC281QZ57",
+      "seq": 88955
+    },
+    {
+      "artifact_id": "art_975186de54d0",
+      "sha256": "975186de54d083673c1910e08609fac47a7600ca96932706152c02b5e80f10f0",
+      "kind": "claim",
+      "event_id": "evt_01M50XF58P5VYH4RYKH1G35KA0",
+      "seq": 88956
+    },
+    {
+      "artifact_id": "art_2f17e925fa29",
+      "sha256": "2f17e925fa2939f1bd242f8ee78fca40e2f44cd3007ea7f9d036d8e72d77bd9d",
+      "kind": "claim",
+      "event_id": "evt_01M50XF65B819EFEX9GR2M39WF",
+      "seq": 89441
+    },
+    {
+      "artifact_id": "art_6d2ce9cf601c",
+      "sha256": "6d2ce9cf601c2d7d1ccb6957807369f56d2c7163dd7a9ec8e3a4c88a40501423",
+      "kind": "claim",
+      "event_id": "evt_01M50XFD9T3P5M0X6G4CN8YJP9",
+      "seq": 93098
+    },
+    {
+      "artifact_id": "art_349e0329ee61",
+      "sha256": "349e0329ee61b89a7aa0dd90817a5051130ff19b8ea61504bd7e4e619efa3280",
+      "kind": "claim",
+      "event_id": "evt_01M50XFD9W8KPKZ701YW82SDN6",
+      "seq": 93099
+    },
+    {
+      "artifact_id": "art_0416088168a6",
+      "sha256": "0416088168a6bca616ded2fa5b8223d495786d6e9d3d9f0eb0b8d6f415280cec",
+      "kind": "claim",
+      "event_id": "evt_01M50XFD9YHATXF3CVY0KJ77RJ",
+      "seq": 93100
+    },
+    {
+      "artifact_id": "art_a7a0f0311b9b",
+      "sha256": "a7a0f0311b9b6185527639ebff2e5bf1030aef4adc5c1bc79d0cc66a246ddfc9",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDA0WGYD918X8049DA5V",
+      "seq": 93101
+    },
+    {
+      "artifact_id": "art_78011f9b2e24",
+      "sha256": "78011f9b2e2499ef2d32026199391126d2c09a659fed977ce6ea10ade45ec2c7",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDA2G905EH3NM5X8XV57",
+      "seq": 93102
+    },
+    {
+      "artifact_id": "art_8eaae9ca67c6",
+      "sha256": "8eaae9ca67c64070dbb509d5c67130ccc52347ab8f9a0669bd14d6da3d4f9adc",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDA4Q9ZFT2709S9C5QJV",
+      "seq": 93103
+    },
+    {
+      "artifact_id": "art_fd897358ee34",
+      "sha256": "fd897358ee34a37b352fa8dd7e87809ab1d54b613f5d0d0cd368140d14431b06",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDA698Y5VETJPJVEKSFT",
+      "seq": 93104
+    },
+    {
+      "artifact_id": "art_1755de6a749f",
+      "sha256": "1755de6a749f55118b29e38e1e27b59265fa2a62f0dc6d31666f296388c1206c",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDA8SD33BRE9KBQPRB7W",
+      "seq": 93105
+    },
+    {
+      "artifact_id": "art_7396d7f88d00",
+      "sha256": "7396d7f88d00ef2994e8c7fbc3e683b91703c0a08c11952ec407ef9432cf0492",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDAA52G3N47XA665THMG",
+      "seq": 93106
+    },
+    {
+      "artifact_id": "art_0b197b4a9618",
+      "sha256": "0b197b4a9618c30a1a102db214292c5612bc9fb388a8d059faf80b0c8a60cd53",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDAC48X0P04663NVDY8R",
+      "seq": 93107
+    },
+    {
+      "artifact_id": "art_49188c702747",
+      "sha256": "49188c70274777ebc03feeeb9e20c853b3c87dd2a11ff0611ad0795c1c0a0253",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDAECCTVZ747NX7ZQH4H",
+      "seq": 93108
+    },
+    {
+      "artifact_id": "art_9835552744c9",
+      "sha256": "9835552744c98cb880f6b060e1aee317c662e55e357635398ad49cfacc764652",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDAGVHDHCKAEZNCJBFQ7",
+      "seq": 93109
+    },
+    {
+      "artifact_id": "art_49fe6b89dec6",
+      "sha256": "49fe6b89dec61554bb4b094a26d55c63b29bb10c990d0b3b767d955b41b9668a",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDAJNSDG5SW4HSNH2QTH",
+      "seq": 93110
+    },
+    {
+      "artifact_id": "art_aab24ca96b4f",
+      "sha256": "aab24ca96b4f03d0c80ef8b85176a74af49b5780c36eeece03d1f5605bfceb92",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDAMXTY7TWW642XH6FS3",
+      "seq": 93111
+    },
+    {
+      "artifact_id": "art_abf011a48c73",
+      "sha256": "abf011a48c733f4d20f4310677f38d20feca5086a62f5d3b9493c6f292e832a2",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDAPVWMWJD7WVGBRV4Y5",
+      "seq": 93112
+    },
+    {
+      "artifact_id": "art_c0b48fdcd986",
+      "sha256": "c0b48fdcd98657793cd29420839eda1116d8b5bedec6cebe79f250b63445196c",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDAST1XJ3BANR1CTYFWX",
+      "seq": 93114
+    },
+    {
+      "artifact_id": "art_bd6ea107fc51",
+      "sha256": "bd6ea107fc51d5e2a21388c9fe17a885df9bb635a64b4086be8876e78d289b39",
+      "kind": "claim",
+      "event_id": "evt_01M50XFDAV0835AJ697PBBWNWY",
+      "seq": 93115
+    },
+    {
+      "artifact_id": "art_644ecfcb88d2",
+      "sha256": "644ecfcb88d23eb5823eba63e1fa2d0ecd32b09b21bb8a507514ddf7e7b13d0e",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJSYCC8FF8MQVM2G0GTH",
+      "seq": 95978
+    },
+    {
+      "artifact_id": "art_6808536e5ec6",
+      "sha256": "6808536e5ec6e8af47ec0d73d0a43439fb4966634f80376402410b6aa4c13da8",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJT0DPB3GHTBHGMY9YYR",
+      "seq": 95979
+    },
+    {
+      "artifact_id": "art_9044dbdabad4",
+      "sha256": "9044dbdabad4d72b8395d04df67c147f4feb41320824b33e60a95471f68bd57e",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJT2XW46K47DZJAXFZ43",
+      "seq": 95980
+    },
+    {
+      "artifact_id": "art_a6d5ad4e25c5",
+      "sha256": "a6d5ad4e25c560718fa16d6b4dee7e5ec501e1af30f345fde7628742243fbc40",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJT4E9Y2D8SE8Z7EYFBJ",
+      "seq": 95981
+    },
+    {
+      "artifact_id": "art_337b313a4990",
+      "sha256": "337b313a4990e245f8ece3625b4b4beab9e9fe818a1bf5e2f8222e4d0574fcae",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJT6TGV6K9FQ7P87731H",
+      "seq": 95982
+    },
+    {
+      "artifact_id": "art_15f6250e1a1b",
+      "sha256": "15f6250e1a1b9f3c039742ce6fc92f7b162b2c60e0a95c424473c1b6771e2bd2",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJT8JHRVKD99ZPHKY0NF",
+      "seq": 95983
+    },
+    {
+      "artifact_id": "art_076be5840531",
+      "sha256": "076be58405311ee632b65b345decf250a6b4d853f0d2cd5d64b11eb6e23f2024",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJTAZK40B6QDRAE2Z0RN",
+      "seq": 95984
+    },
+    {
+      "artifact_id": "art_55b7aaf881f1",
+      "sha256": "55b7aaf881f1ee785a1bb4bf8fda7cb5a4c69dd2a35478b56152d59e6c60c8fd",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJTCFVQYP4EB5GVTB10F",
+      "seq": 95985
+    },
+    {
+      "artifact_id": "art_cecdceae8264",
+      "sha256": "cecdceae82643f48646af344ba6d1cd776cef6ef0ec9079f84a9ca8779267fd0",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJTEF5QVSQRXA1PE45FB",
+      "seq": 95986
+    },
+    {
+      "artifact_id": "art_41b428ac28ff",
+      "sha256": "41b428ac28ffa3a1ee33baa01e5e78ab11dd4a603f1fefc7c307fbc2f09dba05",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJTGNMW65EWJRACNV184",
+      "seq": 95987
+    },
+    {
+      "artifact_id": "art_0357a0c97457",
+      "sha256": "0357a0c97457397f4eff9428b9f064ad5d536205bb23e893c2ea40d83969686e",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJTJHKQ1RWJZ3WNDDM89",
+      "seq": 95988
+    },
+    {
+      "artifact_id": "art_775f85ad9862",
+      "sha256": "775f85ad986225fc17a0042188fad363804212ecf75d0a3888177f7ab03fb2ca",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJTMXRF2QZQHYA2HY79R",
+      "seq": 95989
+    },
+    {
+      "artifact_id": "art_5567803caa85",
+      "sha256": "5567803caa852539782b649965df596955bd930e2792c0a3d9b54218c7be02f9",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJTN4T0KN4DREEG5QM65",
+      "seq": 95990
+    },
+    {
+      "artifact_id": "art_927d62ac26ff",
+      "sha256": "927d62ac26ffaf77fa9dd2c86a89d8ae139b17562cf6713d55088c2d9eaba155",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJTQQ6AFRCCMT9EW593J",
+      "seq": 95991
+    },
+    {
+      "artifact_id": "art_50e2b667c304",
+      "sha256": "50e2b667c304a3e4f233cb87758cdb916ee687091fcb222c968ef052855e37df",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJTS97W73YFA47CHW55K",
+      "seq": 95992
+    },
+    {
+      "artifact_id": "art_f06a7a8bee1f",
+      "sha256": "f06a7a8bee1fc4bd696d7d660871d8ce934be4f7c94cebf34390873fbcbf7668",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJTVBCY82753W36X1JSA",
+      "seq": 95993
+    },
+    {
+      "artifact_id": "art_0f98fd484201",
+      "sha256": "0f98fd484201ed4550bc952711b2cfd30ce3232bb26642660c2f02543ac9b814",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJTX2WDARDWQSMX94RQN",
+      "seq": 95994
+    },
+    {
+      "artifact_id": "art_d476441a7842",
+      "sha256": "d476441a78422b32b69d9723bcd2612b8399d1610701ae6345bb8e35d3c6fa26",
+      "kind": "claim",
+      "event_id": "evt_01M50XFJV11KKTX1GJJK9FDQAB",
+      "seq": 95996
+    },
+    {
+      "artifact_id": "art_ab3e7265c5fe",
+      "sha256": "ab3e7265c5fe4f9b5511f1fbe7c874643bddfc66c06ce7aded42a8ed2364551b",
+      "kind": "claim",
+      "event_id": "evt_01M50XFMH57RQ4Q5VQKVQHRFC5",
+      "seq": 96872
+    },
+    {
+      "artifact_id": "art_00c352b310ff",
+      "sha256": "00c352b310ff08894bd04c0a0ccff763578f165f281707d07cb0a3bea8667996",
+      "kind": "claim",
+      "event_id": "evt_01M50XFMH7F50P3C9NDEYPKDY3",
+      "seq": 96873
+    },
+    {
+      "artifact_id": "art_8c89b018a798",
+      "sha256": "8c89b018a798fb65eef23b97b03dd190a5320e7e97eda1e8360dd9d40b6d537a",
+      "kind": "claim",
+      "event_id": "evt_01M50XFMH9GQB3RQJ3QETRHDKE",
+      "seq": 96874
+    },
+    {
+      "artifact_id": "art_41f4e77f3d57",
+      "sha256": "41f4e77f3d5790b1b997e1051d642c0f696ffa9d2eb3969106cd7bb314f5ee78",
+      "kind": "claim",
+      "event_id": "evt_01M50XFMHB7B98Z106JZRAAG6W",
+      "seq": 96875
+    },
+    {
+      "artifact_id": "art_f2661725399f",
+      "sha256": "f2661725399feb0f26da32b19335655d916ce739fa674dabd619298c4c1ac849",
+      "kind": "claim",
+      "event_id": "evt_01M50XQN4QYWATSCFM9W1MRENR",
+      "seq": 103977
+    },
+    {
+      "artifact_id": "art_c3a31706998f",
+      "sha256": "c3a31706998fc0abdb52c69804a75dab37c0e3401d09bd6aece15f4408f8d5fa",
+      "kind": "claim",
+      "event_id": "evt_01M50XQN4S0V5F4SP8V61D3ZKT",
+      "seq": 103978
+    },
+    {
+      "artifact_id": "art_e00805ec56b3",
+      "sha256": "e00805ec56b30b2244a688ddb6763f95df739f703c0787b88ff704e1ee981ac6",
+      "kind": "claim",
+      "event_id": "evt_01M50XQN4V9YM797J4TZAGXRT3",
+      "seq": 103979
+    },
+    {
+      "artifact_id": "art_0c62d7bbdc70",
+      "sha256": "0c62d7bbdc7019ce30bc5dc450b4a21cd4559407f75d94c4428afe8b6b31e82e",
+      "kind": "claim",
+      "event_id": "evt_01M50XQTBPRPSPG13CBQ65J5NJ",
+      "seq": 106705
+    },
+    {
+      "artifact_id": "art_b9880e38628a",
+      "sha256": "b9880e38628a2c868b4cf809a4b60cb71be2df67d5c39a2ce9a25c319038a83d",
+      "kind": "claim",
+      "event_id": "evt_01M50XQTBR0XYYXX18VAEAJVKY",
+      "seq": 106706
+    },
+    {
+      "artifact_id": "art_0a8d3497a148",
+      "sha256": "0a8d3497a1485cd95a64c3b58b52da1b45f3b686dccd0a3f2d57df4b2cbc5012",
+      "kind": "claim",
+      "event_id": "evt_01M50XQTBV40MT0WDQ1VXQBRBF",
+      "seq": 106707
+    },
+    {
+      "artifact_id": "art_d03f20460a4e",
+      "sha256": "d03f20460a4eec110b09c1db2bdd61590a32231635c1c1cd7970c98007dbafb5",
+      "kind": "claim",
+      "event_id": "evt_01M50XQTBXTMX98TCGNY1V6770",
+      "seq": 106708
+    },
+    {
+      "artifact_id": "art_21685e8bcfd1",
+      "sha256": "21685e8bcfd13796fe99b6ec7ac0bdaa211635502425ce1b8701d0d0dc8f5a5a",
+      "kind": "claim",
+      "event_id": "evt_01M50XQTBZ9VSF7HDRAPFGW8J4",
+      "seq": 106709
+    },
+    {
+      "artifact_id": "art_21c568831d32",
+      "sha256": "21c568831d32d5c32c6e947f61b8f7503c651d7acdd67466d02814dbe850d61e",
+      "kind": "claim",
+      "event_id": "evt_01M50XQTC1PYTANXQT5PVX70YQ",
+      "seq": 106710
+    },
+    {
+      "artifact_id": "art_c8d78fe1bfd9",
+      "sha256": "c8d78fe1bfd9ede2236eb0e35e1c2323fc9511221c6c5f3170bc7a963a59dcb9",
+      "kind": "claim",
+      "event_id": "evt_01M50XQTC45B6PV36N0PF0H7K6",
+      "seq": 106712
+    },
+    {
+      "artifact_id": "art_371673c25947",
+      "sha256": "371673c25947948af673ce95ffe778b6d7b09ffd113eb5b2f9959e69f5a9acf2",
+      "kind": "claim",
+      "event_id": "evt_01M50XR2QKT7FDW2QY8X1XBHJK",
+      "seq": 111096
+    },
+    {
+      "artifact_id": "art_399705d86850",
+      "sha256": "399705d86850ab9a7c24a463c628b98f79356af7479c8178e8662ec42fec2703",
+      "kind": "claim",
+      "event_id": "evt_01M50XR2QNHSRV0KP2C450SEEP",
+      "seq": 111097
+    },
+    {
+      "artifact_id": "art_6d6895557894",
+      "sha256": "6d68955578940d2634db924c27f207dcbec4f508138e55f6bc37792974941ed6",
+      "kind": "claim",
+      "event_id": "evt_01M50XR2QQ68FK63PAJSVWX48D",
+      "seq": 111098
+    },
+    {
+      "artifact_id": "art_3852ff90cb2e",
+      "sha256": "3852ff90cb2e8550b423bccccc20215eb2018099e2a22558d1797227b52fadd0",
+      "kind": "claim",
+      "event_id": "evt_01M50XR3JFTVHAN9KG9MYKGPTY",
+      "seq": 111558
+    },
+    {
+      "artifact_id": "art_ca7af7e73611",
+      "sha256": "ca7af7e73611c1880a82caa65fc49d84164bcd8319bbbf2f793cd426ac75fe77",
+      "kind": "claim",
+      "event_id": "evt_01M50XR3JH8F89D83VC0JVTYB0",
+      "seq": 111559
+    },
+    {
+      "artifact_id": "art_2085d4fbc34c",
+      "sha256": "2085d4fbc34ce3b8e285bbda2c50fb31d182b35b33d665561f6d26efd1944a26",
+      "kind": "claim",
+      "event_id": "evt_01M50XR3JKSXDKZ74TMKMB0NWH",
+      "seq": 111560
+    },
+    {
+      "artifact_id": "art_fe285959fa72",
+      "sha256": "fe285959fa72ea36c3812c0e9e290a72f353514e3151a78a1e65138b3d5425d8",
+      "kind": "claim",
+      "event_id": "evt_01M50XR3JNQWJ2JXT8ZG7R8RQP",
+      "seq": 111561
+    },
+    {
+      "artifact_id": "art_2683ea87174d",
+      "sha256": "2683ea87174d51aa944d103eb953a6d3040e25dfb09b740f88d4e14fedd227e3",
+      "kind": "claim",
+      "event_id": "evt_01M50XR3JQ8KB6TPM6GX70SD1X",
+      "seq": 111562
+    },
+    {
+      "artifact_id": "art_4c637d0f354a",
+      "sha256": "4c637d0f354af9f4476ce22561ef3d5b5a72500908e0ed88f3c24dc54d0538cf",
+      "kind": "claim",
+      "event_id": "evt_01M50XR3JSNK83RFB2MCBFPWZ6",
+      "seq": 111563
+    },
+    {
+      "artifact_id": "art_b34fd6dbb4a5",
+      "sha256": "b34fd6dbb4a5fec46ebd9b7c9e6bc67d4113f3f2bfe8a031dad2592e381e7cbe",
+      "kind": "claim",
+      "event_id": "evt_01M50XR3JXYRW4MQNX9K4NEKHR",
+      "seq": 111565
+    }
+  ],
+  "source_target_values_rechecked": 18,
+  "literal_gate": {
+    "source_field": "constraints[0]",
+    "attribute": {
+      "name": "Oral route on record",
+      "measurement_kind": "categorical",
+      "unit": null,
+      "definition": "Whether a product or trial record of the compound states an oral route",
+      "direction": "non_directional",
+      "acceptable_value_sources": [
+        "database_entry"
+      ],
+      "aggregation": "consensus",
+      "evidence_request": {
+        "capability": "record_field_lookup",
+        "question_kind": "record_field",
+        "identifier_scheme": "inchikey",
+        "parameters": {
+          "field": "oral"
+        }
+      },
+      "acceptable_determination_bases": [
+        "measured",
+        "derived"
+      ],
+      "rationale": "the task's hard constraint: oral administration"
+    },
+    "rule": {
+      "rule_kind": "hard_exclusion",
+      "predicate_form": "categorical_membership",
+      "cutoff": {
+        "comparator": "==",
+        "value": true,
+        "unit": null
+      },
+      "cutoff_basis": "task_constraint",
+      "on_missing": "unknown_blocks_recommendation"
+    },
+    "authority": "deterministic task_constraint_restated; no human/model approval"
+  },
+  "eligible_order": [
+    [
+      "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+      1,
+      1.0
+    ],
+    [
+      "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+      2,
+      0.0
+    ]
+  ],
+  "same_eligible_order_and_scores": true,
+  "independent_qualified_only_scores": {
+    "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N": 0.0,
+    "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N": 1.0
+  },
+  "mode_counts": {
+    "full": {
+      "recorded_cell_n": 24,
+      "assessed_cell_n": 24,
+      "skipped_after_rejection_n": 0,
+      "missing_or_conflicted_n": 3,
+      "qualified_n": 2,
+      "assessment_completeness": 1.0,
+      "evidence_hook_calls": 24
+    },
+    "staged": {
+      "recorded_cell_n": 24,
+      "assessed_cell_n": 19,
+      "skipped_after_rejection_n": 5,
+      "missing_or_conflicted_n": 1,
+      "qualified_n": 2,
+      "assessment_completeness": 0.7916666666666666,
+      "evidence_hook_calls": 19
+    }
+  },
+  "assumptions": [
+    "Target quantities, units, aggregations and source claim values are unchanged from the pinned historical assessments.",
+    "Source supplemental retrieval bindings are not re-executed; the claims already used by the selected historical cells are retained with their original provenance.",
+    "The temporary hard gate instantiates the source task's explicit oral constraint, not a new data-selected threshold.",
+    "Oral status is the pinned library record flag under the existing adapter policy: false without first_approval remains unknown.",
+    "A recorded route flag is used as an engineering proxy; this does not independently establish every regimen's clinical oral suitability.",
+    "The bounded fixture uses equal-weight means of the unchanged target ordering percentiles; an independent arithmetic check uses only its qualified candidates.",
+    "No literature regeneration, applicability generalization, full-universe ranking or fresh GUI workflow parity is established."
+  ],
+  "backend_files_sha256": {
+    "controller.py": "453f386fb56dfb0ce332159026138c3983c123698f38debcab2c478a1add355a",
+    "assessor.py": "e4b31d7db546576e74c2912c4c4720741f0cc7091d0cfc1ee9ef0c757cb3be4b",
+    "criteria.py": "483def4bd112bfa3f13c989a73917b28dc51d4d8b169721ad7358aa5264c2a78",
+    "adjudication.py": "50d43be41f9b7f7862f0f700067a8e8af7e34445e0c221fa66bfa3aecee311f3",
+    "leaderboard.py": "68cc9a46a9c6251b8f8961c65feb3b749de5f66f3cbf378b560b348311cd6a8d",
+    "measurement.py": "c11141cf129ced8b9f1ad3435c026e4e785386f56f56b27f920eaefe7a5cf7d7"
+  },
+  "network_calls": 0,
+  "model_calls": 0,
+  "primary_store_writes": 0,
+  "temporary_store_removed_on_exit": true,
+  "recorded_at": "2026-10-16T02:34:49.007Z"
+}

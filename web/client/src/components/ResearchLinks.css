@@ -1,0 +1,1 @@
+.candidate-link-roles { display: flex; flex-wrap: wrap; gap: 3px 7px; margin-top: 3px; color: var(--muted); font-weight: 400; }.candidate-link-roles > span { font-size: 11px; line-height: 1.5; }.candidate-link-roles > span + span::before { content: '·'; padding-right: 7px; }.candidate-connection-note { color: var(--muted); font-size: 11px; margin: 4px 0 7px; line-height: 1.6; }

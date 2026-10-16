@@ -1,1 +1,1 @@
-"""Browser workbench (`ui_ux_spec.md` §15): a loopback, read-only surface over one store root."""
+"""Loopback workbench: read-only views with opt-in, allowlisted CLI operations."""

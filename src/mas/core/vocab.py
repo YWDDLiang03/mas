@@ -52,13 +52,16 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
         all_pass_set=("all-pass set", "neutral"), ranked_under_score=("top-ranked under score", "neutral"),
         both_reported=("both", "neutral"), no_recommendation=("no recommendation (abstained)", "neutral"),
     ),
-    "abstention_reason": _domain("insufficient_coverage", "all_candidates_excluded", "unresolved_conflicts", "evidence_unavailable"),
+    "abstention_reason": _domain("insufficient_coverage", "all_candidates_excluded", "unresolved_conflicts", "evidence_unavailable", "qualification_not_ready"),
     "verdict": _labelled(
+        available=("available for ordering", "info"),
         pass_=("pass", "positive"), fail=("fail", "negative"),
         unknown_missing=("unknown (missing)", "muted"), unknown_conflicted=("unknown (conflict open)", "attention"),
+        unknown_unresolvable=("unknown (interpretation method required)", "attention"),
         inapplicable=("not applicable", "muted"), not_assessed=("not assessed", "muted"),
     ),
     "not_assessed_reason": _labelled(
+        skipped_after_rejection=("skipped after verified hard rejection", "muted"),
         identity_unresolved=("identity not resolved", "attention"),
         identity_pending_review=("identity awaiting review", "attention"),
         budget_exhausted=("not reached (budget exhausted)", "attention"),
@@ -107,6 +110,7 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
         "schema_violation", "environment_missing", "model_unavailable", "internal_error",
     ),
     "absence_reason": _domain(
+        "existing_evidence_unavailable",
         "not_configured", "not_installed", "requires_other_environment", "unreachable", "unauthorized",
         "rate_limited_exhausted", "out_of_domain", "identity_unresolved", "no_record_found", "budget_exceeded",
         "declined_by_policy",
@@ -151,6 +155,8 @@ DOMAINS: dict[str, dict[str, tuple[str, str]]] = {
         trigger_table=("admitted automatically by the trigger table", "neutral"),
     ),
     "adjudication_route": _labelled(
+        evidence_basis_corrected=("verified correction of a recorded calculation's evidence basis", "neutral"),
+        hard_requirement_reviewed=("evidence and task applicability support the hard requirement", "attention"),
         task_constraint_restated=("restates the task's own constraint", "neutral"),
         no_authority_available=("no authority available; demoted, stops scoring", "attention"),
         irreversible_without_authority=("too irreversible for an agent; demoted to a preference", "attention"),
@@ -316,6 +322,7 @@ EVENT_KINDS = frozenset({
     "step.cancelled",  # implementation addition: steps end cancelled with their run (design §0.4)
     "round.opened", "round.closed", "attempt.started", "attempt.finalized",
     "agent.started", "agent.heartbeat", "agent.finished",
+    "proposal.slice_completed",  # successful model response fully committed to the criteria pool
     *(f"tool.{k}" for k in ("requested", "returned", "errored", "retry_scheduled", "degraded")),
     *(f"exchange.{k}" for k in ("proposed", "critiqued", "revised", "adjudicated", "closed")),
     "evidence.admitted", "evidence.conflict_recorded", "evidence.quarantined",

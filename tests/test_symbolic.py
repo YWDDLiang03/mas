@@ -654,7 +654,8 @@ def test_an_adopted_expression_is_installed_before_the_snapshot_and_scores_the_b
         broker.register(provider)
     roster, adapters = roster_for(proposer_over("Molecular weight", "Calculated logP"))
     settings = config_mod.resolve(project_file=None, environ={}, overrides={
-        "sr.mode": "potency", "rank.method": "symbolic_expression", "run.seed": 0})
+        "sr.mode": "potency", "rank.method": "symbolic_expression", "run.seed": 0,
+        "evaluation.mode": "full", "qualification.policy": "legacy", "evidence.mode": "retrieve"})
     controller = RunController(core, broker, roster, adapter=ADAPTER)
     run_id = controller.start(task_id, by=OPERATOR, settings=settings)
     assert controller.current_state(run_id) == "completed"
@@ -715,7 +716,8 @@ def _e2e_store(root):
             broker.register(provider)
         roster, _adapters = roster_for(proposer_over("Molecular weight", "Calculated logP"))
         settings = config_mod.resolve(project_file=None, environ={}, overrides={
-            "sr.mode": "potency", "rank.method": "symbolic_expression", "run.seed": 0})
+            "sr.mode": "potency", "rank.method": "symbolic_expression", "run.seed": 0,
+            "evaluation.mode": "full", "qualification.policy": "legacy", "evidence.mode": "retrieve"})
         RunController(core, broker, roster, adapter=ADAPTER).start(task_id, by=OPERATOR, settings=settings)
     return task_id
 

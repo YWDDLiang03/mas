@@ -1,0 +1,57 @@
+{
+  "old_count": 51,
+  "new_count": 93,
+  "same_lineage": 51,
+  "identical_facets": 45,
+  "changes": [
+    {
+      "source_ref": "attr_csf1r-curated-potency@v1",
+      "current_ref": "attr_csf1r-curated-potency@v2",
+      "identical_facets": false,
+      "changed_facets": [
+        "operational_quantity"
+      ]
+    },
+    {
+      "source_ref": "attr_fgfr1-curated-potency@v1",
+      "current_ref": "attr_fgfr1-curated-potency@v2",
+      "identical_facets": false,
+      "changed_facets": [
+        "operational_quantity"
+      ]
+    },
+    {
+      "source_ref": "attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1",
+      "current_ref": "attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1",
+      "identical_facets": false,
+      "changed_facets": [
+        "decision_semantics",
+        "threshold"
+      ]
+    },
+    {
+      "source_ref": "attr_vegfr1-curated-potency@v1",
+      "current_ref": "attr_vegfr1-curated-potency@v2",
+      "identical_facets": false,
+      "changed_facets": [
+        "operational_quantity"
+      ]
+    },
+    {
+      "source_ref": "attr_vegfr2-curated-potency@v1",
+      "current_ref": "attr_vegfr2-curated-potency@v2",
+      "identical_facets": false,
+      "changed_facets": [
+        "operational_quantity"
+      ]
+    },
+    {
+      "source_ref": "attr_vegfr3-curated-potency@v1",
+      "current_ref": "attr_vegfr3-curated-potency@v2",
+      "identical_facets": false,
+      "changed_facets": [
+        "operational_quantity"
+      ]
+    }
+  ]
+}

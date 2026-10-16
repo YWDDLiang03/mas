@@ -249,7 +249,10 @@ def _setup(core, *, limit: float | None = None) -> tuple[str, RunController, obj
     broker = Broker(core, sleep=lambda s: None)
     broker.register(FakeIdentity(IDENTITIES))
     broker.register(Panel())
-    overrides = {} if limit is None else {"assess.max_reference_exclusion_share": str(limit)}
+    # This fixture verifies the historical demotion policy; the new qualification policy diagnoses instead.
+    overrides = {"evaluation.mode": "full", "qualification.policy": "legacy", "evidence.mode": "retrieve"}
+    if limit is not None:
+        overrides["assess.max_reference_exclusion_share"] = str(limit)
     settings = config_mod.resolve(project_file=None, environ={}, overrides=overrides)
     return task_id, RunController(core, broker, None, adapter=ADAPTER), settings
 
@@ -364,7 +367,8 @@ def _sparse_run(core, root=None):
     broker = Broker(core, sleep=lambda s: None)
     broker.register(FakeIdentity(IDENTITIES))
     broker.register(SparsePanel())
-    settings = config_mod.resolve(project_file=None, environ={}, overrides={})
+    settings = config_mod.resolve(project_file=None, environ={}, overrides={
+        "evaluation.mode": "full", "qualification.policy": "legacy", "evidence.mode": "retrieve"})
     controller = RunController(core, broker, None, adapter=ADAPTER)
     run_id = controller.start(task_id, by=OPERATOR, sweep_seed=3, settings=settings)
     assert controller.current_state(run_id) == "completed"
@@ -412,5 +416,5 @@ def test_the_board_command_names_the_floor_and_what_each_ineligible_candidate_is
     assert cli.main(["--store", str(root), "board", "show", task_id, "--all"]) == 0
     shown = capsys.readouterr().out
     assert ("mandated-criteria floor 1.00 over 1 criteria the task requires: 4 candidate(s) answer it, "
-            "8 are not ranked") in shown
+            "8 have incomplete mandated evidence and are not ranked") in shown
     assert "ineligible for a position: 1 of 1 criteria the task requires are unanswered (attr_t1-potency@v1)" in shown

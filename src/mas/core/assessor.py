@@ -13,10 +13,12 @@ from functools import partial
 from typing import Any
 
 from . import criteria, symbolic
-from .canonical import sha256_hex
+from .canonical import canonical_text, sha256_hex
 from .clock import utc_now
 
 ASSESSOR_VERSION = "assessor-1"
+QUALIFICATION_POLICY = "qualification_first_v1"
+DIRECT_BASES = frozenset(("measured", "derived", "curated", "asserted"))
 
 # What an attribute accepts when it declares nothing: a measurement or a derivation, never a
 # prediction. The registry owns the full list of bases (`criteria.DETERMINATION_BASES`); the
@@ -37,6 +39,9 @@ SET_ASIDE_REASONS = (
     "duplicate_observation",           # one observation, extracted twice
     "below_min_source_documents",      # too few distinct documents to score on (`source_document_shortfall`)
     "non_positive_concentration",      # a concentration of zero or less has no logarithm (`UNIT_CONVERSIONS`)
+    "prediction_not_direct_gate", "prediction_superseded_by_direct",
+    "hard_tool_error_unresolved",
+    "non_boolean_existence_value", "absence_is_not_negative_evidence", "untyped_existence_assertion",
 )
 
 # How strong a basis is, for labelling an aggregate that pooled more than one of them. Used only
@@ -310,6 +315,16 @@ def usable_claims(claims: list[dict[str, Any]], attribute: dict[str, Any]) -> tu
         elif attribute["measurement_kind"] == "categorical":
             if claim.get("value") is None or isinstance(claim.get("value"), (dict, list)):
                 reason = "no_categorical_value"
+            elif attribute.get("aggregation") == "any_true":
+                proof = claim.get("existence_evidence") or {}
+                semantics = attribute["existence_semantics"]
+                typed = proof.get("property") == semantics["property"] and proof.get("value") == semantics["value"]
+                if type(claim.get("value")) is not bool:
+                    reason = "non_boolean_existence_value"
+                elif claim["value"] is False and not (typed and proof.get("assertion") == "negative" and proof.get("scope_verified") is True):
+                    reason = "absence_is_not_negative_evidence"
+                elif claim["value"] is True and claim.get("evidence_kind") != "database_entry" and not (typed and proof.get("assertion") == "positive"):
+                    reason = "untyped_existence_assertion"
         elif attribute["measurement_kind"] == "quantitative":
             if (not isinstance(claim.get("value"), (int, float)) or isinstance(claim.get("value"), bool)) and \
                     not (isinstance(claim.get("value_low"), (int, float)) and isinstance(claim.get("value_high"), (int, float))):
@@ -367,15 +382,35 @@ def usable_claims(claims: list[dict[str, Any]], attribute: dict[str, Any]) -> tu
     return unique, set_aside
 
 
+def context_method_pending(attribute: dict[str, Any], rule: dict[str, Any]) -> bool:
+    """A numeric context item has no executable qualitative interpretation method."""
+    return (attribute.get("measurement_kind") == "quantitative"
+            and rule.get("rule_kind") == "exploratory_consideration"
+            and rule.get("predicate_form") == "qualitative_judgment" and rule.get("cutoff") is None)
+
+
 def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: dict[str, Any], rule_set_ref: str,
                 claims: list[dict[str, Any]], resolved: bool, tool_error_ref: str | None = None,
                 searched: list[str] | None = None, not_assessed_reason: str | None = None,
                 evidence_snapshot_id: str | None = None, min_source_documents: int = 1,
+                qualification_policy: str = "legacy",
                 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Return (assessment, reason) records for one cell. Pure: no I/O."""
     attr_ref = f"{attribute['attribute_id']}@v{attribute['version']}"
     rule_ref = f"{rule['rule_id']}@v{rule['version']}"
     usable, set_aside = usable_claims(claims, attribute) if resolved and not not_assessed_reason else ([], claims)
+    if qualification_policy == QUALIFICATION_POLICY and resolved and not not_assessed_reason:
+        # Choose direct observations before any prediction, even on legacy attributes which did
+        # not declare a precedence. Predictions remain in the ledger and can only assist preferences.
+        direct_claims = [c for c in claims if c.get("determination_basis") in DIRECT_BASES
+                         and c.get("evidence_kind") != "model_prediction"]
+        direct, direct_aside = usable_claims(direct_claims, attribute)
+        if rule["rule_kind"] == "hard_exclusion" or direct:
+            prediction_reason = ("prediction_not_direct_gate" if rule["rule_kind"] == "hard_exclusion"
+                                 else "prediction_superseded_by_direct")
+            predictions = [dict(c, set_aside_reason=prediction_reason) for c in claims
+                           if c.get("determination_basis") not in DIRECT_BASES or c.get("evidence_kind") == "model_prediction"]
+            usable, set_aside = direct, direct_aside + predictions
     # Applied before any verdict is computed, so the floor decides whether this cell may be scored at all --
     # including whether it may declare a conflict, which is as much a decision about a candidate as a value
     # is. The claims are set aside rather than dropped: they stay in the ledger, and `set_aside_claims` names
@@ -383,6 +418,9 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
     shortfall = source_document_shortfall(usable, attribute, min_source_documents)
     if shortfall:
         set_aside = set_aside + [dict(c, set_aside_reason="below_min_source_documents") for c in usable]
+        usable = []
+    if qualification_policy == QUALIFICATION_POLICY and rule["rule_kind"] == "hard_exclusion" and tool_error_ref:
+        set_aside += [dict(c, set_aside_reason="hard_tool_error_unresolved") for c in usable]
         usable = []
     # Every claim this cell counted on a scale other than the one its source stated it on, with the
     # original value, the original unit and the identity used (`converted_claim`). Published on the
@@ -421,9 +459,23 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
                 claim_values = [transform(float(c["value_low"])), transform(float(c["value_high"]))]
             evaluated.append({"claim_id": c["claim_id"], "values": claim_values})
         values = [v for e in evaluated for v in e["values"]]
-        aggregation = "consensus" if categorical else attribute.get("aggregation", "consensus")
+        aggregation = ("any_true" if categorical and attribute.get("aggregation") == "any_true" else "consensus") \
+            if categorical else attribute.get("aggregation", "consensus")
         if cutoff is None:
-            if rule.get("predicate_form") == "ordering" and rule["rule_kind"] == "preference":
+            if rule.get("predicate_form") == "recorded_observation" and rule["rule_kind"] == "exploratory_consideration":
+                # Explicit opt-in only: ordinary cutoff-free legacy rules retain
+                # their old behavior. An observation records evidence, not a pass
+                # and not a preference vote. Consensus must not pick one of two
+                # disagreeing observations merely because it appeared first.
+                disagree = len({canonical_text(_norm(v)) for v in values}) > 1
+                if (aggregation == "consensus" and disagree) or any(c.get("polarity") == "conflicts" for c in usable):
+                    verdict, disposition = "unknown_conflicted", "found_and_unresolved"
+                    conflicting = [c["claim_id"] for c in usable]
+                else:
+                    value = (max(values) if aggregation == "max" else min(values) if aggregation == "min"
+                             else _median(values) if aggregation == "median" else values[0])
+                    verdict = "available"
+            elif rule.get("predicate_form") == "ordering" and rule["rule_kind"] == "preference":
                 # WHY the declared aggregation governs here too: this path took the best of the usable values
                 # regardless of what the attribute asked for, and a maximum rises with the number of assays.
                 # Measured on the manuscript case: sorafenib carried 125 curated VEGFR2 measurements and was
@@ -435,12 +487,14 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
                          else max(values) if aggregation == "max" else min(values) if aggregation == "min"
                          else (max(values) if prefer_high else min(values)) if aggregation != "consensus"
                          else values[0])
-                verdict = "pass"  # value-bearing; an ordering rule ranks, it never fails
+                verdict = "available" if qualification_policy == QUALIFICATION_POLICY else "pass"
+            elif context_method_pending(attribute, rule):
+                verdict = "unknown_unresolvable"
             else:
                 verdict = "unknown_missing"
         else:
             sides = {_compare(v, cutoff["comparator"], cutoff["value"]) for v in values}
-            if aggregation == "consensus" and len(sides) > 1:
+            if aggregation in ("consensus", "any_true") and len(sides) > 1:
                 verdict = "unknown_conflicted"
                 disposition = "found_and_unresolved"
                 value = None
@@ -448,7 +502,7 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
                 value = (max(values) if aggregation == "max" else min(values) if aggregation == "min"
                          else _median(values) if aggregation == "median" else values[0])
                 verdict = "pass" if _compare(value, cutoff["comparator"], cutoff["value"]) else "fail"
-            if len(sides) > 1 and aggregation != "consensus":
+            if len(sides) > 1 and aggregation not in ("consensus", "any_true"):
                 disposition = "found_and_outweighed"
                 # A claim counts as counter-evidence when any value it contributed -- either end of a
                 # reported range included -- lands on the side the aggregate did not take.
@@ -463,11 +517,13 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
         # precedence every usable claim shares one basis and the first is that basis, but without one
         # a pooled cell's label depended on which route answered first, so a measured/derived
         # aggregate could read either way on two runs of the same evidence (`basis_used`).
-        determination_basis = basis_used(usable) if verdict in ("pass", "fail") else "absent"
+        determination_basis = basis_used(usable) if verdict in ("pass", "fail", "available") else "absent"
         value_kind = {"measured": "measured", "derived": "derived", "predicted": "predicted"}.get(determination_basis, "curated")
         if any(c.get("evidence_kind") in ("database_entry", "curated_measurement") for c in usable) and value_kind == "measured":
             value_kind = "curated"
-    used_refs = [c["claim_id"] for c in usable] if verdict in ("pass", "fail", "unknown_conflicted") else []
+    used_refs = [c["claim_id"] for c in usable] if verdict in ("pass", "fail", "available", "unknown_conflicted") else []
+    interpretation_refs = [c["claim_id"] for c in usable] if verdict == "unknown_unresolvable" else []
+    explanation_refs = used_refs or interpretation_refs
     # The provenance block of a gap-filling attribute: which bases it ranks, which one this candidate
     # was scored on, whether that was a fall-back from a basis with nothing to say here, and which
     # claims it therefore declined. `None` for every attribute that declares no precedence, so a
@@ -495,16 +551,25 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
         "determination_basis_precedence": basis_precedence_record,
         "conflicting_claim_refs": conflicting, "set_aside_claims": [{"claim_id": c["claim_id"], "reason": c["set_aside_reason"]}
                                                                      for c in set_aside if "set_aside_reason" in c],
-        "assessed_by": {"actor_kind": "tool", "actor_id": "C11", "model_or_tool_version": ASSESSOR_VERSION},
+        "assessed_by": {"actor_kind": "tool", "actor_id": "C11", "model_or_tool_version":
+                        "assessor-qualification-1" if qualification_policy == QUALIFICATION_POLICY else ASSESSOR_VERSION},
         "assessed_at": utc_now(), "tool_error_ref": tool_error_ref, "staleness": "current",
     }
+    if qualification_policy == QUALIFICATION_POLICY:
+        assessment.update(qualification_policy=qualification_policy,
+                          direct_evidence=bool(used_refs) and all(c.get("determination_basis") in DIRECT_BASES
+                              and c.get("evidence_kind") != "model_prediction" for c in usable),
+                          availability="available" if verdict in ("pass", "fail", "available") else "unavailable")
+    if interpretation_refs:
+        assessment.update(interpretation_status="method_not_defined", interpretation_claim_refs=interpretation_refs,
+                          value_kind="missing")
     cutoff = rule.get("cutoff") or {}
     statement_value = (f"{value:g} {unit}" if isinstance(value, (int, float)) and not isinstance(value, bool)
                        else str(value) if value is not None else "no usable value")
     reason = {
         "reason_id": f"rsn_{sha256_hex(assessment)[:16]}", "verdict_restated": verdict,
-        "attribute_ref": attr_ref, "rule_ref": rule_ref, "evidence_refs": used_refs,
-        "absence_check_record": None if used_refs else {"source_kinds_searched": searched or [], "searched_at": utc_now(),
+        "attribute_ref": attr_ref, "rule_ref": rule_ref, "evidence_refs": explanation_refs,
+        "absence_check_record": None if explanation_refs else {"source_kinds_searched": searched or [], "searched_at": utc_now(),
                                                         "tool_error_ref": tool_error_ref},
         "value_and_unit_as_used": statement_value, "applicability_statement": "applicable (no applicability conditions declared)",
         "counter_evidence_disposition": disposition, "cutoff_basis": rule["cutoff_basis"],
@@ -513,12 +578,16 @@ def assess_cell(*, candidate: dict[str, Any], attribute: dict[str, Any], rule: d
         # the most consequential thing this cell can say about itself.
         "determination_basis_precedence": basis_precedence_record,
         "unit_conversions": unit_conversions,
-        "uncertainty_statement": f"{len(used_refs)} usable claim(s); aggregation {attribute.get('aggregation', 'consensus')}"
+        "uncertainty_statement": f"{len(explanation_refs)} usable claim(s); aggregation {attribute.get('aggregation', 'consensus')}"
                                  + (f"; not scored: {shortfall}" if shortfall else "")
                                  + _precedence_statement(basis_precedence_record)
                                  + (f"; {len(unit_conversions)} claim(s) converted to {canonical_unit(unit)} "
                                     f"({unit_conversions[0]['identity']})" if unit_conversions else ""),
     }
+    if interpretation_refs:
+        reason.update(interpretation_status="method_not_defined", interpretation_claim_refs=interpretation_refs,
+                      value_and_unit_as_used="not evaluated: interpretation method is unspecified",
+                      uncertainty_statement=f"{len(interpretation_refs)} usable numeric claim(s); explicit interpretation method required")
     reason["reason_text"] = _reason_text(attribute, rule, verdict, statement_value, cutoff, used_refs, disposition,
                                          not_assessed_reason, tool_error_ref, shortfall, basis_precedence_record)
     assessment["reason_ref"] = reason["reason_id"]
@@ -550,10 +619,18 @@ def _reason_text(attribute, rule, verdict, statement_value, cutoff, refs, dispos
                  else "no admitted claim from an accepted source")
         return f"{name}: unknown — {cause}; this is not a failure."
     if verdict == "unknown_conflicted":
+        if rule.get("predicate_form") == "recorded_observation":
+            return f"{name}: unknown — recorded observations disagree or carry explicit counter-evidence; conflict open."
         return f"{name}: unknown — {len(refs)} admitted claims fall on both sides of the cutoff; conflict open."
+    if verdict == "unknown_unresolvable":
+        return (f"{name}: interpretation needed — usable numeric evidence is recorded, but this qualitative "
+                "context criterion has no executable interpretation method. No assessment value is assigned.")
     # The basis clause rides on the value-bearing sentences, where there is a value whose provenance
     # it describes; the two unknown verdicts above have none.
     basis = _precedence_statement(precedence)
+    if rule.get("predicate_form") == "recorded_observation":
+        return (f"{name} = {statement_value} ({len(refs)} claim(s)); recorded observation available, "
+                f"with no comparison and no preference score{basis}.")
     if not cutoff:
         return (f"{name} = {statement_value} ({len(refs)} claim(s)); recorded for ordering "
                 f"({attribute.get('direction')}), no cutoff{basis}.")
@@ -838,7 +915,8 @@ def calibration_guard(cells_by_candidate: dict[str, list[dict[str, Any]]], rules
 
 
 def preference_scores(cells_by_candidate: dict[str, list[dict[str, Any]]], rules: dict[str, dict[str, Any]],
-                      weights: dict[str, float]) -> dict[str, tuple[float | None, float]]:
+                      weights: dict[str, float], *, qualified_candidates: set[str] | None = None,
+                      qualification_policy: str = "legacy") -> dict[str, tuple[float | None, float]]:
     """Preference score per candidate: weighted mean desirability over evaluated preference rules.
 
     Threshold rules contribute 1 for pass and 0 for fail. Ordering rules contribute the
@@ -847,12 +925,22 @@ def preference_scores(cells_by_candidate: dict[str, list[dict[str, Any]]], rules
     the second element is the weighted share of preference rules that were evaluated.
     Returns {candidate: (score or None, preference coverage)}.
     """
+    if qualification_policy == QUALIFICATION_POLICY:
+        selected = {}
+        for candidate, cells in cells_by_candidate.items():
+            key = lambda c: rules.get(c["rule_ref"], {}).get("quantity_key") or c["rule_ref"]
+            direct_keys = {key(c) for c in cells if c["rule_kind"] == "preference" and direct_evidence(c)}
+            selected[candidate] = [c for c in cells if c["rule_kind"] != "preference" or direct_evidence(c)
+                                   or key(c) not in direct_keys]
+        cells_by_candidate = selected
     percentiles: dict[str, dict[str, float]] = {}
     for rule_ref, info in rules.items():
         if info["rule_kind"] != "preference" or info.get("predicate_form") != "ordering":
             continue
         values = {c: cell["value"] for c, cells in cells_by_candidate.items() for cell in cells
-                  if cell["rule_ref"] == rule_ref and cell["verdict"] == "pass" and isinstance(cell["value"], (int, float))}
+                  if cell["rule_ref"] == rule_ref and cell["verdict"] in ("pass", "available")
+                  and (qualified_candidates is None or c in qualified_candidates)
+                  and isinstance(cell["value"], (int, float)) and not isinstance(cell["value"], bool)}
         ordered = sorted(values.items(), key=lambda kv: kv[1], reverse=info.get("direction") == "lower_better")
         n = len(ordered)
         ranks: dict[str, float] = {}
@@ -880,8 +968,46 @@ def preference_scores(cells_by_candidate: dict[str, list[dict[str, Any]]], rules
             elif cell["verdict"] in ("pass", "fail"):
                 numerator += weight * (1.0 if cell["verdict"] == "pass" else 0.0)
                 denominator += weight
-        out[candidate] = ((numerator / denominator) if denominator else None, (denominator / total) if total else 0.0)
+        direct_weight = sum(weights.get(c["rule_ref"], 1.0) for c in prefs if direct_evidence(c))
+        coverage = (direct_weight if qualification_policy == QUALIFICATION_POLICY else denominator) / total if total else 0.0
+        out[candidate] = ((numerator / denominator) if denominator and
+                          (qualified_candidates is None or candidate in qualified_candidates) else None, coverage)
     return out
+
+
+def direct_evidence(cell: dict[str, Any]) -> bool:
+    """A usable observation, never a model prediction or an absent/unknown/error cell."""
+    return (cell.get("verdict") in ("pass", "fail", "available")
+            and bool(cell.get("value_source_claim_refs"))
+            and not cell.get("tool_error_ref")
+            and cell.get("determination_basis") in DIRECT_BASES
+            and cell.get("value_kind") not in ("predicted", "simulated", "missing")
+            and cell.get("direct_evidence", True) is not False)
+
+
+def qualification(cells: list[dict[str, Any]], *, hard_rule_refs: list[str], required_rule_refs: list[str],
+                  verified_hard_rule_refs: list[str], pending_hard_rules: list[str] = ()) -> dict[str, Any]:
+    """Qualification before scoring. Missing cells stay in the registered denominators."""
+    by_ref = {c["rule_ref"]: c for c in cells}
+    hard, verified = set(hard_rule_refs), set(verified_hard_rule_refs)
+    applicable = {ref for ref in hard if by_ref.get(ref, {}).get("verdict") != "inapplicable"}
+    failed = sorted(ref for ref in applicable & verified if by_ref.get(ref, {}).get("verdict") == "fail"
+                    and direct_evidence(by_ref[ref]))
+    passed = {ref for ref in applicable & verified if by_ref.get(ref, {}).get("verdict") == "pass"
+              and direct_evidence(by_ref[ref])}
+    blocked = sorted((applicable - passed - set(failed)) | set(pending_hard_rules))
+    required_missing = sorted(ref for ref in set(required_rule_refs) if not direct_evidence(by_ref.get(ref, {})))
+    state = ("rejected" if failed else "not_ready" if not applicable or not (applicable & verified)
+             else "pending" if blocked or required_missing else "qualified")
+    return {"state": state, "qualified": state == "qualified", "failed_hard_rule_refs": failed,
+            "blocking_hard_rule_refs": blocked, "missing_direct_required_rule_refs": required_missing,
+            "applicable_hard_count": len(applicable), "verified_hard_count": len(applicable & verified),
+            "hard_total": len(hard), "hard_passed": len(passed), "hard_failed": len(failed),
+            "hard_blocked": len(blocked), "required_total": len(set(required_rule_refs)),
+            "required_direct_answered": len(set(required_rule_refs)) - len(required_missing),
+            "hard_direct_coverage": len(passed | set(failed)) / len(applicable) if applicable else None,
+            "required_direct_coverage": (len(set(required_rule_refs)) - len(required_missing)) / len(set(required_rule_refs))
+                                         if required_rule_refs else None}
 
 
 def feature_values(cells: list[dict[str, Any]], rules: dict[str, dict[str, Any]]) -> dict[str, float]:

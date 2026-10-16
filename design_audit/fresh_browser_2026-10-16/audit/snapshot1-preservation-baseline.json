@@ -1,0 +1,24 @@
+{
+  "task_id": "task_01M52CBE5GYPK9F0MCZYBMPH84",
+  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+  "snapshot_artifact_id": "art_6689292325e7",
+  "snapshot_envelope_sha256": "6689292325e7bac7dd693324bba31ca1ca82cd38350d48554e4be634756ad562",
+  "publication_event_id": "evt_01M52NE0GZHX08QE0TSRSD7GR9",
+  "publication_seq": 232444,
+  "scientific_target_met": false,
+  "files": {
+    "snapshot.json": {
+      "path": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\design_audit\\fresh_browser_2026-10-16\\results\\snapshot.json",
+      "sha256": "26d983ce87e658536c47ae1c3afe5d94974129db53023a7be330f1fe9157ed76"
+    },
+    "candidates.csv": {
+      "path": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\design_audit\\fresh_browser_2026-10-16\\results\\candidates.csv",
+      "sha256": "e6e762918412efe07e24cb57f0e2dbff89784067d03e59a5d419b716b5783954"
+    },
+    "manifest.json": {
+      "path": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\design_audit\\fresh_browser_2026-10-16\\results\\manifest.json",
+      "sha256": "04d9e28d646e6e61425b1ccc5e25aeaf3c4731cc4cb2b409530cea845e413d11"
+    }
+  }
+}

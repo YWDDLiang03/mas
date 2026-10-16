@@ -39,7 +39,7 @@ ACTIVE_STATES = ("candidate", "needs_refine", "deferred_next_round")
 # property claimed for the family, and the aggregation that computes it. Items that are not consolidations do not
 # carry the field, and historical records legitimately fold it back as None.
 ITEM_FIELDS = ("attribute", "rule", "supporting_claim_ids", "expected_change", "falsification_test", "dimension",
-               "validator_problems", "critic_findings", "refine_count", "consolidation")
+               "validator_problems", "critic_findings", "refine_count", "consolidation", "source_registry")
 
 # The operations that produce a child from several parents, so `fold` reads lineage both ways for each of them.
 # `consolidate` is the second one (`vocab.DOMAINS["criterion_change_operation"]`); the states it writes are the
@@ -61,7 +61,8 @@ def _record(core: Core, task_id: str, *, criterion_id: str, version: int, operat
     artifact_id = None
     if item is not None:
         artifact_id = core.artifacts.put("criterion_candidate", {"criterion_id": criterion_id, "version": version,
-                                                                 **{k: item.get(k) for k in ITEM_FIELDS}})
+                                                                 **{k: (item.get(k) or []) if k == "source_registry"
+                                                                    else item.get(k) for k in ITEM_FIELDS}})
     payload = {"pool": True, "change_id": new_id("chg"), "criterion_id": criterion_id, "version": version,
                "operation": operation, "state": state, "targets_in": targets_in or [], "targets_out": targets_out or [],
                "reason_kind": reason_kind, "reason_text": reason_text[:2000], "source_refs": source_refs or [],

@@ -195,7 +195,11 @@ class Store:
         lock = _RootLock(path)
         lock.acquire()
         try:
-            connection = sqlite3.connect(path / "store.db", isolation_level=None, check_same_thread=False)
+            # Workers share this connection. CPython's statement cache can return
+            # inconsistent rows for concurrent cursors (python/cpython#118172).
+            # Writes remain serialized by write_lock; reads use distinct statements.
+            connection = sqlite3.connect(path / "store.db", isolation_level=None, check_same_thread=False,
+                                         cached_statements=0)
             connection.execute("PRAGMA journal_mode=WAL")
             connection.execute("PRAGMA synchronous=FULL")
             connection.execute("PRAGMA foreign_keys=ON")
@@ -211,7 +215,8 @@ class Store:
         database = path / "store.db"
         if not database.is_file():
             raise StoreError("store_root_missing", f"{database} does not exist")
-        connection = sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True, check_same_thread=False)
+        connection = sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True,
+                                     check_same_thread=False, cached_statements=0)
         return cls(path, _ReadOnlyConnection(connection), _RootLock(path), read_only=True)
 
     def close(self) -> None:

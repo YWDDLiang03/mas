@@ -1,0 +1,536 @@
+{
+  "workflow_id": "wf_b2743fc600ca463c88c337fcfc30cdb1",
+  "backend_source_sha256": "3e08789394f1f67705143e41988fcede9c3ba82d073deab7692706436343c93d",
+  "base_url": "http://127.0.0.1:8770/api/workbench",
+  "initial_workflow": {
+    "workflow_id": "wf_b2743fc600ca463c88c337fcfc30cdb1",
+    "task_id": "task_01M517XWKC3EMVGNK0RD06C5SS",
+    "draft_id": "draft_39d19f33db144a859c3bed9d33c289d6",
+    "title": "Oral TME multi-target prioritization",
+    "state": "running",
+    "phase": "propose",
+    "message": "criteria derivation round 1: Generate new criteria from an existing evidence collection",
+    "started_at": "2026-10-16T02:16:09.299Z",
+    "updated_at": "2026-10-16T02:16:34.536Z",
+    "finished_at": null,
+    "progress": {
+      "completed": null,
+      "planned": null,
+      "denominator_kind": "unknown"
+    },
+    "budget": {
+      "used_usd": 0.0025857,
+      "limit_usd": 10.0,
+      "cost_status": "recorded_estimate"
+    },
+    "phases": [
+      {
+        "id": "task",
+        "label": "Understand the task",
+        "state": "completed",
+        "started_at": "2026-10-16T02:16:18.263Z",
+        "finished_at": "2026-10-16T02:16:30.011Z"
+      },
+      {
+        "id": "evidence",
+        "label": "Prepare evidence",
+        "state": "completed",
+        "started_at": "2026-10-16T02:16:30.011Z",
+        "finished_at": "2026-10-16T02:16:30.696Z"
+      },
+      {
+        "id": "propose",
+        "label": "Discover criteria",
+        "state": "running",
+        "started_at": "2026-10-16T02:16:30.696Z"
+      },
+      {
+        "id": "refine",
+        "label": "Review and refine",
+        "state": "queued"
+      },
+      {
+        "id": "review",
+        "label": "Resolve decisions",
+        "state": "queued"
+      },
+      {
+        "id": "freeze",
+        "label": "Save evaluation rules",
+        "state": "queued"
+      },
+      {
+        "id": "screen",
+        "label": "Screen candidates",
+        "state": "queued"
+      },
+      {
+        "id": "results",
+        "label": "Publish results",
+        "state": "queued"
+      }
+    ],
+    "questions": [],
+    "run_id": "run_01M517Y8KEYDK6JTTPJ4HD663K",
+    "snapshot_id": null,
+    "phase_label": "Discover criteria",
+    "active_actor": "proposer",
+    "can_pause": true,
+    "can_resume": false,
+    "can_stop": true,
+    "last_activity_at": "2026-10-16T02:16:34.541Z"
+  },
+  "samples": [
+    {
+      "observed_at": "2026-10-16T02:18:40.333+00:00",
+      "index": 1,
+      "queries": {
+        "overview": {
+          "reads": [
+            {
+              "latency_ms": 22.551,
+              "status": 200,
+              "response_bytes": 19741
+            },
+            {
+              "latency_ms": 29.167,
+              "status": 200,
+              "response_bytes": 19741
+            }
+          ],
+          "min_ms": 22.551,
+          "max_ms": 29.167,
+          "total": null,
+          "items_returned": 0,
+          "as_of": "2026-10-16T02:16:34.541Z"
+        },
+        "criteria": {
+          "reads": [
+            {
+              "latency_ms": 21.15,
+              "status": 200,
+              "response_bytes": 3872
+            },
+            {
+              "latency_ms": 30.901,
+              "status": 200,
+              "response_bytes": 3872
+            }
+          ],
+          "min_ms": 21.15,
+          "max_ms": 30.901,
+          "total": 5,
+          "items_returned": 5,
+          "as_of": "2026-10-16T02:16:34.541Z"
+        },
+        "stages": {
+          "reads": [
+            {
+              "latency_ms": 6.724,
+              "status": 200,
+              "response_bytes": 2099
+            },
+            {
+              "latency_ms": 22.28,
+              "status": 200,
+              "response_bytes": 2099
+            }
+          ],
+          "min_ms": 6.724,
+          "max_ms": 22.28,
+          "total": null,
+          "items_returned": 3,
+          "as_of": null
+        },
+        "snapshots": {
+          "reads": [
+            {
+              "latency_ms": 30.543,
+              "status": 200,
+              "response_bytes": 16
+            },
+            {
+              "latency_ms": 4.779,
+              "status": 200,
+              "response_bytes": 16
+            }
+          ],
+          "min_ms": 4.779,
+          "max_ms": 30.543,
+          "total": null,
+          "items_returned": 0,
+          "as_of": null
+        },
+        "candidates": {
+          "reads": [
+            {
+              "latency_ms": 25.716,
+              "status": 200,
+              "response_bytes": 358
+            },
+            {
+              "latency_ms": 4.824,
+              "status": 200,
+              "response_bytes": 358
+            }
+          ],
+          "min_ms": 4.824,
+          "max_ms": 25.716,
+          "total": 0,
+          "items_returned": 0,
+          "as_of": "2026-10-16T02:16:34.541Z"
+        },
+        "evidence": {
+          "reads": [
+            {
+              "latency_ms": 7.408,
+              "status": 200,
+              "response_bytes": 40425
+            },
+            {
+              "latency_ms": 6.807,
+              "status": 200,
+              "response_bytes": 40425
+            }
+          ],
+          "min_ms": 6.807,
+          "max_ms": 7.408,
+          "total": 3021,
+          "items_returned": 50,
+          "as_of": "2026-10-16T02:16:34.541Z"
+        }
+      },
+      "source_open_mode": "ro",
+      "workflow_http": {
+        "latency_ms": 31.693,
+        "status": 200,
+        "response_bytes": 1825
+      },
+      "workflow": {
+        "state": "running",
+        "phase": "propose",
+        "run_id": "run_01M517Y8KEYDK6JTTPJ4HD663K",
+        "updated_at": "2026-10-16T02:17:15.344Z",
+        "budget": {
+          "used_usd": 0.0025857,
+          "limit_usd": 10.0,
+          "cost_status": "recorded_estimate"
+        },
+        "message": "criteria derivation round 1: Generate new criteria from an existing evidence collection"
+      },
+      "source_tail_before": {
+        "rowid": 1261078,
+        "event_id": "evt_01M517YCFDJ3NCMZYD1MCCB9TC",
+        "stream_id": "run_01M517Y8KEYDK6JTTPJ4HD663K",
+        "seq": 35,
+        "event_type": "agent.started",
+        "recorded_at": "2026-10-16T02:16:34.541Z"
+      },
+      "overview_summary": {
+        "candidate_count": 3177,
+        "criteria_count": 5,
+        "hard_count": 0,
+        "preference_count": 5,
+        "task_required_count": 5,
+        "pending_count": 0,
+        "pending_review_count": 0,
+        "historical_pending_review_count": 0,
+        "active_registered_count": 5,
+        "historical_registered_count": 5,
+        "retired_latest_count": 0,
+        "additional_unregistered_active_count": 0,
+        "unresolved_pool_count": 0,
+        "total_active_count": 5,
+        "scoring_count": 0,
+        "scoring_in_latest_frozen_set_count": 0,
+        "deferred_count": 0,
+        "registered_pending_count": 5,
+        "latest_frozen_rule_set_ref": null,
+        "reduction_run_id": null,
+        "historical_criteria_count": 5,
+        "run_count": 1,
+        "claim_count": 3021
+      },
+      "bootstrap_http": {
+        "latency_ms": 53.371,
+        "status": 200,
+        "response_bytes": 16372
+      },
+      "projection_after": {
+        "state": "ready",
+        "ready": true,
+        "syncing": false,
+        "updated_at": "2026-10-16T02:18:40.364Z",
+        "source_cursor": 1261078,
+        "source_event": {
+          "rowid": 1261078,
+          "event_id": "evt_01M517YCFDJ3NCMZYD1MCCB9TC",
+          "body_hash": "cb80e8b9c25ec212ad7da49b71740895f8dc5fe5ef71500654c5553f080a44be",
+          "stream_id": "run_01M517Y8KEYDK6JTTPJ4HD663K",
+          "seq": 35,
+          "recorded_at": "2026-10-16T02:16:34.541Z"
+        },
+        "as_of": "2026-10-16T02:16:34.541Z",
+        "freshness": "background_projection",
+        "error": null,
+        "schema_version": 4
+      },
+      "source_tail_projected": true,
+      "event_to_observed_query_visibility_upper_bound_ms": 126092.736,
+      "finished_at": "2026-10-16T02:18:40.633+00:00"
+    },
+    {
+      "observed_at": "2026-10-16T02:19:40.637+00:00",
+      "index": 2,
+      "queries": {
+        "overview": {
+          "reads": [
+            {
+              "latency_ms": 40.399,
+              "status": 200,
+              "response_bytes": 19741
+            },
+            {
+              "latency_ms": 33.247,
+              "status": 200,
+              "response_bytes": 19741
+            }
+          ],
+          "min_ms": 33.247,
+          "max_ms": 40.399,
+          "total": null,
+          "items_returned": 0,
+          "as_of": "2026-10-16T02:16:34.541Z"
+        },
+        "criteria": {
+          "reads": [
+            {
+              "latency_ms": 5.779,
+              "status": 200,
+              "response_bytes": 3872
+            },
+            {
+              "latency_ms": 5.505,
+              "status": 200,
+              "response_bytes": 3872
+            }
+          ],
+          "min_ms": 5.505,
+          "max_ms": 5.779,
+          "total": 5,
+          "items_returned": 5,
+          "as_of": "2026-10-16T02:16:34.541Z"
+        },
+        "stages": {
+          "reads": [
+            {
+              "latency_ms": 5.341,
+              "status": 200,
+              "response_bytes": 2099
+            },
+            {
+              "latency_ms": 4.939,
+              "status": 200,
+              "response_bytes": 2099
+            }
+          ],
+          "min_ms": 4.939,
+          "max_ms": 5.341,
+          "total": null,
+          "items_returned": 3,
+          "as_of": null
+        },
+        "snapshots": {
+          "reads": [
+            {
+              "latency_ms": 4.782,
+              "status": 200,
+              "response_bytes": 16
+            },
+            {
+              "latency_ms": 24.801,
+              "status": 200,
+              "response_bytes": 16
+            }
+          ],
+          "min_ms": 4.782,
+          "max_ms": 24.801,
+          "total": null,
+          "items_returned": 0,
+          "as_of": null
+        },
+        "candidates": {
+          "reads": [
+            {
+              "latency_ms": 5.047,
+              "status": 200,
+              "response_bytes": 358
+            },
+            {
+              "latency_ms": 5.37,
+              "status": 200,
+              "response_bytes": 358
+            }
+          ],
+          "min_ms": 5.047,
+          "max_ms": 5.37,
+          "total": 0,
+          "items_returned": 0,
+          "as_of": "2026-10-16T02:16:34.541Z"
+        },
+        "evidence": {
+          "reads": [
+            {
+              "latency_ms": 23.177,
+              "status": 200,
+              "response_bytes": 40425
+            },
+            {
+              "latency_ms": 28.996,
+              "status": 200,
+              "response_bytes": 40425
+            }
+          ],
+          "min_ms": 23.177,
+          "max_ms": 28.996,
+          "total": 3021,
+          "items_returned": 50,
+          "as_of": "2026-10-16T02:16:34.541Z"
+        }
+      },
+      "source_open_mode": "ro",
+      "workflow_http": {
+        "latency_ms": 19.496,
+        "status": 200,
+        "response_bytes": 1825
+      },
+      "workflow": {
+        "state": "running",
+        "phase": "propose",
+        "run_id": "run_01M517Y8KEYDK6JTTPJ4HD663K",
+        "updated_at": "2026-10-16T02:17:15.344Z",
+        "budget": {
+          "used_usd": 0.0025857,
+          "limit_usd": 10.0,
+          "cost_status": "recorded_estimate"
+        },
+        "message": "criteria derivation round 1: Generate new criteria from an existing evidence collection"
+      },
+      "source_tail_before": {
+        "rowid": 1261078,
+        "event_id": "evt_01M517YCFDJ3NCMZYD1MCCB9TC",
+        "stream_id": "run_01M517Y8KEYDK6JTTPJ4HD663K",
+        "seq": 35,
+        "event_type": "agent.started",
+        "recorded_at": "2026-10-16T02:16:34.541Z"
+      },
+      "overview_summary": {
+        "candidate_count": 3177,
+        "criteria_count": 5,
+        "hard_count": 0,
+        "preference_count": 5,
+        "task_required_count": 5,
+        "pending_count": 0,
+        "pending_review_count": 0,
+        "historical_pending_review_count": 0,
+        "active_registered_count": 5,
+        "historical_registered_count": 5,
+        "retired_latest_count": 0,
+        "additional_unregistered_active_count": 0,
+        "unresolved_pool_count": 0,
+        "total_active_count": 5,
+        "scoring_count": 0,
+        "scoring_in_latest_frozen_set_count": 0,
+        "deferred_count": 0,
+        "registered_pending_count": 5,
+        "latest_frozen_rule_set_ref": null,
+        "reduction_run_id": null,
+        "historical_criteria_count": 5,
+        "run_count": 1,
+        "claim_count": 3021
+      },
+      "bootstrap_http": {
+        "latency_ms": 34.496,
+        "status": 200,
+        "response_bytes": 16372
+      },
+      "projection_after": {
+        "state": "ready",
+        "ready": true,
+        "syncing": false,
+        "updated_at": "2026-10-16T02:19:40.484Z",
+        "source_cursor": 1261078,
+        "source_event": {
+          "rowid": 1261078,
+          "event_id": "evt_01M517YCFDJ3NCMZYD1MCCB9TC",
+          "body_hash": "cb80e8b9c25ec212ad7da49b71740895f8dc5fe5ef71500654c5553f080a44be",
+          "stream_id": "run_01M517Y8KEYDK6JTTPJ4HD663K",
+          "seq": 35,
+          "recorded_at": "2026-10-16T02:16:34.541Z"
+        },
+        "as_of": "2026-10-16T02:16:34.541Z",
+        "freshness": "background_projection",
+        "error": null,
+        "schema_version": 4
+      },
+      "source_tail_projected": true,
+      "event_to_observed_query_visibility_upper_bound_ms": 186340.258,
+      "finished_at": "2026-10-16T02:19:40.881+00:00"
+    }
+  ],
+  "baseline_report": "read_model_benchmark.json",
+  "initial_observed_at": "2026-10-16T02:16:43.375291+00:00",
+  "observation_method": "Two read-only HTTP samples 60 seconds apart; each endpoint requested twice. Event-to-query visibility is an observed upper bound, not the background projector execution duration.",
+  "maximum_observed_http_ms": 40.399,
+  "all_sampled_source_tails_projected": true,
+  "source_cursor_changed_during_samples": false,
+  "new_event_visibility_latency": {
+    "status": "not_measured",
+    "reason": "No new source event was committed between the two 60-second-spaced samples; watermark equality was observed. Event age is not projector latency."
+  },
+  "read_only_observation_complete": true,
+  "baseline_comparison": [
+    {
+      "endpoint": "Overview",
+      "baseline_direct_read_model_p95_ms": 5.543,
+      "live_http_min_ms": 22.551,
+      "live_http_max_ms": 40.399,
+      "live_http_samples": 4
+    },
+    {
+      "endpoint": "Criteria page",
+      "baseline_direct_read_model_p95_ms": 4.595,
+      "live_http_min_ms": 5.505,
+      "live_http_max_ms": 30.901,
+      "live_http_samples": 4
+    },
+    {
+      "endpoint": "Stages",
+      "baseline_direct_read_model_p95_ms": 4.493,
+      "live_http_min_ms": 4.939,
+      "live_http_max_ms": 22.28,
+      "live_http_samples": 4
+    },
+    {
+      "endpoint": "Snapshots",
+      "baseline_direct_read_model_p95_ms": 3.458,
+      "live_http_min_ms": 4.779,
+      "live_http_max_ms": 30.543,
+      "live_http_samples": 4
+    },
+    {
+      "endpoint": "Candidates page",
+      "baseline_direct_read_model_p95_ms": 4.932,
+      "live_http_min_ms": 4.824,
+      "live_http_max_ms": 25.716,
+      "live_http_samples": 4
+    },
+    {
+      "endpoint": "Evidence page",
+      "baseline_direct_read_model_p95_ms": 5.213,
+      "live_http_min_ms": 6.807,
+      "live_http_max_ms": 28.996,
+      "live_http_samples": 4
+    }
+  ]
+}

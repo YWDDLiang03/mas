@@ -70,8 +70,10 @@ def register(broker, *, literature: bool = True, universe_file: str | None = Non
                      ChEMBLMechanism(targets), GtoPdbAffinity(GtoPdbData(cache_dir))):
         broker.register(provider)
     if universe_file and (predict if predict is not None else admet.available(predict_python)):
-        broker.register(admet.AdmetPrediction(admet.StructureIndex(universe_file),
-                                              admet.PanelCache(cache_dir, python=predict_python)))
+        structures, panel = admet.StructureIndex(universe_file), admet.PanelCache(cache_dir, python=predict_python)
+        existing = admet.ExistingPanelProjection(structures, panel)
+        broker.register(admet.AdmetPrediction(structures, panel, existing=existing))
+        broker.register(admet.AdmetComputedDescriptors(structures, panel, existing=existing))
     if literature:
         literature_tools.register(broker, cache_dir=cache_dir, upload_dir=upload_dir)
 
@@ -91,6 +93,11 @@ def _panel_entries() -> dict[str, str]:
             how += f"; held out {metric}" if metric else ""
             how += f"; {spec['species']}" if spec["species"] else ""
         lines[endpoint] = f"{spec['name']} [{spec['category']}] in {spec['unit']}: {how}"
+        if endpoint == "LD50_Zhu":
+            lines[endpoint] += ("; this is a logarithmic reciprocal of molar LD50: a larger output means "
+                                "a smaller LD50 and greater acute toxicity, not a larger tolerated dose")
+        if endpoint == "Lipinski":
+            lines[endpoint] += "; number of the four rule-of-five conditions satisfied, not a violation count"
     return lines
 
 # What the proposer may bind an attribute's evidence_request to. Parameters in angle
@@ -155,13 +162,17 @@ EVIDENCE_CATALOG.append(
 
 EVIDENCE_CATALOG.append(
     {"capability": "predicted_property_lookup", "question_kind": "admet_prediction", "identifier_scheme": "inchikey",
-     "parameters": {"endpoint": f"<one of the {len(admet.ENDPOINTS)} endpoint ids listed under `endpoints` below>"},
-     "units": dict(admet.UNITS), "endpoints": _panel_entries(),
+     "parameters": {"endpoint": f"<one of the {len(admet.ENDPOINTS) - len(admet.DESCRIPTOR_PROJECTIONS)} endpoint ids listed under `endpoints` below>"},
+     "units": {key: value for key, value in admet.UNITS.items() if key not in admet.DESCRIPTOR_PROJECTIONS},
+     "endpoints": {key: value for key, value in _panel_entries().items() if key not in admet.DESCRIPTOR_PROJECTIONS},
      "evidence_kind": "model_prediction", "determination_basis": "predicted",
      "note":
          "A local ADMET model panel (ADMET-AI: a Chemprop-RDKit ensemble per endpoint, trained on the "
          "Therapeutics Data Commons dataset named in each line above) run over the compound's own structure. "
-         "EVERY VALUE HERE IS A PREDICTION, NOT A MEASUREMENT. An attribute bound to this entry must declare "
+         "This tool emits model_prediction/predicted records. Endpoints documented as computed RDKit descriptors "
+         "are deterministic calculations, not trained predictions. For a standard descriptor already offered by "
+         "property_estimate (such as MolecularWeight), prefer that exact descriptor route and its database_entry/derived "
+         "provenance. Do not interchange different logP methods or other distinct quantities. An attribute bound to this entry must declare "
          "acceptable_value_sources: [\"model_prediction\"] and acceptable_determination_bases: [\"predicted\"] "
          "and nothing else -- the registry refuses `predicted` alongside any other basis, because a predicted "
          "value standing in for a measurement is a surrogate inside a verdict, so a predicted quantity is its "
@@ -183,11 +194,31 @@ EVIDENCE_CATALOG.append(
          "or an exploratory consideration to a hard exclusion: a hard exclusion on a predicted value deletes a "
          "candidate on a model's output. "
          "THE ELEVEN `Physicochemical` ENDPOINTS are RDKit calculations that the package reports in the same "
-         "frame as its predictions; they are stamped `predicted` with the rest because this is one route with "
-         "one basis. `property_estimate / computed_property` (PubChem) is the route for a descriptor that "
-         "should count as `derived` -- do not bind both for one quantity, which would score it twice. "
+         "frame as its predictions; this legacy route keeps its original `predicted` contract. The four "
+         "independently verified saved RDKit descriptors logP/BRENK_alert/NIH_alert/PAINS_alert also have a "
+         "separate property_estimate / admet_computed_property route with database_entry/derived provenance. "
+         "These four are omitted from this prediction catalog: new criteria must use their derived route. "
+         "The other seven physicochemical endpoints retain their existing conservative predicted contract; "
+         "their basis is not automatically changed by this addition. "
+         "Do not bind both for one quantity. PubChem descriptors and distinct logP algorithms are separate "
+         "measurement identities, not interchangeable aliases. "
          "A compound the universe has no structure for yields unknown, never a failure, so pair this with "
          "on_missing unknown_no_penalty."})
+
+EVIDENCE_CATALOG.append({
+    "capability": "property_estimate", "question_kind": "admet_computed_property", "identifier_scheme": "inchikey",
+    "parameters": {"endpoint": "<one of logP, BRENK_alert, NIH_alert, PAINS_alert>"},
+    "units": {endpoint: admet.UNITS[endpoint] for endpoint in admet.DESCRIPTOR_PROJECTIONS},
+    "endpoints": {endpoint: admet.DESCRIPTOR_PROJECTIONS[endpoint]["algorithm"]
+                  for endpoint in admet.DESCRIPTOR_PROJECTIONS},
+    "evidence_kind": "database_entry", "determination_basis": "derived",
+    "note": "Read exact pre-pinned ADMET-AI 2.0.1 physicochemical output, without running a model or recomputing "
+            "a descriptor. logP is RDKit Crippen MolLogP, not PubChem XLogP or a trained lipophilicity endpoint. "
+            "BRENK/NIH/PAINS values count FilterCatalog substructure matches, not toxicity measurements or "
+            "classifier probabilities. Each saved value carries the original panel identity, structure and file "
+            "hash plus the checked algorithm source version. Accept only database_entry/derived for this route. "
+            "A missing pinned value stays unknown and never triggers computation. Old prediction-route records "
+            "keep their original basis; changing an attribute to this route requires a new reviewed version."})
 
 EVIDENCE_KINDS = tuple(sorted({entry["evidence_kind"] for entry in EVIDENCE_CATALOG if entry.get("evidence_kind")}
                               | set(literature_registry.EVIDENCE_KINDS)))
@@ -279,6 +310,21 @@ def objective_templates(task_context: dict) -> list[dict]:
     for index, constraint in enumerate(task_context.get("constraints", [])):
         text = (constraint.get("text") or "").lower()
         if constraint.get("hardness") == "hard" and constraint.get("kind") == "route" and "oral" in text:
+            if task_context.get("qualification_policy") == "qualification_first_v1":
+                from .clinical_routes import EXISTENCE_SEMANTICS
+                items.append({"source_field": f"constraints[{index}]", "attribute": {
+                    "name": "Documented oral administration", "measurement_kind": "categorical", "unit": None,
+                    "definition": "Whether a product record or an explicit human clinical administration report documents an oral route for this compound",
+                    "direction": "non_directional", "acceptable_value_sources": ["database_entry", "peer_reviewed"],
+                    "aggregation": "any_true", "existence_semantics": dict(EXISTENCE_SEMANTICS),
+                    "acceptable_determination_bases": ["measured", "derived", "asserted", "curated"],
+                    "evidence_request": {"capability": "record_field_lookup", "question_kind": "record_field",
+                        "identifier_scheme": "inchikey", "parameters": {"field": "oral"}},
+                    "rationale": "the task requires documented oral administration; an absent database listing is unknown"},
+                    "rule": {"rule_kind": "hard_exclusion", "predicate_form": "categorical_membership",
+                        "cutoff": {"comparator": "==", "value": True, "unit": None}, "cutoff_basis": "task_constraint",
+                        "on_missing": "unknown_blocks_recommendation"}})
+                continue
             items.append({
                 "source_field": f"constraints[{index}]",
                 # WHY the name and definition no longer say "approved": the task admits an approved OR a

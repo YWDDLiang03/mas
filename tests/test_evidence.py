@@ -30,7 +30,7 @@ def hit(key, label):
 def test_broker_retries_retryable_errors_then_succeeds(core):
     prop = FakeProperty({("K1", "MW"): 300.0}, failures={"K1": ["transient_network", "rate_limited"]})
     delays = []
-    broker = Broker(core, sleep=delays.append)
+    broker = Broker(core, sleep=delays.append, platform="linux")
     broker.register(prop)
     result = broker.call("run_x", "property_estimate", "computed_property", {"identifier": "K1", "property": "MW"},
                          requesting_actor=WHO)

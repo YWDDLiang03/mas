@@ -29,7 +29,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from . import criteria, ledger, reading, vocab
+from . import criteria, ledger, reading, supplements, vocab
 from .journal import actor as make_actor
 from .models import ModelError
 from .runtime import Core
@@ -386,7 +386,8 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
            sources: list[str] | None = None, limit_per_query: int | None = None,
            max_chars: int | None = None, document_workers: int = 1,
            candidate_reading: LiteratureReading | None = None,
-           defer_capabilities: tuple[str, ...] = ()) -> tuple[list[dict], str | None, list[str]]:
+           defer_capabilities: tuple[str, ...] = (),
+           verified_supplement_refs: list[str] | tuple[str, ...] = ()) -> tuple[list[dict], str | None, list[str]]:
     """Gather claims for one cell. Returns (claims, tool_error_ref, source kinds searched).
 
     `defer_capabilities` are the capabilities this run holds out (`criteria.DEFERRAL_SCOPES`,
@@ -409,7 +410,10 @@ def gather(core: Core, broker, roster, stream_id: str, *, candidate: dict[str, A
     # runs here per route; the literature part is a per-candidate reading handed in below. Dispatching
     # on `is_literature_bound` alone returned at the first branch, so a mixed attribute's databases
     # were never called at all and its cell read as though no record existed.
-    claims, error_ref, searched = [], None, []
+    claims = supplements.lookup(core, verified_supplement_refs, candidate=candidate, identity=identity,
+                                attribute=attribute, cutoff_date=cutoff_date)
+    claims = supplements.record_reuse(core, stream_id, claims, ids=ids)
+    error_ref, searched = None, (["verified_supplement_lookup"] if verified_supplement_refs else [])
     for request in [r for r in routes if r.get("capability") != "literature_retrieval"
                     and r.get("capability") not in defer_capabilities]:
         inputs = dict(request.get("parameters", {}))

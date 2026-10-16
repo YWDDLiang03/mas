@@ -1,0 +1,312 @@
+{
+  "task_id": "task_01M51AQ0JK0MYN47806ZD5XS1B",
+  "rule_set_ref": "rules@v2",
+  "rule_set_artifact": "art_039fe32dbd20",
+  "entry_count": 24,
+  "entries": [
+    {
+      "rule_ref": "rule_computed-lipophilicity-xlogp@v1",
+      "attribute_ref": "attr_computed-lipophilicity-xlogp@v1",
+      "name": "Computed lipophilicity (XLogP)",
+      "kind": "preference",
+      "transform": null,
+      "direction": "lower_better",
+      "predicate": "threshold",
+      "cutoff": {
+        "comparator": "<=",
+        "unit": "log units",
+        "value": 5
+      },
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_csf1r-curated-potency@v1",
+      "attribute_ref": "attr_csf1r-curated-potency@v1",
+      "name": "CSF1R curated potency",
+      "kind": "preference",
+      "transform": null,
+      "direction": "higher_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_documented-oral-administration@v1",
+      "attribute_ref": "attr_documented-oral-administration@v1",
+      "name": "Documented oral administration",
+      "kind": "hard_exclusion",
+      "transform": null,
+      "direction": "non_directional",
+      "predicate": "categorical_membership",
+      "cutoff": {
+        "comparator": "==",
+        "unit": null,
+        "value": true
+      },
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_fgfr1-curated-potency@v1",
+      "attribute_ref": "attr_fgfr1-curated-potency@v1",
+      "name": "FGFR1 curated potency",
+      "kind": "preference",
+      "transform": null,
+      "direction": "higher_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_hydrogen-bond-acceptors-lipinski@v1",
+      "attribute_ref": "attr_hydrogen-bond-acceptors-lipinski@v1",
+      "name": "Hydrogen bond acceptors (Lipinski)",
+      "kind": "preference",
+      "transform": null,
+      "direction": "lower_better",
+      "predicate": "threshold",
+      "cutoff": {
+        "comparator": "<=",
+        "unit": "count",
+        "value": 10
+      },
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_hydrogen-bond-donors-lipinski@v1",
+      "attribute_ref": "attr_hydrogen-bond-donors-lipinski@v1",
+      "name": "Hydrogen bond donors (Lipinski)",
+      "kind": "preference",
+      "transform": null,
+      "direction": "lower_better",
+      "predicate": "threshold",
+      "cutoff": {
+        "comparator": "<=",
+        "unit": "count",
+        "value": 5
+      },
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_lipophilicity-logp-optimal-band@v1",
+      "attribute_ref": "attr_lipophilicity-logp-optimal-band@v1",
+      "name": "Lipophilicity (logP) optimal band",
+      "kind": "preference",
+      "transform": {
+        "basis": "source_stated_value",
+        "high": 4,
+        "kind": "distance_outside_band",
+        "low": 2,
+        "source_refs": [
+          "claim_01M4X8AJ48X0A1MB80GB6V5YVY"
+        ]
+      },
+      "direction": "within_range",
+      "predicate": "range_membership",
+      "cutoff": {
+        "comparator": ">=",
+        "unit": "log units",
+        "value": 2
+      },
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_lipophilicity-logp@v1",
+      "attribute_ref": "attr_lipophilicity-logp@v1",
+      "name": "Lipophilicity (logP)",
+      "kind": "preference",
+      "transform": null,
+      "direction": "within_range",
+      "predicate": "range_membership",
+      "cutoff": {
+        "comparator": ">=",
+        "unit": "log units",
+        "value": 2
+      },
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_measured-cyp3a4-interaction-liability@v1",
+      "attribute_ref": "attr_measured-cyp3a4-interaction-liability@v1",
+      "name": "Measured CYP3A4 interaction liability",
+      "kind": "preference",
+      "transform": null,
+      "direction": "lower_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_measured-human-clearance@v1",
+      "attribute_ref": "attr_measured-human-clearance@v1",
+      "name": "Measured human clearance",
+      "kind": "preference",
+      "transform": null,
+      "direction": "lower_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_measured-human-oral-bioavailability-f@v1",
+      "attribute_ref": "attr_measured-human-oral-bioavailability-f@v1",
+      "name": "Measured human oral bioavailability (F%)",
+      "kind": "preference",
+      "transform": null,
+      "direction": "higher_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_measured-human-plasma-protein-binding@v1",
+      "attribute_ref": "attr_measured-human-plasma-protein-binding@v1",
+      "name": "Measured human plasma protein binding",
+      "kind": "preference",
+      "transform": null,
+      "direction": "lower_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_predicted-aqueous-solubility@v1",
+      "attribute_ref": "attr_predicted-aqueous-solubility@v1",
+      "name": "Predicted aqueous solubility",
+      "kind": "preference",
+      "transform": null,
+      "direction": "higher_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_predicted-caco-2-permeability@v1",
+      "attribute_ref": "attr_predicted-caco-2-permeability@v1",
+      "name": "Predicted Caco-2 permeability",
+      "kind": "preference",
+      "transform": null,
+      "direction": "higher_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_predicted-cyp3a4-substrate-probability@v1",
+      "attribute_ref": "attr_predicted-cyp3a4-substrate-probability@v1",
+      "name": "Predicted CYP3A4 substrate probability",
+      "kind": "preference",
+      "transform": null,
+      "direction": "lower_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_predicted-half-life@v1",
+      "attribute_ref": "attr_predicted-half-life@v1",
+      "name": "Predicted half-life",
+      "kind": "exploratory_consideration",
+      "transform": null,
+      "direction": "higher_better",
+      "predicate": "qualitative_judgment",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_predicted-human-intestinal-absorption-hia@v1",
+      "attribute_ref": "attr_predicted-human-intestinal-absorption-hia@v1",
+      "name": "Predicted human intestinal absorption (HIA)",
+      "kind": "preference",
+      "transform": null,
+      "direction": "higher_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_predicted-plasma-protein-binding-rate@v1",
+      "attribute_ref": "attr_predicted-plasma-protein-binding-rate@v1",
+      "name": "Predicted plasma protein binding rate",
+      "kind": "preference",
+      "transform": null,
+      "direction": "lower_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_predicted-qed-drug-likeness@v1",
+      "attribute_ref": "attr_predicted-qed-drug-likeness@v1",
+      "name": "Predicted QED drug-likeness",
+      "kind": "preference",
+      "transform": null,
+      "direction": "higher_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_rotatable-bonds-molecular-flexibility@v1",
+      "attribute_ref": "attr_rotatable-bonds-molecular-flexibility@v1",
+      "name": "Rotatable bonds (molecular flexibility)",
+      "kind": "preference",
+      "transform": null,
+      "direction": "lower_better",
+      "predicate": "threshold",
+      "cutoff": {
+        "comparator": "<=",
+        "unit": "count",
+        "value": 8
+      },
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_topological-polar-surface-area-tpsa@v1",
+      "attribute_ref": "attr_topological-polar-surface-area-tpsa@v1",
+      "name": "Topological polar surface area (TPSA)",
+      "kind": "preference",
+      "transform": null,
+      "direction": "lower_better",
+      "predicate": "threshold",
+      "cutoff": {
+        "comparator": "<=",
+        "unit": "Å²",
+        "value": 90
+      },
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_vegfr1-curated-potency@v1",
+      "attribute_ref": "attr_vegfr1-curated-potency@v1",
+      "name": "VEGFR1 curated potency",
+      "kind": "preference",
+      "transform": null,
+      "direction": "higher_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_vegfr2-curated-potency@v1",
+      "attribute_ref": "attr_vegfr2-curated-potency@v1",
+      "name": "VEGFR2 curated potency",
+      "kind": "preference",
+      "transform": null,
+      "direction": "higher_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    },
+    {
+      "rule_ref": "rule_vegfr3-curated-potency@v1",
+      "attribute_ref": "attr_vegfr3-curated-potency@v1",
+      "name": "VEGFR3 curated potency",
+      "kind": "preference",
+      "transform": null,
+      "direction": "higher_better",
+      "predicate": "ordering",
+      "cutoff": null,
+      "entry_override_keys": []
+    }
+  ]
+}

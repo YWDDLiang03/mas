@@ -1,0 +1,105 @@
+{
+  "recorded_at": "2026-10-15T23:27:05.482Z",
+  "task_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+  "run_id": "run_01M50X7EYSBXPDCP0SG859666R",
+  "snapshot_id": "lb_task_01M50Q5EZE12GGDES5QNWR0JQX_1",
+  "measurement_profile_ref": "art_5a84d471a676",
+  "candidate_count": 3177,
+  "rankable_count": 50,
+  "scoring_rules": 9,
+  "sweep_completeness": 1.0,
+  "reference_candidate": {
+    "position": 5,
+    "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+    "label": "Surufatinib",
+    "state": "provisional",
+    "state_label": "provisional",
+    "score": 0.6962960276309735,
+    "preference_coverage": 0.8888888888888888,
+    "hard_rule_coverage": null,
+    "clears_hard_rules": true,
+    "missing": [],
+    "state_reason": "hard rules await an expert decision: rule_approved-oral-route-on-record@v1",
+    "clears_mandated_criteria": true,
+    "mandated_coverage": 1.0,
+    "mandated_blocked_by": [],
+    "mandated_gates_unanswered": [],
+    "rank_note": null,
+    "review_status": "no human review yet",
+    "candidate": "/candidate?task=task_01M50Q5EZE12GGDES5QNWR0JQX&id=cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N&snapshot=lb_task_01M50Q5EZE12GGDES5QNWR0JQX_1"
+  },
+  "budget": {
+    "caps": {
+      "usd": 10.0
+    },
+    "soft_kinds": [],
+    "used": {
+      "tool_calls": 9532
+    },
+    "warn_at": 0.8
+  },
+  "tool_results": {
+    "total": 60364,
+    "historical_replay": 50832,
+    "local_historical_projection": 9252,
+    "provider_invocation_tool_drug_pubchem_property": 279,
+    "provider_invocation_tool_drug_chembl_bioactivity": 1,
+    "tool_errors": 0,
+    "outcomes": [
+      {
+        "kind": "historical_replay",
+        "outcome": "ok",
+        "count": 50832
+      },
+      {
+        "kind": "local_historical_projection",
+        "outcome": "ok",
+        "count": 9124
+      },
+      {
+        "kind": "local_historical_projection",
+        "outcome": "empty",
+        "count": 128
+      },
+      {
+        "kind": "provider_invocation_tool_drug_pubchem_property",
+        "outcome": "empty",
+        "count": 279
+      },
+      {
+        "kind": "provider_invocation_tool_drug_chembl_bioactivity",
+        "outcome": "ok",
+        "count": 1
+      }
+    ],
+    "counting_unit": "Recorded tool results, not HTTP requests. PubChem provider invocations share a whole-row in-memory cache; ChEMBL may paginate.",
+    "legacy_fresh_tool_call_true_count": 0,
+    "legacy_flag_note": "Absence of fresh_tool_call=true does not mean no external retrieval. Classify replay and local projection explicitly, then inspect the remaining provider invocations."
+  },
+  "browser_download": {
+    "source_path": "C:\\Users\\admin\\Downloads\\mas-leaderboard.csv",
+    "artifact_path": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\var\\acceptance-mid\\browser-leaderboard.csv",
+    "rows": 3177,
+    "sha256": "a03a3fcebef772f7984b6582ae52971d7b2ec6ac9de59cccabeac3f96fc5142d",
+    "byte_equal_to_pinned_api_export": true
+  },
+  "comparison_to_original_A": {
+    "original_rank": 5,
+    "original_rankable": 50,
+    "original_preference_coverage": "8/11",
+    "original_required_targets": "4/5",
+    "interpretation": "The new reading retains rank 5 and improves required-target evidence coverage. Reduction and targeted source addition changed the measurement, so the difference is descriptive."
+  },
+  "finalized_at": "2026-10-15T23:41:55.905542+00:00",
+  "recovery": {
+    "comparison_id": "evr_01M50YTR9KXM6EZC527PSG62C3",
+    "exact": 0,
+    "near_equivalent": 1,
+    "missed": 10,
+    "n_historical": 11,
+    "reading_kind": "assisted/descriptive_inherited",
+    "registered_scope": 59,
+    "soft_metric": true,
+    "is_independent_validation": false
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "export_kind": "recorded_final_snapshot",
+  "created_at": "2026-10-16T15:34:58.738Z",
+  "workflow_id": "wf_cb4caec3dec348908fb3d34eae5b11d1",
+  "task_id": "task_01M52CBE5GYPK9F0MCZYBMPH84",
+  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+  "workflow_state": "completed",
+  "source_store": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\var\\primary\\store",
+  "source_open_mode": "read_only",
+  "source_or_cache_modified": false,
+  "model_calls_made_by_exporter": 0,
+  "scientific_success_claimed": false,
+  "files": {
+    "candidates.csv": {
+      "bytes": 1479132,
+      "sha256": "e6e762918412efe07e24cb57f0e2dbff89784067d03e59a5d419b716b5783954"
+    },
+    "candidates.json": {
+      "bytes": 2496209,
+      "sha256": "d60cabdbf0a614ea758d3944806a0fce431ae2253f2402df9bbac2ab08adea56"
+    },
+    "cqa.json": {
+      "bytes": 59556018,
+      "sha256": "a37c0b433422e7a5985887895892d97a8bd39ff475d9ea87e91dbfcdd75a8907"
+    },
+    "model-accounting.json": {
+      "bytes": 219365,
+      "sha256": "d45f05c53c6a1f2da8505366fd30ccc2667d81f0bb0e0d3ce99a331cb760179b"
+    },
+    "overview.json": {
+      "bytes": 91800,
+      "sha256": "80c02dd01478ce68129fa2558e11704aa84cd87ff4b2cddbfbc18559aab88a10"
+    },
+    "report.md": {
+      "bytes": 8430,
+      "sha256": "62677b4457a1d7d614f6733c0357533aa2abb9b655125af88edd78c13abb6f53"
+    },
+    "run-bindings.json": {
+      "bytes": 71980,
+      "sha256": "b57e0a070323caa59f4daffc26a32133fa04b7207fa1fa665f9d543ae629c5f7"
+    },
+    "snapshot.json": {
+      "bytes": 57194440,
+      "sha256": "26d983ce87e658536c47ae1c3afe5d94974129db53023a7be330f1fe9157ed76"
+    },
+    "source-cqa-history.json": {
+      "bytes": 20466033,
+      "sha256": "76ae2935c490aa9859645f070e8fa6e40b345e9902be43d244b8c36ab4a9432d"
+    },
+    "stages.json": {
+      "bytes": 21905,
+      "sha256": "8f65aa4e3ad883eb38bf835e8cb07238473443c24408c95227f8ff1626516afc"
+    },
+    "surufatinib.json": {
+      "bytes": 130194,
+      "sha256": "4bd2ce410dd82fcfbfe60ff30e665d438ee22840f6e49b707f742e12475cbcf7"
+    },
+    "task.json": {
+      "bytes": 125901,
+      "sha256": "c8a628f232d7e76f93806af16fcb7bdcee022330cc18fe9910f339a5f5821411"
+    },
+    "validation.json": {
+      "bytes": 568,
+      "sha256": "355aa289ee525950551d70579c26ff9411bec7f6ddde5e4667031d20c15790e6"
+    },
+    "workflow.json": {
+      "bytes": 2823,
+      "sha256": "e3fcfb69ad9f3310d7c3e7b6700a8bb3a9915806bb51443188123487085f36d2"
+    }
+  },
+  "previous_stopped_workflows_cost_included": false
+}

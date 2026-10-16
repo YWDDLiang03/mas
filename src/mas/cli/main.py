@@ -144,8 +144,14 @@ critic = "subagents"
 
 
 def _person(role: str) -> dict[str, Any]:
-    name = os.environ.get("MAS_PERSON") or os.environ.get("USER") or "operator"
-    return actor("human", name, role, identity_basis="recorded_attestation", via={"surface": "terminal"})
+    name = os.environ.get("MAS_PERSON") or os.environ.get("USER") or os.environ.get("USERNAME") or "operator"
+    kind = os.environ.get("MAS_ACTOR_KIND", "human")
+    if kind not in ("human", "agent"):
+        raise ValueError("MAS_ACTOR_KIND must be human or agent")
+    surface = os.environ.get("MAS_SURFACE", "terminal")
+    if surface not in ("terminal", "browser"):
+        raise ValueError("MAS_SURFACE must be terminal or browser")
+    return actor(kind, name, role, identity_basis="recorded_attestation", via={"surface": surface})
 
 
 def _store_dir(args) -> Path:
@@ -162,6 +168,7 @@ def _open(args) -> Core:
 def _implementation() -> dict[str, Any]:
     """Package version and source commit, bound into every run so its strategy is identifiable."""
     import subprocess
+    import hashlib
     import mas
     commit, dirty = None, None
     try:
@@ -171,7 +178,13 @@ def _implementation() -> dict[str, Any]:
                                     text=True).stdout.strip())
     except OSError:
         pass
-    return {"package_version": mas.__version__, "code_commit": commit, "uncommitted_changes": dirty}
+    source_root = Path(mas.__file__).resolve().parent
+    digest = hashlib.sha256()
+    for source in sorted(source_root.rglob("*.py")):
+        digest.update(source.relative_to(source_root).as_posix().encode("utf-8") + b"\0")
+        digest.update(source.read_bytes() + b"\0")
+    return {"package_version": mas.__version__, "code_commit": commit, "uncommitted_changes": dirty,
+            "source_sha256": digest.hexdigest()}
 
 
 def _universe_file(context: dict[str, Any] | None) -> str | None:
@@ -193,6 +206,10 @@ def _broker(core: Core, context: dict[str, Any] | None = None, args=None) -> Bro
     register(broker, universe_file=_universe_file(context), cache_dir=_cache_dir(args) if args else None,
              upload_dir=str(_upload_dir(args)) if args else None,
              predict_python=(_settings(args)["predict.python"] or None) if args else None)
+    replay_runs = _settings(args)["sources.replay_run_ids"] if args else []
+    if replay_runs:
+        broker.seed_cache_from_runs(replay_runs,
+                                   pubchem_record_projection=_settings(args)["sources.pubchem_record_projection"])
     return broker
 
 
@@ -246,6 +263,11 @@ def _print(data: Any) -> None:
 def _confirm_on_terminal(prompt: str, expected: str) -> bool:
     """Read the confirmation from the terminal itself, never from stdin or a flag."""
     try:
+        if sys.platform == "win32":
+            with open("CONOUT$", "w") as output, open("CONIN$", "r") as input_:
+                output.write(f"{prompt}\nconfirm by typing {expected}: ")
+                output.flush()
+                return input_.readline().strip() == expected
         with open("/dev/tty", "r+") as tty:
             tty.write(f"{prompt}\nconfirm by typing {expected}: ")
             tty.flush()
@@ -278,6 +300,13 @@ def cmd_task(args) -> None:
             context = task.get(core, new_task)
             print(f"{new_task}@v1  {context['candidate_universe']['size_if_known']} candidates "
                   f"({context['candidate_universe']['source']})")
+        elif args.action == "inherit":
+            from mas.core import staging
+            if not args.reason:
+                sys.exit("inherit requires --reason: a new reading preserves its source results and exposure")
+            new_task = staging.inherit_task(core, args.task, by=_person("operator"), reason=args.reason,
+                                           source_at_seq=args.at_seq)
+            print(new_task)
         elif args.action == "list":
             for context in task.list_tasks(core):
                 print(f"{context['task_context_id']}@v{context['version']}  {context['group_id']}  {context['objective_text'][:80]}")
@@ -288,6 +317,8 @@ def cmd_task(args) -> None:
 def cmd_criteria(args) -> None:
     if args.action == "export":
         return _export_criteria(args)
+    if args.action in ("audit-bindings", "restore-bindings"):
+        return _required_bindings(args)
     with _open(args) as core:
         if args.action == "propose":
             pairs = json.loads(Path(args.file).read_text(encoding="utf-8"))
@@ -307,6 +338,8 @@ def cmd_criteria(args) -> None:
             _dedupe(core, args)
         elif args.action == "reduce":
             _reduce_pool(core, args)
+        elif args.action == "reduce-registered":
+            _reduce_registered(core, args)
         else:
             from mas.adapters.drug.registration import DIMENSIONS, EVIDENCE_CATALOG, objective_templates
             from mas.core import derivation, derivation_run
@@ -352,7 +385,10 @@ def _print_round(record: dict[str, Any]) -> None:
     promotion = record.get("promotion") or {}
     for key in ("accepted", "disputed"):
         for item in promotion.get(key, []):
-            print(f"  {key:<9} {item['rule_ref']:<44} {item['rule_kind']:<16} {item['name']}")
+            retained = item.get("retained_unchanged", False)
+            label = "retained" if retained else key
+            kind = item.get("rule_kind") or ("unchanged" if retained else "kind not recorded")
+            print(f"  {label:<9} {item['rule_ref']:<44} {kind:<16} {item['name']}")
     for item in promotion.get("deferred", []):
         print(f"  deferred  {item['name']}: {'; '.join(item['problems'])[:100]}")
     print(f"  next: {record['continuation_decision']['decision']}"
@@ -388,6 +424,52 @@ def _reduce_pool(core: Core, args) -> None:
     except derivation_run.DerivationError as error:
         sys.exit(str(error))
     _print_round(record)
+
+
+def _required_bindings(args) -> None:
+    """Audit without a writer lock; restore only through the terminal-run correction API."""
+    from mas.core import derivation_run
+    sources = args.source_run or []
+    restoring = args.action == "restore-bindings"
+    if len(sources) > 1 or (restoring and (not sources or not args.reason)):
+        sys.exit("restore-bindings requires one --source-run and --reason; audit-bindings accepts at most one source run")
+    try:
+        core = Core.open(_store_dir(args), read_only=not restoring)
+    except StoreError as error:
+        sys.exit(f"cannot open store: {error}")
+    with core:
+        try:
+            if restoring:
+                result = derivation_run.correct_required_bindings(
+                    core, args.task, run_id=sources[0], by=_person("operator"), reason=args.reason)
+            else:
+                result = derivation_run.required_binding_audit(core, args.task, run_id=sources[0] if sources else None)
+        except derivation_run.DerivationError as error:
+            sys.exit(f"required bindings: {error}")
+    _print(result)
+
+
+def _reduce_registered(core: Core, args) -> None:
+    """Reduce the existing registry with its pinned evidence, without another search."""
+    from mas.adapters.drug.registration import EVIDENCE_CATALOG
+    from mas.core import derivation_run
+    from mas.core.budget import from_config
+    if not args.reason:
+        sys.exit("reduce-registered requires --reason")
+    settings = _settings(args)
+    source_runs = args.source_run or derivation_run.registered_reduction_sources(core, args.task)
+    budget = from_config(settings, envelope={"llm_turns": args.llm_turns} if args.llm_turns else None)
+    try:
+        record = derivation_run.reduce_registered(
+            core, _roster(args), args.task, source_run_ids=source_runs,
+            catalog=EVIDENCE_CATALOG, by=_person("operator"), reason=args.reason,
+            inner_iterations=settings["criteria.inner_iterations"], stall_rounds=settings["criteria.stall_rounds"],
+            max_refines=settings["criteria.max_refines"], merge_overlap=settings["criteria.merge_overlap"],
+            budget=budget, settings=settings, implementation=_implementation())
+    except derivation_run.DerivationError as error:
+        sys.exit(str(error))
+    _print_round(record)
+    _print(derivation_run.registered_reduction_summary(core, args.task, record["run_id"]))
 
 
 def _dedupe(core: Core, args) -> None:
@@ -543,7 +625,8 @@ def cmd_rules(args) -> None:
                 print(f"  route deferred {item['rule_ref']} ({', '.join(item.get('capabilities') or [])} held out; "
                       f"scores on {', '.join(item.get('scores_on') or []) or 'no route'}): {item['reason']}")
             else:
-                print(f"  deferred {item['rule_ref']} ({item['capability']}): {item['reason']}")
+                label = item.get("capability") or item.get("reason_kind") or "rule"
+                print(f"  deferred {item['rule_ref']} ({label}): {item['reason']}")
         for item in rules.get("collapsed_away", []):
             # A rule held out of the set by a machine has to be visible here, not only in the journal:
             # a reader counting the rules would otherwise see one quantity where two were registered.
@@ -558,6 +641,51 @@ def cmd_rules(args) -> None:
             print(f"  {entry['rule_ref']:<44} {rule['rule_kind']:<16} {attribute['name']}: "
                   f"{cutoff.get('comparator', rule.get('predicate_form', ''))} {cutoff.get('value', '')} {cutoff.get('unit', '')}"
                   f"  [{entry['confirmed_by']}]")
+
+
+def cmd_supplement(args) -> None:
+    """Attach verified source measurements before the new task's policy is frozen."""
+    from mas.core import supplements
+    with _open(args) as core:
+        try:
+            task_id, version = supplements.attach(core, args.task, args.ref, by=_person("operator"))
+        except supplements.SupplementError as error:
+            sys.exit(str(error))
+        _print({"task_id": task_id, "version": version, "supplement_ref": args.ref,
+                "verified_supplements": supplements.binding(core, task.get(core, task_id))})
+
+
+def cmd_measurement(args) -> None:
+    """Freeze the actual ranking instrument before starting the named board."""
+    from mas.core import measurement, freeze
+    with _open(args) as core:
+        if args.action in ("register", "prepare"):
+            if not args.primary_board or not args.rationale or not args.expected_effect:
+                sys.exit("registration requires --primary-board, --rationale and --expected-effect")
+            options = dict(ranking_coverage_floor=args.ranking_coverage_floor,
+                           eligibility_mandated_coverage_floor=args.eligibility_mandated_coverage_floor,
+                           rank_requires_mandated_coverage=args.rank_requires_mandated_coverage,
+                           implementation=_implementation(), settings=_settings(args))
+            if args.action == "prepare":
+                result = measurement.prepare(
+                    core, args.task, by=_person("operator"), primary_board=args.primary_board,
+                    rationale=args.rationale, expected_effect=args.expected_effect,
+                    coverage_floor=args.coverage_floor,
+                    defer_capabilities=tuple([] if args.no_deferrals else args.defer_capability if args.defer_capability is not None
+                                             else ("predicted_property_lookup", "literature_retrieval")),
+                    defer_reason=args.defer_reason or args.expected_effect, **options)
+                _print(result)
+            else:
+                ref = measurement.register(
+                    core, args.task, by=_person("operator"), primary_board=args.primary_board,
+                    rationale=args.rationale, expected_effect=args.expected_effect,
+                    rule_set_ref=args.rule_set, **options)
+                print(ref)
+            return
+        if args.ref:
+            _print(measurement.load(core, args.task, args.ref))
+        else:
+            _print(freeze.registrations(core, args.task))
 
 
 def cmd_review(args) -> None:
@@ -613,8 +741,16 @@ def cmd_review_adjudicate(args, core: Core) -> None:
         sys.exit("interaction.autonomous_adjudication is off: adjudicating without a person is a choice about the "
                  "run, not about this command. Turn it on with --set interaction.mode=autonomous (which also clears "
                  "the checkpoints) or --set interaction.autonomous_adjudication=true.")
+    only_item = args.only_item
+    if only_item and not only_item.startswith("q_"):
+        streams = [args.task] if args.task else core.journal.streams("task_")
+        matches = [item["item_id"] for item in review.items(core, streams).values()
+                   if item["subject"]["id"] == only_item and item["state"] in ("open", "in_review")]
+        if len(matches) != 1:
+            sys.exit(f"{len(matches)} open review items match {only_item}; pass one exact queue item id")
+        only_item = matches[0]
     results = adjudication.adjudicate_open(core, args.task, roster=_roster(args, required=False),
-                                           only_item=args.only_item, settings=settings.values)
+                                           only_item=only_item, settings=settings.values)
     if not results:
         print("no open review item to resolve")
         return
@@ -652,6 +788,7 @@ def cmd_run(args) -> None:
                 seed = args.seed if args.seed is not None else settings["run.seed"]
                 limit = args.limit or settings["assess.max_candidates"] or None
                 run_id = controller.start(args.task, by=_person("operator"), sweep_seed=seed, budget_envelope=envelope,
+                                          rule_set_ref=args.rule_set, measurement_profile_ref=args.measurement_profile,
                                           candidate_limit=limit, evidence_cutoff=args.cutoff or settings["search.date_to"] or None,
                                           execute=False, settings=settings)
                 print(run_id, flush=True)
@@ -706,7 +843,9 @@ def cmd_board(args) -> None:
             print(f"  mandated-criteria floor {tuple_['mandated_coverage_floor']:.2f} over "
                   f"{len(tuple_['mandated_rule_refs'])} criteria the task requires: "
                   f"{tuple_.get('eligible_on_mandated_criteria', 0)} candidate(s) answer it, "
-                  f"{tuple_.get('ineligible_for_mandated_coverage', 0)} are not ranked")
+                  f"{tuple_.get('ineligible_for_mandated_coverage', 0)} have incomplete mandated evidence" +
+                  (" and are not ranked" if tuple_.get("rank_requires_mandated_coverage", True)
+                   else "; eligibility is reported separately from rank"))
             if tuple_.get("ranked_with_a_mandated_gate_unanswered"):
                 # The floor measures what ranks, not what gates, so a candidate may hold a position
                 # with a mandated gate unanswered. That is the gate's own policy holding it at
@@ -1067,15 +1206,38 @@ def cmd_recovery(args) -> None:
 def cmd_ui(args) -> None:
     """Serve the browser workbench (`ui_ux_spec.md` §15.5): loopback only, read-only, no decisions."""
     from mas.ui.server import address, make_server, serve
+    from mas.ui.operations import OperationManager
     try:
+        settings = _settings(args)
         roster = _roster(args, required=False)
-        server = make_server(_store_dir(args), port=args.port, host=args.host, settings=_settings(args),
-                             role_bindings=roster.role_bindings() if roster else None)
+        options = []
+        for option in ("models", "config", "preset", "profile"):
+            value = getattr(args, option, None)
+            if option == "config" and not value:
+                value = _config_file(args)
+            if value:
+                options.extend(["--" + option, str(Path(value).resolve()) if option in ("models", "config") else str(value)])
+        for value in args.set or []:
+            options.extend(["--set", value])
+        operations = OperationManager(_store_dir(args), cli_options=options, config_hash=settings.hash(),
+                                      initiator_kind=args.operation_actor_kind,
+                                      initiator_name=args.operation_actor_name, settings=settings) if args.allow_operations else None
+        server = make_server(_store_dir(args), port=args.port, host=args.host, settings=settings,
+                             role_bindings=roster.role_bindings() if roster else None, operations=operations,
+                             modern=bool(operations) and not getattr(args, 'legacy_ui', False))
     except (StoreError, ValueError, OSError) as error:
         sys.exit(f"cannot serve the workbench: {error}")
     print(f"workbench at {address(server)}")
-    print("read-only: the browser records nothing. Runs are started and expert decisions confirmed on this "
-          "terminal (`mas run start`, `mas review decide`). Stop the workbench with ctrl-c.", flush=True)
+    if operations:
+        print(f"local operations enabled at {address(server)}operations; actor "
+              f"{args.operation_actor_kind}/{args.operation_actor_name}. "
+              "Expert decisions remain on the terminal. Stop with ctrl-c; owned processes are stopped too.", flush=True)
+    else:
+        print("read-only: the browser records nothing. Runs are started and expert decisions confirmed on this "
+              "terminal (`mas run start`, `mas review decide`). Stop the workbench with ctrl-c.", flush=True)
+    if args.open_browser:
+        import webbrowser
+        webbrowser.open(address(server) + ("workbench/" if operations and not getattr(args, 'legacy_ui', False) else "operations" if operations else ""))
     serve(server)
 
 
@@ -1095,14 +1257,17 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("init").set_defaults(func=cmd_init)
 
     t = sub.add_parser("task")
-    t.add_argument("action", choices=("new", "list", "show", "shortlist"))
+    t.add_argument("action", choices=("new", "list", "show", "shortlist", "inherit"))
     t.add_argument("task", nargs="?")
     t.add_argument("--from", dest="file")
     t.add_argument("--top", type=int, default=20, help="shortlist: top K positions (ties at the boundary included)")
+    t.add_argument("--reason", help="inherit: purpose of the new descriptive case")
+    t.add_argument("--at-seq", type=int, help="inherit: pin the source task journal sequence")
     t.set_defaults(func=cmd_task)
 
     c = sub.add_parser("criteria")
-    c.add_argument("action", choices=("propose", "derive", "reduce", "mandated", "pool", "dedupe", "export"))
+    c.add_argument("action", choices=("propose", "derive", "reduce", "reduce-registered", "mandated", "pool", "dedupe", "export",
+                                     "audit-bindings", "restore-bindings"))
     c.add_argument("task")
     c.add_argument("--out", metavar="DIR", help="export: where to write the package (default: design_audit)")
     c.add_argument("--at-seq", type=int, metavar="N",
@@ -1111,9 +1276,10 @@ def main(argv: list[str] | None = None) -> int:
                    help="export: leave out the last published board and its measured coverage")
     c.add_argument("--dry-run", action="store_true", help="dedupe: print the plan and write nothing")
     c.add_argument("--withdraw", metavar="CLP", help="dedupe: undo this collapse, so its rules score again")
-    c.add_argument("--reason", help="dedupe: why a collapse is being withdrawn")
+    c.add_argument("--reason", help="reason for a reduction, binding correction or collapse withdrawal")
     c.add_argument("--continues", metavar="RUN",
                    help="derive/reduce: continue the pool from this earlier derivation round (reduce requires it)")
+    c.add_argument("--source-run", action="append", help="reduce-registered: evidence source; bindings: the completed reduction run")
     c.add_argument("--single-pass", action="store_true", help="derive: one propose/critique/revise pass, no pool")
     c.add_argument("--all", action="store_true", help="pool: include merged, withdrawn and filtered items")
     c.add_argument("--trajectory", action="store_true", help="pool: per-stage growth, pruning and merging instead of the end state")
@@ -1143,6 +1309,31 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("--exposure", default="undeclared", choices=sorted(vocab.DOMAINS["historical_list_exposure"]))
     v.set_defaults(func=cmd_review)
 
+    su = sub.add_parser("supplement", help="attach previously verified measurements to an unfrozen task")
+    su.add_argument("action", choices=("attach",))
+    su.add_argument("task")
+    su.add_argument("--ref", required=True, help="immutable verified_supplement artifact reference")
+    su.set_defaults(func=cmd_supplement)
+
+    mp = sub.add_parser("measurement", help="register and inspect an immutable measurement profile")
+    mp.add_argument("action", choices=("register", "prepare", "show"))
+    mp.add_argument("task")
+    mp.add_argument("--ref", help="show a specific preregistration artifact")
+    mp.add_argument("--rule-set", help="rules@vN to bind (default: latest)")
+    mp.add_argument("--primary-board", help="prospective name of the board carrying the endpoint")
+    mp.add_argument("--rationale")
+    mp.add_argument("--expected-effect", help="what this policy changes, stated before the result is seen")
+    mp.add_argument("--coverage-floor", type=float, default=0.0, help="prepare: explicit hard-rule coverage policy")
+    mp_deferrals = mp.add_mutually_exclusive_group()
+    mp_deferrals.add_argument("--defer-capability", action="append", help="prepare: held-out capability (default: literature and predictions)")
+    mp_deferrals.add_argument("--no-deferrals", action="store_true", help="prepare: explicitly keep every capability enabled")
+    mp.add_argument("--defer-reason", help="prepare: effect of the held-out capabilities")
+    mp.add_argument("--ranking-coverage-floor", type=float, default=0.5)
+    mp.add_argument("--eligibility-mandated-coverage-floor", type=float, default=1.0)
+    mp.add_argument("--rank-requires-mandated-coverage", action="store_true",
+                    help="require mandated coverage for rank as well as eligibility (default: separate)")
+    mp.set_defaults(func=cmd_measurement)
+
     u = sub.add_parser("run")
     u.add_argument("action", choices=("start", "show", "resume"))
     u.add_argument("task_or_run")
@@ -1152,6 +1343,8 @@ def main(argv: list[str] | None = None) -> int:
     u.add_argument("--llm-turns", type=int)
     u.add_argument("--cutoff")
     u.add_argument("--workers", type=int, help="candidates read and ruled on at once (default: assess.workers)")
+    u.add_argument("--rule-set", help="frozen rules@vN to run (default: latest)")
+    u.add_argument("--measurement-profile", help="immutable preregistration artifact fixing the rank endpoint")
     u.add_argument("--allow-config-drift", action="store_true", help="resume although the settings changed")
     u.set_defaults(func=cmd_run)
 
@@ -1219,6 +1412,11 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("action", choices=("serve",))
     w.add_argument("--port", type=int, default=8765)
     w.add_argument("--host", default="127.0.0.1", help="loopback address to bind (127.0.0.1, ::1 or localhost)")
+    w.add_argument("--allow-operations", action="store_true", help="enable local run and machine-adjudication controls")
+    w.add_argument("--legacy-ui", action="store_true", help="serve the historical read interface instead of the research workbench")
+    w.add_argument("--open-browser", action="store_true", help="open the local workbench in the default browser")
+    w.add_argument("--operation-actor-kind", choices=("agent", "human"), default="agent")
+    w.add_argument("--operation-actor-name", default="codex", help="identity recorded for operations started here")
     w.set_defaults(func=cmd_ui)
 
     args = parser.parse_args(argv)
@@ -1226,7 +1424,11 @@ def main(argv: list[str] | None = None) -> int:
         args.task = args.run = args.task_or_run
     if args.command == "review" and args.action == "adjudicate":
         args.task = args.task or args.item
-    args.func(args)
+    from mas.core.measurement import MeasurementError
+    try:
+        args.func(args)
+    except MeasurementError as error:
+        parser.exit(2, f"measurement: {error}\n")
     return 0
 
 

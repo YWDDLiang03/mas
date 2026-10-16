@@ -33,10 +33,11 @@ from typing import Any
 
 from . import bound_support, criteria, vocab
 from .assessor import DEFAULT_DETERMINATION_BASES, canonical_unit, family_aggregation_execution
-from .canonical import canonical_text
+from .canonical import canonical_text, sha256_hex
 from .derivation import (CRITIC_SYSTEM, CRITIQUE_SCHEMA, PROPOSAL_SCHEMA, PROPOSER_SYSTEM, REVISER_SYSTEM,
                          SCHEMA_BLOCK_FORMS,
-                         REVISION_CHECKS, REVISION_SCHEMA, _claims_block, _normalize_proposal, validate_proposal)
+                         ATTRIBUTE_FIELDS, RULE_FIELDS, REVISION_CHECKS, REVISION_SCHEMA,
+                         _claims_block, _normalize_proposal, validate_proposal)
 from .ids import slug
 from .journal import actor as make_actor
 from .models import ModelError, ModelRequest, ModelRoster, call_role
@@ -54,7 +55,7 @@ DISTILL_SCHEMA = {
     "properties": {"items": {"type": "array", "items": {
         "type": "object", "required": ["index", "action", "reason"],
         "properties": {"index": {"type": "integer"}, "action": {"type": "string", "enum": ["keep", "revise", "withdraw"]},
-                       "proposal": {"type": "object"}, "reason": {"type": "string"}}}}},
+                       "proposal": {"type": ["object", "null"]}, "reason": {"type": "string"}}}}},
 }
 
 DISTILLER_SYSTEM = PROPOSER_SYSTEM + (
@@ -293,7 +294,7 @@ ADJUDICATOR_SYSTEM = (
 # the chain's inherited ones (see `derivation_run.derive`), which on the manuscript chain runs to
 # roughly two thousand claims -- more than one prompt holds. The slices are the same evidence
 # split for the provider's sake, not a judgement about the claims.
-BATCH = {"critic": 30, "distill": 25, "refine": 20, "propose": 400}
+BATCH = {"critic": 30, "distill": 25, "refine": 8, "propose": 400, "merge": 4}
 # Members offered to the adjudicator as one merge group. A whole unit-and-direction bucket can run to
 # dozens of criteria, and a prompt that large is one no model reads carefully and no reviewer can
 # check; a bucket wider than this is split into several groups instead.
@@ -343,6 +344,12 @@ class StageContext:
     critiques: dict[tuple[str, int], list[dict[str, Any]]] = field(default_factory=dict)
     adjudicated: set[frozenset] = field(default_factory=set)
     request_ids: list[str] = field(default_factory=list)
+    registry_reduce: bool = False
+    pool_scope: set[str] | None = None
+    registry_input_refs: set[str] = field(default_factory=set)
+    # Explicit continuation manifest only: its owner verifies the fixed claims/order/batch size
+    # and proof of completed pool writes before supplying these one-based slice indices.
+    completed_proposal_slices: dict[str, set[int]] | None = None
 
     @property
     def ids(self) -> dict[str, Any]:
@@ -356,18 +363,36 @@ class StageContext:
         return response
 
     def validate(self, item: dict[str, Any]) -> list[str]:
-        return validate_proposal(item, claims_by_id=self.claims_by_id, reference_labels=self.reference_labels,
-                                 catalog=self.catalog)
+        problems = validate_proposal(item, claims_by_id=self.claims_by_id, reference_labels=self.reference_labels,
+                                     catalog=self.catalog)
+        if self.registry_reduce and self.task_mandated(item):
+            problems = [p for p in problems if p != "evidence_support: no supporting claims cited"]
+        return problems
+
+    def active(self, states=("candidate", "needs_refine", "deferred_next_round")):
+        return [entry for entry in active(self.pool.fold(), states)
+                if self.pool_scope is None or entry["criterion_id"] in self.pool_scope]
+
+    def task_mandated(self, item: dict[str, Any]) -> bool:
+        sources = item.get("source_registry") or []
+        return bool(sources) and all(source.get("task_mandated") for source in sources)
 
     def registered(self) -> list[dict[str, Any]]:
-        return criteria.registered_attributes(self.core, self.task_id)
+        excluded_bases = {ref.split("@v")[0] for ref in self.registry_input_refs}
+        return [record for record in criteria.registered_attributes(self.core, self.task_id)
+                if record["attribute_id"] not in excluded_bases]
 
     def base_prompt(self) -> str:
         c = self.task_context
-        return (f"Objective: {c['objective_text']}\nConstraints: {json.dumps(c.get('constraints', []), ensure_ascii=False)}\n"
+        reduction = ("This is a reduction of the existing registered set, with no new proposals or new literature. "
+                     "Retain a minimal nonredundant, operational set serving the objective. Keep distinct endpoints "
+                     "when combining them would change their scientific meaning. Existing task-mandated criteria "
+                     "may rest on the objective rather than literature citations. Pending review is still active; "
+                     "do not hide an unresolved criterion by changing its status.\n" if self.registry_reduce else "")
+        return (reduction + f"Objective: {c['objective_text']}\nConstraints: {json.dumps(c.get('constraints', []), ensure_ascii=False)}\n"
                 f"Scope entities: {json.dumps(c.get('scope_entities', []), ensure_ascii=False)}\n"
                 f"Criteria already in the registry (do not duplicate them): "
-                f"{json.dumps([a['name'] for a in criteria.registered_attributes(self.core, self.task_id)], ensure_ascii=False)}\n\n"
+                f"{json.dumps([a['name'] for a in self.registered()], ensure_ascii=False)}\n\n"
                 f"Evidence catalog (bind each attribute's evidence_request to one entry):\n"
                 f"{json.dumps(self.catalog, ensure_ascii=False, indent=1)}\n\n"
                 "Attribute fields: name, definition, measurement_kind (quantitative|ordinal|categorical|"
@@ -469,7 +494,8 @@ def _revised(entry: dict[str, Any], proposal: dict[str, Any], *,
     shared property and its reduction re-checked, and a revision that only sharpens the wording, the rule,
     the expected change or the falsification test applies as it always did.
     """
-    item = _item(proposal, dimension=entry["item"].get("dimension"), refine_count=refine_count)
+    item = _item(proposal, dimension=entry["item"].get("dimension"), refine_count=refine_count,
+                 source_registry=entry["item"].get("source_registry") or [])
     consolidation = (entry["item"] or {}).get("consolidation")
     if not consolidation:
         return item, None
@@ -493,10 +519,34 @@ def _not_revised(stats: dict[str, Any], entry: dict[str, Any], reason: str) -> N
 
 
 def _view(entry: dict[str, Any], index: int, *, blind: bool = False) -> dict[str, Any]:
+    """Model-facing semantics and compact references; immutable registry history stays in the store."""
     item = entry["item"]
-    attribute = {k: v for k, v in item["attribute"].items() if not (blind and k == "rationale")}
-    view = {"index": index, "attribute": attribute, "rule": item["rule"],
+    attribute = {k: v for k, v in item["attribute"].items()
+                 if k in ATTRIBUTE_FIELDS and not (blind and k == "rationale")}
+    # Dissent is scientific evidence about a decision, while applies_to_result_kind controls which
+    # values the rule can judge. Keep both beside the authorable rule fields; registry authorship,
+    # copy chains and approval metadata are not fields the model is asked to rewrite.
+    rule = {k: v for k, v in item["rule"].items()
+            if k in RULE_FIELDS or k in ("applies_to_result_kind", "dissent")}
+    view = {"index": index, "attribute": attribute, "rule": rule,
             "supporting_claim_ids": item["supporting_claim_ids"], "falsification_test": item.get("falsification_test")}
+    refs = {}
+    if entry.get("criterion_id") and entry.get("version"):
+        refs["pool_ref"] = f"{entry['criterion_id']}@v{entry['version']}"
+    for kind, id_field in (("attribute", "attribute_id"), ("rule", "rule_id")):
+        record = item[kind]
+        if record.get(id_field) and record.get("version"):
+            refs[f"{kind}_ref"] = f"{record[id_field]}@v{record['version']}"
+    origin = item["attribute"].get("derived_from") or {}
+    for key in ("task_context", "field"):
+        if key in origin:
+            refs[key] = origin[key]
+    sources = item.get("source_registry") or []
+    if sources:
+        refs["source_registry"] = [{key: source[key] for key in ("attribute_ref", "rule_ref") if key in source}
+                                   for source in sources]
+    if refs:
+        view["refs"] = refs
     if not blind:
         view["expected_change"] = item.get("expected_change")
     return view
@@ -509,9 +559,24 @@ def propose(ctx: StageContext, dimension: dict[str, str], claims: list[dict[str,
     # claims (see `derivation_run.derive`), which do not fit one prompt. The pool accumulates across
     # the slices, and each slice is shown what is already in it, so a later slice proposes only what
     # is still distinct; a batch is a provider limit, not a second pass over the same evidence.
-    added, refused, considered = [], [], []
-    batches = _chunks(claims, BATCH["propose"]) or [[]]
+    added, refused, considered, reused = [], [], [], []
+    batch_size = getattr(ctx, "proposal_claim_batch_size", None) or BATCH["propose"]
+    batches = _chunks(claims, batch_size) or [[]]
+    completed = (getattr(ctx, "completed_proposal_slices", None) or {}).get(dimension["dimension"], set())
+    finished_batches = set(completed)
+    observer = getattr(ctx, "observer", None)
+    def notify_batch(index, state):
+        if observer:
+            observer('batch', {'run_id': ctx.run_id, 'stage': 'propose', 'dimension': dimension['dimension'],
+                'batch_index': index + 1, 'batch_count': len(batches), 'batch_state': state,
+                'completed_batches': len(finished_batches), 'source_claim_count': len(claims),
+                'progress': {'completed': len(finished_batches), 'planned': len(batches),
+                             'denominator_kind': 'enumerated_fixed', 'scope': 'proposal_batches'}})
     for index, batch in enumerate(batches):
+        if index + 1 in completed:
+            reused.append(index + 1)
+            continue
+        notify_batch(index, 'running')
         in_pool = [e["item"]["attribute"].get("name") for e in active(ctx.pool.fold())]
         content = (ctx.base_prompt() + f"Dimension for this pass: {dimension['dimension']} - {dimension['focus']}\n"
                    f"Criteria already in the pool (propose only distinct ones): {json.dumps(in_pool, ensure_ascii=False)}\n\n"
@@ -520,30 +585,92 @@ def propose(ctx: StageContext, dimension: dict[str, str], claims: list[dict[str,
         if len(batches) > 1:
             question += f" (slice {index + 1}/{len(batches)})"
         response = ctx.call("proposer", POOL_SYSTEM, content, PROPOSAL_SCHEMA, question)
+        slice_added, slice_refused = [], []
         for proposal in response.data["proposals"]:
             item = _item(proposal, dimension=dimension["dimension"])
             problems = ctx.validate(item)
             if any(p.startswith("reference_candidate_scan") for p in problems):
-                refused.append({"name": item["attribute"].get("name"), "reason": "names the disclosed reference outcome"})
+                finding = {"name": item["attribute"].get("name"), "reason": "names the disclosed reference outcome"}
+                refused.append(finding)
+                slice_refused.append(finding)
                 continue
             item["validator_problems"] = problems
-            added.append(ctx.pool.add(item, reason_text=f"proposed for {dimension['dimension']}"))
+            criterion_id = ctx.pool.add(item, reason_text=f"proposed for {dimension['dimension']}")
+            added.append(criterion_id)
+            slice_added.append(f"{criterion_id}@v1")
         considered += response.data.get("considered_and_rejected", [])
+        # The model's agent.finished precedes these separate durable pool writes. Only this marker
+        # proves *all* proposals from the successful response reached the pool (or were refused).
+        # A partial insertion/crash emits no completion marker and must not be silently reused.
+        ctx.core.journal.append(ctx.run_id, "proposal.slice_completed",
+            actor=make_actor("controller", "derivation-controller", "controller"), ids=ctx.ids,
+            payload={"dimension": dimension["dimension"], "slice": index + 1, "slices": len(batches),
+                     "batch_size": batch_size, "source_claim_count": len(claims),
+                     "ordered_claim_ids_sha256": sha256_hex([c["claim_id"] for c in claims]),
+                     "claim_ids": [c["claim_id"] for c in batch], "claims_sha256": sha256_hex(batch),
+                     "request_id": response.request_id, "added_criterion_refs": slice_added,
+                     "refused_at_entry": slice_refused,
+                     "considered_and_rejected_count": len(response.data.get("considered_and_rejected", []))})
+        finished_batches.add(index + 1)
+        notify_batch(index, 'completed')
     return {"added": len(added), "refused_at_entry": refused, "considered_and_rejected": considered,
-            "claims_considered": len(claims), "slices": len(batches)}
+            "claims_considered": len(claims), "slices": len(batches),
+            "reused_slice_count": len(reused), "reused_slices": reused}
 
 
 # --- FILTER ----------------------------------------------------------------------------------
 
-def duplicate_of_registered(attribute: dict[str, Any],
-                            registered: list[dict[str, Any]]) -> dict[str, Any] | None:
+def decision_key(rule: dict[str, Any]) -> str:
+    """Decision identity is separate from retrieval and measurement identity."""
+    defaults = {"predicate_form": "threshold", "cutoff": None,
+                "on_missing": "unknown_blocks_recommendation", "on_inapplicable": "unknown_blocks_recommendation",
+                "on_conflict": "unknown_blocks_recommendation", "applies_to_result_kind": "all_pass_set"}
+    return canonical_text({key: rule.get(key, defaults.get(key)) for key in
+                           ("rule_kind", "predicate_form", "cutoff", "cutoff_basis", "on_missing",
+                            "on_inapplicable", "on_conflict", "applies_to_result_kind")})
+
+
+def _same_measurement(attribute: dict[str, Any], other: dict[str, Any]) -> bool:
+    """Equivalent measurement semantics; route coverage is checked separately by the caller.
+
+    A mixed database/literature attribute has more capabilities than its database-only subset.
+    That is additional evidence for the same quantity, not an additional quantity. Ignoring the
+    transport is safe only beside the route-subset check, with type, reduction and scope preserved.
+    """
+    if quantity_key(attribute)[1:] != quantity_key(other)[1:]:
+        return False
+    for field, default in (("measurement_kind", None), ("aggregation", "consensus"),
+                           ("existence_semantics", None)):
+        if attribute.get(field, default) != other.get(field, default):
+            return False
+    if attribute.get("quantity_id") and other.get("quantity_id") \
+            and attribute["quantity_id"] != other["quantity_id"]:
+        return False
+    return True
+
+
+def _covered_evidence_policy(attribute: dict[str, Any], other: dict[str, Any]) -> bool:
+    # A narrower route may accept only its own evidence kind, while a pooled attribute accepts
+    # both that kind and literature. It is covered only if none of the evidence it accepts is lost.
+    # A different policy still measures the same quantity: retain it for reconciliation, never as
+    # a second scoring quantity, so this check applies only to a full decision-level duplicate.
+    return attribute.get(criteria.PRECEDENCE_FIELD) == other.get(criteria.PRECEDENCE_FIELD) \
+        and set(attribute.get("acceptable_value_sources") or ()) <= set(other.get("acceptable_value_sources") or ()) \
+        and set(attribute.get("acceptable_determination_bases") or DEFAULT_DETERMINATION_BASES) \
+        <= set(other.get("acceptable_determination_bases") or DEFAULT_DETERMINATION_BASES)
+
+
+def duplicate_of_registered(attribute: dict[str, Any], registered: list[dict[str, Any]], *,
+                            rule: dict[str, Any] | None = None,
+                            registered_rules: list[dict[str, Any]] | None = None) -> dict[str, Any] | None:
     """The registered attribute that already asks everything this proposal asks about one quantity.
 
     Two tests, and a proposal that fails neither survives:
 
       * `criteria.evidence_key` equality -- the registry invariant that two attributes asking the
         same tools the same questions are one attribute.
-      * the same `quantity_key` and a route set that is a *subset* of the registered attribute's.
+      * equivalent measurement semantics and a route set that is a *subset* of the registered
+        attribute's, including when that attribute also reads literature.
 
     WHY the subset test had to be added: `evidence_key` hashes the whole route set, so once a
     receptor's potency is registered as one attribute reading both curations
@@ -565,7 +692,7 @@ def duplicate_of_registered(attribute: dict[str, Any],
     says nothing about which quantity is meant.
     """
     asked = {criteria.route_key(r) for r in criteria.evidence_routes(attribute)}
-    key, literature = quantity_key(attribute), criteria.is_literature_bound(attribute)
+    literature = criteria.is_literature_bound(attribute)
     for other in registered:
         routes = criteria.evidence_routes(other)
         covered = sorted({_route_name(r) for r in routes if criteria.route_key(r) in asked})
@@ -576,12 +703,21 @@ def duplicate_of_registered(attribute: dict[str, Any],
         # above a bound read the same PubChem field. Dropping one as a duplicate of the other retires a
         # derived criterion against the measurement it was derived from. So a shared retrieval identity
         # is a hint, and the quantity has to agree before anything is refused.
-        if criteria.evidence_key(attribute) == criteria.evidence_key(other) and quantity_key(other) == key:
+        if criteria.evidence_key(attribute) == criteria.evidence_key(other) \
+                and quantity_key(attribute) == quantity_key(other) and _same_measurement(attribute, other):
             why = "it asks the same tools the same questions about the same quantity"
-        elif not literature and quantity_key(other) == key and asked <= {criteria.route_key(r) for r in routes}:
+        elif not literature and asked and asked <= {criteria.route_key(r) for r in routes} \
+                and _same_measurement(attribute, other):
             why = f"every route this proposal asks is one of its own ({', '.join(covered)})"
         else:
             continue
+        if rule is not None:
+            if not _covered_evidence_policy(attribute, other):
+                continue
+            alternatives = [r for r in (registered_rules or [])
+                            if r.get("attribute_ref", "").split("@v")[0] == other.get("attribute_id")]
+            if not any(decision_key(rule) == decision_key(existing) for existing in alternatives):
+                continue
         return {"attribute_ref": f"{other.get('attribute_id')}@v{other.get('version')}", "name": other.get("name"),
                 "why": why, "already_covered": covered,
                 "asks": sorted({_route_name(r) for r in routes})}
@@ -609,17 +745,19 @@ def _critique(ctx: StageContext, entries: list[dict[str, Any]], question: str,
               stats: dict[str, Any] | None = None) -> None:
     """Blind critique of entries not yet critiqued at their current version; results kept per (id, version).
 
-    A batch whose reply cannot be used leaves its items uncritiqued, which `filter_stage` already
-    reads as "the critic said nothing" -- so the pass continues and the omission is counted rather
-    than ending the round.
+    A batch whose reply cannot be used leaves its items uncritiqued. Callers retain that unresolved
+    state; absence of a usable critique is not a passing finding.
     """
     todo = [e for e in entries if (e["criterion_id"], e["version"]) not in ctx.critiques]
-    for batch in _chunks(todo, BATCH["critic"]):
+    batches = _chunks(todo, BATCH["critic"])
+    for batch_index, batch in enumerate(batches, 1):
         try:
             views = [_view(e, i, blind=True) for i, e in enumerate(batch)]
             response = ctx.call("critic", CRITIC_SYSTEM, f"Objective: {ctx.task_context['objective_text']}\n\nProposals:\n"
                                 f"{json.dumps(views, ensure_ascii=False, indent=1)}\n\nCited claims:\n"
-                                f"{ctx.cited_block([e['item'] for e in batch])}", CRITIQUE_SCHEMA, question, max_tokens=8000)
+                                f"{ctx.cited_block([e['item'] for e in batch])}", CRITIQUE_SCHEMA,
+                                question if len(batches) == 1 else f"{question} (batch {batch_index}/{len(batches)})",
+                                max_tokens=8000)
             findings = [f for f in response.data["findings"] if f.get("referent")]
             for index, entry in enumerate(batch):
                 ctx.critiques[(entry["criterion_id"], entry["version"])] = [f for f in findings if f["proposal_index"] == index]
@@ -642,21 +780,27 @@ def filter_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
     registered = ctx.registered()
     stats = {"filtered_out": 0, "to_refine": 0, "kept": 0}
     survivors = []
-    for entry in active(pool.fold(), ("candidate", "needs_refine")):
+    registered_rules = criteria.registered_rule_records(ctx.core, ctx.task_id)
+    for entry in ctx.active(("candidate", "needs_refine")):
         item = entry["item"]
         cited = [c for c in item.get("supporting_claim_ids") or [] if c in ctx.claims_by_id]
-        duplicate = duplicate_of_registered(item["attribute"], registered)
+        duplicate = duplicate_of_registered(item["attribute"], registered, rule=item["rule"],
+                                             registered_rules=registered_rules)
         if duplicate is not None:
             pool.set_state(entry, "filtered_out", operation="remove", reason_kind="duplicate_of_registered",
                            reason_text=duplicate_reason(duplicate))
             stats["filtered_out"] += 1
-        elif not cited:
+        elif not cited and not (ctx.registry_reduce and ctx.task_mandated(item)):
             pool.set_state(entry, "filtered_out", operation="remove", reason_kind="no_supporting_claim",
                            reason_text="none of the cited claims is in the ledger")
             stats["filtered_out"] += 1
         else:
             problems = ctx.validate(item)
-            if problems and entry["state"] == "candidate":
+            if problems and int(item.get("refine_count") or 0) >= ctx.max_refines:
+                pool.set_state(entry, "deferred_next_round", operation="defer", reason_kind="refinement_budget_exhausted",
+                               reason_text="; ".join(problems)[:500])
+                stats["still_deferred"] = stats.get("still_deferred", 0) + 1
+            elif problems and entry["state"] == "candidate":
                 pool.set_state(entry, "needs_refine", operation="revise", reason_kind="validator_findings",
                                reason_text="; ".join(problems)[:500], item=dict(item, validator_problems=problems))
                 stats["to_refine"] += 1
@@ -664,7 +808,13 @@ def filter_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
                 survivors.append(entry)
     _critique(ctx, survivors, "critique pool", stats)
     for entry in survivors:
-        blocking, material = _failures(ctx.critiques[(entry["criterion_id"], entry["version"])])
+        key = (entry["criterion_id"], entry["version"])
+        if key not in ctx.critiques:
+            pool.set_state(entry, "deferred_next_round", operation="defer", reason_kind="critique_unresolved",
+                           reason_text="the critic batch did not return a usable response; the proposal remains unresolved")
+            stats["critique_items_unresolved"] = stats.get("critique_items_unresolved", 0) + 1
+            continue
+        blocking, material = _failures(ctx.critiques[key])
         refined = int(entry["item"].get("refine_count") or 0)
         if blocking and refined >= ctx.max_refines:
             pool.set_state(entry, "filtered_out", operation="remove", reason_kind="critic_blocking_after_refinement",
@@ -687,12 +837,14 @@ def filter_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
 def distill_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
     pool = ctx.pool.at("distill", iteration)
     stats: dict[str, Any] = {"revised": 0, "kept": 0, "withdrawn": 0, "to_refine": 0, "refused": 0}
-    for batch in _chunks(active(pool.fold(), ("candidate",)), BATCH["distill"]):
+    batches = _chunks(ctx.active(("candidate",)), BATCH["distill"])
+    for batch_index, batch in enumerate(batches, 1):
         try:
             views = [_view(e, i) for i, e in enumerate(batch)]
             response = ctx.call("proposer", DISTILLER_SYSTEM, ctx.base_prompt() + "\nItems to distill:\n"
                                 + json.dumps(views, ensure_ascii=False, indent=1) + "\n\nCited claims:\n"
-                                + ctx.cited_block([e["item"] for e in batch]), DISTILL_SCHEMA, "distill pool")
+                                + ctx.cited_block([e["item"] for e in batch]), DISTILL_SCHEMA,
+                                "distill pool" if len(batches) == 1 else f"distill pool (batch {batch_index}/{len(batches)})")
             for decision in response.data["items"]:
                 if not 0 <= decision["index"] < len(batch):
                     continue
@@ -1248,7 +1400,7 @@ def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> 
     them before this gate applies it.
     """
     pool = ctx.pool.at("merge", iteration)
-    groups = [g for g in merge_groups(active(pool.fold(), ("candidate",)), overlap=overlap)
+    groups = [g for g in merge_groups(ctx.active(("candidate",)), overlap=overlap)
               if frozenset((e["criterion_id"], e["version"]) for e in g) not in ctx.adjudicated]
     # WHY the groups that were *not* reduced carry their reasons into the stage result (which
     # `_stage_recorder` writes to the journal and a `derivation_stage` artifact): an applied merge or
@@ -1260,122 +1412,158 @@ def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> 
                              "refused": 0, "not_reduced": []}
     if not groups:
         return stats
-    views = [{"group": gi, "members": [_view(e, mi) for mi, e in enumerate(g)]} for gi, g in enumerate(groups)]
-    response = ctx.call("adjudicator", ADJUDICATOR_SYSTEM, f"Objective: {ctx.task_context['objective_text']}\n\nGroups:\n"
-                        + json.dumps(views, ensure_ascii=False, indent=1) + "\n\nCited claims:\n"
-                        + ctx.cited_block([e["item"] for g in groups for e in g]), MERGE_SCHEMA, "adjudicate merges")
-    for group in groups:
-        ctx.adjudicated.add(frozenset((e["criterion_id"], e["version"]) for e in group))
 
     def not_reduced(index: int, outcome: str, action: Any, reason: str) -> None:
-        stats[outcome] += 1
+        stats[outcome] = stats.get(outcome, 0) + 1
         stats["not_reduced"].append({"group": index, "outcome": outcome, "action": action, "reason": reason[:500]})
 
-    for decision in response.data["decisions"]:
-        if not 0 <= decision["group"] < len(groups):
+    # Group membership and global ids stay fixed. Apply a returned batch before
+    # requesting the next, so a later budget/control boundary cannot discard it.
+    batches = _chunks(list(enumerate(groups)), BATCH["merge"])
+    if len(batches) > 1:
+        stats["batches"] = 0
+    for batch_index, batch in enumerate(batches, 1):
+        if "batches" in stats:
+            stats["batches"] += 1
+        offered = {index for index, _group in batch}
+        views = [{"group": index, "members": [_view(entry, member) for member, entry in enumerate(group)]}
+                 for index, group in batch]
+        try:
+            response = ctx.call("adjudicator", ADJUDICATOR_SYSTEM +
+                "\nReturn exactly one decision for every offered group id; keep those group ids unchanged.",
+                f"Objective: {ctx.task_context['objective_text']}\n\nGroups:\n"
+                + json.dumps(views, ensure_ascii=False, indent=1) + "\n\nCited claims:\n"
+                + ctx.cited_block([entry["item"] for _index, group in batch for entry in group]),
+                MERGE_SCHEMA, "adjudicate merges" if len(batches) == 1 else
+                    f"adjudicate merges (batch {batch_index}/{len(batches)})")
+        except ModelError as error:
+            if error.error_class == "quota_exhausted":
+                raise
+            stats["batches_unresolved"] = stats.get("batches_unresolved", 0) + 1
+            for index, _group in batch:
+                not_reduced(index, "unresolved", None, f"adjudicator batch did not return a usable response: {error}")
             continue
-        group = groups[decision["group"]]
-        action = decision.get("action")
-        declared = decision.get("consolidated") if action == "consolidate" else decision.get("merged")
-        if action not in ("merge", "consolidate") or not declared:
-            not_reduced(decision["group"], "kept_separate", action, decision.get("reason") or "")
-            continue
-        # The quantity and its scale, inherited before anything reads them: `_consolidation` needs the
-        # child's direction to know which end of the scale `worst_member` scores, and that is where the
-        # three consolidations of 14 October 2026 were refused for a direction all their members declared.
-        declared, problem = _inherited_from(group, _FIXED_BY_GROUPING, declared)
-        if problem:
-            not_reduced(decision["group"], "refused", action, problem)
-            continue
-        parents = group
-        consolidation = None
-        if action == "consolidate":
-            parents, problem, executes_as = _consolidation(group, declared, declared.get("attribute") or {})
+        returned: dict[int, list[dict[str, Any]]] = {}
+        for decision in response.data["decisions"]:
+            index = decision.get("group")
+            if isinstance(index, bool) or not isinstance(index, int) or index not in offered:
+                stats["unexpected_decisions"] = stats.get("unexpected_decisions", 0) + 1
+                continue
+            returned.setdefault(index, []).append(decision)
+        for index, group in batch:
+            decisions = returned.get(index, [])
+            if len(decisions) != 1:
+                reason = "no decision returned for this group" if not decisions else "multiple decisions returned for this group"
+                not_reduced(index, "unresolved", None, reason)
+                continue
+            decision = decisions[0]
+            ctx.adjudicated.add(frozenset((entry["criterion_id"], entry["version"]) for entry in group))
+            action = decision.get("action")
+            declared = decision.get("consolidated") if action == "consolidate" else decision.get("merged")
+            if action not in ("merge", "consolidate") or not declared:
+                not_reduced(decision["group"], "kept_separate", action, decision.get("reason") or "")
+                continue
+            # The quantity and its scale, inherited before anything reads them: `_consolidation` needs the
+            # child's direction to know which end of the scale `worst_member` scores, and that is where the
+            # three consolidations of 14 October 2026 were refused for a direction all their members declared.
+            declared, problem = _inherited_from(group, _FIXED_BY_GROUPING, declared)
             if problem:
                 not_reduced(decision["group"], "refused", action, problem)
                 continue
-            adjudicator_said = (declared.get("attribute") or {}).get("aggregation")
-            consolidation = {"shared_property": str(declared["shared_property"]).strip(),
-                             "family_aggregation": declared["family_aggregation"],
-                             # The aggregation the declared family reduction compiles to. It is recorded and,
-                             # below, written onto the attribute, which is the only half of this pair the
-                             # assessor ever reads: a consolidated criterion reaches `assess_cell` as one
-                             # attribute over one pooled claim set, with no family left to reduce, so a
-                             # `family_aggregation` that is not compiled into `aggregation` is a declaration
-                             # the score ignores -- what this field was when it was first added.
-                             "executes_as_aggregation": executes_as,
-                             # The adjudicator is asked for the attribute's fields, `aggregation` among them,
-                             # and it has no way to know which one its family reduction implies. Deriving is
-                             # what keeps the two from disagreeing; naming the derived-over declaration is
-                             # what keeps the derivation from being silent.
-                             **({"replaced_declared_aggregation": adjudicator_said}
-                                if adjudicator_said and adjudicator_said != executes_as else {}),
-                             # The ids and names of what this criterion stands for, resolved here rather than
-                             # taken from the reply: the adjudicator never sees a criterion id, and a reviewer
-                             # who cannot follow the abstraction back to the endpoints it replaced cannot object
-                             # to it, which is the difference between an abstraction and information loss.
-                             "subsumes": [{"criterion_id": e["criterion_id"], "version": e["version"],
-                                           "name": e["item"]["attribute"].get("name")} for e in parents]}
-        route_key = _source_key if action == "consolidate" else criteria.route_key
-        parents_claims = {c for e in parents for c in e["item"]["supporting_claim_ids"]}
-        parents_routes = {route_key(r) for e in parents
-                          for r in criteria.evidence_routes(e["item"]["attribute"])}
-        # A merged child inherits the largest repair count in its group, never a fresh budget: otherwise
-        # merging two items that had each been revised to their limit would hand the result an untouched
-        # allowance, and the cheapest way past `max_refines` would be to merge.
-        item = _item(declared, dimension=parents[0]["item"].get("dimension"),
-                     refine_count=max(int(e["item"].get("refine_count") or 0) for e in parents),
-                     **({"consolidation": consolidation} if consolidation else {}))
-        # The rest of the inheritance, measured over the members this reduction folds in rather than over
-        # the whole group: a consolidation names its subset, so what counts as an answer is what that
-        # subset accepts, and a member whose evidence policy differs is left out instead of refusing the
-        # family. Before `ctx.validate`, so a child silent about an agreed field is completed, not refused.
-        item, problem = _inherited_from(parents, _AGREED_BY_MEMBERS, item)
-        if problem:
-            not_reduced(decision["group"], "refused", action, problem)
-            continue
-        if consolidation:
-            # Written before the validator and before the pool, so what is stored, scored and exported is one
-            # value: the declared reduction and the executed aggregation cannot drift apart afterwards
-            # because only one of them was ever authored.
-            item["attribute"]["aggregation"] = consolidation["executes_as_aggregation"]
-        else:
-            # A merge's own reduction over its pooled values, where its members agree on one -- before
-            # `_merged_consolidation`, which reads `aggregation` as part of what an attribute measures and
-            # would otherwise see the child's silence as a change away from a consolidated parent's family.
-            item = _completed_where_agreed(parents, _AGREED_IN_A_MERGE, item)
-            # A merge over a group that contains a consolidated member carries that member's family forward
-            # or is refused; it may not quietly retire the record of what the abstraction replaced.
-            inherited, problem = _merged_consolidation(parents, item)
+            parents = group
+            consolidation = None
+            if action == "consolidate":
+                parents, problem, executes_as = _consolidation(group, declared, declared.get("attribute") or {})
+                if problem:
+                    not_reduced(decision["group"], "refused", action, problem)
+                    continue
+                adjudicator_said = (declared.get("attribute") or {}).get("aggregation")
+                consolidation = {"shared_property": str(declared["shared_property"]).strip(),
+                                 "family_aggregation": declared["family_aggregation"],
+                                 # The aggregation the declared family reduction compiles to. It is recorded and,
+                                 # below, written onto the attribute, which is the only half of this pair the
+                                 # assessor ever reads: a consolidated criterion reaches `assess_cell` as one
+                                 # attribute over one pooled claim set, with no family left to reduce, so a
+                                 # `family_aggregation` that is not compiled into `aggregation` is a declaration
+                                 # the score ignores -- what this field was when it was first added.
+                                 "executes_as_aggregation": executes_as,
+                                 # The adjudicator is asked for the attribute's fields, `aggregation` among them,
+                                 # and it has no way to know which one its family reduction implies. Deriving is
+                                 # what keeps the two from disagreeing; naming the derived-over declaration is
+                                 # what keeps the derivation from being silent.
+                                 **({"replaced_declared_aggregation": adjudicator_said}
+                                    if adjudicator_said and adjudicator_said != executes_as else {}),
+                                 # The ids and names of what this criterion stands for, resolved here rather than
+                                 # taken from the reply: the adjudicator never sees a criterion id, and a reviewer
+                                 # who cannot follow the abstraction back to the endpoints it replaced cannot object
+                                 # to it, which is the difference between an abstraction and information loss.
+                                 "subsumes": [{"criterion_id": e["criterion_id"], "version": e["version"],
+                                               "name": e["item"]["attribute"].get("name")} for e in parents]}
+            route_key = _source_key if action == "consolidate" else criteria.route_key
+            parents_claims = {c for e in parents for c in e["item"]["supporting_claim_ids"]}
+            parents_routes = {route_key(r) for e in parents
+                              for r in criteria.evidence_routes(e["item"]["attribute"])}
+            # A merged child inherits the largest repair count in its group, never a fresh budget: otherwise
+            # merging two items that had each been revised to their limit would hand the result an untouched
+            # allowance, and the cheapest way past `max_refines` would be to merge.
+            source_registry = {source["rule_ref"]: source for parent in parents
+                               for source in parent["item"].get("source_registry") or []}
+            item = _item(declared, dimension=parents[0]["item"].get("dimension"),
+                         refine_count=max(int(e["item"].get("refine_count") or 0) for e in parents),
+                         source_registry=list(source_registry.values()),
+                         **({"consolidation": consolidation} if consolidation else {}))
+            # The rest of the inheritance, measured over the members this reduction folds in rather than over
+            # the whole group: a consolidation names its subset, so what counts as an answer is what that
+            # subset accepts, and a member whose evidence policy differs is left out instead of refusing the
+            # family. Before `ctx.validate`, so a child silent about an agreed field is completed, not refused.
+            item, problem = _inherited_from(parents, _AGREED_BY_MEMBERS, item)
             if problem:
                 not_reduced(decision["group"], "refused", action, problem)
                 continue
-            if inherited:
-                item["consolidation"] = inherited
-        # Last of the three inheritances, because it is keyed on the child's finished bounds: the cutoff has
-        # by now been restated in the group's unit and an inherited `value_transform` has brought its own
-        # bounds with it, so what is matched against the parents is the set of numbers the child will really
-        # be scored on.
-        item, problem = _supported_as_its_parents(parents, item)
-        if problem:
-            not_reduced(decision["group"], "refused", action, problem)
-            continue
-        child_routes = {route_key(r) for r in criteria.evidence_routes(item["attribute"])}
-        # An invalid child, one citing evidence its parents did not, or one reaching for a data source no
-        # parent was bound to, is not applied: a reduction combines what the pool already has, and that holds
-        # for a consolidation exactly as for a merge -- an abstraction is still not a licence to read a source
-        # or cite a claim the family never had.
-        reach = _reach_beyond_parents(item, parents_claims, parents_routes, child_routes)
-        problems = ctx.validate(item)
-        if problems or reach:
-            not_reduced(decision["group"], "refused", action, "; ".join(problems) if problems else reach)
-            continue
-        if action == "consolidate":
-            pool.consolidate(parents, dict(item, validator_problems=[]), reason_text=decision["reason"])
-            stats["consolidated"] += 1
-        else:
-            pool.merge(parents, dict(item, validator_problems=[]), reason_text=decision["reason"])
-            stats["merged"] += 1
+            if consolidation:
+                # Written before the validator and before the pool, so what is stored, scored and exported is one
+                # value: the declared reduction and the executed aggregation cannot drift apart afterwards
+                # because only one of them was ever authored.
+                item["attribute"]["aggregation"] = consolidation["executes_as_aggregation"]
+            else:
+                # A merge's own reduction over its pooled values, where its members agree on one -- before
+                # `_merged_consolidation`, which reads `aggregation` as part of what an attribute measures and
+                # would otherwise see the child's silence as a change away from a consolidated parent's family.
+                item = _completed_where_agreed(parents, _AGREED_IN_A_MERGE, item)
+                # A merge over a group that contains a consolidated member carries that member's family forward
+                # or is refused; it may not quietly retire the record of what the abstraction replaced.
+                inherited, problem = _merged_consolidation(parents, item)
+                if problem:
+                    not_reduced(decision["group"], "refused", action, problem)
+                    continue
+                if inherited:
+                    item["consolidation"] = inherited
+            # Last of the three inheritances, because it is keyed on the child's finished bounds: the cutoff has
+            # by now been restated in the group's unit and an inherited `value_transform` has brought its own
+            # bounds with it, so what is matched against the parents is the set of numbers the child will really
+            # be scored on.
+            item, problem = _supported_as_its_parents(parents, item)
+            if problem:
+                not_reduced(decision["group"], "refused", action, problem)
+                continue
+            child_routes = {route_key(r) for r in criteria.evidence_routes(item["attribute"])}
+            # An invalid child, one citing evidence its parents did not, or one reaching for a data source no
+            # parent was bound to, is not applied: a reduction combines what the pool already has, and that holds
+            # for a consolidation exactly as for a merge -- an abstraction is still not a licence to read a source
+            # or cite a claim the family never had.
+            reach = _reach_beyond_parents(item, parents_claims, parents_routes, child_routes)
+            problems = ctx.validate(item)
+            if problems or reach:
+                not_reduced(decision["group"], "refused", action, "; ".join(problems + ([reach] if reach else [])))
+                continue
+            if action == "consolidate":
+                child_id = pool.consolidate(parents, dict(item, validator_problems=[]), reason_text=decision["reason"])
+                stats["consolidated"] += 1
+            else:
+                child_id = pool.merge(parents, dict(item, validator_problems=[]), reason_text=decision["reason"])
+                stats["merged"] += 1
+            if ctx.pool_scope is not None:
+                ctx.pool_scope.add(child_id)
     return stats
 
 
@@ -1384,22 +1572,27 @@ def merge_stage(ctx: StageContext, iteration: int, *, overlap: float = 0.35) -> 
 def refine_stage(ctx: StageContext, iteration: int) -> dict[str, Any]:
     pool = ctx.pool.at("refine", iteration)
     stats: dict[str, Any] = {"revised": 0, "withdrawn": 0, "still_failing": 0, "deferred": 0, "refused": 0}
-    for batch in _chunks(active(pool.fold(), ("needs_refine",)), BATCH["refine"]):
+    batches = _chunks(ctx.active(("needs_refine",)), BATCH["refine"])
+    for batch_index, batch in enumerate(batches, 1):
         try:
             notes = [dict(_view(e, i), validator_problems=e["item"].get("validator_problems") or [],
                           critic_findings=e["item"].get("critic_findings") or []) for i, e in enumerate(batch)]
             response = ctx.call("proposer", REVISER_SYSTEM, ctx.base_prompt() + "\nProposals to revise or withdraw:\n"
                                 + json.dumps(notes, ensure_ascii=False, indent=1) + "\n\nCited claims:\n"
-                                + ctx.cited_block([e["item"] for e in batch]), REVISION_SCHEMA, "refine pool")
+                                + ctx.cited_block([e["item"] for e in batch]), REVISION_SCHEMA,
+                                "refine pool" if len(batches) == 1 else f"refine pool (batch {batch_index}/{len(batches)})")
             for revision in response.data["revisions"]:
                 if not 0 <= revision["index"] < len(batch):
                     continue
                 entry = batch[revision["index"]]
                 count = int(entry["item"].get("refine_count") or 0) + 1
-                if revision["action"] == "withdraw" or not revision.get("proposal"):
+                if revision["action"] == "withdraw":
                     pool.set_state(entry, "withdrawn", operation="remove", reason_kind="withdrawn_by_reviser",
                                    reason_text=revision["reason"])
                     stats["withdrawn"] += 1
+                    continue
+                if not isinstance(revision.get("proposal"), dict) or not revision["proposal"]:
+                    _not_revised(stats, entry, "a revise decision requires a proposal object; the previous version stands")
                     continue
                 item, refused = _revised(entry, dict(entry["item"], **revision["proposal"]), refine_count=count)
                 if refused:
@@ -1441,8 +1634,11 @@ def _ids_for(ctx: StageContext, entry: dict[str, Any]) -> tuple[str, str]:
     if entry.get("promoted_as"):
         attr_ref, rule_ref = entry["promoted_as"]["attribute_ref"], entry["promoted_as"]["rule_ref"]
         return attr_ref.split("@v")[0], rule_ref.split("@v")[0]
+    sources = entry["item"].get("source_registry") or []
+    if ctx.registry_reduce and len(sources) == 1:
+        return sources[0]["attribute_ref"].split("@v")[0], sources[0]["rule_ref"].split("@v")[0]
     base = slug(entry["item"]["attribute"]["name"])[:60]
-    taken = {a["attribute_id"] for a in criteria.registered_attributes(ctx.core, ctx.task_id)}
+    taken = {a["attribute_id"] for a in criteria.registered_attributes(ctx.core, ctx.task_id, include_retired=True)}
     candidate, n = base, 1
     while f"attr_{candidate}" in taken:
         n += 1
@@ -1453,19 +1649,26 @@ def _ids_for(ctx: StageContext, entry: dict[str, Any]) -> tuple[str, str]:
 def promote(ctx: StageContext, *, by_proposer: dict[str, Any]) -> dict[str, Any]:
     pool = ctx.pool.at("promote", 0)
     registered = ctx.registered()
-    candidates = active(pool.fold(), ("candidate", "needs_refine"))
+    registered_rules = criteria.registered_rule_records(ctx.core, ctx.task_id)
+    candidates = ctx.active(("candidate", "needs_refine"))
     out = {"accepted": [], "disputed": [], "deferred": [], "duplicates": []}
     _critique(ctx, [e for e in candidates if not ctx.validate(e["item"])],
               "final check before promotion", out)
     for entry in candidates:
         item = entry["item"]
-        duplicate = duplicate_of_registered(item["attribute"], registered)
+        duplicate = duplicate_of_registered(item["attribute"], registered, rule=item["rule"],
+                                             registered_rules=registered_rules)
         if duplicate is not None:
             pool.set_state(entry, "filtered_out", operation="remove", reason_kind="duplicate_of_registered",
                            reason_text=duplicate_reason(duplicate))
             out["duplicates"].append(item["attribute"].get("name"))
             continue
         problems = ctx.validate(item)
+        measurement_match = duplicate_of_registered(item["attribute"], registered)
+        if not ctx.registry_reduce and measurement_match and not duplicate:
+            problems.append("decision_semantics_unresolved: the registered measurement already exists but its "
+                            "decision or evidence policy differs; retain this proposal for registry reduction rather than "
+                            "registering another scoring quantity")
         if problems:
             pool.set_state(entry, "deferred_next_round", operation="defer", reason_kind="validator_findings",
                            reason_text="; ".join(problems)[:500])
@@ -1473,7 +1676,35 @@ def promote(ctx: StageContext, *, by_proposer: dict[str, Any]) -> dict[str, Any]
                                     "problems": problems})
             continue
         findings = ctx.critiques.get((entry["criterion_id"], entry["version"]), [])
+        if (entry["criterion_id"], entry["version"]) not in ctx.critiques:
+            pool.set_state(entry, "deferred_next_round", operation="defer", reason_kind="critique_unresolved",
+                           reason_text="final critique did not return a usable response; no approval is inferred")
+            out["deferred"].append({"criterion_id": entry["criterion_id"], "name": item["attribute"].get("name"),
+                                    "problems": ["critique_unresolved"]})
+            continue
         blocking, material = _failures(findings)
+        if ctx.registry_reduce and (blocking or material):
+            pool.set_state(entry, "deferred_next_round", operation="defer", reason_kind="reduction_unresolved",
+                           reason_text="; ".join(f["finding"] for f in blocking + material)[:500])
+            out["deferred"].append({"criterion_id": entry["criterion_id"], "name": item["attribute"].get("name"),
+                                    "problems": [f["finding"] for f in blocking + material]})
+            continue
+        sources = item.get("source_registry") or []
+        if ctx.registry_reduce and len(sources) == 1:
+            source = sources[0]
+            original_attribute = criteria.load(ctx.core, source["attribute_ref"], ctx.task_id)
+            original_rule = criteria.load(ctx.core, source["rule_ref"], ctx.task_id)
+            same_attribute = all(item["attribute"].get(k) == original_attribute.get(k) for k in ATTRIBUTE_FIELDS)
+            same_rule = all(item["rule"].get(k) == original_rule.get(k) for k in RULE_FIELDS)
+            if same_attribute and same_rule:
+                pool.set_state(entry, "promoted", operation="promote", reason_kind="retained_registered",
+                               reason_text="retained unchanged by registry reduction",
+                               extra={"promoted_as": {"attribute_ref": source["attribute_ref"],
+                                                       "rule_ref": source["rule_ref"]}})
+                registered.append(original_attribute)
+                out["accepted"].append({"criterion_id": entry["criterion_id"], **source,
+                                        "name": original_attribute["name"], "retained_unchanged": True})
+                continue
         attr_id, rule_id = _ids_for(ctx, entry)
         attribute = dict(item["attribute"], attribute_id=attr_id, rationale=item["attribute"].get("rationale", ""),
                          supporting_claim_refs=item["supporting_claim_ids"],
@@ -1482,6 +1713,8 @@ def promote(ctx: StageContext, *, by_proposer: dict[str, Any]) -> dict[str, Any]
         rule = dict(item["rule"], rule_id=rule_id, expected_change=item.get("expected_change", ""),
                     falsification_test=item.get("falsification_test", ""),
                     dissent=[f for f in findings if f["verdict"] == "fail"])
+        if ctx.registry_reduce:
+            rule["registry_reduction"] = {"run_id": ctx.run_id, "source_registry": sources}
         dispute = ({"open_critic_findings": blocking + material, "pool_criterion": entry["criterion_id"],
                     "derivation_run": ctx.run_id} if blocking or material else None)
         try:
@@ -1502,6 +1735,15 @@ def promote(ctx: StageContext, *, by_proposer: dict[str, Any]) -> dict[str, Any]
         # The freshly registered attribute joins the set this loop tests against, so a second pool
         # item measuring the same quantity is refused in this same promotion pass.
         registered.append(dict(attribute, version=int(attr_ref.split("@v")[1])))
+        registered_rules.append(criteria.load(ctx.core, rule_ref, ctx.task_id))
+        if ctx.registry_reduce:
+            for source in sources:
+                criteria.retire_rule(ctx.core, ctx.task_id, source["rule_ref"], by=proposer_actor(ctx),
+                                     reason=f"registry reduction replaced by {rule_ref}; "
+                                     + str((item.get("consolidation") or {}).get("shared_property") or
+                                           item.get("expected_change") or attribute["definition"]),
+                                     superseded_by=rule_ref, reduction_run_id=ctx.run_id,
+                                     source_pool_ref=f"{entry['criterion_id']}@v{entry['version']}")
         pool.set_state(entry, "promoted", operation="promote", reason_kind="disputed" if dispute else "accepted",
                        extra={"promoted_as": {"attribute_ref": attr_ref, "rule_ref": rule_ref}})
         record = {"criterion_id": entry["criterion_id"], "attribute_ref": attr_ref, "rule_ref": rule_ref,

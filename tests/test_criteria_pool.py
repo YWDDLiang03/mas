@@ -598,6 +598,61 @@ def two_curations_pool(core, script, task_id="task_merge"):
                    task_id=task_id, run_id="run_merge")
 
 
+def test_propose_reuses_only_explicit_completed_slices_without_repeating_model_or_pool_writes(core):
+    calls = []
+    def script(request):
+        calls.append(request.metadata["question"])
+        return {"proposals": [proposal(CHEMBL_POTENCY, "claim_second")], "considered_and_rejected": []}
+
+    ctx = pool_of(core, script, [("claim_first", CHEMBL_POTENCY)],
+                  task_id="task_proposal_resume", run_id="run_proposal_resume")
+    ctx.claims_by_id["claim_second"] = dict(ctx.claims_by_id["claim_first"], claim_id="claim_second")
+    claims = list(ctx.claims_by_id.values())
+    ctx.proposal_claim_batch_size = 1
+    ctx.completed_proposal_slices = {"target_coverage": {1}}
+    dimension = {"dimension": "target_coverage", "focus": "required target measurements"}
+    outcome = derivation_stages.propose(ctx, dimension, claims)
+    assert outcome["added"] == 1 and outcome["reused_slice_count"] == 1 and outcome["reused_slices"] == [1]
+    assert len(calls) == 1 and "slice 2/2" in calls[0] and len(pool.fold(core, ctx.task_id)) == 2
+    events = core.journal.replay(ctx.run_id)
+    (completed,) = [e for e in events if e.event_type == "proposal.slice_completed"]
+    assert completed.payload["slice"] == 2 and completed.payload["claim_ids"] == ["claim_second"]
+    assert completed.payload["claims_sha256"] == derivation_stages.sha256_hex(claims[1:])
+    assert completed.payload["ordered_claim_ids_sha256"] == derivation_stages.sha256_hex(["claim_first", "claim_second"])
+    refs = {f"{e['criterion_id']}@v{e['version']}" for e in pool.fold(core, ctx.task_id).values()}
+    assert set(completed.payload["added_criterion_refs"]) <= refs
+    assert max(e.seq for e in events if e.event_type == "agent.finished") < completed.seq
+    # An explicitly fixed complete dimension is a zero-call/zero-add continuation.
+    ctx.completed_proposal_slices["target_coverage"].add(2)
+    outcome = derivation_stages.propose(ctx, dimension, claims)
+    assert outcome["added"] == 0 and outcome["reused_slice_count"] == 2 and len(calls) == 1
+    assert core.journal.replay(ctx.run_id)[-1].seq == completed.seq
+
+
+def test_proposal_slice_is_not_completed_when_only_part_of_a_successful_reply_reaches_pool(core, monkeypatch):
+    def script(request):
+        return {"proposals": [proposal(CHEMBL_POTENCY, "claim_one"), proposal(GTOPDB_AFFINITY, "claim_one")],
+                "considered_and_rejected": []}
+    ctx = pool_of(core, script, [], task_id="task_partial_slice", run_id="run_partial_slice")
+    claim = {"claim_id": "claim_one", "source_ref": "src_synthetic", "value": 8, "unit": "pChEMBL",
+             "determination_basis": "measured", "location": {"quoted_span": "a synthetic target measurement"}}
+    ctx.claims_by_id["claim_one"] = claim
+    add, added = ctx.pool.add, []
+    def interrupted_add(*args, **kwargs):
+        if added:
+            raise InterruptedError("synthetic interruption before the second pool commit")
+        value = add(*args, **kwargs)
+        added.append(value)
+        return value
+    monkeypatch.setattr(ctx.pool, "add", interrupted_add)
+    with pytest.raises(InterruptedError):
+        derivation_stages.propose(ctx, {"dimension": "target_coverage", "focus": "measurements"}, [claim])
+    events = core.journal.replay(ctx.run_id)
+    assert any(e.event_type == "agent.finished" and e.payload["schema_ok"] for e in events)
+    assert len(pool.fold(core, ctx.task_id)) == 1
+    assert not any(e.event_type == "proposal.slice_completed" for e in events)
+
+
 def test_a_merge_may_pool_its_parents_routes_into_one_attribute(core):
     ctx = two_curations_pool(core, merge_script())
     assert derivation_stages.merge_stage(ctx, 1) == {"groups": 1, "merged": 1, "consolidated": 0,
@@ -919,7 +974,8 @@ def test_a_consolidation_may_not_cite_evidence_no_member_had_nor_a_route_no_memb
     stats = derivation_stages.merge_stage(ctx, 1)
     assert stats["refused"] == 1 and stats["consolidated"] == 0
     assert "1 evidence route(s) no parent declared" in stats["not_reduced"][0]["reason"]
-    assert ctx.validate(dict(proposal(attribute, "claim_tox_0"))) == []
+    # The provenance refusal remains visible beside the now-detected incompatible unit.
+    assert any(p.startswith("units:") for p in ctx.validate(dict(proposal(attribute, "claim_tox_0"))))
 
 
 def test_the_parents_go_to_merged_away_pointing_at_the_child_and_the_pool_trajectory_shows_the_reduction(core):
@@ -1898,7 +1954,10 @@ def test_a_proposal_whose_only_route_a_registered_attribute_already_covers_is_re
     either: it groups pool candidates, and the registered attribute is not one."""
     task_id = "task_subset"
     both = pooled(CHEMBL_POTENCY["evidence_request"], GTOPDB_AFFINITY["evidence_request"])
-    attr_ref, _ = criteria.propose(core, task_id, both, ORDERING, by=OPERATOR)
+    # Match the proposal's default missing-value policy too: distinct decisions on one
+    # measurement now survive for reconciliation rather than being discarded as duplicates.
+    attr_ref, _ = criteria.propose(core, task_id, both,
+                                  dict(ORDERING, on_missing="unknown_blocks_recommendation"), by=OPERATOR)
     ctx = pool_of(core, critic_passes_everything, [("claim_gtopdb", GTOPDB_AFFINITY)],
                   task_id=task_id, run_id="run_subset")
 
@@ -1913,6 +1972,84 @@ def test_a_proposal_whose_only_route_a_registered_attribute_already_covers_is_re
     assert "pchembl_values" in last["reason_text"]
     found = derivation_stages.duplicate_of_registered(GTOPDB_AFFINITY, criteria.registered_attributes(core, task_id))
     assert found["attribute_ref"] == attr_ref and found["already_covered"] == ["gtopdb_affinity"]
+
+
+def test_a_database_subset_of_a_mixed_anchor_is_covered_but_a_new_decision_is_deferred(core):
+    """A literature route must not hide an existing target measurement from the subset guard."""
+    task_id = "task_mixed_anchor_subset"
+    literature = {"capability": "literature_retrieval", "question_kind": "search",
+                  "parameters": {"query_template": "({names}) AND CSF1R potency"}}
+    anchor = pooled(CHEMBL_POTENCY["evidence_request"], GTOPDB_AFFINITY["evidence_request"], literature,
+                    acceptable_value_sources=["curated_measurement", "peer_reviewed"])
+    source_rule = dict(ORDERING, on_missing="unknown_blocks_recommendation")
+    attr_ref, _ = criteria.propose(core, task_id, anchor, source_rule, by=OPERATOR)
+    registered = criteria.registered_attributes(core, task_id)
+    rules = criteria.registered_rule_records(core, task_id)
+    assert derivation_stages.quantity_key(CHEMBL_POTENCY) != derivation_stages.quantity_key(registered[0])
+    assert derivation_stages.duplicate_of_registered(CHEMBL_POTENCY, registered, rule=source_rule,
+                                                     registered_rules=rules)["attribute_ref"] == attr_ref
+    for different_policy in (dict(CHEMBL_POTENCY, acceptable_value_sources=["curated_measurement", "database_entry"]),
+                             dict(CHEMBL_POTENCY, determination_basis_precedence=["measured", "derived"])):
+        assert derivation_stages.duplicate_of_registered(different_policy, registered) is not None
+        assert derivation_stages.duplicate_of_registered(different_policy, registered, rule=source_rule,
+                                                         registered_rules=rules) is None
+    # Different reductions/types/quantities are not erased by the transport-independent test.
+    for changed in (dict(CHEMBL_POTENCY, aggregation="max"),
+                    dict(CHEMBL_POTENCY, measurement_kind="categorical", unit=None),
+                    dict(CHEMBL_POTENCY, direction="lower_better"),
+                    dict(CHEMBL_POTENCY, value_transform={"kind": "excess_above", "bound": 7})):
+        assert derivation_stages.duplicate_of_registered(changed, registered) is None
+    added_route = dict(CHEMBL_POTENCY["evidence_request"], parameters={"target_chembl_id": "CHEMBL279"})
+    assert derivation_stages.duplicate_of_registered(pooled(added_route), registered) is None
+
+    ctx = pool_of(core, lambda request: {"findings": []}, [("claim_potency", CHEMBL_POTENCY)],
+                  task_id=task_id, run_id="run_mixed_anchor_subset")
+    entry = next(iter(pool.fold(core, task_id).values()))
+    threshold = dict(source_rule, predicate_form="threshold", cutoff_basis="source_stated_value",
+                     cutoff={"comparator": ">=", "value": 8, "unit": "pChEMBL"})
+    ctx.pool.revise(entry, dict(entry["item"], rule=threshold), reason_text="a supported new decision")
+    assert derivation_stages.filter_stage(ctx, 1)["filtered_out"] == 0
+    result = derivation_stages.promote(ctx, by_proposer=OPERATOR)
+    assert len(result["deferred"]) == 1 and not result["accepted"]
+    assert "decision_semantics_unresolved" in result["deferred"][0]["problems"][0]
+    assert len(criteria.registered_rule_records(core, task_id)) == 1
+    (retained,) = pool.fold(core, task_id).values()
+    assert retained["state"] == "deferred_next_round" and retained["item"]["rule"]["cutoff"]["value"] == 8
+
+
+def test_catalog_units_follow_executable_conversions_and_boolean_outputs_cannot_count():
+    from mas.core.derivation import validate_proposal
+
+    def problems(attribute, catalog=EVIDENCE_CATALOG):
+        return validate_proposal(proposal(attribute, "claim_support"), claims_by_id={
+            "claim_support": {"claim_id": "claim_support", "value": 8, "unit": "pChEMBL",
+                              "determination_basis": "measured"}}, reference_labels=[], catalog=catalog)
+
+    assert problems(CHEMBL_POTENCY) == []
+    assert problems(dict(CHEMBL_POTENCY, unit=" pChEMBL ")) == []
+    for wrong_unit in ("nM", "ng/g"):
+        assert any(p.startswith("units:") and "no registered conversion" in p
+                   for p in problems(dict(CHEMBL_POTENCY, unit=wrong_unit)))
+    entry = next(e for e in EVIDENCE_CATALOG if e["question_kind"] == "pchembl_values")
+    # This direction is genuinely implemented by the assessor; the converse above is not.
+    assert problems(CHEMBL_POTENCY, [dict(entry, units={"potency": "nM"})]) == []
+    assert problems(dict(CHEMBL_POTENCY, unit="nmol/l"), [dict(entry, units={"potency": "nM"})]) == []
+    assert any("categorical projection" in p for p in
+               problems(dict(CHEMBL_POTENCY, measurement_kind="categorical", unit=None)))
+    mechanism = dict(CHEMBL_POTENCY, name="Recorded target count", unit="count",
+                     acceptable_value_sources=["database_entry"], acceptable_determination_bases=["curated"],
+                     evidence_request=dict(CHEMBL_POTENCY["evidence_request"], question_kind="mechanism_records"))
+    assert any("no executable numeric aggregation" in p for p in problems(mechanism))
+    multi = pooled(mechanism["evidence_request"],
+                   dict(mechanism["evidence_request"], parameters={"target_chembl_id": "CHEMBL279"}), base=mechanism)
+    assert sum("no executable numeric aggregation" in p for p in problems(multi)) == 2
+    # A Boolean field's output is selected before checking units; the numeric year field in the same
+    # catalog entry cannot make an oral count executable.
+    record = dict(mechanism, acceptable_determination_bases=["measured"], evidence_request={
+        "capability": "record_field_lookup", "question_kind": "record_field", "parameters": {"field": "oral"}})
+    assert any("no executable numeric aggregation" in p for p in problems(record))
+    assert problems(dict(record, unit="year", evidence_request=dict(record["evidence_request"],
+                                                                    parameters={"field": "first_approval"}))) == []
 
 
 def test_a_proposal_offering_a_route_the_registered_attribute_lacks_is_not_refused(core):

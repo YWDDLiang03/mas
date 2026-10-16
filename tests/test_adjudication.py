@@ -1049,7 +1049,7 @@ def test_the_review_page_shows_the_route_for_an_open_item_and_who_resolved_a_clo
     assert done["authority"] == "adjudicated by an agent; no person confirmed it"
     assert done["adjudication_id"].startswith("adj_")
     assert "no person confirmed them" in data["machine_adjudication_note"]
-    shown = Workbench(root).handle("GET", "/review").body.decode("utf-8")
+    shown = Workbench(root).handle("GET", "/review?routes=1").body.decode("utf-8")
     assert "adjudicated by an agent; no person confirmed it" in shown and "task_constraint_restated" in shown
 
 

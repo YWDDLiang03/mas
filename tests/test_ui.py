@@ -4,7 +4,7 @@ Every endpoint is driven through `Workbench.handle`, so the pages are checked by
 not by eye: the known ranks and scores of the end-to-end run, the claim quote behind a verdict,
 the per-term rationale of a fitted score, and the pool's lineage. The rest are the properties the
 surface rests on: markup in a claim quote never reaches a page raw, a non-loopback host is
-refused before it is bound, every method but GET and HEAD is 405, no UI module can write, and a
+refused before it is bound, every method but GET and HEAD is 405, legacy views cannot write, and a
 read-only core opens a root another host holds. One test serves a real request over a socket.
 No network.
 """
@@ -13,9 +13,13 @@ from __future__ import annotations
 
 import json
 import re
+import socket
+import sqlite3
 import threading
+import time
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import ProxyHandler, Request, build_opener, urlopen
+from urllib.error import HTTPError
 
 import pytest
 
@@ -26,6 +30,7 @@ from mas.core.runtime import Core
 from mas.core.store import StoreError
 from mas.ui import views
 from mas.ui.server import Workbench, address, make_server, non_loopback_reason, serve
+from mas.ui.operations import OperationError, OperationManager
 from tests.test_run_end_to_end import OPERATOR, make_controller, setup_task
 from tests.test_symbolic import _e2e_store
 
@@ -258,7 +263,7 @@ def test_the_settings_page_carries_the_layer_of_every_value_and_redacts_the_keys
     project = tmp_path / "mas.toml"
     project.write_text(f'[search]\nbreadth = 7\n\n[providers.deepseek]\nkind = "openai_compatible"\n'
                        f'base_url = "https://api.deepseek.com"\nmodel = "deepseek-flash"\n'
-                       f'api_key_env = "DEEPSEEK_API_KEY"\napi_key_file = "{key_file}"\napi_key = "sk-inline"\n\n'
+                       f'api_key_env = "DEEPSEEK_API_KEY"\napi_key_file = "{key_file.as_posix()}"\napi_key = "sk-inline"\n\n'
                        f'[roles]\nreader = "deepseek"\n', encoding="utf-8")
     settings = config_mod.resolve(project_file=project, environ={})
     bench = Workbench(root, settings=settings)
@@ -303,7 +308,7 @@ def test_every_page_is_served_as_html_and_as_the_same_json(bench, built):
         data, shown = payload(bench, target), page(bench, target)
         assert set(("page", "surface", "freshness", "as_of")) <= set(data)
         assert shown.startswith("<!doctype html>") and shown.endswith("</html>")
-        assert f"<h1>{data['page']}</h1>" in shown and "this page as JSON" in shown
+        assert '<main id="main-content">' in shown and "<h1>" in shown and "this page as JSON" in shown
         assert views.READ_ONLY in data["surface"] and "static:" in data["freshness"]
 
 
@@ -328,7 +333,7 @@ def test_an_unknown_task_candidate_run_or_page_is_404(bench, built):
         for prefix in ("", "/api"):
             response = bench.handle("GET", prefix + target)
             assert response.status == 404 and expected in response.body
-    assert bench.handle("GET", "/leaderboard").status == 400
+    assert bench.handle("GET", "/leaderboard").status == 200
     assert b"?task=" in bench.handle("GET", "/candidate").body
     assert bench.handle("GET", "/leaderboard?task=x&top=none").status == 400
 
@@ -347,16 +352,43 @@ def test_the_workbench_binds_a_loopback_address_only(built):
         server.server_close()
 
 
-def test_no_ui_module_can_write_to_a_store():
-    modules = sorted(Path("src/mas/ui").glob("*.py"))
-    assert [path.name for path in modules] == ["__init__.py", "server.py", "views.py"]
+def test_ui_views_and_operations_cannot_write_directly_to_a_store():
+    # Legacy rendering/operations keep their original read-only boundary.
+    # New projections write a separate cache; research briefs write a guarded annotation store.
+    modules = [Path("src/mas/ui") / name for name in ("views.py", "server.py", "operations.py",
+               "read_api.py", "read_model.py", "evidence_read.py", "read_summaries.py")]
     for path in modules:
         source = path.read_text(encoding="utf-8")
-        for forbidden in ("journal.append", "artifacts.put", "read_text(", "read_bytes(", ".environ", "getenv"):
+        for forbidden in ("journal.append", "artifacts.put"):
             assert forbidden not in source, f"{path.name} mentions {forbidden}"
+        if path.name != "operations.py":
+            for forbidden in ("read_text(", "read_bytes(", ".environ", "getenv"):
+                assert forbidden not in source, f"{path.name} mentions {forbidden}"
         for call in re.findall(r"Core\.open\(([^)]*)\)", source):
             assert "read_only=True" in call, f"{path.name} opens a store without read_only=True: {call}"
         assert "def do_POST" not in source or "_answer" in source
+
+
+def test_projection_reads_write_only_the_separate_cache(built, tmp_path):
+    from mas.ui.read_api import ReadAPI
+    from mas.ui.read_model import ReadModel
+
+    root, task_id, _ = built
+    model = ReadModel(root, cache_path=tmp_path / "projection.sqlite")
+    with model._source() as source:
+        before = list(source.iterdump())
+        with pytest.raises(sqlite3.OperationalError, match="readonly|read-only"):
+            source.execute("CREATE TABLE forbidden_scientific_write(value TEXT)")
+    assert model.sync()["ready"]
+    response = ReadAPI(model).get(task_id, "candidates", {"status": "all"})
+    assert response["total"] == 4
+    with model._cache() as cache:
+        assert cache.execute("SELECT COUNT(*) FROM candidate_rows").fetchone()[0] == 4
+    with model._source() as source:
+        assert list(source.iterdump()) == before
+    assert model.cache_path != model.source_path
+    with pytest.raises(ValueError, match="separate"):
+        ReadModel(root, cache_path=root / "store.db")
 
 
 def test_a_read_only_core_opens_a_root_another_host_holds_and_refuses_every_write(tmp_path):
@@ -432,3 +464,234 @@ def test_serving_closes_the_socket_when_it_is_interrupted(built):
     server.serve_forever = interrupt
     serve(server)
     assert server.socket.fileno() == -1 and monkey is not None
+
+
+def test_ipv6_loopback_uses_an_ipv6_socket_and_a_usable_url(built):
+    if not socket.has_ipv6:
+        pytest.skip("IPv6 is unavailable on this host")
+    root, _task_id, _run_id = built
+    try:
+        server = make_server(root, port=0, host="::1")
+    except OSError as error:
+        pytest.skip(f"IPv6 loopback cannot be bound on this host: {error}")
+    worker = threading.Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    try:
+        base = address(server)
+        assert base.startswith("http://[::1]:")
+        with build_opener(ProxyHandler({})).open(base + "api", timeout=10) as response:
+            assert response.status == 200 and json.load(response)["tasks_n"] == 1
+    finally:
+        server.shutdown()
+        worker.join(timeout=10)
+        server.server_close()
+
+
+def test_opt_in_operations_require_token_same_origin_and_allowlisted_action(built):
+    root, task_id, _run_id = built
+    manager = OperationManager(root)
+    server = make_server(root, port=0, operations=manager)
+    worker = threading.Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    base = address(server).rstrip("/")
+    try:
+        with urlopen(base + "/operations", timeout=10) as response:
+            assert manager.token.encode() in response.read()
+        for token, origin in (("bad-token", base), (manager.token, "http://untrusted.example")):
+            request = Request(base + "/api/operations", data=b'{}', method="POST",
+                              headers={"Content-Type": "application/json", "Origin": origin,
+                                       "X-MAS-Operation-Token": token})
+            with pytest.raises(HTTPError) as refused:
+                urlopen(request, timeout=10)
+            assert refused.value.code == 403
+        request = Request(base + "/api/operations", data=json.dumps({"action": "expert_decide", "task_id": task_id}).encode(),
+                          method="POST", headers={"Content-Type": "application/json", "Origin": base,
+                                                   "X-MAS-Operation-Token": manager.token})
+        with pytest.raises(HTTPError) as refused:
+            urlopen(request, timeout=10)
+        assert refused.value.code == 400
+        assert manager.snapshot()["jobs"] == []
+        with pytest.raises(OperationError, match="frozen"):
+            manager.start({"action": "run_start", "task_id": task_id})
+        with pytest.raises(OperationError, match="did not start"):
+            manager.cancel("job_somebody_else_started")
+    finally:
+        server.shutdown()
+        worker.join(timeout=10)
+        server.server_close()
+        manager.close()
+
+
+def test_an_operation_runs_the_cli_and_preserves_its_real_failure_and_logs(built, tmp_path):
+    root, task_id, _run_id = built
+    # Explicitly disable adjudication: this real CLI subprocess must refuse before any model call.
+    config = tmp_path / "mas.toml"
+    config.write_text('[interaction]\nmode = "checkpoint"\nautonomous_adjudication = false\n', encoding="utf-8")
+    manager = OperationManager(root, cli_options=["--config", str(config), "--set", "budget.usd_max=0"],
+                               config_hash="test-config")
+    try:
+        job = manager.start({"action": "adjudicate_item", "task_id": task_id,
+                             "item": "rule_terminal-half-life@v1"})
+        deadline = time.monotonic() + 15
+        while manager.snapshot()["jobs"][0]["exit_code"] is None and time.monotonic() < deadline:
+            time.sleep(.05)
+        result = manager.snapshot()["jobs"][0]
+        assert result["pid"] == job["pid"] and result["status"] == "failed" and result["exit_code"] != 0
+        assert "interaction.autonomous_adjudication is off" in result["log_tail"]
+        assert result["initiator"] == {"kind": "agent", "id": "codex", "surface": "browser"}
+        assert Path(result["log_path"]).is_file()
+        recorded = json.loads(Path(result["log_path"]).with_name("job.json").read_text(encoding="utf-8"))
+        assert recorded["config_hash"] == "test-config" and recorded["pid"] == result["pid"]
+    finally:
+        manager.close()
+
+
+def test_settings_edits_are_validated_saved_and_reloaded_without_secret_fields(built):
+    root, task_id, _run_id = built
+    manager = OperationManager(root)
+    with pytest.raises((OperationError, config_mod.ConfigError)):
+        manager.save_settings({"providers.mine.api_key": "not-allowed"})
+    with pytest.raises(config_mod.ConfigError):
+        manager.save_settings({"assess.workers": 0})
+    saved = manager.save_settings({"search.volume": "mid", "textbook.volume": "mid", "assess.workers": 2})
+    manager.select_task(task_id)
+    restored = OperationManager(root)
+    assert saved["preset"] == "standard" and restored.settings["assess.workers"] == 2
+    assert restored.current_task == task_id and restored.settings["search.volume"] == "mid"
+    assert "api_key" not in manager.state_path.read_text(encoding="utf-8")
+
+
+def test_leaderboard_pagination_and_csv_keep_the_snapshot_and_all_candidates(bench, built):
+    import csv
+    import io
+    _root, task_id, _run_id = built
+    first = payload(bench, f"/leaderboard?task={task_id}&top=2&page=1")
+    second = payload(bench, f"/leaderboard?task={task_id}&snapshot={first['snapshot_id']}&top=2&page=2")
+    assert first["pagination"]["pages"] == 2 and second["pagination"]["first_row"] == 3
+    assert not ({row["candidate_ref"] for row in first["rows"]} & {row["candidate_ref"] for row in second["rows"]})
+    assert all(first["snapshot_id"] in row["candidate"] for row in first["rows"])
+    exported = bench.handle("GET", f"/export/leaderboard.csv?task={task_id}&snapshot={first['snapshot_id']}")
+    rows = list(csv.DictReader(io.StringIO(exported.body.decode("utf-8-sig"))))
+    assert exported.status == 200 and len(rows) == first["members_compared"] == 4
+    assert {row["snapshot_id"] for row in rows} == {first["snapshot_id"]}
+
+
+def test_navigation_uses_server_task_and_ui_language_does_not_translate_research(built):
+    from html.parser import HTMLParser
+    from mas.ui import i18n
+    from mas.ui.server import _page
+    root, task_id, _run_id = built
+    manager = OperationManager(root)
+    manager.select_task(task_id)
+    bench = Workbench(root, operations=manager)
+
+    class Navigation(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.links = []
+
+        def handle_starttag(self, tag, attrs):
+            fields = dict(attrs)
+            if tag == "a" and "nav-link" in fields.get("class", ""):
+                self.links.append(fields["href"])
+
+    english = bench.handle("GET", "/settings")
+    parser = Navigation()
+    parser.feed(english.body.decode("utf-8"))
+    assert b'<html lang="en">' in english.body
+    assert len(parser.links) == 6 and all(f"task={task_id}" in target for target in parser.links)
+    assert all("/#tasks" not in target and bench.handle("GET", target).status == 200 for target in parser.links)
+    chinese = bench.handle("GET", "/settings?lang=zh")
+    assert "mas_ui_language=zh" in chinese.headers["Set-Cookie"]
+    assert b'<html lang="zh-CN">' in bench.handle("GET", "/settings", headers={"Cookie": "mas_ui_language=zh"}).body
+
+    data = bench.view("/candidate", {"task": [task_id], "id": ["cand_ik-ALPHA"]})
+    data["label"] = "研究任务 is a literal research label"
+    for language in ("en", "zh"):
+        token = i18n.LANGUAGE.set(language)
+        try:
+            shown = _page("/candidate", data).body.decode("utf-8")
+            assert data["label"] in shown and QUOTE in shown
+        finally:
+            i18n.LANGUAGE.reset(token)
+
+
+def test_empty_navigation_and_unknown_model_cost_have_useful_nonzero_assumptions(tmp_path):
+    from mas.ui import presentation
+    root = tmp_path / "empty-workspace"
+    Core.open(root).close()
+    bench = Workbench(root)
+    for target in ("/leaderboard", "/pool", "/candidate", "/run"):
+        response = bench.handle("GET", target)
+        assert response.status == 200 and b"/operations" in response.body
+    assert presentation.cost_value(None, "unknown") == "Unknown"
+    assert "Known subtotal" in presentation.cost_value(.02, "partial")
+
+
+def test_progress_keeps_unknown_costs_and_partial_usage_distinct(core):
+    from mas.ui.views import _derivation_activity
+    run_id = "run_accounting_fixture"
+    core.journal.append(run_id, "agent.finished", actor=READER,
+                        payload={"request_id": "unknown-request", "role": "reader", "usage": {},
+                                 "usage_status": "unknown", "cost_usd": None, "cost_status": "unknown"})
+    detail, budget = _derivation_activity(core, run_id, {}, "running")
+    assert budget["used"]["usd"] is None and budget["cost_status"] == "unknown"
+    assert detail["model_usage_by_role"][0]["estimated_cost_usd"] is None
+    core.journal.append(run_id, "agent.finished", actor=READER,
+                        payload={"request_id": "partial-request", "role": "reader", "usage": {"input_tokens": 10},
+                                 "usage_status": "partial", "cost_usd": .02, "cost_status": "partial"})
+    detail, budget = _derivation_activity(core, run_id, {}, "running")
+    assert budget["used"]["usd"] == .02 and budget["cost_status"] == "partial"
+    assert budget["used"]["output_tokens"] is None and budget["usage_status"] == "partial"
+    legacy = "run_legacy_usage_fixture"
+    core.journal.append(legacy, "agent.finished", actor=READER,
+                        payload={"request_id": "legacy-request", "role": "reader", "usage": {"input_tokens": 7}, "cost_usd": .01})
+    detail, budget = _derivation_activity(core, legacy, {}, "completed")
+    assert budget["usage_status"] == "recorded" and detail["model_usage_by_role"][0]["usage_status"] == "recorded"
+
+
+def test_existing_task_run_blocks_duplicate_actions_from_another_server(core):
+    from mas.core import task as task_mod
+    spec = {"objective_text": "Cross-server guard fixture", "mode": "exploratory", "evaluation_scope": "metadata only",
+            "seed_candidates": [{"candidate_ref": "fixture_candidate"}]}
+    task_id, _ = task_mod.record_version(core, spec, by=OPERATOR)
+    other_task, _ = task_mod.record_version(core, spec, by=OPERATOR)
+    core.journal.append("run_other_server_fixture", "run.created", actor=OPERATOR, state_to="running",
+                        payload={"task_id": task_id})
+    manager = OperationManager(core.store.root)
+    for action in ("run_start", "reduce_registered", "freeze_profile", "supplement_attach"):
+        with pytest.raises(OperationError) as refused:
+            manager.start({"action": action, "task_id": task_id})
+        assert refused.value.run_id == "run_other_server_fixture"
+    assert manager._processes == {} and manager._jobs == {}
+    assert other_task not in manager.active_runs(core)
+    assert manager.select_task(task_id)["current_task"] == task_id
+
+
+def test_task_review_keeps_earlier_criterion_versions_in_history_and_api_complete(core):
+    from mas.core import review, task as task_mod
+    task_id, _ = task_mod.record_version(core, {
+        "objective_text": "Current criterion review fixture", "mode": "exploratory",
+        "evaluation_scope": "metadata only", "seed_candidates": [{"candidate_ref": "fixture_candidate"}]}, by=OPERATOR)
+    old_attr, old_rule = criteria.propose(core, task_id, HALF_LIFE, HALF_LIFE_RULE, by=OPERATOR)
+    new_attr, new_rule = criteria.propose(core, task_id, HALF_LIFE, HALF_LIFE_RULE, by=OPERATOR)
+    for ref in (old_attr, new_attr):
+        review.request(core, task_id, subject={"kind": "attribute_version", "id": ref},
+                       why_expert_required="Attribute check", requested_by=OPERATOR)
+    review.request(core, task_id, subject={"kind": "candidate_state", "id": "fixture_candidate"},
+                   why_expert_required="Candidate check", requested_by=OPERATOR)
+    bench = Workbench(core.store.root)
+    target = f"/api/review?task={task_id}&routes=0"
+    original = json.loads(bench.handle("GET", target).body)
+    current = json.loads(bench.handle("GET", target + "&current_versions=1").body)
+    assert original["pending_n"] == 5 and original["historical"] == []
+    assert current["pending_n"] == current["blocking_n"] == 3
+    assert {row["subject_id"] for row in current["pending"]} == {new_rule, new_attr, "fixture_candidate"}
+    assert {row["subject_id"] for row in current["historical"]} == {old_rule, old_attr}
+    assert all(row["state"] == "open" for row in current["historical"])
+    shown = bench.handle("GET", f"/review?task={task_id}").body.decode("utf-8")
+    assert "Earlier criterion requests" in shown and "current_versions=1" in shown
+    criteria.retire_rule(core, task_id, new_rule, by=OPERATOR, reason="Retired fixture criterion")
+    retired = json.loads(bench.handle("GET", target + "&current_versions=1").body)
+    assert retired["pending_n"] == 1 and retired["historical_pending_n"] == 4
+    assert json.loads(bench.handle("GET", target).body)["pending_n"] == 5

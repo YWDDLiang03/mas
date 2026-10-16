@@ -1,0 +1,13 @@
+{
+  "checked_at": "2026-10-15T23:45:35.007628+00:00",
+  "kind": "read_only_HTTP_display_projection_check",
+  "task_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+  "snapshot_id": "lb_task_01M50Q5EZE12GGDES5QNWR0JQX_1",
+  "status": "pass",
+  "cells": 9,
+  "all_exact_version_names_present": true,
+  "all_preexisting_cell_fields_unchanged": true,
+  "claims_unchanged": true,
+  "score_rank_coverage_state_unchanged": true,
+  "expected_new_field": "per_criterion[].attribute_name"
+}

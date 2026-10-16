@@ -1,0 +1,436 @@
+{
+  "recorded_at": "2026-10-15T23:41:55.905542+00:00",
+  "scope": "Only the named supplement read, registered reduction, three final item reviews, and final full sweep. Prior runs and Codex multi-agent usage are outside this total.",
+  "segments": {
+    "registered_reduction": {
+      "stream_id": "run_01M50Q7SWTRAM3B7E1MHV0D8V7",
+      "completed_model_requests": 22,
+      "recorded_known_estimate_usd": 1.902035,
+      "recorded_input_tokens": 1528612,
+      "recorded_output_tokens": 543684,
+      "calls": [
+        {
+          "seq": 34,
+          "event_id": "evt_01M50QB6H90VXKTSGPHZ2JNAQB",
+          "at": "2026-10-15T21:26:28.649Z",
+          "role": "critic",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 144867,
+            "output_tokens": 38793
+          },
+          "recorded_cost_usd": 0.090012,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 36,
+          "event_id": "evt_01M50QD58JNCSZNREKBVKX73J3",
+          "at": "2026-10-15T21:27:32.882Z",
+          "role": "critic",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 116676,
+            "output_tokens": 20242
+          },
+          "recorded_cost_usd": 0.059293,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 38,
+          "event_id": "evt_01M50QDH797G0HHRS7N7WVPC7M",
+          "at": "2026-10-15T21:27:45.129Z",
+          "role": "critic",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 59215,
+            "output_tokens": 3452
+          },
+          "recorded_cost_usd": 0.021907,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 40,
+          "event_id": "evt_01M50QDN4ABPQ4NZKD8NBQMP0D",
+          "at": "2026-10-15T21:27:49.130Z",
+          "role": "critic",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 7586,
+            "output_tokens": 676
+          },
+          "recorded_cost_usd": 0.003087,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 44,
+          "event_id": "evt_01M50QHDVV2JFBEKDRJ9HD0XVJ",
+          "at": "2026-10-15T21:29:52.763Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 98422,
+            "output_tokens": 27467
+          },
+          "recorded_cost_usd": 0.062487,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 46,
+          "event_id": "evt_01M50QTC70WTV5MQ4SPKHJS9FN",
+          "at": "2026-10-15T21:34:45.984Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 178386,
+            "output_tokens": 54515
+          },
+          "recorded_cost_usd": 0.118934,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 48,
+          "event_id": "evt_01M50QZ0HRFCQHCGNGT0ZJRSFF",
+          "at": "2026-10-15T21:37:17.880Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 52670,
+            "output_tokens": 30395
+          },
+          "recorded_cost_usd": 0.052275,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 52,
+          "event_id": "evt_01M50RTHNDR0ZPASSJW4B84HK7",
+          "at": "2026-10-15T21:52:20.141Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 60838,
+            "output_tokens": 19995
+          },
+          "recorded_cost_usd": 0.322429,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 54,
+          "event_id": "evt_01M50SB735NZF5NNSJZNG6BBXE",
+          "at": "2026-10-15T22:01:26.373Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 109150,
+            "output_tokens": 31372
+          },
+          "recorded_cost_usd": 0.20108,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 58,
+          "event_id": "evt_01M50SMR1CYZ436V0R2ZXDP84A",
+          "at": "2026-10-15T22:06:38.636Z",
+          "role": "adjudicator",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 143391,
+            "output_tokens": 57797
+          },
+          "recorded_cost_usd": 0.112374,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 62,
+          "event_id": "evt_01M50SNFRPBJ1CVAKSVG33CJK0",
+          "at": "2026-10-15T22:07:02.934Z",
+          "role": "critic",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 29938,
+            "output_tokens": 6989
+          },
+          "recorded_cost_usd": 0.017368,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 66,
+          "event_id": "evt_01M50SZ6TKDTD3NNZFY98BN06M",
+          "at": "2026-10-15T22:12:21.459Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 159216,
+            "output_tokens": 63283
+          },
+          "recorded_cost_usd": 0.123704,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 68,
+          "event_id": "evt_01M50T4KMY98QGYEZC4XHKEY5V",
+          "at": "2026-10-15T22:15:18.430Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 82038,
+            "output_tokens": 35944
+          },
+          "recorded_cost_usd": 0.067744,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 72,
+          "event_id": "evt_01M50TTQFKJA6H74G9GV2GZ911",
+          "at": "2026-10-15T22:27:23.250Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 29357,
+            "output_tokens": 31977
+          },
+          "recorded_cost_usd": 0.232091,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 76,
+          "event_id": "evt_01M50TY86BSSY420ET6JS6C24J",
+          "at": "2026-10-15T22:29:18.667Z",
+          "role": "adjudicator",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 18180,
+            "output_tokens": 22889
+          },
+          "recorded_cost_usd": 0.032921,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 80,
+          "event_id": "evt_01M50TYSZS6SWDDGWRHH6ET63G",
+          "at": "2026-10-15T22:29:36.889Z",
+          "role": "critic",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 14515,
+            "output_tokens": 4613
+          },
+          "recorded_cost_usd": 0.00989,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 84,
+          "event_id": "evt_01M50V4DWBRFWGHHZ82Q4W4QZP",
+          "at": "2026-10-15T22:32:41.099Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 115488,
+            "output_tokens": 34919
+          },
+          "recorded_cost_usd": 0.076549,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 86,
+          "event_id": "evt_01M50V5YN46HT9CT8HHP243JMT",
+          "at": "2026-10-15T22:33:31.044Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 23022,
+            "output_tokens": 8802
+          },
+          "recorded_cost_usd": 0.017469,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 90,
+          "event_id": "evt_01M50VYNJCDCKGMPS72F2256FQ",
+          "at": "2026-10-15T22:47:00.940Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 37774,
+            "output_tokens": 25807
+          },
+          "recorded_cost_usd": 0.237548,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 92,
+          "event_id": "evt_01M50W069H397XE9T38T8VBCCH",
+          "at": "2026-10-15T22:47:50.833Z",
+          "role": "proposer",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 11712,
+            "output_tokens": 8574
+          },
+          "recorded_cost_usd": 0.013802,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 96,
+          "event_id": "evt_01M50W1K2SND7B548GW8JG89FT",
+          "at": "2026-10-15T22:48:36.697Z",
+          "role": "adjudicator",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 12097,
+            "output_tokens": 8978
+          },
+          "recorded_cost_usd": 0.014403,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        },
+        {
+          "seq": 100,
+          "event_id": "evt_01M50W2BR9RJKB3W9NWKPXCKY6",
+          "at": "2026-10-15T22:49:01.961Z",
+          "role": "critic",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 24074,
+            "output_tokens": 6205
+          },
+          "recorded_cost_usd": 0.014668,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        }
+      ]
+    },
+    "three_targeted_reviews": {
+      "stream_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "completed_model_requests": 3,
+      "recorded_known_estimate_usd": 0.0166893,
+      "recorded_input_tokens": 7847,
+      "recorded_output_tokens": 11946,
+      "calls": [
+        {
+          "seq": 1843,
+          "event_id": "evt_01M50WND9PYR0AH1NGYGHCANVK",
+          "at": "2026-10-15T22:59:26.134Z",
+          "role": "adjudicator",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 3970,
+            "output_tokens": 5932
+          },
+          "recorded_cost_usd": 0.0083094,
+          "cost_status": "estimated",
+          "usage_status": "complete",
+          "attempt_count": 1
+        },
+        {
+          "seq": 1847,
+          "event_id": "evt_01M50WTNNW29ZTFWBNWEKR4HH2",
+          "at": "2026-10-15T23:02:18.556Z",
+          "role": "adjudicator",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 2063,
+            "output_tokens": 2957
+          },
+          "recorded_cost_usd": 0.0041673000000000005,
+          "cost_status": "estimated",
+          "usage_status": "complete",
+          "attempt_count": 1
+        },
+        {
+          "seq": 1850,
+          "event_id": "evt_01M50X0B6TPM5688YG4EJMQS2Q",
+          "at": "2026-10-15T23:05:24.442Z",
+          "role": "adjudicator",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 1814,
+            "output_tokens": 3057
+          },
+          "recorded_cost_usd": 0.0042126,
+          "cost_status": "estimated",
+          "usage_status": "complete",
+          "attempt_count": 1
+        }
+      ]
+    },
+    "supplement_source_read": {
+      "stream_id": "run_01M50P3BWPYSSFMJF1QB3610KM",
+      "completed_model_requests": 1,
+      "recorded_known_estimate_usd": 0.003781,
+      "recorded_input_tokens": 9186,
+      "recorded_output_tokens": 854,
+      "calls": [
+        {
+          "seq": 6,
+          "event_id": "evt_01M50P3GVFHK609VGTVBNDBED3",
+          "at": "2026-10-15T21:04:48.495Z",
+          "role": "reader",
+          "model_id": "deepseek-flash",
+          "usage": {
+            "input_tokens": 9186,
+            "output_tokens": 854
+          },
+          "recorded_cost_usd": 0.003781,
+          "cost_status": "legacy_estimate",
+          "usage_status": "legacy_attempt_completeness_unknown",
+          "attempt_count": null
+        }
+      ]
+    },
+    "full_sweep": {
+      "stream_id": "run_01M50X7EYSBXPDCP0SG859666R",
+      "completed_model_requests": 0,
+      "recorded_known_estimate_usd": 0.0,
+      "recorded_input_tokens": 0,
+      "recorded_output_tokens": 0,
+      "calls": []
+    }
+  },
+  "recorded_known_estimate_usd": 1.9225053,
+  "invoice_cost_usd": null,
+  "cost_is_estimate": true,
+  "legacy_attempt_accounting": "Legacy reduction/source events preserve their recorded estimates. Some repair attempts have incomplete per-attempt usage; the sum is not certified complete billing. The three final reviews use complete new request accounting.",
+  "new_full_sweep_model_calls": 0
+}

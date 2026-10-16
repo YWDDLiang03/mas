@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+import json
+from typing import Any, Iterable
 
 from .canonical import sha256_hex
 from .clock import utc_now
@@ -58,19 +59,35 @@ def record_claim(core: Core, stream_id: str, claim: dict[str, Any], *, by: dict[
 
 
 def claims(core: Core, stream_ids: list[str], *, candidate_ref: str | None = None, attribute_ref: str | None = None,
-           admitted_only: bool = True) -> list[dict[str, Any]]:
+           admitted_only: bool = True, claim_ids: Iterable[str] | None = None) -> list[dict[str, Any]]:
+    """Matching admissions in input-stream/seq order, including duplicate streams and claims."""
+    wanted = set(claim_ids) if claim_ids is not None else None
+    if wanted is not None and not wanted:
+        return []
+    clauses = ["stream_id=?", "seq>=1", "event_type IN ('evidence.admitted','evidence.quarantined')"]
+    parameters: list[Any] = []
+    if admitted_only:
+        clauses.append("json_extract(body,'$.payload.admission_state')='admitted'")
+    if candidate_ref:
+        clauses.append("json_extract(body,'$.payload.candidate_ref')=?")
+        parameters.append(candidate_ref)
+    if attribute_ref:
+        clauses.append("json_extract(body,'$.payload.attribute_ref')=?")
+        parameters.append(attribute_ref)
+    if wanted is not None:
+        # A single JSON parameter avoids SQLite's variable limit. Older admission
+        # events without claim_id still resolve their original artifact below.
+        clauses.append("(json_extract(body,'$.payload.claim_id') IN (SELECT value FROM json_each(?)) "
+                       "OR json_extract(body,'$.payload.claim_id') IS NULL)")
+        parameters.append(json.dumps(sorted(wanted)))
+    query = "SELECT json_extract(body,'$.payload') FROM events WHERE " + " AND ".join(clauses) + " ORDER BY seq"
     out = []
     for stream_id in stream_ids:
-        for event in core.journal.replay(stream_id):
-            if event.event_type not in ("evidence.admitted", "evidence.quarantined"):
-                continue
-            if admitted_only and event.payload["admission_state"] != "admitted":
-                continue
-            if candidate_ref and event.payload.get("candidate_ref") != candidate_ref:
-                continue
-            if attribute_ref and event.payload.get("attribute_ref") != attribute_ref:
-                continue
-            out.append(core.artifacts.payload(event.payload["artifact_id"]))
+        for row in core.store.db.execute(query, [stream_id, *parameters]):
+            payload = json.loads(row[0])
+            claim = core.artifacts.payload(payload["artifact_id"])
+            if wanted is None or claim["claim_id"] in wanted:
+                out.append(claim)
     return out
 
 

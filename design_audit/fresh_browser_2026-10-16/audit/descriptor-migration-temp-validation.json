@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "migration_source_sha256": "7992ff0b5d2777950416b498ae093196386630a2914974fe974124bd4d848a83",
+  "new_versions": 4,
+  "system_receipts": 4,
+  "human_decisions": 0,
+  "repeated_apply_after_new_freeze_idempotent": true,
+  "old_freeze_preserved": true,
+  "new_freeze_enabled_records": 5,
+  "trained_endpoint_unchanged": true,
+  "store": "temporary only",
+  "primary_modified": false
+}

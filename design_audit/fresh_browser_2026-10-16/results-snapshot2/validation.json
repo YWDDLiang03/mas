@@ -1,0 +1,16 @@
+{
+  "workflow_completed": true,
+  "snapshot_present": true,
+  "snapshot_run_matches_workflow": true,
+  "snapshot_candidates": 3177,
+  "csv_rows": 3177,
+  "api_candidate_rows": 3177,
+  "csv_and_api_candidate_id_multisets_match_snapshot": true,
+  "source_publication_rowid": 2151289,
+  "surufatinib_match_status": "found",
+  "snapshot_readiness": "ready",
+  "scientific_success_claimed": false,
+  "cqa_api_as_of": "2026-10-16T16:25:14.087Z",
+  "cqa_source_history_scope": "selected task through this snapshot publication",
+  "excluded_cqa_artifacts": []
+}

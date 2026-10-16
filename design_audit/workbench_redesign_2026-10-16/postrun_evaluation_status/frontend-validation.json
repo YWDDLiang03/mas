@@ -1,0 +1,7 @@
+{
+  "status": "prepared_not_applied",
+  "strict_typescript": "passed",
+  "virtual_files": 3,
+  "live_source_unchanged": true,
+  "dist_build": "not run"
+}

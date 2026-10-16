@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from . import bound_support, review, vocab
@@ -25,7 +26,7 @@ CUTOFF_BASES = ("measured_distribution", "regulatory_or_standard_reference", "so
                 "expert_set", "task_constraint", "model_decision_boundary", "none_evidence_insufficient")
 COMPARATORS = (">=", "<=", ">", "<", "==", "in", "not_in")
 ON_STATE_POLICIES = ("unknown_no_penalty", "unknown_blocks_recommendation", "route_to_human", "exclude")
-AGGREGATIONS = ("max", "min", "median", "consensus")
+AGGREGATIONS = ("max", "min", "median", "consensus", "any_true")
 # The reductions that are defined over a pooled set of numbers from unlike kinds of source, which is
 # what lets one attribute read a quantity from databases and from the literature at once
 # (`check_attribute`). `consensus` is deliberately absent: it asks whether the sources agree, and
@@ -286,6 +287,38 @@ def is_task_mandated(attribute: dict[str, Any]) -> bool:
             and bool((attribute.get("derived_from") or {}).get("field")))
 
 
+def is_required_scope(attribute: dict[str, Any], context: dict[str, Any]) -> bool:
+    required = {str(e["identifier"]) for e in context.get("scope_entities", []) if e.get("role") == "required"}
+    subjects = {str(value) for route in evidence_routes(attribute) for value in subject_parameters(route).values()}
+    return is_task_mandated(attribute) and bool(required & subjects)
+
+
+def required_scope_rule_refs(context: dict[str, Any], rules: list[dict[str, Any]]) -> list[str]:
+    refs, bound = [], set()
+    required = {str(e["identifier"]) for e in context.get("scope_entities", []) if e.get("role") == "required"}
+    for item in rules:
+        attr = item["attribute"]
+        if is_required_scope(attr, context):
+            refs.append(item["entry"]["rule_ref"])
+            bound.update(str(value) for route in evidence_routes(attr) for value in subject_parameters(route).values())
+    return sorted(set(refs) | {f"unbound_required_scope:{identifier}" for identifier in required - bound})
+
+
+def quantity_identity(attribute: dict[str, Any]) -> str:
+    """Explicit shared property/conditions, unit and mathematics; provenance is not another quantity.
+
+    Without an explicit ID, retain the route identity. Callers must not group different assay
+    conditions or methods posing different scientific questions under one ID. Separate estimates
+    remain separate evidence records; this identity only supports direct-first score selection.
+    """
+    if not attribute.get("quantity_id"):
+        return evidence_key(attribute)
+    transform = attribute.get("value_transform")
+    if transform and transform.get("kind") in VALUE_TRANSFORMS:
+        transform = {key: transform.get(key) for key in ("kind", *VALUE_TRANSFORMS[transform["kind"]])}
+    return sha256_hex({"quantity": attribute["quantity_id"], "unit": attribute.get("unit"), "transform": transform})
+
+
 def check_attribute(attr: dict[str, Any]) -> None:
     for field in ("name", "definition", "measurement_kind", "direction", "acceptable_value_sources"):
         if not attr.get(field):
@@ -312,6 +345,17 @@ def check_attribute(attr: dict[str, Any]) -> None:
                                                f"anything else has every claim it reads set aside and its cell "
                                                f"reads as absent evidence")
     _choice("aggregation", attr.get("aggregation", "consensus"), AGGREGATIONS)
+    if "aggregation_scope" in attr:
+        if attr["aggregation_scope"] != "pooled_observations":
+            raise InvariantViolation("schema", "aggregation_scope supports only 'pooled_observations': "
+                                     "the declared aggregation over raw observations, without per-target grouping")
+        if attr.get("aggregation") not in POOLABLE_AGGREGATIONS:
+            raise InvariantViolation("schema", "pooled_observations requires an explicit min, max or median aggregation")
+    if attr.get("aggregation") == "any_true":
+        semantics = attr.get("existence_semantics") or {}
+        if attr.get("measurement_kind") != "categorical" or attr.get("unit") is not None or \
+                semantics.get("kind") != "documented_existence_v1" or not semantics.get("property") or not semantics.get("value"):
+            raise InvariantViolation("schema", "any_true requires a categorical unitless documented-existence attribute with an explicit property/value")
     check_value_transform(attr.get("value_transform"), attr.get("name", ""))
     if attr.get("value_transform") and attr["measurement_kind"] != "quantitative":
         raise InvariantViolation("schema", f"value_transform on {attr['name']!r} needs a quantitative attribute")
@@ -386,6 +430,12 @@ def check_attribute(attr: dict[str, Any]) -> None:
 
 
 def check_rule(rule: dict[str, Any], attr: dict[str, Any]) -> None:
+    if attr.get("aggregation") == "any_true":
+        cutoff = rule.get("cutoff") or {}
+        if rule.get("predicate_form") != "categorical_membership" or cutoff.get("comparator") != "==" \
+                or cutoff.get("value") is not True or cutoff.get("unit") is not None \
+                or any(rule.get(key) == "exclude" for key in ("on_missing", "on_conflict", "on_inapplicable")):
+            raise InvariantViolation("schema", "documented-existence rules test Boolean true; absence/conflict cannot be turned into exclusion")
     _choice("rule_kind", rule.get("rule_kind"), RULE_KINDS)
     _choice("cutoff_basis", rule.get("cutoff_basis"), CUTOFF_BASES)
     for policy in ("on_missing", "on_inapplicable", "on_conflict"):
@@ -394,10 +444,15 @@ def check_rule(rule: dict[str, Any], attr: dict[str, Any]) -> None:
             raise InvariantViolation("schema", f"{policy}: exclude is only for hard exclusions")
     cutoff = rule.get("cutoff")
     if rule.get("predicate_form", "threshold") not in ("threshold", "ordering", "range_membership", "categorical_membership",
-                                                       "qualitative_judgment"):
+                                                       "qualitative_judgment", "recorded_observation"):
         raise InvariantViolation("schema", f"unknown predicate_form {rule.get('predicate_form')!r}")
     if rule.get("predicate_form") == "ordering" and rule["rule_kind"] != "preference":
         raise InvariantViolation("schema", "an ordering rule ranks candidates, so it must be a preference")
+    if rule.get("predicate_form") == "recorded_observation" and (
+            rule["rule_kind"] != "exploratory_consideration" or cutoff is not None
+            or rule["cutoff_basis"] != "none_evidence_insufficient"):
+        raise InvariantViolation("schema", "recorded_observation records availability without comparison or ranking; "
+                                 "it requires exploratory_consideration, null cutoff and none_evidence_insufficient")
     if rule["cutoff_basis"] == "none_evidence_insufficient":
         if cutoff:
             raise InvariantViolation("arbitrary_cutoff", "none_evidence_insufficient with a cutoff value")
@@ -420,9 +475,144 @@ def check_rule(rule: dict[str, Any], attr: dict[str, Any]) -> None:
         raise InvariantViolation("units", f"cutoff unit {cutoff.get('unit')!r} differs from attribute unit {attr.get('unit')!r}")
 
 
-def _versions(core: Core, task_id: str, kind: str, base_id: str) -> list[dict[str, Any]]:
-    return [e.payload for e in core.journal.replay(task_id)
-            if e.event_type == "criterion.version_proposed" and e.payload["kind"] == kind and e.payload["id"] == base_id]
+def preference_execution_problems(attribute: dict[str, Any], rule: dict[str, Any]) -> list[str]:
+    """Mechanical scoring readiness, independent of scientific approval. Pure; hard rules unchanged."""
+    if rule.get("rule_kind") != "preference":
+        return []
+    # Several databases for one target still measure one subject. The current
+    # catalog identifies distinct target subjects by target_chembl_id, not route
+    # count; retrieval queries and descriptor properties are not extra targets.
+    targets = sorted({subject_parameters(route)["target_chembl_id"] for route in evidence_routes(attribute)
+                      if isinstance(subject_parameters(route).get("target_chembl_id"), str)
+                      and subject_parameters(route)["target_chembl_id"]})
+    if attribute.get("measurement_kind") in ("quantitative", "ordinal") and len(targets) > 1:
+        if (attribute.get("aggregation_scope") != "pooled_observations"
+                or attribute.get("aggregation") not in POOLABLE_AGGREGATIONS):
+            return [f"numeric preference combines {len(targets)} distinct target subjects ({', '.join(targets)}); "
+                    f"the assessor only applies {attribute.get('aggregation', 'consensus')!r} to pooled raw "
+                    "observations and does not compute per-target summaries, min/max of per-target summaries, "
+                    "spread, ratios or member completeness. A grouped reduction has no executable contract; "
+                    "only an explicitly intended raw pool may declare aggregation_scope='pooled_observations' "
+                    "with min, max or median. Keep the independent target criteria or defer this composite."]
+    predicate = rule.get("predicate_form", "threshold")
+    cutoff = rule.get("cutoff")
+    transform = attribute.get("value_transform") or {}
+    if (attribute.get("measurement_kind") in ("quantitative", "ordinal") and not transform
+            and attribute.get("direction") in ("within_range", "target_value") and isinstance(cutoff, dict)):
+        # A source interpretation supplies provenance, not an executable second bound.
+        # Exact point equality and an explicitly declared finite set keep their literal
+        # semantics; a one-sided scalar test never becomes a band or nearest-target score.
+        value = cutoff.get("value")
+        exact_target = (attribute.get("direction") == "target_value" and predicate != "ordering"
+                        and cutoff.get("comparator") == "==" and isinstance(value, (int, float))
+                        and not isinstance(value, bool))
+        explicit_set = (predicate == "categorical_membership" and cutoff.get("comparator") in ("in", "not_in")
+                        and isinstance(value, list))
+        if not exact_target and not explicit_set:
+            return [f"numeric preference declares {attribute.get('direction')!r} on raw values, but its "
+                    "comparison does not implement an interval or distance to a target. Declare an executable "
+                    "value_transform with supported bounds and a distance-space comparison/order, or declare "
+                    "an explicitly one-sided monotonic criterion. bound_support cannot supply omitted bounds "
+                    "or an undeclared target-distance calculation"]
+    if transform.get("kind") == "distance_outside_band" and isinstance(cutoff, dict):
+        value, comparator = cutoff.get("value"), cutoff.get("comparator")
+        numeric = isinstance(value, (int, float)) and not isinstance(value, bool)
+        raw_endpoint = numeric and value != 0 and value in (transform.get("low"), transform.get("high"))
+        if raw_endpoint and attribute.get("direction") == "within_range":
+            return ["distance_outside_band scores a nonnegative distance, not the raw measurement; "
+                    f"cutoff {comparator} {value} reuses a raw band endpoint with within_range semantics. "
+                    "Declare the preference on the distance scale (for example lower_better ordering), "
+                    "rather than applying a raw band boundary after the transform"]
+        if numeric and value > 0 and attribute.get("direction") == "lower_better" and comparator in (">", ">="):
+            return ["distance_outside_band with lower_better cannot reward distances above a positive cutoff; "
+                    "the comparison points away from the preferred band. Use an explicitly supported "
+                    "distance-space comparison or ordering without inventing a cutoff"]
+    if cutoff is None:
+        if predicate != "ordering":
+            return [f"preference has no executable predicate: {predicate!r} needs a declared comparison "
+                    "cutoff; no cutoff or pass value is inferred"]
+        if attribute.get("direction") not in ("higher_better", "lower_better"):
+            return ["preference ordering requires higher_better or lower_better; "
+                    f"{attribute.get('direction')!r} defines no executable order"]
+        # Preserve the assessor's existing numeric categorical/ordinal encodings. Their type
+        # label or lack of a physical unit alone does not make an explicit order unexecutable.
+        return []
+    if not isinstance(cutoff, dict) or not cutoff:
+        return ["preference has no executable comparison: cutoff must be a non-empty comparison record"]
+    try:
+        check_rule(rule, attribute)
+    except InvariantViolation as error:
+        return [f"preference comparison is not executable: {error}"]
+    return []
+
+
+def preference_execution_findings(core: Core, task_id: str, *,
+                                 rule_set: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Read-only findings for active proposals, or the exact entries of a selected frozen set."""
+    entries = (rule_set["entries"] if rule_set is not None else
+               [{"rule_ref": f"{rule['rule_id']}@v{rule['version']}", "attribute_ref": rule["attribute_ref"]}
+                for rule in registered_rule_records(core, task_id)])
+    findings = []
+    for entry in entries:
+        rule = load(core, entry["rule_ref"], task_id)
+        attribute = load(core, entry["attribute_ref"], task_id)
+        problems = preference_execution_problems(attribute, rule)
+        if problems:
+            findings.append({"rule_ref": entry["rule_ref"], "attribute_ref": entry["attribute_ref"],
+                             "scope": "rule", "reason_kind": "non_executable_preference",
+                             "reason": "; ".join(problems), "problems": problems})
+    return findings
+
+
+def unresolved_review_findings(core: Core, task_id: str, *,
+                               rule_set: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Read-only queue/receipt reasons. An unresolved attempt is work done, never approval."""
+    entries = rule_set["entries"] if rule_set is not None else registry_inventory(core, task_id)["active"]
+    selected = {entry["rule_ref"]: entry for entry in entries}
+    pending = {item["item_id"]: item for item in review.items(core, [task_id]).values()
+               if item["subject"].get("kind") == "rule_version" and item["state"] in ("open", "in_review")
+               and item["subject"].get("id") in selected}
+    by_item: dict[str, list[dict[str, Any]]] = {key: [] for key in pending}
+    if pending:
+        for (body,) in core.store.db.execute(
+                "SELECT body FROM events WHERE stream_id=? AND event_type='decision.recorded' "
+                "AND json_extract(body,'$.payload.record_kind')='review_attempt' ORDER BY seq", (task_id,)):
+            payload = json.loads(body)["payload"]
+            item = pending.get(payload.get("item_id"))
+            if item is None:
+                continue
+            receipt = core.artifacts.payload(payload["artifact_id"])
+            entry = selected[item["subject"]["id"]]
+            if receipt.get("rule_ref") != entry["rule_ref"] or receipt.get("attribute_ref") != entry["attribute_ref"]:
+                continue
+            by_item[item["item_id"]].append({"attempt_ref": payload["artifact_id"],
+                **{key: receipt.get(key) for key in ("outcome", "reason_text", "reason_origin", "source_kind",
+                    "model_verdict", "model_reasoning", "source_agent_records", "recorded_at")}})
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for item in pending.values():
+        grouped.setdefault(item["subject"]["id"], []).append({"item_ref": item["item_id"], "state": item["state"],
+            "subject": item["subject"], "queue_reason": item.get("why_expert_required"),
+            "attempts": by_item[item["item_id"]]})
+    findings = []
+    for ref, rows in grouped.items():
+        reasons = [f"{row['item_ref']}: " + ((row["attempts"][-1].get("reason_text") if row["attempts"] else None)
+                   or row.get("queue_reason") or "review remains unresolved") for row in rows]
+        findings.append({"rule_ref": ref, "attribute_ref": selected[ref]["attribute_ref"], "scope": "rule",
+            "reason_kind": "unresolved_review", "reason": "withheld from scoring while review is unresolved: "
+                           + "; ".join(reasons), "review_item_refs": [row["item_ref"] for row in rows], "reviews": rows})
+    return findings
+
+
+def _versions(core: Core, task_id: str, kind: str, base_id: str, *,
+              version: int | None = None) -> list[dict[str, Any]]:
+    query = ("SELECT json_extract(body,'$.payload') FROM events WHERE stream_id=? AND seq>=1 "
+             "AND event_type='criterion.version_proposed' AND json_extract(body,'$.payload.kind')=? "
+             "AND json_extract(body,'$.payload.id')=?")
+    parameters: list[Any] = [task_id, kind, base_id]
+    if version is not None:
+        query += " AND json_extract(body,'$.payload.version')=?"
+        parameters.append(version)
+    return [json.loads(row[0]) for row in core.store.db.execute(query + " ORDER BY seq", parameters)]
 
 
 def propose(core: Core, task_id: str, attribute: dict[str, Any], rule: dict[str, Any], *,
@@ -499,6 +689,52 @@ def record_version(core: Core, task_id: str, kind: str, ref: str, record: dict[s
     return f"{base_id}@v{version}"
 
 
+def revise_for_workbench(core: Core, task_id: str, rule_ref: str, changes: dict[str, Any], *,
+                         reason: str, by: dict[str, Any]) -> dict[str, Any]:
+    """Append changes={attribute:{...},rule:{...}} and a fresh review; preserve old frozen records."""
+    from .derivation import ATTRIBUTE_FIELDS, RULE_FIELDS
+    if not isinstance(reason, str) or not reason.strip():
+        raise InvariantViolation("schema", "a workbench revision must state its reason")
+    if not isinstance(changes, dict) or set(changes) - {"attribute", "rule"}:
+        raise InvariantViolation("schema", "changes must contain attribute/rule field dictionaries")
+    ac, rc = changes.get("attribute") or {}, changes.get("rule") or {}
+    if not isinstance(ac, dict) or not isinstance(rc, dict) or set(ac) - set(ATTRIBUTE_FIELDS) - {"quantity_id"} \
+            or set(rc) - set(RULE_FIELDS) - {"applies_to_result_kind"}:
+        raise InvariantViolation("schema", "workbench changes contain non-authorable fields")
+    old_rule = load(core, rule_ref, task_id)
+    current = next((r for r in registered_rule_records(core, task_id) if r["rule_id"] == old_rule["rule_id"]), None)
+    if current is None or current["version"] != old_rule["version"]:
+        raise InvariantViolation("schema", "revise the current active rule version, not a historical or retired rule")
+    old_attr = load(core, old_rule["attribute_ref"], task_id)
+    attr, rule = dict(old_attr, **ac), dict(old_rule, **rc)
+    if attr == old_attr and rule == old_rule:
+        return {"changed": False, "attribute_ref": old_rule["attribute_ref"], "rule_ref": rule_ref, "requires_new_freeze": False}
+    if any(old_attr.get(k) != attr.get(k) for k in ac if k != "rationale") or rc:
+        if "bound_support" not in ac:
+            attr.pop("bound_support", None)
+        if "bound_support" not in rc:
+            rule.pop("bound_support", None)
+    for record in (attr, rule):
+        for key in ("adjudicated_by", "adjudication_id", "approval_kind", "confirmed_by", "confirmed_by_a_person"):
+            record.pop(key, None)
+        record["proposed_by"] = by
+    check_attribute(attr)
+    check_rule(rule, attr)
+    extra = {"workbench_revision": {"source_rule_ref": rule_ref, "source_attribute_ref": old_rule["attribute_ref"],
+                                    "changes": changes, "reason": reason}}
+    attr_ref = record_version(core, task_id, "attribute", old_rule["attribute_ref"], attr, by=by,
+                              summary=f"workbench revision: {reason}", extra=extra)
+    rule["attribute_ref"] = attr_ref
+    new_ref = record_version(core, task_id, "rule", rule_ref, rule, by=by,
+                             summary=f"workbench revision: {reason}", extra=extra)
+    item = review.request(core, task_id, subject={"kind": "rule_version", "id": new_ref,
+                          "version": int(new_ref.rsplit("@v", 1)[1]), "attribute_ref": attr_ref},
+                          why_expert_required="a workbench revision requires fresh evidence/applicability review; " + reason,
+                          requested_by=by, inspection_bundle=extra)
+    return {"changed": True, "attribute_ref": attr_ref, "rule_ref": new_ref, "review_item_id": item,
+            "requires_new_freeze": True, "previous_authority_carried": False}
+
+
 def authority_requirements(rule: dict[str, Any], attribute: dict[str, Any], *,
                            support: dict[str, Any] | None = None,
                            weighting: dict[str, Any] | None = None) -> list[dict[str, str]]:
@@ -564,8 +800,16 @@ def load(core: Core, ref: str, task_id: str) -> dict[str, Any]:
     """The record of an attribute or rule version proposed in a task."""
     base_id, version = ref.rsplit("@v", 1)
     kind = "attribute" if base_id.startswith("attr_") else "rule"
-    for payload in _versions(core, task_id, kind, base_id):
-        if payload["version"] == int(version):
+    try:
+        wanted = int(version)
+    except ValueError:
+        # Historically an absent base raises KeyError even if its version is not
+        # numeric; conversion was evaluated only after finding a proposed base.
+        if _versions(core, task_id, kind, base_id):
+            raise
+        raise KeyError(ref) from None
+    for payload in _versions(core, task_id, kind, base_id, version=wanted):
+        if payload["version"] == wanted:
             return core.artifacts.payload(payload["artifact_id"])
     raise KeyError(ref)
 
@@ -619,7 +863,7 @@ def deferred_capabilities(rule_set: dict[str, Any]) -> tuple[str, ...]:
     if declared:
         return tuple(sorted(set(declared)))
     return tuple(sorted({capability for row in (rule_set.get("deferred") or [])
-                         for capability in (row.get("capabilities") or [row["capability"]])}))
+                         for capability in (row.get("capabilities") or [row.get("capability")]) if capability}))
 
 
 def deferral_reason(rule_set: dict[str, Any]) -> str:
@@ -647,13 +891,17 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                      coverage_floor: float = 1.0, constants: list[dict[str, Any]] | None = None,
                      allow_pending: bool = False, defer_capabilities: tuple[str, ...] = (),
                      defer_reason: str = "", preregistration_ref: str | None = None,
-                     require_bound_support: bool = False) -> str:
+                     require_bound_support: bool = False, withhold_unresolved_reviews: bool = False) -> str:
     """Assemble `rules@v<n>` from the rule proposals that may enter it.
 
     A rule needing an expert enters only with an `hd_` approving it; a preference rule the
     trigger table lets proceed automatically enters with `confirmed_by: auto:trigger_table`.
     Proposals still awaiting a decision block the set unless `allow_pending` is given (for
     exploratory runs); they are then listed in `pending[]`, never silently dropped.
+
+    `withhold_unresolved_reviews` also holds still-open preferences out of scoring instead of
+    admitting them through the trigger table. False preserves legacy confirmation behavior.
+    This does not resolve a queue item: pending hard constraints remain blocking downstream.
 
     A rule whose item was resolved by a `machine_adjudication` instead enters with that `adj_` as
     its `confirmed_by`, is listed in `machine_adjudicated[]`, and carries `authority:
@@ -692,7 +940,10 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     """
     from . import adjudication, collapse as collapse_mod   # imported here: both read this module's records
 
-    queue = review.items(core, [task_id])
+    registry = registry_inventory(core, task_id)
+    active_refs = {entry["rule_ref"] for entry in registry["active"]}
+    queue = {key: item for key, item in review.items(core, [task_id]).items()
+             if item["subject"].get("kind") != "rule_version" or item["subject"].get("id") in active_refs}
     adjudicated = adjudication.by_rule_version(core, task_id)
     superseded = collapse_mod.superseded_attributes(core, task_id)
     collapsed_surviving = collapse_mod.surviving_rules(core, task_id)
@@ -707,6 +958,9 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
         if event.event_type == "criterion.version_proposed" and event.payload["kind"] == "rule":
             proposed[event.payload["id"]] = f"{event.payload['id']}@v{event.payload['version']}"   # latest version wins
     entries, deferred, machine_adjudicated, collapsed_away = [], [], [], []
+    unresolved = {row["rule_ref"]: row for row in unresolved_review_findings(core, task_id)} \
+        if withhold_unresolved_reviews else {}
+    execution_findings = {row["rule_ref"]: row for row in preference_execution_findings(core, task_id)}
     bounds_unsupported, bounds_withheld, decisions_not_carried, bounds_granted = [], [], [], []
     for rule_ref in sorted(proposed.values()):
         rule = load(core, rule_ref, task_id)
@@ -717,8 +971,19 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
                                    "scored_by": merged_away["surviving"]["rule_ref_after"],
                                    "collapse_id": merged_away["collapse_id"]})
             continue
+        if rule_ref not in active_refs:
+            continue
         adjudication_record = adjudicated.get(rule_ref)
         attr = load(core, rule["attribute_ref"], task_id)
+        if rule_ref in unresolved:
+            deferred.append(unresolved[rule_ref])
+            continue
+        if rule_ref in execution_findings:
+            # Keep the proposal active and auditable, but never put a non-executable
+            # preference into scoring or its coverage denominator. Approval cannot invent
+            # an absent comparison. This is a rule deferral, not a capability deferral.
+            deferred.append(execution_findings[rule_ref])
+            continue
         # Which of this attribute's routes this run holds out, and whether that leaves the rule
         # anything to score on (see DEFERRAL_SCOPES above).
         #
@@ -872,7 +1137,13 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
     if not entries:
         held = len(bounds_unsupported) + len(bounds_withheld)
         raise InvariantViolation("unconfirmed", "no rule version may enter the set yet"
-                                 + (f"; {held} were held out over bound support" if held else ""))
+                                 + (f"; {held} were held out over bound support" if held else "")
+                                 + ("; non-executable preferences: " + "; ".join(
+                                     f"{row['rule_ref']}: {row['reason']}" for row in execution_findings.values())
+                                    if execution_findings else "")
+                                 + ("; unresolved reviews withheld: " + "; ".join(
+                                     f"{row['rule_ref']}: {row['reason']}" for row in unresolved.values())
+                                    if unresolved else ""))
     existing = [e for e in core.journal.replay(task_id) if e.event_type == "criterion.version_approved"]
     version = len(existing) + 1
     admission_predicate = {"entries": [{k: e[k] for k in ("acceptable_value_sources", "on_states", "cutoff_basis")} for e in entries],
@@ -933,7 +1204,8 @@ def confirm_rule_set(core: Core, task_id: str, *, by: dict[str, Any], ordering_m
               "confirmed_by": [e["confirmed_by"] for e in entries], "pending": open_refs,
               "pending_but_scoring": scoring_disputed, "machine_adjudicated": machine_adjudicated,
               "machine_collapsed": machine_collapsed, "collapsed_away": collapsed_away,
-              "deferred": deferred,
+              "deferred": deferred, "retired": registry["retired"],
+              "withhold_unresolved_reviews": withhold_unresolved_reviews,
               # The run policy itself, beside the rows it produced: what a re-confirmation has to
               # hold out again (`deferred_capabilities`), which the rows alone cannot always say.
               "deferred_capabilities": sorted(set(defer_capabilities)), "defer_reason": defer_reason or None,
@@ -979,13 +1251,75 @@ def rule_set(core: Core, task_id: str, ref: str | None = None) -> dict[str, Any]
     return core.artifacts.payload(chosen.payload["artifact_id"])
 
 
-def registered_attributes(core: Core, task_id: str) -> list[dict[str, Any]]:
-    """Latest version of every attribute proposed in a task."""
+def registered_rule_records(core: Core, task_id: str, *, include_retired: bool = False) -> list[dict[str, Any]]:
+    """Latest proposed rules; retirement is an explicit append-only registry transition."""
+    latest = {}
+    retired = {}
+    for event in core.journal.replay(task_id):
+        if event.event_type == "criterion.version_proposed" and event.payload["kind"] == "rule":
+            latest[event.payload["id"]] = core.artifacts.payload(event.payload["artifact_id"])
+        elif event.event_type == "criterion.change_recorded" and event.payload.get("registry"):
+            retired[event.payload["rule_ref"]] = event.payload["registry_state"] == "retired"
+    from . import collapse
+    superseded = {} if include_retired else collapse.superseded_attributes(core, task_id)
+    return [record for record in latest.values() if include_retired or
+            (not retired.get(f"{record['rule_id']}@v{record['version']}", False)
+             and record["attribute_ref"] not in superseded)]
+
+
+def retire_rule(core: Core, task_id: str, rule_ref: str, *, by: dict[str, Any], reason: str,
+                superseded_by: str | None = None, reduction_run_id: str | None = None,
+                source_pool_ref: str | None = None) -> None:
+    """Retire one exact rule version without erasing its proposal, review or frozen snapshots."""
+    if not reason.strip():
+        raise ValueError("a registry retirement needs a scientific reason")
+    rule = load(core, rule_ref, task_id)
+    if superseded_by:
+        load(core, superseded_by, task_id)
+    if rule_ref not in {f"{r['rule_id']}@v{r['version']}" for r in registered_rule_records(core, task_id)}:
+        return
+    core.journal.append(task_id, "criterion.change_recorded", actor=by, ids={"task_id": task_id},
+                        payload={"registry": True, "registry_state": "retired", "operation": "remove",
+                                 "rule_ref": rule_ref, "attribute_ref": rule["attribute_ref"],
+                                 "superseded_by_rule_ref": superseded_by, "reason_text": reason,
+                                 "reduction_run_id": reduction_run_id, "source_pool_ref": source_pool_ref},
+                        summary=f"retired {rule_ref}: {reason[:160]}")
+
+
+def registry_inventory(core: Core, task_id: str) -> dict[str, Any]:
+    """Active includes unconfirmed/disputed/deferred rules; scoring is counted separately."""
+    all_rules = registered_rule_records(core, task_id, include_retired=True)
+    active = {f"{r['rule_id']}@v{r['version']}": r for r in registered_rule_records(core, task_id)}
+    queue = review.items(core, [task_id])
+    pending = {item["subject"].get("id") for item in queue.values()
+               if item["state"] in ("open", "in_review")}
+    try:
+        scoring = {entry["rule_ref"] for entry in rule_set(core, task_id)["entries"]}
+    except KeyError:
+        scoring = set()
+    rows = [{"rule_ref": ref, "attribute_ref": record["attribute_ref"],
+             "pending_review": ref in pending, "scoring_in_latest_frozen_set": ref in scoring}
+            for ref, record in active.items()]
+    retired = [{"rule_ref": f"{r['rule_id']}@v{r['version']}", "attribute_ref": r["attribute_ref"]}
+               for r in all_rules if f"{r['rule_id']}@v{r['version']}" not in active]
+    return {"active": rows, "retired": retired, "active_registered_count": len(rows),
+            "pending_review_count": sum(row["pending_review"] for row in rows),
+            "scoring_in_latest_frozen_set_count": len(scoring & active.keys()),
+            "historical_registered_count": len(all_rules), "retired_latest_count": len(retired)}
+
+
+def registered_attributes(core: Core, task_id: str, *, include_retired: bool = False) -> list[dict[str, Any]]:
+    """Latest attributes, keeping explicitly retired quantities available for historical exports."""
     latest: dict[str, dict[str, Any]] = {}
     for event in core.journal.replay(task_id):
         if event.event_type == "criterion.version_proposed" and event.payload["kind"] == "attribute":
             latest[event.payload["id"]] = core.artifacts.payload(event.payload["artifact_id"])
-    return list(latest.values())
+    if include_retired:
+        return list(latest.values())
+    all_bases = {rule["attribute_ref"].split("@v")[0]
+                 for rule in registered_rule_records(core, task_id, include_retired=True)}
+    active_bases = {rule["attribute_ref"].split("@v")[0] for rule in registered_rule_records(core, task_id)}
+    return [record for base, record in latest.items() if base not in all_bases or base in active_bases]
 
 
 def evidence_key(attribute: dict[str, Any]) -> str:

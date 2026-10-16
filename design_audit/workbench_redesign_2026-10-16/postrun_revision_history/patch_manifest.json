@@ -1,0 +1,13 @@
+{
+  "status": "prepared_not_applied",
+  "files": {
+    "src/mas/ui/read_model.py": {
+      "before_sha256": "aad75b47735516867a936e754417889d0cccab4b744ff0444f3ed82b771b847e",
+      "after_sha256": "474dd9c2dd5aecb28c6b6aeb805f7f9bb24078de6107e1f737b54e7d32b259cc"
+    },
+    "tests/test_read_model.py": {
+      "before_sha256": "eb154c511b82108130a9521dac8757948ee969f3657760d0a2281b3af610e846",
+      "after_sha256": "46cee581ac10fdc9f4d3440437132dc2ff335962342571780568fbbc5b092b0b"
+    }
+  }
+}

@@ -61,6 +61,8 @@ SETTINGS: dict[str, Setting] = {
                          "evidence sources to query (see `mas sources list`); sources not set up are skipped and recorded",
                          item_type=str),
     "sources.cache_dir": _s("", "where synced books and downloaded reference data are kept (empty: ~/.cache/mas)"),
+    "sources.replay_run_ids": _s([], "ordered completed runs whose exact successful tool results may be reused; original provenance is retained", item_type=str),
+    "sources.pubchem_record_projection": _s(False, "read additional descriptors from the same recorded PubChem rows, preserving source artifacts and retrieval dates"),
     "sources.upload_dir": _s("", "folder of documents you supply, with a manifest.toml (empty: STORE/uploads)"),
     "search.breadth": _s(4, "queries generated per dimension per round", minimum=1, maximum=20, unit="queries",
                          const_id="const_search_breadth"),
@@ -231,6 +233,10 @@ SETTINGS: dict[str, Setting] = {
                                                      "as expert decisions); interaction.mode = autonomous turns "
                                                      "it on"),
     # run
+    "evaluation.mode": _s("staged", "evaluate all cells or skip after a verified hard failure", choices=("staged", "full")),
+    "qualification.policy": _s("qualification_first_v1", "qualification and scoring policy",
+                                  choices=("qualification_first_v1", "legacy")),
+    "evidence.mode": _s("existing_only", "reuse fixed facts or allow retrieval", choices=("existing_only", "retrieve")),
     "run.seed": _s(0, "sweep seed; also seeds the symbolic-regression splits", minimum=0, maximum=2**31 - 1),
 }
 

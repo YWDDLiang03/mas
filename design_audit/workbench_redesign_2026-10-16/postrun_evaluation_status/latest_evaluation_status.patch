@@ -1,0 +1,284 @@
+--- a/src/mas/ui/read_model.py
++++ b/src/mas/ui/read_model.py
+@@ -1036,6 +1036,70 @@
+                          "kind": "registry", "artifact_id": attr_row["artifact_id"], "body": _json(body)})
+         return rows
+ 
++    @staticmethod
++    def _evaluation_context(db: sqlite3.Connection, task_id: str,
++                            frozen: dict[str, Any] | None) -> dict[str, Any]:
++        """Index one cached freeze and current queue once per request, never per row."""
++        enabled = {entry["rule_ref"]: entry for entry in (frozen or {}).get("entries") or []}
++        deferred, by_attribute, reviews = {}, {}, {}
++        for entry in (frozen or {}).get("deferred") or []:
++            deferred.setdefault(entry.get("rule_ref"), []).append(entry)
++        for entry in [*enabled.values(), *((frozen or {}).get("deferred") or [])]:
++            if entry.get("attribute_ref") and entry.get("rule_ref"):
++                by_attribute.setdefault(entry["attribute_ref"], set()).add(entry["rule_ref"])
++        for row in db.execute("SELECT item_id,subject_ref,state FROM reviews WHERE task_id=? ORDER BY item_id", (task_id,)):
++            reviews.setdefault(row["subject_ref"], []).append({"item_ref": row["item_id"], "state": row["state"]})
++        return {"frozen": frozen, "enabled": enabled, "deferred": deferred, "by_attribute": by_attribute,
++                "pending": set((frozen or {}).get("pending") or []), "reviews": reviews}
++
++    @staticmethod
++    def _criterion_evaluation(body: dict[str, Any], context: dict[str, Any], *,
++                              detail: bool = False) -> dict[str, Any]:
++        """An evaluation membership reading, separate from registry/pool lifecycle state."""
++        historical = {"state": "historical", "scope": "saved_version", "reason_kind": "historical_view"}
++        if str(body.get("detail_ref") or "").startswith("change:"):
++            return dict(historical, scope="stage_snapshot")
++        frozen, ref = context["frozen"], body.get("rule_ref")
++        if not ref:
++            refs = context["by_attribute"].get(body.get("attribute_ref"), set())
++            ref = next(iter(refs)) if len(refs) == 1 else None
++        included = context["enabled"].get(ref)
++        held = context["deferred"].get(ref, [])
++        rule_held = [entry for entry in held if entry.get("scope", "rule") == "rule"]
++        # An exact historical rule can still be enabled in the latest freeze. Otherwise
++        # do not turn its absence from that freeze into a claim about its previous use.
++        if included is None and not rule_held and ref not in context["pending"] and not body.get("current"):
++            return historical
++        if frozen is None:
++            return {"state": "not_prepared", "scope": "latest_prepared_evaluation", "reason_kind": "not_prepared"}
++        result = {"scope": "latest_prepared_evaluation", "rule_set_ref": frozen.get("rule_set_ref"),
++                  "prepared_at": frozen.get("at"), "reason": None}
++        if included is not None:
++            result.update(state="enabled", reason_kind="enabled")
++        elif rule_held:
++            record = rule_held[0]
++            result.update(state="deferred", reason_kind=record.get("reason_kind") or
++                          ("capability_deferred" if record.get("capability") else "not_selected"),
++                          reason=record.get("reason"))
++        elif ref in context["pending"]:
++            result.update(state="pending", reason_kind="review_pending")
++        elif not body.get("registered"):
++            result.update(state="pending", reason_kind="unregistered_proposal")
++        else:
++            result.update(state="pending", reason_kind="not_selected")
++        records = ([included] if included is not None else []) + held
++        review_refs = sorted({item for record in records for item in record.get("review_item_refs") or []})
++        attempt_refs = sorted({attempt["attempt_ref"] for record in records for review in record.get("reviews") or []
++                               for attempt in review.get("attempts") or [] if attempt.get("attempt_ref")})
++        basis = {"source": "cached_frozen_rule_set", "rule_ref": ref,
++                 "review_item_refs": review_refs, "attempt_refs": attempt_refs,
++                 "queue_items": context["reviews"].get(ref, []), "queue_state_scope": "current_registry_queue"}
++        if detail:
++            basis["frozen_records"] = records
++            basis["listed_pending_at_preparation"] = ref in context["pending"]
++        result["basis"] = basis
++        return result
++
+     def criteria(self, task_id: str, *, page: int = 1, page_size: int = PAGE_SIZE, q: str = "",
+                  state: str = "", stage: str = "", cursor: str | None = None, **filters: Any) -> dict[str, Any]:
+         if cursor:
+@@ -1099,11 +1163,13 @@
+             where = " AND ".join(clauses)
+             total = db.execute(f"{prefix}SELECT count(*) FROM {relation} WHERE {where}", values).fetchone()[0]
+             items = [_record(row) for row in db.execute(f"{prefix}SELECT c.body FROM {relation} WHERE {where} ORDER BY c.criterion_id LIMIT ? OFFSET ?", (*values, page_size, offset))]
++            evaluation_context = self._evaluation_context(db, task_id, frozen)
+             for item in items:
+                 if not item.get("detail_ref"):
+                     identity = item["criterion_id"]
+                     item["detail_ref"] = (f"{identity}@v{item['version']}" if identity.startswith("cri_") and "@v" not in identity
+                                           else item.get("rule_ref") or item.get("attribute_ref") or identity)
++                item["evaluation"] = self._criterion_evaluation(item, evaluation_context)
+             result = self._paged(items, total, page, page_size, meta)
+             result["criteria_scope"] = scope
+             if not stage and frozen is not None:
+@@ -1216,6 +1282,8 @@
+             if not attribute:
+                 attribute = raw.get("attribute") if isinstance(raw.get("attribute"), dict) else raw
+             body["editable"] = not is_task_mandated(attribute)
++            frozen = self._meta(db).get(f"frozen:{task_id}")
++            body["evaluation"] = self._criterion_evaluation(body, self._evaluation_context(db, task_id, frozen), detail=True)
+             history_ids = {row["criterion_id"]}
+             for ref in (wanted, body.get("attribute_ref"), body.get("rule_ref")):
+                 if ref:
+--- a/web/client/src/api/types.ts
++++ b/web/client/src/api/types.ts
+@@ -24,7 +24,8 @@
+ export interface Snapshot { snapshot_id: string; published_at: string; run_id: string; label?: string; evaluation_mode?: string; candidate_count?: number; reporting_tuple?: { ranking_coverage_floor?: number | null; mandated_coverage_floor?: number | null } }
+ export interface Change { id?: string; stage?: string; iteration?: number | null; operation?: string; before?: unknown; after?: unknown; reason?: string; actor?: unknown; at?: string; sources?: unknown[] }
+ export interface Overview { task: Task; input?: TaskInput; summary: { candidate_count: number; criteria_count: number; active_registered_count?: number; additional_unregistered_active_count?: number; total_active_count?: number; scoring_count?: number; latest_frozen_rule_set_ref?: string | null; deferred_count?: number; registered_pending_count?: number; pending_review_count?: number; historical_pending_review_count?: number; historical_registered_count?: number; retired_latest_count?: number; hard_count?: number; preference_count?: number; pending_count?: number; task_required_count?: number }; workflow?: Workflow | null; stages: Stage[]; snapshots: Snapshot[]; recent_changes: Change[] }
+-export interface Criterion { criterion_id: string; detail_ref?: string; version: number; name: string; definition?: string; state: string; role: string; unit?: string | null; direction?: string | null; cutoff?: unknown; evidence_count?: number; parents?: string[]; children?: string[]; stage?: string; iteration?: number; reason?: string; rule_ref?: string; attribute_ref?: string }
++export interface CriterionEvaluation { state: 'enabled' | 'deferred' | 'pending' | 'not_prepared' | 'historical'; scope: string; rule_set_ref?: string | null; prepared_at?: string | null; reason_kind: string; reason?: string | null; basis?: Record<string, unknown> }
++export interface Criterion { evaluation?: CriterionEvaluation; criterion_id: string; detail_ref?: string; version: number; name: string; definition?: string; state: string; role: string; unit?: string | null; direction?: string | null; cutoff?: unknown; evidence_count?: number; parents?: string[]; children?: string[]; stage?: string; iteration?: number; reason?: string; rule_ref?: string; attribute_ref?: string }
+ export interface CriterionSource { source_id: string; title?: string; quote?: string; locator?: string; url?: string }
+ export interface LineageNode { id?: string; ref?: string; detail_ref?: string; criterion_id?: string; name?: string; version?: number; definition?: string; state?: string; operation?: string; relation?: string; missing?: boolean; parents?: string[] }
+ export interface CriterionDetail extends Criterion { historical_version?: boolean; current_ref?: string | null; history: Change[]; sources: CriterionSource[]; supporting_claims?: unknown[]; critic_findings?: unknown[]; lineage?: { nodes: LineageNode[]; edges: { source: string; target: string; operation?: string }[] }; editable?: boolean; raw?: Record<string, unknown> }
+--- /dev/null
++++ b/web/client/src/components/CriteriaEvaluation.tsx
+@@ -0,0 +1,26 @@
++import type { CriterionEvaluation } from '../api/types';
++import { useI18n } from '../i18n';
++import { Audit, Badge } from './UI';
++
++export function CriteriaEvaluation({ value, compact = false }: { value?: CriterionEvaluation; compact?: boolean }) {
++  const { t } = useI18n();
++  if (!value) return null;
++  const labels = {
++    enabled: t('Enabled', '已启用'), deferred: t('Deferred', '已延后'), pending: t('Pending', '待处理'),
++    not_prepared: t('Not prepared', '尚未准备'), historical: t('Saved version', '历史版本'),
++  };
++  const reasons: Record<string, string> = {
++    enabled: t('Included in the latest prepared evaluation.', '已纳入最近准备的评估。'),
++    unresolved_review: t('Review remains unresolved; this criterion is not enabled.', '复核尚未解决，此标准暂未启用。'),
++    non_executable_preference: t('The scoring condition is not executable yet.', '计分条件尚不可执行。'),
++    capability_deferred: t('The required evidence route is deferred.', '所需证据路线已延后处理。'),
++    review_pending: t('Listed as pending when this evaluation was prepared.', '准备本次评估时，此标准仍待复核。'),
++    unregistered_proposal: t('This proposal has not been registered for evaluation.', '此提案尚未注册为评估标准。'),
++    not_selected: t('Not included; an exclusion reason is not recorded.', '尚未纳入，未记录具体排除理由。'),
++    not_prepared: t('No evaluation has been prepared for this task.', '此任务尚未准备评估。'),
++    historical_view: t('See the saved version and its change history.', '查看此保存版本及其变化历史。'),
++  };
++  const summary = reasons[value.reason_kind] || t('See the recorded decision for the reason.', '具体理由请查看处理记录。');
++  const badge = <Badge state={value.state === 'enabled' ? 'completed' : ['deferred', 'pending'].includes(value.state) ? 'pending' : undefined} label={labels[value.state]} />;
++  return compact ? <>{badge}<p className="cell-note">{summary}</p></> : <section className="notice"><div className="row spread"><strong>{value.state === 'historical' ? t('Saved version', '历史版本') : t('Latest prepared evaluation', '最近准备的评估')}</strong>{badge}</div><p>{summary}</p><Audit data={value} title={t('Decision record', '处理记录')} /></section>;
++}
+--- a/web/client/src/pages/CriteriaPage.tsx
++++ b/web/client/src/pages/CriteriaPage.tsx
+@@ -9,6 +9,7 @@
+ import { StageTable } from './OverviewPage';
+ import { CriteriaEvolution, enabledCriteriaCount, stageCountScope } from '../components/CriteriaEvolution';
+ import { CriterionEditor } from '../components/CriterionEditor';
++import { CriteriaEvaluation } from '../components/CriteriaEvaluation';
+ 
+ function Difference({ before, after }: { before: unknown; after: unknown }) {
+   const { t } = useI18n();
+@@ -65,8 +66,8 @@
+   return <><div className="page-heading"><div><div className="eyebrow">{t('Criteria workspace', '标准工作区')}</div><h1>{t('From broad questions to useful criteria', '从广泛问题到有意义的标准')}</h1><p>{t('Follow generation, refinement, evidence and every saved revision.', '追踪生成、整理、证据以及每个已保存的版本。')}</p></div></div>
+     <Panel title={t('Criteria evolution', '标准演化')} caption={t('How the criteria expand and become more focused after each completed stage.', '查看每个已完成阶段如何展开和提炼标准。')} className="criteria-evolution-panel"><ErrorNotice message={overview.error} retry={overview.refresh} /><CriteriaEvolution stages={stages} enabledCount={enabledCriteriaCount(overview.data)} /></Panel>
+     <details className="stage-inspector"><summary>{t('Stage changes', '阶段变化')} <span>{overview.data ? stages.length : '—'}</span></summary>{stages.length ? <StageTable stages={stages} selected={stage} onSelect={id => { setStage(id === stage ? '' : id); setState(id === stage ? 'working' : ''); setPage(1); }} /> : <p className="subtle">{t('Stage counts will appear when recorded.', '阶段数量记录后会在这里显示。')}</p>}</details>
+-    <Panel title={t('Research criteria', '研究标准')} caption={stageSelected ? `${phaseText(stageSelected.stage, t)} · ${t('iteration', '迭代')} ${stageSelected.iteration ?? '—'} · ${valueText(stageSelected.before_count)} → ${valueText(stageSelected.after_count)} · ${stageCountScope(stageSelected, t)}` : scopeCaption}><div className="table-toolbar"><Search value={query} onChange={value => { setQuery(value); setPage(1); }} placeholder={t('Search all criteria', '搜索全部标准')} /><label className="inline-select"><span className="sr-only">{t('State', '状态')}</span><select value={state} onChange={event => { setState(event.target.value); setPage(1); }}><option value="">{t('All versions', '全部版本')}</option><option value="working">{t('Working criteria', '当前标准')}</option><option value="pending">{t('Pending', '待处理')}</option>{['merged', 'retired'].map(value => <option key={value} value={value}>{stateText(value, t)}</option>)}</select></label>{stage && <button onClick={() => { setStage(''); setState('working'); setPage(1); }}>{t('Clear stage filter', '清除阶段筛选')}</button>}</div><ErrorNotice message={resource.error} retry={resource.refresh} />{!resource.data ? resource.loading && <Loading /> : resource.data.items.length ? <><div className="table-scroll"><table className="criteria-table"><thead><tr><th>{t('Criterion', '标准')}</th><th>{t('Role', '用途')}</th><th>{t('State', '状态')}</th><th>{t('Evidence', '证据')}</th><th>{t('Version', '版本')}</th><th>{t('Stage', '阶段')}</th></tr></thead><tbody>{resource.data.items.map(criterion => <tr key={`${criterion.criterion_id}/${criterion.version}`}><td><button className="name-button" onClick={() => onOpen(criterionDetailRef(criterion))}>{criterion.name}</button>{criterion.definition && <p className="cell-note clamp-two">{criterion.definition}</p>}</td><td>{stateText(criterion.role, t)}</td><td><Badge state={criterion.state} /></td><td className="numeric">{criterion.evidence_count ?? '—'}</td><td className="numeric">v{criterion.version}</td><td>{phaseText(criterion.stage, t)}{criterion.iteration != null && criterion.iteration > 0 && <span className="cell-note"> · {criterion.iteration}</span>}</td></tr>)}</tbody></table></div><Pagination page={resource.data} onChange={setPage} /></> : <Empty title={q || (state && state !== 'working') || stage ? t('No criteria match these filters', '没有匹配此筛选的标准') : t('Criteria have not been generated yet', '尚未生成标准')}><p>{t('This view uses the selected task’s actual criterion records.', '这里显示所选任务实际记录的标准。')}</p></Empty>}</Panel>
+-    {item && <Drawer title={detail.data?.name || t('Criterion details', '标准详情')} onClose={onClose}>{!detail.data ? detail.error ? <ErrorNotice message={detail.error} retry={detail.refresh} /> : <Loading /> : <><div className="detail-meta"><Badge state={detail.data.state} /><Badge label={stateText(detail.data.role, t)} /><span>v{detail.data.version}</span><span>{detail.data.unit}</span></div><p className="detail-definition">{detail.data.definition}</p>{detail.data.reason && <p>{detail.data.reason}</p>}
++    <Panel title={t('Research criteria', '研究标准')} caption={stageSelected ? `${phaseText(stageSelected.stage, t)} · ${t('iteration', '迭代')} ${stageSelected.iteration ?? '—'} · ${valueText(stageSelected.before_count)} → ${valueText(stageSelected.after_count)} · ${stageCountScope(stageSelected, t)}` : scopeCaption}><div className="table-toolbar"><Search value={query} onChange={value => { setQuery(value); setPage(1); }} placeholder={t('Search all criteria', '搜索全部标准')} /><label className="inline-select"><span className="sr-only">{t('State', '状态')}</span><select value={state} onChange={event => { setState(event.target.value); setPage(1); }}><option value="">{t('All versions', '全部版本')}</option><option value="working">{t('Working criteria', '当前标准')}</option><option value="pending">{t('Pending', '待处理')}</option>{['merged', 'retired'].map(value => <option key={value} value={value}>{stateText(value, t)}</option>)}</select></label>{stage && <button onClick={() => { setStage(''); setState('working'); setPage(1); }}>{t('Clear stage filter', '清除阶段筛选')}</button>}</div><ErrorNotice message={resource.error} retry={resource.refresh} />{!resource.data ? resource.loading && <Loading /> : resource.data.items.length ? <><div className="table-scroll"><table className="criteria-table"><thead><tr><th>{t('Criterion', '标准')}</th><th>{t('Role', '用途')}</th><th>{t('Recorded state', '已记录状态')}</th><th>{t('Latest evaluation', '最近评估')}</th><th>{t('Evidence', '证据')}</th><th>{t('Version', '版本')}</th><th>{t('Stage', '阶段')}</th></tr></thead><tbody>{resource.data.items.map(criterion => <tr key={`${criterion.criterion_id}/${criterion.version}`}><td><button className="name-button" onClick={() => onOpen(criterionDetailRef(criterion))}>{criterion.name}</button>{criterion.definition && <p className="cell-note clamp-two">{criterion.definition}</p>}</td><td>{stateText(criterion.role, t)}</td><td><Badge state={criterion.state} /></td><td><CriteriaEvaluation value={criterion.evaluation} compact /></td><td className="numeric">{criterion.evidence_count ?? '—'}</td><td className="numeric">v{criterion.version}</td><td>{phaseText(criterion.stage, t)}{criterion.iteration != null && criterion.iteration > 0 && <span className="cell-note"> · {criterion.iteration}</span>}</td></tr>)}</tbody></table></div><Pagination page={resource.data} onChange={setPage} /></> : <Empty title={q || (state && state !== 'working') || stage ? t('No criteria match these filters', '没有匹配此筛选的标准') : t('Criteria have not been generated yet', '尚未生成标准')}><p>{t('This view uses the selected task’s actual criterion records.', '这里显示所选任务实际记录的标准。')}</p></Empty>}</Panel>
++    {item && <Drawer title={detail.data?.name || t('Criterion details', '标准详情')} onClose={onClose}>{!detail.data ? detail.error ? <ErrorNotice message={detail.error} retry={detail.refresh} /> : <Loading /> : <><div className="detail-meta"><Badge state={detail.data.state} /><Badge label={stateText(detail.data.role, t)} /><span>v{detail.data.version}</span><span>{detail.data.unit}</span></div><p className="detail-definition">{detail.data.definition}</p><CriteriaEvaluation value={detail.data.evaluation} />{detail.data.reason && <p>{detail.data.reason}</p>}
+       <section className="detail-section"><h3>{t('Lineage', '形成沿革')}</h3>{detail.data.lineage?.nodes?.length ? <ol className="lineage-list">{detail.data.lineage.nodes.map((node, index) => <li key={node.id || node.ref || index}><span className="timeline-dot" /><div className="detail-meta">{node.relation && <small>{node.relation === 'parent' ? t('Parent criterion', '父标准') : node.relation === 'child' ? t('Child criterion', '子标准') : t('Selected version', '当前查看版本')}</small>}{node.version != null && <span>v{node.version}</span>}{node.state && <Badge state={node.state} />}</div>{node.detail_ref && !node.missing ? <button className="name-button" onClick={() => onOpen(node.detail_ref!)}>{node.name || t('Criterion', '标准')}</button> : <strong>{node.name || t('Record missing', '记录缺失')}</strong>}{node.definition && <p>{node.definition}</p>}{node.missing && <Audit data={{ ref: node.ref }} title={t('Missing record reference', '缺失记录的引用')} />}{node.operation && <p>{operationText(node.operation, t)}</p>}</li>)}</ol> : (detail.data.parents?.length || detail.data.children?.length) ? <Audit data={{ parents: detail.data.parents, children: detail.data.children }} title={t('Linked criterion versions', '关联的标准版本')} /> : <p className="subtle">{t('No earlier lineage is recorded for this criterion.', '此标准尚无早期沿革记录。')}</p>}</section>
+       {detail.data.lineage?.edges?.length ? <div className="lineage-edges">{detail.data.lineage.edges.map((edge, index) => <p key={index}><span>{lineageNames.get(edge.source) || t('Earlier criterion', '早期标准')}</span><span aria-hidden="true"> → </span><span>{lineageNames.get(edge.target) || t('Later criterion', '后续标准')}</span></p>)}</div> : null}
+       <section className="detail-section"><h3>{t('Changes and reasoning', '变化与理由')}</h3>{detail.data.history?.length ? detail.data.history.map((change, index) => <article className="history-entry" key={change.id || index}><div className="row spread"><strong>{change.operation ? operationText(change.operation, t) : phaseText(change.stage, t)}</strong><small>{dateText(change.at, language)}</small></div><p>{change.reason}</p><Difference before={change.before} after={change.after} /><Audit data={change} /></article>) : <p className="subtle">{t('No version changes are recorded yet.', '尚无版本变化记录。')}</p>}</section>
+--- a/scripts/accept_workbench_run.py
++++ b/scripts/accept_workbench_run.py
+@@ -95,13 +95,15 @@
+     return result
+ 
+ 
+-def criterion_cache_view(item: dict[str, Any]) -> dict[str, Any]:
++def criterion_cache_view(item: dict[str, Any], evaluation_context: dict[str, Any]) -> dict[str, Any]:
+     """Add the same exact-version navigation field as the criteria API boundary."""
++    from mas.ui.read_model import ReadModel
+     value = dict(item)
+     if not value.get("detail_ref"):
+         identity = value["criterion_id"]
+         value["detail_ref"] = (f"{identity}@v{value['version']}" if identity.startswith("cri_") and "@v" not in identity
+                                else value.get("rule_ref") or value.get("attribute_ref") or identity)
++    value["evaluation"] = ReadModel._criterion_evaluation(value, evaluation_context)
+     return value
+ 
+ 
+@@ -161,8 +163,9 @@
+             raise ExportError("The service projection has not exposed this task/snapshot yet")
+         if metadata_only:
+             return {"metadata": metadata}
++        evaluation_context = ReadModel._evaluation_context(database, task_id, ReadModel._meta(database).get(f"frozen:{task_id}"))
+         return {"metadata": metadata, "summary": json.loads(summary_row["body"]),
+-                "criteria": [criterion_cache_view(json.loads(row[0])) for row in database.execute(
++                "criteria": [criterion_cache_view(json.loads(row[0]), evaluation_context) for row in database.execute(
+                     "SELECT body FROM criteria_listing WHERE task_id=? ORDER BY criterion_id", (task_id,))],
+                 "stages": ReadModel._stages(database, task_id), "snapshot": json.loads(snapshot_row["body"]),
+                 "candidates": [json.loads(row[0]) for row in database.execute(
+@@ -234,6 +237,14 @@
+                 stage["after_count"], stage["finished_at"] = None, None
+                 if "after_count" not in stage["explicit_fields"]:
+                     stage["explicit_fields"].append("after_count")
++        latest_prepared = None
++        for (raw,) in database.execute("SELECT body FROM events WHERE stream_id=? AND event_type='criterion.version_approved' ORDER BY seq DESC", (task_id,)):
++            prepared_event = json.loads(raw)
++            if public(prepared_event):
++                prepared_set = payload(core, prepared_event["payload"]["artifact_id"], {"rule_set"})
++                latest_prepared = {"rule_set_ref": prepared_event["payload"].get("rule_set_ref"),
++                    "entries": prepared_set.get("entries") or [], "deferred": prepared_set.get("deferred") or []}
++                break
+         inventory = criteria.registry_inventory(core, task_id)
+         rules = criteria.registered_rule_records(core, task_id)
+         roles = Counter(rule.get("rule_kind") for rule in rules)
+@@ -250,6 +261,7 @@
+         return {"publication_rowid": publication_row, "snapshot": snapshot, "summary": summary,
+                 "run_implementations": {run_id: binding.get("implementation") for run_id, binding in bindings.items()},
+                 "active_rule_refs": sorted(row["rule_ref"] for row in inventory["active"]),
++                "latest_prepared": latest_prepared,
+                 "stages": stages, "stream_fingerprint": fingerprint, "claim_ids": claim_ids,
+                 "legal_criteria_ids": legal_criteria_ids}
+ 
+@@ -317,6 +329,24 @@
+             ("api_vs_source.active_rule_refs", sorted(item["rule_ref"] for item in api_criteria if item.get("registered") and item.get("current")), source["active_rule_refs"]),
+             ("api_vs_source.stage_ids", sorted(item["stage_id"] for item in api_stages), sorted(source["stages"]))]:
+             checks.append(compare(label, actual, expected))
++        prepared = source["latest_prepared"]
++        enabled = {entry["rule_ref"] for entry in (prepared or {}).get("entries") or []}
++        held = {}
++        for entry in (prepared or {}).get("deferred") or []:
++            if entry.get("scope", "rule") == "rule":
++                held.setdefault(entry["rule_ref"], entry)
++        expected_evaluation, actual_evaluation = [], []
++        for item in api_criteria:
++            if not item.get("registered") or not item.get("current"):
++                continue
++            ref, evaluation = item.get("rule_ref"), item.get("evaluation") or {}
++            expected_state = "enabled" if ref in enabled else "deferred" if ref in held else "pending" if prepared else "not_prepared"
++            expected_evaluation.append({"rule_ref": ref, "state": expected_state,
++                "rule_set_ref": prepared.get("rule_set_ref") if prepared else None,
++                "reason": held[ref].get("reason") if ref in held and ref not in enabled else None})
++            actual_evaluation.append({"rule_ref": ref, "state": evaluation.get("state"),
++                "rule_set_ref": evaluation.get("rule_set_ref"), "reason": evaluation.get("reason")})
++        checks.append(compare("api_vs_source.latest_prepared_evaluation_membership_and_reasons", actual_evaluation, expected_evaluation))
+         checks.append(compare_stages("api_vs_service_cache.stages", api_stages, cached["stages"]))
+         checks.append(compare_stages("api_vs_rebuild.stages", api_stages, rebuilt_stages))
+         by_stage = {stage["stage_id"]: stage for stage in api_stages}
+--- a/tests/test_read_model.py
++++ b/tests/test_read_model.py
+@@ -523,3 +523,45 @@
+     assert len(history) == 2
+     assert all(change["before"] is None and change["predecessor_missing"] and change["reason"] is None for change in history)
+     assert {change["before_ref"] for change in history} == {"attr_orphan@v1", "rule_orphan@v1"}
++
++
++
++def test_latest_evaluation_status_preserves_registry_history_and_frozen_reasons(setup):
++    journal, model = setup
++
++    def register(name, version=1):
++        attribute = journal.artifact("attribute", {"attribute_id": f"attr_{name}", "version": version, "name": name})
++        journal.event("task_a", "criterion.version_proposed", {"kind": "attribute", "id": f"attr_{name}", "version": version, "artifact_id": attribute})
++        rule = journal.artifact("rule", {"rule_id": f"rule_{name}", "version": version, "attribute_ref": f"attr_{name}@v{version}", "rule_kind": "preference"})
++        journal.event("task_a", "criterion.version_proposed", {"kind": "rule", "id": f"rule_{name}", "version": version, "artifact_id": rule})
++
++    register("mw")
++    register("anchor")
++    model.sync()
++    assert model.criterion("task_a", "rule_mw@v1")["evaluation"]["state"] == "not_prepared"
++    first = journal.artifact("rule_set", {"entries": [{"rule_ref": "rule_mw@v1", "attribute_ref": "attr_mw@v1"}]})
++    journal.event("task_a", "criterion.version_approved", {"rule_set_ref": "rules@v1", "artifact_id": first})
++    register("mw", 2)
++    record = {"rule_ref": "rule_mw@v2", "attribute_ref": "attr_mw@v2", "scope": "rule", "reason_kind": "unresolved_review",
++        "reason": "Review is unresolved for the recorded cutoff", "review_item_refs": ["q_mw"],
++        "reviews": [{"item_ref": "q_mw", "state": "open", "attempts": [{"attempt_ref": "art_attempt", "outcome": "unresolved", "reason_text": "Actual machine reason"}]}]}
++    frozen = journal.artifact("rule_set", {"entries": [{"rule_ref": "rule_anchor@v1", "attribute_ref": "attr_anchor@v1"}], "deferred": [record]})
++    journal.event("task_a", "human.review_requested", {"item_id": "q_mw", "subject": {"kind": "rule_version", "id": "rule_mw@v2"}})
++    journal.event("task_a", "criterion.version_approved", {"rule_set_ref": "rules@v2", "artifact_id": frozen, "pending": ["rule_mw@v2"]})
++    journal.event("run_a", "stage.opened", {"stage": "propose", "iteration": 0})
++    change = journal.change()
++    journal.event("run_a", "stage.closed", {"stage": "propose", "iteration": 0})
++    model.sync()
++    pending = model.criteria("task_a", state="pending", q="mw")["items"][0]
++    assert pending["state"] == "active"  # Registry status is not rewritten.
++    assert pending["evaluation"]["state"] == "deferred" and pending["evaluation"]["reason"] == record["reason"]
++    assert pending["evaluation"]["basis"]["review_item_refs"] == ["q_mw"]
++    detail = model.criterion("task_a", "rule_mw@v2")
++    assert detail["evaluation"]["basis"]["frozen_records"] == [record]
++    assert detail["evaluation"]["basis"]["attempt_refs"] == ["art_attempt"]
++    assert model.criterion("task_a", "rule_anchor@v1")["evaluation"]["state"] == "enabled"
++    historical = model.criterion("task_a", "rule_mw@v1")["evaluation"]
++    assert historical == {"state": "historical", "scope": "saved_version", "reason_kind": "historical_view"}
++    stage = model.criterion("task_a", "change:" + change["event_id"])["evaluation"]
++    assert stage["state"] == "historical" and stage["scope"] == "stage_snapshot"
++    assert model.criteria("task_a", state="working")["total"] == 1

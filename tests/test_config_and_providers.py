@@ -247,7 +247,8 @@ def test_call_role_records_spend_and_reports_thresholds_once(core, monkeypatch):
     for _ in range(3):
         call_role(core, roster, "run_test", ModelRequest(role="reader", system="s", messages=[],
                                                           response_schema={"type": "object"}), budget=budget)
-    notes = [e.payload for e in core.journal.replay("run_test") if e.event_type == "run.annotated"]
+    notes = [e.payload for e in core.journal.replay("run_test")
+             if e.event_type == "run.annotated" and e.payload.get('annotation') == 'budget_threshold']
     assert [n["level"] for n in notes] == ["warn", "cap"] and notes[-1]["continues"] is True
     finished = [e.payload for e in core.journal.replay("run_test") if e.event_type == "agent.finished"]
     assert finished[0]["cost_usd"] == pytest.approx(0.9)

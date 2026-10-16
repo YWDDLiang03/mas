@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-10-15T23:43:34.775389+00:00",
+  "purpose": "Post-evaluation UI readability correction only. Numerical run and replay remain bound to the original source archive.",
+  "source_sha256": "8ce97b966620cf16a48c849710fa3ee5ca181d8fb0a5f4b2fa06c0d0f306a7cb",
+  "archive_sha256": "726385638ecded2d8b97feb41864893c77a42fb9f03b932d3a6260679eb342f5",
+  "evaluation_source_sha256": "1f8cd8ce24c35e354b340a5c7543de51354d1d9a277b8dce0e13d5bad0f21b4e",
+  "changed_files": [
+    "src/mas/ui/presentation.py",
+    "src/mas/ui/views.py"
+  ],
+  "scientific_source_files_unchanged": true,
+  "server_port": 8769,
+  "server_pid": 28424,
+  "verification": "3 existing focused UI tests passed; actual unchanged-width browser screenshots inspected; final 9 cells compared with prior export and all existing fields unchanged; Chinese only changes UI labels.",
+  "archive_path": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\var\\provenance\\final-ui\\8ce97b966620\\source.zip",
+  "gui_verified_at": "2026-10-15T23:49:38.813764+00:00"
+}

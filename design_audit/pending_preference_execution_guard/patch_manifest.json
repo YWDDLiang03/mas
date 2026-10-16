@@ -1,0 +1,27 @@
+[
+  {
+    "path": "src/mas/core/criteria.py",
+    "base_sha256": "a75833b5be0410beafade7f2ee2ce85fcf9de800c09183e624853f57083fbfc2",
+    "patched_sha256": "4a585712c18e1c60e5a3209ec92725a5e3d10a1941744d3dc69d899d4efd1ba7"
+  },
+  {
+    "path": "src/mas/core/measurement.py",
+    "base_sha256": "c11141cf129ced8b9f1ad3435c026e4e785386f56f56b27f920eaefe7a5cf7d7",
+    "patched_sha256": "465d4e42c31dd387a7503e10ca19b5253cfc362bae172383ecc5c37096e26c52"
+  },
+  {
+    "path": "src/mas/core/criteria_export.py",
+    "base_sha256": "280988ad1df314512fc1c3484b57d28273aee090e4dd57e438bd4058710d3a88",
+    "patched_sha256": "8a78b401a3bd242fbf1d881bb1879287f7ec54d247272427fbbaf13e07fce380"
+  },
+  {
+    "path": "src/mas/cli/main.py",
+    "base_sha256": "7e890a92a2c203e54a9dfd7e0b35d8af8f6b67c480a8b0871e6e27dde15e6f51",
+    "patched_sha256": "26eeae268d9b0425c58f585f8db41d49b72ecda9e8aa0bf2ceaa04826d19fb7c"
+  },
+  {
+    "path": "tests/test_preference_execution_guard.py",
+    "base_sha256": null,
+    "patched_sha256": "dd4051f8a078acb4fddd9c29029fe38fcd40991100076a2dbb3532d3b2d9bda3"
+  }
+]

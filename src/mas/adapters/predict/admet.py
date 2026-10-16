@@ -39,19 +39,24 @@ ChEMBL field nobody filled yields unknown -- and never a failure.
 from __future__ import annotations
 
 import hashlib
+import copy
 import importlib.util
 import json
+import math
 import os
 import shutil
 import subprocess
 import sys
 import threading
 import time
+from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
 from mas.adapters.literature.bookshelf import default_cache_dir
-from mas.core.broker import ProviderResponse, ToolContract, ToolError
+from mas.core.broker import ProviderResponse, ToolContract, ToolError, ToolAbsent
+from mas.core.canonical import sha256_hex
 
 PACKAGE = "admet_ai"
 PACKAGE_DISTRIBUTION = "admet-ai"
@@ -598,6 +603,137 @@ def _tail(path: Path, lines: int = 12) -> list[str]:
         return []
 
 
+class ExistingPanelProjection:
+    """Immutable, pre-run selection of saved panel bytes; never starts an interpreter."""
+
+    policy = "admet_existing_panel_projection_v1"
+
+    def __init__(self, structures: StructureIndex, cache: PanelCache):
+        self.structures, self.cache = structures, cache
+        self._manifest = None
+        self._rows = {}
+        self._proofs = {}
+        self._identities = {}
+
+    def pin_existing_cache(self) -> dict[str, Any]:
+        if self._manifest is not None:
+            return copy.deepcopy(self._manifest)
+        universe_bytes = self.structures.universe_file.read_bytes()
+        structure_bytes = self.structures.structure_file.read_bytes()
+        universe, structures = json.loads(universe_bytes), json.loads(structure_bytes)
+        identities = {m["inchikey"]: structures[m["chembl_id"]] for m in universe["universe"]
+                      if structures.get(m["chembl_id"])}
+        if identities != self.structures._load():
+            raise ValueError("The structure files changed before the existing panel was pinned")
+        rows, proofs, rejected = {}, {}, Counter()
+        for smiles in dict.fromkeys(identities.values()):
+            path = self.cache.path(smiles)
+            try:
+                before = path.stat()
+                raw = path.read_bytes()
+                after = path.stat()
+                if (before.st_mtime_ns, before.st_size) != (after.st_mtime_ns, after.st_size):
+                    rejected["changed_during_pin"] += 1
+                    continue
+                record = json.loads(raw)
+                predictor = record.get("predictor") or {}
+                values = record.get("values")
+                if (record.get("smiles") != smiles or record.get("panel_version") != PANEL_VERSION
+                        or record.get("error") or predictor.get("package") != PACKAGE_DISTRIBUTION
+                        or predictor.get("version") != "2.0.1" or predictor.get("physchem") is not True
+                        or not isinstance(values, dict) or set(values) != set(ENDPOINTS)
+                        or any(v is not None and (isinstance(v, bool) or not isinstance(v, (int, float))
+                                                 or not math.isfinite(v)) for v in values.values())):
+                    rejected["invalid_panel_record"] += 1
+                    continue
+                when = datetime.fromtimestamp(after.st_mtime, timezone.utc).isoformat().replace("+00:00", "Z")
+                proof = {"smiles_sha256": digest(smiles), "cache_file_sha256": hashlib.sha256(raw).hexdigest(),
+                         "cache_relative_path": str(path.relative_to(self.cache.root)).replace("\\", "/"),
+                         "panel_version": PANEL_VERSION, "predictor_version": predictor["version"],
+                         "source_retrieved_at": when,
+                         "source_time_basis": "cache_file_mtime_not_original_inference_time"}
+                rows[smiles], proofs[smiles] = record, proof
+            except FileNotFoundError:
+                rejected["cache_file_missing"] += 1
+            except (OSError, ValueError, TypeError, AttributeError):
+                rejected["unreadable_or_malformed"] += 1
+        counts = Counter(endpoint for smiles in identities.values() if smiles in rows
+                         for endpoint, value in rows[smiles]["values"].items() if value is not None)
+        entries = sorted(proofs.values(), key=lambda item: item["smiles_sha256"])
+        manifest = {"policy": self.policy, "panel_version": PANEL_VERSION,
+                    "predictor_versions": sorted({p["predictor_version"] for p in entries}),
+                    "universe_sha256": hashlib.sha256(universe_bytes).hexdigest(),
+                    "structure_file_sha256": hashlib.sha256(structure_bytes).hexdigest(),
+                    "identity_mapping_sha256": sha256_hex(identities),
+                    "entries": entries, "entries_digest": sha256_hex(entries),
+                    "covered_candidates": sum(smiles in rows for smiles in identities.values()),
+                    "universe_members": len(universe["universe"]), "endpoint_counts": dict(sorted(counts.items())),
+                    "rejected": dict(rejected), "fresh_prediction": False,
+                    "source_time_basis": "cache_file_mtime_not_original_inference_time"}
+        manifest["manifest_digest"] = sha256_hex(manifest)
+        self._identities, self._rows, self._proofs, self._manifest = identities, rows, proofs, manifest
+        return copy.deepcopy(manifest)
+
+    def existing_cache_manifest(self) -> dict[str, Any] | None:
+        return copy.deepcopy(self._manifest)
+
+    def response(self, inputs: dict[str, Any], *, derived: bool = False) -> ProviderResponse | None:
+        if self._manifest is None or set(inputs) - {"identifier", "identifiers", "endpoint"}:
+            return None
+        identifier, endpoint = inputs.get("identifier"), inputs.get("endpoint")
+        if not isinstance(identifier, str) or not isinstance(endpoint, str) or endpoint not in ENDPOINTS:
+            return None
+        identifiers = inputs.get("identifiers", [])
+        if not isinstance(identifiers, list) or any(not isinstance(item, dict) for item in identifiers):
+            return None
+        if any(item.get("scheme") == "inchikey" and item.get("value") != identifier for item in identifiers):
+            return None
+        smiles = self._identities.get(identifier)
+        record = self._rows.get(smiles)
+        if not record:
+            return None
+        value = record["values"].get(endpoint)
+        if value is None:
+            return None
+        if derived and endpoint not in DESCRIPTOR_PROJECTIONS:
+            return None
+        if endpoint in ("BRENK_alert", "NIH_alert", "PAINS_alert") and (value < 0 or not float(value).is_integer()):
+            return None
+        proof = dict(self._proofs[smiles], projection_manifest_digest=self._manifest["manifest_digest"],
+                     manifest_digest=self._manifest["manifest_digest"],
+                     policy=self.policy, endpoint=endpoint, fresh_prediction=False, fresh_tool_call=False,
+                     charged_tool_calls=0)
+        conditions = provenance(endpoint, smiles, record, (record.get("percentiles") or {}).get(endpoint))
+        basis = "derived" if derived else "predicted"
+        conditions.update(saved_panel_projection=proof, determination_basis=basis)
+        if derived:
+            conditions.update(DESCRIPTOR_PROJECTIONS[endpoint])
+        return ProviderResponse(
+            values=[{"name": endpoint, "value": value, "unit": ENDPOINTS[endpoint]["unit"],
+                     "value_kind": basis, "determination_basis": basis,
+                     "source_record_ref": f"admet_ai_{endpoint}_{digest(smiles)[:16]}", "conditions": conditions}],
+            records=[{"endpoint": endpoint, "canonical_smiles": smiles, "smiles_sha256": digest(smiles),
+                      "predictor": copy.deepcopy(record["predictor"]), "saved_panel_projection": proof}],
+            data_version=f"admet-ai {record['predictor']['version']}; {PANEL_VERSION}",
+            upstream_refs=[f"admet-ai:{endpoint}:{digest(smiles)[:16]}", ENDPOINTS[endpoint]["reference"]],
+            source_retrieved_at=proof["source_retrieved_at"], local_derivation=proof)
+
+
+# Independently checked against the published admet-ai 2.0.1 wheel, not inferred from values.
+DESCRIPTOR_PROJECTIONS = {
+    "logP": {"algorithm": "rdkit.Chem.Crippen.MolLogP"},
+    "BRENK_alert": {"algorithm": "len(catalog_brenk.GetMatches(mol)); catalog=RDKit FilterCatalogParams.FilterCatalogs.BRENK"},
+    "NIH_alert": {"algorithm": "len(catalog_nih.GetMatches(mol)); catalog=RDKit FilterCatalogParams.FilterCatalogs.NIH"},
+    "PAINS_alert": {"algorithm": "len(catalog_pains.GetMatches(mol)); catalog=RDKit FilterCatalogParams.FilterCatalogs.PAINS"},
+}
+for _descriptor_proof in DESCRIPTOR_PROJECTIONS.values():
+    _descriptor_proof.update({"algorithm_source_package": "admet-ai", "algorithm_source_version": "2.0.1",
+        "algorithm_source_wheel_sha256": "fef3527f637abb00d272cf824e8eef0136fe31ebde6c56881f1a8c02c0417806",
+        "algorithm_source_file": "admet_ai/physchem.py",
+        "algorithm_source_file_sha256": "f2e7cadcc73cfd0d47a4122f9131bdb1ea0f9fc0ba83f0a562bfec6966cec1e6",
+        "computation_performed_now": False})
+
+
 # --- the provider -----------------------------------------------------------------------------
 
 class AdmetPrediction:
@@ -618,9 +754,19 @@ class AdmetPrediction:
         identity_inputs=("identifier",), required_inputs=("endpoint",), execution_location="local_subprocess",
         license_id="ADMET-AI: MIT; TDC training data: per-dataset licences (see each endpoint's reference)")
 
-    def __init__(self, structures: StructureIndex, cache: PanelCache):
+    def __init__(self, structures: StructureIndex, cache: PanelCache, *, existing: ExistingPanelProjection | None = None):
         self.structures = structures
         self.cache = cache
+        self._existing = existing or ExistingPanelProjection(structures, cache)
+
+    def pin_existing_cache(self):
+        return self._existing.pin_existing_cache()
+
+    def existing_cache_manifest(self):
+        return self._existing.existing_cache_manifest()
+
+    def existing_response(self, question_kind: str, inputs: dict[str, Any]) -> ProviderResponse | None:
+        return self._existing.response(inputs) if question_kind == "admet_prediction" else None
 
     def invoke(self, question_kind: str, inputs: dict[str, Any]) -> ProviderResponse:
         endpoint = inputs["endpoint"]
@@ -658,6 +804,31 @@ class AdmetPrediction:
             records=[{"endpoint": endpoint, "canonical_smiles": smiles, "smiles_sha256": key,
                       "predictor": record.get("predictor") or {}}],
             data_version=version, upstream_refs=[f"{PACKAGE_DISTRIBUTION}:{endpoint}:{key[:16]}", spec["reference"]])
+
+
+class AdmetComputedDescriptors(AdmetPrediction):
+    """Exact saved RDKit descriptors, with a separate derived contract and no model path."""
+
+    contract = ToolContract(
+        tool_id="tool_compute_admet_descriptors", capability="property_estimate",
+        capability_kind="attribute_estimate", question_kinds=("admet_computed_property",), contract_version="1",
+        implementation_version="admet-ai-2.0.1-rdkit-descriptor-projection-1",
+        purpose_statement="Read pinned saved RDKit logP and structural-alert counts without computing new values",
+        evidence_kind_produced="database_entry", claim_strength_ceiling="curated",
+        determinism="deterministic", execution_location="in_process",
+        identity_inputs=("identifier",), required_inputs=("endpoint",),
+        license_id="ADMET-AI: MIT; RDKit: BSD")
+
+    def existing_response(self, question_kind: str, inputs: dict[str, Any]) -> ProviderResponse | None:
+        if question_kind != "admet_computed_property":
+            return None
+        return self._existing.response(inputs, derived=True)
+
+    def invoke(self, question_kind: str, inputs: dict[str, Any]) -> ProviderResponse:
+        response = self.existing_response(question_kind, inputs)
+        if response is None:
+            raise ToolAbsent("existing_evidence_unavailable", "No exact pre-pinned saved descriptor is available")
+        return response
 
 
 def provenance(endpoint: str, smiles: str, record: dict[str, Any], percentile: float | None) -> dict[str, Any]:

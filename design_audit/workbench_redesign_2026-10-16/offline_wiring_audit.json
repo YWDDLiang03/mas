@@ -1,0 +1,499 @@
+{
+  "scenarios": [
+    {
+      "scenario": "complete",
+      "state": "completed",
+      "workflow": {
+        "workflow_id": "wf_4c84ba3f7900464bb248f8337ef917ec",
+        "task_id": "task_01M518XRC523XTNGEAMA6Y73CT",
+        "draft_id": null,
+        "title": "Offline audit",
+        "state": "completed",
+        "phase": "results",
+        "message": "Results are ready",
+        "started_at": "2026-10-16T02:33:42.451Z",
+        "updated_at": "2026-10-16T02:33:43.841Z",
+        "finished_at": "2026-10-16T02:33:43.828Z",
+        "progress": {
+          "completed": 8,
+          "planned": 8,
+          "denominator_kind": "enumerated_fixed"
+        },
+        "budget": {
+          "used_usd": null,
+          "limit_usd": 1.0,
+          "cost_status": "unknown"
+        },
+        "phases": [
+          {
+            "id": "task",
+            "label": "Understand the task",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:42.527Z",
+            "finished_at": "2026-10-16T02:33:42.576Z"
+          },
+          {
+            "id": "evidence",
+            "label": "Prepare evidence",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:42.576Z",
+            "finished_at": "2026-10-16T02:33:42.764Z"
+          },
+          {
+            "id": "propose",
+            "label": "Discover criteria",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:42.764Z",
+            "finished_at": "2026-10-16T02:33:43.183Z"
+          },
+          {
+            "id": "refine",
+            "label": "Review and refine",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:43.183Z",
+            "finished_at": "2026-10-16T02:33:43.562Z"
+          },
+          {
+            "id": "review",
+            "label": "Resolve decisions",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:43.562Z",
+            "finished_at": "2026-10-16T02:33:43.652Z"
+          },
+          {
+            "id": "freeze",
+            "label": "Save evaluation rules",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:43.652Z",
+            "finished_at": "2026-10-16T02:33:43.692Z"
+          },
+          {
+            "id": "screen",
+            "label": "Screen candidates",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:43.692Z",
+            "finished_at": "2026-10-16T02:33:43.820Z"
+          },
+          {
+            "id": "results",
+            "label": "Publish results",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:43.820Z",
+            "finished_at": "2026-10-16T02:33:43.828Z"
+          }
+        ],
+        "questions": [],
+        "run_id": "run_01M518XSGP4BP13C4D69AJ9KKY",
+        "snapshot_id": "lb_task_01M518XRC523XTNGEAMA6Y73CT_1",
+        "phase_label": "Publish results",
+        "active_actor": "adjudicator",
+        "can_pause": false,
+        "can_resume": false,
+        "can_stop": false
+      },
+      "pin_claim_count": 1,
+      "scripted_model_calls": [
+        {
+          "role": "proposer",
+          "question": "Understand the research objective and required conditions",
+          "required": [
+            "constraints",
+            "mode",
+            "objective",
+            "questions",
+            "targets",
+            "title"
+          ]
+        },
+        {
+          "role": "proposer",
+          "question": "propose pool: target_coverage",
+          "required": [
+            "considered_and_rejected",
+            "proposals"
+          ]
+        },
+        {
+          "role": "proposer",
+          "question": "propose pool: oral_bioavailability",
+          "required": [
+            "considered_and_rejected",
+            "proposals"
+          ]
+        },
+        {
+          "role": "proposer",
+          "question": "propose pool: metabolic_stability",
+          "required": [
+            "considered_and_rejected",
+            "proposals"
+          ]
+        },
+        {
+          "role": "proposer",
+          "question": "propose pool: toxicological_safety",
+          "required": [
+            "considered_and_rejected",
+            "proposals"
+          ]
+        },
+        {
+          "role": "critic",
+          "question": "critique pool",
+          "required": [
+            "findings"
+          ]
+        },
+        {
+          "role": "proposer",
+          "question": "distill pool",
+          "required": [
+            "items"
+          ]
+        },
+        {
+          "role": "adjudicator",
+          "question": "adjudicate merges",
+          "required": [
+            "decisions"
+          ]
+        }
+      ],
+      "network_allowed": false,
+      "primary_store_opened": false,
+      "registry_counts": {
+        "active_registered_count": 3,
+        "pending_review_count": 0,
+        "scoring_in_latest_frozen_set_count": 3,
+        "historical_registered_count": 3,
+        "retired_latest_count": 0
+      },
+      "public_event_counts": {
+        "agent.finished": 8,
+        "agent.started": 8,
+        "attempt.finalized": 2,
+        "attempt.started": 1,
+        "candidate.assessed": 3,
+        "checkpoint.written": 1,
+        "constant.registered": 78,
+        "criterion.change_recorded": 8,
+        "criterion.version_approved": 1,
+        "criterion.version_proposed": 6,
+        "decision.recorded": 1,
+        "evidence.admitted": 3,
+        "evidence.snapshot_frozen": 1,
+        "human.review_requested": 1,
+        "identity.resolved": 1,
+        "leaderboard.current_set": 1,
+        "leaderboard.snapshot_published": 1,
+        "preregistration.recorded": 1,
+        "progress.estimate_revised": 3,
+        "projection.hash": 1,
+        "round.closed": 2,
+        "round.opened": 2,
+        "run.completed": 3,
+        "run.created": 3,
+        "run.resumed": 1,
+        "run.started": 2,
+        "stage.closed": 14,
+        "stage.opened": 13,
+        "task.version_recorded": 3,
+        "tool.requested": 2,
+        "tool.returned": 2
+      },
+      "snapshot": {
+        "qualification_policy": "qualification_first_v1",
+        "readiness": "ready",
+        "evaluation_mode": "staged",
+        "result_kind": "both_reported"
+      },
+      "candidate_qualifications": [
+        {
+          "candidate_ref": "cand_inchikey-KEY_A",
+          "qualification": {
+            "applicable_hard_count": 1,
+            "blocking_hard_rule_refs": [],
+            "failed_hard_rule_refs": [],
+            "hard_blocked": 0,
+            "hard_direct_coverage": 1.0,
+            "hard_failed": 0,
+            "hard_passed": 1,
+            "hard_total": 1,
+            "missing_direct_required_rule_refs": [],
+            "qualified": true,
+            "required_direct_answered": 0,
+            "required_direct_coverage": null,
+            "required_total": 0,
+            "state": "qualified",
+            "verified_hard_count": 1
+          },
+          "position": null,
+          "preference_score": null
+        }
+      ]
+    },
+    {
+      "scenario": "stop",
+      "state": "cancelled",
+      "workflow": {
+        "workflow_id": "wf_23b409e6fe8d4266ab33382d9e9b1433",
+        "task_id": "task_01M518XSSK66XMAZZVSEQT1E98",
+        "draft_id": null,
+        "title": "Offline audit",
+        "state": "cancelled",
+        "phase": "propose",
+        "message": "Stopped",
+        "started_at": "2026-10-16T02:33:43.961Z",
+        "updated_at": "2026-10-16T02:33:44.316Z",
+        "finished_at": "2026-10-16T02:33:44.315Z",
+        "progress": {
+          "completed": 0,
+          "planned": null,
+          "denominator_kind": "unknown"
+        },
+        "budget": {
+          "used_usd": null,
+          "limit_usd": 1.0,
+          "cost_status": "unknown"
+        },
+        "phases": [
+          {
+            "id": "task",
+            "label": "Understand the task",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:43.981Z",
+            "finished_at": "2026-10-16T02:33:44.029Z"
+          },
+          {
+            "id": "evidence",
+            "label": "Prepare evidence",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:44.029Z",
+            "finished_at": "2026-10-16T02:33:44.147Z"
+          },
+          {
+            "id": "propose",
+            "label": "Discover criteria",
+            "state": "running",
+            "started_at": "2026-10-16T02:33:44.147Z"
+          },
+          {
+            "id": "refine",
+            "label": "Review and refine",
+            "state": "queued"
+          },
+          {
+            "id": "review",
+            "label": "Resolve decisions",
+            "state": "queued"
+          },
+          {
+            "id": "freeze",
+            "label": "Save evaluation rules",
+            "state": "queued"
+          },
+          {
+            "id": "screen",
+            "label": "Screen candidates",
+            "state": "queued"
+          },
+          {
+            "id": "results",
+            "label": "Publish results",
+            "state": "queued"
+          }
+        ],
+        "questions": [],
+        "run_id": "run_01M518XSV47X4405N47G57EJSH",
+        "snapshot_id": null,
+        "phase_label": "Discover criteria",
+        "active_actor": "proposer",
+        "can_pause": false,
+        "can_resume": false,
+        "can_stop": false
+      },
+      "pin_claim_count": 1,
+      "scripted_model_calls": [
+        {
+          "role": "proposer",
+          "question": "Understand the research objective and required conditions",
+          "required": [
+            "constraints",
+            "mode",
+            "objective",
+            "questions",
+            "targets",
+            "title"
+          ]
+        },
+        {
+          "role": "proposer",
+          "question": "propose pool: target_coverage",
+          "required": [
+            "considered_and_rejected",
+            "proposals"
+          ]
+        }
+      ],
+      "network_allowed": false,
+      "primary_store_opened": false,
+      "registry_counts": {
+        "active_registered_count": 2,
+        "pending_review_count": 1,
+        "scoring_in_latest_frozen_set_count": 0,
+        "historical_registered_count": 2,
+        "retired_latest_count": 0
+      },
+      "public_event_counts": {
+        "agent.finished": 2,
+        "agent.started": 2,
+        "constant.registered": 52,
+        "criterion.change_recorded": 1,
+        "criterion.version_proposed": 4,
+        "evidence.admitted": 2,
+        "human.review_requested": 1,
+        "round.opened": 2,
+        "run.cancelled": 1,
+        "run.completed": 1,
+        "run.created": 2,
+        "run.started": 2,
+        "stage.closed": 3,
+        "stage.opened": 3,
+        "task.version_recorded": 3
+      }
+    },
+    {
+      "scenario": "budget",
+      "state": "unresolved",
+      "workflow": {
+        "workflow_id": "wf_1d4c187a821542388aec8b1e7fa26c4a",
+        "task_id": "task_01M518XT85Z42DFDV5Z1CRJDA3",
+        "draft_id": null,
+        "title": "Offline audit",
+        "state": "unresolved",
+        "phase": "propose",
+        "message": "The budget was reached during criterion development",
+        "started_at": "2026-10-16T02:33:44.427Z",
+        "updated_at": "2026-10-16T02:33:44.817Z",
+        "finished_at": "2026-10-16T02:33:44.804Z",
+        "progress": {
+          "completed": 0,
+          "planned": null,
+          "denominator_kind": "unknown"
+        },
+        "budget": {
+          "used_usd": 1.2,
+          "limit_usd": 1.0,
+          "cost_status": "recorded_estimate"
+        },
+        "phases": [
+          {
+            "id": "task",
+            "label": "Understand the task",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:44.447Z",
+            "finished_at": "2026-10-16T02:33:44.495Z"
+          },
+          {
+            "id": "evidence",
+            "label": "Prepare evidence",
+            "state": "completed",
+            "started_at": "2026-10-16T02:33:44.495Z",
+            "finished_at": "2026-10-16T02:33:44.615Z"
+          },
+          {
+            "id": "propose",
+            "label": "Discover criteria",
+            "state": "running",
+            "started_at": "2026-10-16T02:33:44.615Z"
+          },
+          {
+            "id": "refine",
+            "label": "Review and refine",
+            "state": "queued"
+          },
+          {
+            "id": "review",
+            "label": "Resolve decisions",
+            "state": "queued"
+          },
+          {
+            "id": "freeze",
+            "label": "Save evaluation rules",
+            "state": "queued"
+          },
+          {
+            "id": "screen",
+            "label": "Screen candidates",
+            "state": "queued"
+          },
+          {
+            "id": "results",
+            "label": "Publish results",
+            "state": "queued"
+          }
+        ],
+        "questions": [],
+        "run_id": "run_01M518XT9PF5X3SSDP8ZKXV1BY",
+        "snapshot_id": null,
+        "phase_label": "Discover criteria",
+        "active_actor": "proposer",
+        "can_pause": false,
+        "can_resume": false,
+        "can_stop": false
+      },
+      "pin_claim_count": 1,
+      "scripted_model_calls": [
+        {
+          "role": "proposer",
+          "question": "Understand the research objective and required conditions",
+          "required": [
+            "constraints",
+            "mode",
+            "objective",
+            "questions",
+            "targets",
+            "title"
+          ]
+        },
+        {
+          "role": "proposer",
+          "question": "propose pool: target_coverage",
+          "required": [
+            "considered_and_rejected",
+            "proposals"
+          ]
+        }
+      ],
+      "network_allowed": false,
+      "primary_store_opened": false,
+      "registry_counts": {
+        "active_registered_count": 2,
+        "pending_review_count": 1,
+        "scoring_in_latest_frozen_set_count": 0,
+        "historical_registered_count": 2,
+        "retired_latest_count": 0
+      },
+      "public_event_counts": {
+        "agent.finished": 2,
+        "agent.started": 2,
+        "constant.registered": 52,
+        "criterion.change_recorded": 1,
+        "criterion.version_proposed": 4,
+        "evidence.admitted": 2,
+        "human.review_requested": 1,
+        "round.closed": 1,
+        "round.opened": 2,
+        "run.annotated": 2,
+        "run.completed": 1,
+        "run.created": 2,
+        "run.started": 2,
+        "run.unresolved": 1,
+        "stage.closed": 3,
+        "stage.opened": 4,
+        "task.version_recorded": 3
+      }
+    }
+  ],
+  "all_expected_states": true
+}

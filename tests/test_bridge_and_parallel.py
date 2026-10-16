@@ -79,7 +79,8 @@ def test_the_sweep_hands_every_literature_cell_the_configured_read_worker_count(
     monkeypatch.setattr(evidence, "gather", spy)
     with Core.open(tmp_path / "root") as core:
         task_id = setup_task(core)
-        settings = config_mod.resolve(project_file=None, environ={}, overrides={"concurrency.read_workers": 4})
+        settings = config_mod.resolve(project_file=None, environ={}, overrides={"concurrency.read_workers": 4,
+            "evaluation.mode": "full", "qualification.policy": "legacy", "evidence.mode": "retrieve"})
         controller = make_controller(core)
         run_id = controller.start(task_id, by=OPERATOR, sweep_seed=3, settings=settings)
         assert controller.current_state(run_id) == "completed"

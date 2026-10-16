@@ -1,0 +1,2543 @@
+{
+  "status": "found",
+  "matches": [
+    {
+      "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+      "labels": [
+        "Surufatinib"
+      ],
+      "qualification": "qualified",
+      "rank": null,
+      "rank_status": "unranked",
+      "score": 0.8666666666666666,
+      "qualification_record": {
+        "applicable_hard_count": 1,
+        "blocking_hard_rule_refs": [],
+        "failed_hard_rule_refs": [],
+        "hard_blocked": 0,
+        "hard_direct_coverage": 1.0,
+        "hard_failed": 0,
+        "hard_passed": 1,
+        "hard_total": 1,
+        "missing_direct_required_rule_refs": [],
+        "qualified": true,
+        "required_direct_answered": 5,
+        "required_direct_coverage": 1.0,
+        "required_total": 5,
+        "state": "qualified",
+        "verified_hard_count": 1
+      },
+      "state": "recommended",
+      "reason": "qualification: qualified",
+      "preference_coverage": 0.35294117647058826,
+      "hard_evidence_coverage": 1.0,
+      "mandated_coverage": 1.0,
+      "missing": [],
+      "rank_note": "too little preference evidence to rank (coverage 0.35 below 0.50)",
+      "gap_filled_criteria": [],
+      "detail": {
+        "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+        "label": "Surufatinib",
+        "qualification": "qualified",
+        "position": null,
+        "score": 0.8666666666666666,
+        "hard_passed": 1,
+        "hard_total": 1,
+        "preference_coverage": 0.35294117647058826,
+        "evidence_coverage": 1.0,
+        "reason": "qualification: qualified",
+        "state": "recommended",
+        "measured_count": 1,
+        "predicted_count": 1,
+        "mandated_coverage": 1.0,
+        "rank_note": "too little preference evidence to rank (coverage 0.35 below 0.50)",
+        "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+        "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+        "assessments": [
+          {
+            "name": "Documented oral administration",
+            "attribute_ref": "attr_documented-oral-administration@v1",
+            "rule_ref": "rule_documented-oral-administration@v1",
+            "role": "hard_exclusion",
+            "verdict": "pass",
+            "detail_ref": "rule_documented-oral-administration@v1",
+            "value": true,
+            "unit": null,
+            "basis": "derived",
+            "reason": "Documented oral administration = True (3 claim(s)); rule == True → pass.",
+            "evidence": [
+              "claim_01M52N44M8AKY5WC7SJCKFT2RN",
+              "claim_01M52N44MAXNZP1NDWEPZ6B7JT",
+              "claim_01M52N44MCQ8TZ2F6EBTGCZ1Q5"
+            ],
+            "counter_evidence": []
+          },
+          {
+            "name": "Molecular weight (Da)",
+            "attribute_ref": "attr_molecular-weight-da@v1",
+            "rule_ref": "rule_molecular-weight-da@v1",
+            "role": "preference",
+            "verdict": "pass",
+            "detail_ref": "rule_molecular-weight-da@v1",
+            "value": 480.6,
+            "unit": "Da",
+            "basis": "derived",
+            "reason": "Molecular weight (Da) = 480.6 Da (1 claim(s)); rule <= 500 Da → pass.",
+            "evidence": [
+              "claim_01M52N44MX30XQ316ENFZGZXKM"
+            ],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted aqueous solubility (log mol/L)",
+            "attribute_ref": "attr_predicted-aqueous-solubility-log-mol-l@v1",
+            "rule_ref": "rule_predicted-aqueous-solubility-log-mol-l@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-aqueous-solubility-log-mol-l@v1",
+            "value": null,
+            "unit": "log(mol/L)",
+            "basis": "absent",
+            "reason": "Predicted aqueous solubility (log mol/L): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted blood-brain barrier penetration probability (BBB_Martins)",
+            "attribute_ref": "attr_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1",
+            "rule_ref": "rule_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1",
+            "role": "preference",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1",
+            "value": null,
+            "unit": "probability",
+            "basis": "absent",
+            "reason": "Predicted blood-brain barrier penetration probability (BBB_Martins): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted BRENK alert count",
+            "attribute_ref": "attr_predicted-brenk-alert-count@v1",
+            "rule_ref": "rule_predicted-brenk-alert-count@v1",
+            "role": "preference",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-brenk-alert-count@v1",
+            "value": null,
+            "unit": "count",
+            "basis": "absent",
+            "reason": "Predicted BRENK alert count: unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted Caco-2 permeability (ADMET-AI Caco2_Wang, log 10^-6 cm/s)",
+            "attribute_ref": "attr_predicted-caco-2-permeability-admet-ai-caco2-wang-log-10-6-c@v1",
+            "rule_ref": "rule_predicted-caco-2-permeability-admet-ai-caco2-wang-log-10-6-c@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-caco-2-permeability-admet-ai-caco2-wang-log-10-6-c@v1",
+            "value": null,
+            "unit": "log(10^-6 cm/s)",
+            "basis": "absent",
+            "reason": "Predicted Caco-2 permeability (ADMET-AI Caco2_Wang, log 10^-6 cm/s): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted clinical toxicity probability (exploratory)",
+            "attribute_ref": "attr_predicted-clinical-toxicity-probability-exploratory@v1",
+            "rule_ref": "rule_predicted-clinical-toxicity-probability-exploratory@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-clinical-toxicity-probability-exploratory@v1",
+            "value": null,
+            "unit": "probability",
+            "basis": "absent",
+            "reason": "Predicted clinical toxicity probability (exploratory): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted CYP1A2 inhibition probability",
+            "attribute_ref": "attr_predicted-cyp1a2-inhibition-probability@v1",
+            "rule_ref": "rule_predicted-cyp1a2-inhibition-probability@v1",
+            "role": "preference",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-cyp1a2-inhibition-probability@v1",
+            "value": null,
+            "unit": "probability",
+            "basis": "absent",
+            "reason": "Predicted CYP1A2 inhibition probability: unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted CYP2C19 inhibition probability",
+            "attribute_ref": "attr_predicted-cyp2c19-inhibition-probability@v1",
+            "rule_ref": "rule_predicted-cyp2c19-inhibition-probability@v1",
+            "role": "preference",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-cyp2c19-inhibition-probability@v1",
+            "value": null,
+            "unit": "probability",
+            "basis": "absent",
+            "reason": "Predicted CYP2C19 inhibition probability: unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted CYP2C9 inhibition probability",
+            "attribute_ref": "attr_predicted-cyp2c9-inhibition-probability@v1",
+            "rule_ref": "rule_predicted-cyp2c9-inhibition-probability@v1",
+            "role": "preference",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-cyp2c9-inhibition-probability@v1",
+            "value": null,
+            "unit": "probability",
+            "basis": "absent",
+            "reason": "Predicted CYP2C9 inhibition probability: unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted CYP2C9 substrate probability",
+            "attribute_ref": "attr_predicted-cyp2c9-substrate-probability@v1",
+            "rule_ref": "rule_predicted-cyp2c9-substrate-probability@v1",
+            "role": "preference",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-cyp2c9-substrate-probability@v1",
+            "value": null,
+            "unit": "probability",
+            "basis": "absent",
+            "reason": "Predicted CYP2C9 substrate probability: unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted CYP3A4 inhibition probability (exploratory)",
+            "attribute_ref": "attr_predicted-cyp3a4-inhibition-probability-exploratory@v1",
+            "rule_ref": "rule_predicted-cyp3a4-inhibition-probability-exploratory@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-cyp3a4-inhibition-probability-exploratory@v1",
+            "value": null,
+            "unit": "probability",
+            "basis": "absent",
+            "reason": "Predicted CYP3A4 inhibition probability (exploratory): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted CYP3A4 substrate probability (exploratory)",
+            "attribute_ref": "attr_predicted-cyp3a4-substrate-probability-exploratory@v1",
+            "rule_ref": "rule_predicted-cyp3a4-substrate-probability-exploratory@v1",
+            "role": "exploratory_consideration",
+            "verdict": "available",
+            "detail_ref": "rule_predicted-cyp3a4-substrate-probability-exploratory@v1",
+            "value": 0.7212275266647339,
+            "unit": "probability",
+            "basis": "predicted",
+            "reason": "Predicted CYP3A4 substrate probability (exploratory) = 0.721228 probability (1 claim(s)); recorded observation available, with no comparison and no preference score.",
+            "evidence": [
+              "claim_01M52N44QH92ZTEHF0B016DB4X"
+            ],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted drug-induced liver injury (DILI) probability (exploratory)",
+            "attribute_ref": "attr_predicted-drug-induced-liver-injury-dili-probability-explora@v1",
+            "rule_ref": "rule_predicted-drug-induced-liver-injury-dili-probability-explora@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-drug-induced-liver-injury-dili-probability-explora@v1",
+            "value": null,
+            "unit": "probability",
+            "basis": "absent",
+            "reason": "Predicted drug-induced liver injury (DILI) probability (exploratory): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted hERG blocking probability (exploratory)",
+            "attribute_ref": "attr_predicted-herg-blocking-probability-exploratory@v1",
+            "rule_ref": "rule_predicted-herg-blocking-probability-exploratory@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-herg-blocking-probability-exploratory@v1",
+            "value": null,
+            "unit": "probability",
+            "basis": "absent",
+            "reason": "Predicted hERG blocking probability (exploratory): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted human hepatocyte intrinsic clearance (exploratory)",
+            "attribute_ref": "attr_predicted-human-hepatocyte-intrinsic-clearance-exploratory@v1",
+            "rule_ref": "rule_predicted-human-hepatocyte-intrinsic-clearance-exploratory@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-human-hepatocyte-intrinsic-clearance-exploratory@v1",
+            "value": null,
+            "unit": "uL/min/10^6 cells",
+            "basis": "absent",
+            "reason": "Predicted human hepatocyte intrinsic clearance (exploratory): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted logP (RDKit)",
+            "attribute_ref": "attr_predicted-logp-rdkit@v1",
+            "rule_ref": "rule_predicted-logp-rdkit@v1",
+            "role": "preference",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-logp-rdkit@v1",
+            "value": null,
+            "unit": "log units",
+            "basis": "absent",
+            "reason": "Predicted logP (RDKit): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted microsomal intrinsic clearance (exploratory)",
+            "attribute_ref": "attr_predicted-microsomal-intrinsic-clearance-exploratory@v1",
+            "rule_ref": "rule_predicted-microsomal-intrinsic-clearance-exploratory@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-microsomal-intrinsic-clearance-exploratory@v1",
+            "value": null,
+            "unit": "uL/min/mg",
+            "basis": "absent",
+            "reason": "Predicted microsomal intrinsic clearance (exploratory): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted NIH alert count",
+            "attribute_ref": "attr_predicted-nih-alert-count@v1",
+            "rule_ref": "rule_predicted-nih-alert-count@v1",
+            "role": "preference",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-nih-alert-count@v1",
+            "value": null,
+            "unit": "count",
+            "basis": "absent",
+            "reason": "Predicted NIH alert count: unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted PAINS alert count",
+            "attribute_ref": "attr_predicted-pains-alert-count@v1",
+            "rule_ref": "rule_predicted-pains-alert-count@v1",
+            "role": "preference",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-pains-alert-count@v1",
+            "value": null,
+            "unit": "count",
+            "basis": "absent",
+            "reason": "Predicted PAINS alert count: unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted plasma protein binding rate (ADMET-AI PPBR_AZ, %)",
+            "attribute_ref": "attr_predicted-plasma-protein-binding-rate-admet-ai-ppbr-az@v1",
+            "rule_ref": "rule_predicted-plasma-protein-binding-rate-admet-ai-ppbr-az@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-plasma-protein-binding-rate-admet-ai-ppbr-az@v1",
+            "value": null,
+            "unit": "%",
+            "basis": "absent",
+            "reason": "Predicted plasma protein binding rate (ADMET-AI PPBR_AZ, %): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted skin reaction probability (exploratory)",
+            "attribute_ref": "attr_predicted-skin-reaction-probability-exploratory@v1",
+            "rule_ref": "rule_predicted-skin-reaction-probability-exploratory@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-skin-reaction-probability-exploratory@v1",
+            "value": null,
+            "unit": "probability",
+            "basis": "absent",
+            "reason": "Predicted skin reaction probability (exploratory): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Predicted volume of distribution at steady state",
+            "attribute_ref": "attr_predicted-volume-of-distribution-at-steady-state@v1",
+            "rule_ref": "rule_predicted-volume-of-distribution-at-steady-state@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_predicted-volume-of-distribution-at-steady-state@v1",
+            "value": null,
+            "unit": "L/kg",
+            "basis": "absent",
+            "reason": "Predicted volume of distribution at steady state: unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "CSF1R curated potency",
+            "attribute_ref": "attr_csf1r-curated-potency@v1",
+            "rule_ref": "rule_csf1r-curated-potency@v1",
+            "role": "preference",
+            "verdict": "available",
+            "detail_ref": "rule_csf1r-curated-potency@v1",
+            "value": 8.301029995663981,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "reason": "CSF1R curated potency = 8.30103 pChEMBL (1 claim(s)); recorded for ordering (higher_better), no cutoff.",
+            "evidence": [
+              "claim_supp_9a0d01fa20d940b85f4c2ae7"
+            ],
+            "counter_evidence": []
+          },
+          {
+            "name": "FGFR1 curated potency",
+            "attribute_ref": "attr_fgfr1-curated-potency@v1",
+            "rule_ref": "rule_fgfr1-curated-potency@v1",
+            "role": "preference",
+            "verdict": "available",
+            "detail_ref": "rule_fgfr1-curated-potency@v1",
+            "value": 7.6442605414788725,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "reason": "FGFR1 curated potency = 7.64426 pChEMBL (4 claim(s)); recorded for ordering (higher_better), no cutoff.",
+            "evidence": [
+              "claim_supp_12e86db8334ec3a75b6213d3",
+              "claim_01M52N44VDH5XEKC6RCY822DDQ",
+              "claim_01M52N44VF1SQ3CFY9BFPE078B",
+              "claim_01M52N44VJ3TF6R02DRX7XGA7V"
+            ],
+            "counter_evidence": []
+          },
+          {
+            "name": "Food effect on AUC (fold-change)",
+            "attribute_ref": "attr_food-effect-on-auc-fold-change@v1",
+            "rule_ref": "rule_food-effect-on-auc-fold-change@v1",
+            "role": "exploratory_consideration",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_food-effect-on-auc-fold-change@v1",
+            "value": null,
+            "unit": "fold",
+            "basis": "absent",
+            "reason": "Food effect on AUC (fold-change): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Oral bioavailability (human, measured F%)",
+            "attribute_ref": "attr_oral-bioavailability-human-measured-f@v1",
+            "rule_ref": "rule_oral-bioavailability-human-measured-f@v1",
+            "role": "preference",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_oral-bioavailability-human-measured-f@v1",
+            "value": null,
+            "unit": "%",
+            "basis": "absent",
+            "reason": "Oral bioavailability (human, measured F%): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "Time to maximum plasma concentration (Tmax, median of reported values)",
+            "attribute_ref": "attr_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1",
+            "rule_ref": "rule_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1",
+            "role": "preference",
+            "verdict": "unknown_missing",
+            "detail_ref": "rule_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1",
+            "value": null,
+            "unit": "h",
+            "basis": "absent",
+            "reason": "Time to maximum plasma concentration (Tmax, median of reported values): unknown — no admitted claim from an accepted source; this is not a failure.",
+            "evidence": [],
+            "counter_evidence": []
+          },
+          {
+            "name": "VEGFR1 curated potency",
+            "attribute_ref": "attr_vegfr1-curated-potency@v1",
+            "rule_ref": "rule_vegfr1-curated-potency@v1",
+            "role": "preference",
+            "verdict": "available",
+            "detail_ref": "rule_vegfr1-curated-potency@v1",
+            "value": 8.85,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "reason": "VEGFR1 curated potency = 8.85 pChEMBL (2 claim(s)); recorded for ordering (higher_better), no cutoff.",
+            "evidence": [
+              "claim_01M52N44WGKMX8TSG4CRZ3SQE9",
+              "claim_01M52N44WJ9N25ZBA20324TE6W"
+            ],
+            "counter_evidence": []
+          },
+          {
+            "name": "VEGFR2 curated potency",
+            "attribute_ref": "attr_vegfr2-curated-potency@v1",
+            "rule_ref": "rule_vegfr2-curated-potency@v1",
+            "role": "preference",
+            "verdict": "available",
+            "detail_ref": "rule_vegfr2-curated-potency@v1",
+            "value": 7.679999828338623,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "reason": "VEGFR2 curated potency = 7.68 pChEMBL (3 claim(s)); recorded for ordering (higher_better), no cutoff.",
+            "evidence": [
+              "claim_01M52N44WVXM95EY9EYSNZKCPT",
+              "claim_01M52N44WXBBSZXBGCVPT431XB",
+              "claim_01M52N44X1KQZ6XSPN479JW1MC"
+            ],
+            "counter_evidence": []
+          },
+          {
+            "name": "VEGFR3 curated potency",
+            "attribute_ref": "attr_vegfr3-curated-potency@v1",
+            "rule_ref": "rule_vegfr3-curated-potency@v1",
+            "role": "preference",
+            "verdict": "available",
+            "detail_ref": "rule_vegfr3-curated-potency@v1",
+            "value": 9.0,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "reason": "VEGFR3 curated potency = 9 pChEMBL (2 claim(s)); recorded for ordering (higher_better), no cutoff.",
+            "evidence": [
+              "claim_01M52N44XBYA2WPTZB0XW4WAGK",
+              "claim_01M52N44XD2RP0HG9G11QW9DF1"
+            ],
+            "counter_evidence": []
+          }
+        ],
+        "evidence": [
+          {
+            "claim_id": "claim_01M52N44M8AKY5WC7SJCKFT2RN",
+            "source_id": "src_doi_10.1080/07853890.2026.2698360",
+            "source_ref": "src_doi_10.1080/07853890.2026.2698360",
+            "title": "Randomized phase-II trial of surufatinib plus FOLFOX/FOLFIRI versus FOLFOXIRI as second-line therapy for metastatic colorectal cancer.",
+            "quote": "In both cohorts, surufatinib was administered orally at 250 mg once daily.",
+            "locator": "sec2.3.p1",
+            "url": "https://doi.org/10.1080/07853890.2026.2698360",
+            "statement": "A human clinical record documents oral administration of SURUFATINIB.",
+            "basis": "derived",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "attribute_ref": "attr_documented-oral-administration@v1",
+            "value": true,
+            "unit": null,
+            "admission_state": "admitted",
+            "record_available": true,
+            "context": {
+              "population": "patients with metastatic colorectal cancer (phase II SYLT-020)",
+              "assay": null,
+              "conditions": null,
+              "units": null,
+              "limitations": [
+                "Applicability to this task has not been established by this claim's scope record."
+              ],
+              "entities": [],
+              "evidence_kind": "peer_reviewed",
+              "reading_depth": "full_text",
+              "verification_status": "unverified"
+            },
+            "summary": {
+              "text": "A human clinical record documents oral administration of SURUFATINIB.",
+              "method": "recorded_fact_projection",
+              "derived": true,
+              "claim_refs": [
+                "claim_01M52N44M8AKY5WC7SJCKFT2RN"
+              ]
+            },
+            "value_low": null,
+            "value_high": null,
+            "document_artifact_id": null,
+            "claim_artifact_id": "art_1ec85f3587d7",
+            "location": {
+              "location_kind": "paragraph",
+              "locator_value": "sec2.3.p1",
+              "quoted_span": "In both cohorts, surufatinib was administered orally at 250 mg once daily.",
+              "section_path": [
+                "Patients and methods",
+                "Treatments"
+              ],
+              "span_checked_against_source": true
+            },
+            "projection_version": 1,
+            "source_fact_hash": "65bf7c7491182a95f68a609349a2dbd3445e9244651269d65e9d39034e478221",
+            "source_context_hash": "ea6221dab83445a0394b0c96583f98c7bfb8fad558b9baa3a72225d9267a3e8d",
+            "source": {
+              "source_id": "src_doi_10.1080/07853890.2026.2698360",
+              "title": "Randomized phase-II trial of surufatinib plus FOLFOX/FOLFIRI versus FOLFOXIRI as second-line therapy for metastatic colorectal cancer.",
+              "url": "https://doi.org/10.1080/07853890.2026.2698360",
+              "locator": "sec2.3.p1",
+              "excerpt": "In both cohorts, surufatinib was administered orally at 250 mg once daily.",
+              "section_path": [
+                "Patients and methods",
+                "Treatments"
+              ],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_documented-oral-administration@v1",
+                  "name": "Documented oral administration",
+                  "attribute_ref": "attr_documented-oral-administration@v1",
+                  "rule_ref": "rule_documented-oral-administration@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44M8AKY5WC7SJCKFT2RN"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44M8AKY5WC7SJCKFT2RN"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_documented-oral-administration@v1",
+            "basis": "derived",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_5e658326fd59",
+            "claim_id": "claim_01M52N44MAXNZP1NDWEPZ6B7JT",
+            "context": {
+              "assay": null,
+              "conditions": null,
+              "entities": [],
+              "evidence_kind": "peer_reviewed",
+              "limitations": [
+                "Applicability to this task has not been established by this claim's scope record."
+              ],
+              "population": "US patients with pNET and epNET",
+              "reading_depth": "full_text",
+              "units": null,
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "abstract",
+              "locator_value": "abstract.p1",
+              "quoted_span": "Pharmacokinetics, safety, and antitumor efficacy of 300 mg QD oral surufatinib in US patients with pNETs and epNETs are consistent with previously reported studies in China and may support applicability of earlier surufatinib studies in US patients",
+              "section_path": [
+                "Abstract"
+              ],
+              "span_checked_against_source": true
+            },
+            "locator": "abstract.p1",
+            "projection_version": 1,
+            "quote": "Pharmacokinetics, safety, and antitumor efficacy of 300 mg QD oral surufatinib in US patients with pNETs and epNETs are consistent with previously reported studies in China and may support applicability of earlier surufatinib studies in US patients",
+            "record_available": true,
+            "source_context_hash": "9cdec5274cebd67842bd23d1844e39da4624db5c07ed290a21e245b5d307da60",
+            "source_fact_hash": "4bb29b0936ef5401e4ac1cfd2c3551bfbe78d6861fc9f0602ae8fa6495de772a",
+            "source_id": "src_pmid_37074571",
+            "source_ref": "src_pmid_37074571",
+            "statement": "A human clinical record documents oral administration of SURUFATINIB.",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44MAXNZP1NDWEPZ6B7JT"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "A human clinical record documents oral administration of SURUFATINIB."
+            },
+            "title": "A dose escalation/expansion study evaluating dose, safety, and efficacy of the novel tyrosine kinase inhibitor surufatinib, which inhibits VEGFR 1, 2, & 3, FGFR 1, and CSF1R, in US patients with neuroendocrine tumors.",
+            "unit": null,
+            "url": "https://pubmed.ncbi.nlm.nih.gov/37074571/",
+            "value": true,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_pmid_37074571",
+              "title": "A dose escalation/expansion study evaluating dose, safety, and efficacy of the novel tyrosine kinase inhibitor surufatinib, which inhibits VEGFR 1, 2, & 3, FGFR 1, and CSF1R, in US patients with neuroendocrine tumors.",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/37074571/",
+              "locator": "abstract.p1",
+              "excerpt": "Pharmacokinetics, safety, and antitumor efficacy of 300 mg QD oral surufatinib in US patients with pNETs and epNETs are consistent with previously reported studies in China and may support applicability of earlier surufatinib studies in US patients",
+              "section_path": [
+                "Abstract"
+              ],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_documented-oral-administration@v1",
+                  "name": "Documented oral administration",
+                  "attribute_ref": "attr_documented-oral-administration@v1",
+                  "rule_ref": "rule_documented-oral-administration@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44MAXNZP1NDWEPZ6B7JT"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44MAXNZP1NDWEPZ6B7JT"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_documented-oral-administration@v1",
+            "basis": "derived",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_e5758f194e88",
+            "claim_id": "claim_01M52N44MCQ8TZ2F6EBTGCZ1Q5",
+            "context": {
+              "assay": null,
+              "conditions": null,
+              "entities": [],
+              "evidence_kind": "peer_reviewed",
+              "limitations": [
+                "Applicability to this task has not been established by this claim's scope record."
+              ],
+              "population": "one 53-year-old woman with recurrent ovarian clear cell carcinoma (case report within ChiCTR2400083672)",
+              "reading_depth": "full_text",
+              "units": null,
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "paragraph",
+              "locator_value": "sec2.p4",
+              "quoted_span": "she enrolled in an investigator-initiated Phase II clinical trial, with the treatment of surufatinib (250 mg QD PO) in combination with toripalimab (240 mg Q3W IV)",
+              "section_path": [
+                "Case presentation"
+              ],
+              "span_checked_against_source": true
+            },
+            "locator": "sec2.p4",
+            "projection_version": 1,
+            "quote": "she enrolled in an investigator-initiated Phase II clinical trial, with the treatment of surufatinib (250 mg QD PO) in combination with toripalimab (240 mg Q3W IV)",
+            "record_available": true,
+            "source_context_hash": "2adb620012a133d8f83827e2f5c1deea8aed3d79c3d1b10ddf090b677d791be6",
+            "source_fact_hash": "e6c0c919671d1f9faf3c9cba51f17ce57837ba184446c863291c9ef7c6bcabc0",
+            "source_id": "src_doi_10.1186/s12905-026-04424-z",
+            "source_ref": "src_doi_10.1186/s12905-026-04424-z",
+            "statement": "A human clinical record documents oral administration of SURUFATINIB.",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44MCQ8TZ2F6EBTGCZ1Q5"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "A human clinical record documents oral administration of SURUFATINIB."
+            },
+            "title": "Twenty-four months progression-free survival (ongoing) for treatment of recurrent ovarian clear cell carcinoma with surufatinib in combination with toripalimab: a case report.",
+            "unit": null,
+            "url": "https://doi.org/10.1186/s12905-026-04424-z",
+            "value": true,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_doi_10.1186/s12905-026-04424-z",
+              "title": "Twenty-four months progression-free survival (ongoing) for treatment of recurrent ovarian clear cell carcinoma with surufatinib in combination with toripalimab: a case report.",
+              "url": "https://doi.org/10.1186/s12905-026-04424-z",
+              "locator": "sec2.p4",
+              "excerpt": "she enrolled in an investigator-initiated Phase II clinical trial, with the treatment of surufatinib (250 mg QD PO) in combination with toripalimab (240 mg Q3W IV)",
+              "section_path": [
+                "Case presentation"
+              ],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_documented-oral-administration@v1",
+                  "name": "Documented oral administration",
+                  "attribute_ref": "attr_documented-oral-administration@v1",
+                  "rule_ref": "rule_documented-oral-administration@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44MCQ8TZ2F6EBTGCZ1Q5"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44MCQ8TZ2F6EBTGCZ1Q5"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_molecular-weight-da@v1",
+            "basis": "derived",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_65bf827b225a",
+            "claim_id": "claim_01M52N44MX30XQ316ENFZGZXKM",
+            "context": {
+              "assay": null,
+              "conditions": null,
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "database_entry",
+              "limitations": [
+                "The population or experimental system was not recorded in this claim."
+              ],
+              "population": null,
+              "reading_depth": "not_read",
+              "units": "g/mol",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "pubchem_cid_52920501#MolecularWeight",
+              "quoted_span": "480.6",
+              "span_checked_against_source": true
+            },
+            "locator": "pubchem_cid_52920501#MolecularWeight",
+            "projection_version": 1,
+            "quote": "480.6",
+            "record_available": true,
+            "source_context_hash": "69f96d3fce9da7f77e3841ddec19a84cd1f06d1a1184f75673a112ec96919ce9",
+            "source_fact_hash": "45086f93928e177ce3dc4a7a369f5ada600dd1edcf2b5ea7d1752e342cf9f2c0",
+            "source_id": "src_db_tool_drug_pubchem_property_pubchem_cid_52920501",
+            "source_ref": "src_db_tool_drug_pubchem_property_pubchem_cid_52920501",
+            "statement": "MolecularWeight = 480.6 g/mol",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44MX30XQ316ENFZGZXKM"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "MolecularWeight = 480.6 g/mol"
+            },
+            "title": "tool_drug_pubchem_property record pubchem_cid_52920501",
+            "unit": "g/mol",
+            "url": null,
+            "value": 480.6,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_drug_pubchem_property_pubchem_cid_52920501",
+              "title": "tool_drug_pubchem_property record pubchem_cid_52920501",
+              "url": null,
+              "locator": "pubchem_cid_52920501#MolecularWeight",
+              "excerpt": "480.6",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_molecular-weight-da@v1",
+                  "name": "Molecular weight (Da)",
+                  "attribute_ref": "attr_molecular-weight-da@v1",
+                  "rule_ref": "rule_molecular-weight-da@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44MX30XQ316ENFZGZXKM"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44MX30XQ316ENFZGZXKM"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_predicted-cyp3a4-substrate-probability-exploratory@v1",
+            "basis": "predicted",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_03f3fe0c825e",
+            "claim_id": "claim_01M52N44QH92ZTEHF0B016DB4X",
+            "context": {
+              "assay": null,
+              "conditions": "canonical_smiles: Cc1cc2cc(Oc3ccnc(Nc4cccc(CS(=O)(=O)NCCN(C)C)c4)n3)ccc2[nH]1; decision_boundary: 0.5; device: cpu; drugbank_approved_percentile: 83.79613356766258; endpoint: CYP3A4_Substrate_CarbonMangels; endpoint_category: Metabolism; endpoint_name: CYP3A4 Substrate; holdout_metric: auprc: 0.7272; auroc: 0.7048; model: Chemprop-RDKit ensemble over the TDC dataset of the same id; model_ensembles: 2; panel_version: admet-ai-2-panel-1; predictor_package: admet-ai; predictor_version: 2.0.1; reference: https://tdcommons.ai/single_pred_tasks/adme/#cyp3a4-substrate-carbon-mangels-et-al; smiles_sha256: d669e617030bdf828032917859c2cfd08d893a275c7eed2d05f3e9fc19ed8761; species: human; task_type: classification; training_dataset: CYP3A4_Substrate_CarbonMangels; training_rows: 667; unit: probability; unit_as_package_reports_it: -",
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "model_prediction",
+              "limitations": [
+                "This is a model prediction, not a directly observed outcome."
+              ],
+              "population": "human",
+              "reading_depth": "not_read",
+              "units": "probability",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "admet_ai_CYP3A4_Substrate_CarbonMangels_d669e617030bdf82#CYP3A4_Substrate_CarbonMangels",
+              "quoted_span": "0.7212275266647339",
+              "span_checked_against_source": true
+            },
+            "locator": "admet_ai_CYP3A4_Substrate_CarbonMangels_d669e617030bdf82#CYP3A4_Substrate_CarbonMangels",
+            "projection_version": 1,
+            "quote": "0.7212275266647339",
+            "record_available": true,
+            "source_context_hash": "6b5e4f44845e8fd26694da75ec02e7ae3df4ee6e4c21d4f453b9122506b565b7",
+            "source_fact_hash": "4a2640584682be5f03b3475f43278f28d2e71472763f65a36ec66d0b7fc3a087",
+            "source_id": "src_db_tool_predict_admet_panel_admet_ai_CYP3A4_Substrate_CarbonMangels_d669e617030bdf82",
+            "source_ref": "src_db_tool_predict_admet_panel_admet_ai_CYP3A4_Substrate_CarbonMangels_d669e617030bdf82",
+            "statement": "CYP3A4_Substrate_CarbonMangels = 0.7212275266647339 probability",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44QH92ZTEHF0B016DB4X"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "CYP3A4_Substrate_CarbonMangels = 0.7212275266647339 probability"
+            },
+            "title": "tool_predict_admet_panel record admet_ai_CYP3A4_Substrate_CarbonMangels_d669e617030bdf82",
+            "unit": "probability",
+            "url": null,
+            "value": 0.7212275266647339,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_predict_admet_panel_admet_ai_CYP3A4_Substrate_CarbonMangels_d669e617030bdf82",
+              "title": "tool_predict_admet_panel record admet_ai_CYP3A4_Substrate_CarbonMangels_d669e617030bdf82",
+              "url": null,
+              "locator": "admet_ai_CYP3A4_Substrate_CarbonMangels_d669e617030bdf82#CYP3A4_Substrate_CarbonMangels",
+              "excerpt": "0.7212275266647339",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_predicted-cyp3a4-substrate-probability-exploratory@v1",
+                  "name": "Predicted CYP3A4 substrate probability (exploratory)",
+                  "attribute_ref": "attr_predicted-cyp3a4-substrate-probability-exploratory@v1",
+                  "rule_ref": "rule_predicted-cyp3a4-substrate-probability-exploratory@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44QH92ZTEHF0B016DB4X"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44QH92ZTEHF0B016DB4X"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_fgfr1-curated-potency@v1",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_ec12c305f48e",
+            "claim_id": "claim_01M52N44VDH5XEKC6RCY822DDQ",
+            "context": {
+              "assay": "B",
+              "conditions": "assay_chembl_id: CHEMBL5620454; assay_type: B; document_chembl_id: CHEMBL5620341; molecule_chembl_id: CHEMBL4297190; parent_molecule_chembl_id: CHEMBL4297190; standard_type: IC50; standard_units: nM; standard_value: 15.0; target_organism: Homo sapiens",
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "curated_measurement",
+              "limitations": [
+                "The population or experimental system was not recorded in this claim."
+              ],
+              "population": null,
+              "reading_depth": "not_read",
+              "units": "pChEMBL",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "chembl_activity_26132415#pchembl_value",
+              "quoted_span": "7.82",
+              "span_checked_against_source": true
+            },
+            "locator": "chembl_activity_26132415#pchembl_value",
+            "projection_version": 1,
+            "quote": "7.82",
+            "record_available": true,
+            "source_context_hash": "c75f32475370f3fdf2cde3f288b85065db43b91c9e137167bb108dad2807c5be",
+            "source_fact_hash": "968f7bdce8b00f5b970c6cf2225bea61059f60c66eb81e12e764a2db4f013b14",
+            "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132415",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132415",
+            "statement": "pchembl_value = 7.82 pChEMBL",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44VDH5XEKC6RCY822DDQ"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "pchembl_value = 7.82 pChEMBL"
+            },
+            "title": "tool_drug_chembl_bioactivity record chembl_activity_26132415",
+            "unit": "pChEMBL",
+            "url": null,
+            "value": 7.82,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132415",
+              "title": "tool_drug_chembl_bioactivity record chembl_activity_26132415",
+              "url": null,
+              "locator": "chembl_activity_26132415#pchembl_value",
+              "excerpt": "7.82",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_fgfr1-curated-potency@v1",
+                  "name": "FGFR1 curated potency",
+                  "attribute_ref": "attr_fgfr1-curated-potency@v1",
+                  "rule_ref": "rule_fgfr1-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44VDH5XEKC6RCY822DDQ"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44VDH5XEKC6RCY822DDQ"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_fgfr1-curated-potency@v1",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_4efb72323187",
+            "claim_id": "claim_01M52N44VF1SQ3CFY9BFPE078B",
+            "context": {
+              "assay": "B",
+              "conditions": "assay_chembl_id: CHEMBL5635787; assay_type: B; document_chembl_id: CHEMBL5634108; molecule_chembl_id: CHEMBL4297190; parent_molecule_chembl_id: CHEMBL4297190; standard_type: IC50; standard_units: nM; standard_value: 15.0; target_organism: Homo sapiens",
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "curated_measurement",
+              "limitations": [
+                "The population or experimental system was not recorded in this claim."
+              ],
+              "population": null,
+              "reading_depth": "not_read",
+              "units": "pChEMBL",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "chembl_activity_26187720#pchembl_value",
+              "quoted_span": "7.82",
+              "span_checked_against_source": true
+            },
+            "locator": "chembl_activity_26187720#pchembl_value",
+            "projection_version": 1,
+            "quote": "7.82",
+            "record_available": true,
+            "source_context_hash": "472d7dc9cdcebc41fc07e96bd5b61ca5bfd316284b81ec3b25b4833b272ca6a1",
+            "source_fact_hash": "e58a7a7828246ba0ee6f17851cd3f1ccd4bab65b416cc7f83276b03a67d0277a",
+            "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187720",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187720",
+            "statement": "pchembl_value = 7.82 pChEMBL",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44VF1SQ3CFY9BFPE078B"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "pchembl_value = 7.82 pChEMBL"
+            },
+            "title": "tool_drug_chembl_bioactivity record chembl_activity_26187720",
+            "unit": "pChEMBL",
+            "url": null,
+            "value": 7.82,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187720",
+              "title": "tool_drug_chembl_bioactivity record chembl_activity_26187720",
+              "url": null,
+              "locator": "chembl_activity_26187720#pchembl_value",
+              "excerpt": "7.82",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_fgfr1-curated-potency@v1",
+                  "name": "FGFR1 curated potency",
+                  "attribute_ref": "attr_fgfr1-curated-potency@v1",
+                  "rule_ref": "rule_fgfr1-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44VF1SQ3CFY9BFPE078B"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44VF1SQ3CFY9BFPE078B"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_fgfr1-curated-potency@v1",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_464f95229a9b",
+            "claim_id": "claim_01M52N44VJ3TF6R02DRX7XGA7V",
+            "context": {
+              "assay": null,
+              "conditions": "action: Inhibition; affinity_type: pIC50; assay_description: Using a Transcreener FP technology assay.; gtopdb_ligand_id: 9769; gtopdb_version: GtoPdb Version: 2026.3.1 - published: 2026-10-12; primary_target: false; selectivity: Not Determined; target_uniprot: P11362; type: Inhibitor",
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "curated_measurement",
+              "limitations": [
+                "The population or experimental system was not recorded in this claim.",
+                "An assay description was not recorded in this claim."
+              ],
+              "population": null,
+              "reading_depth": "not_read",
+              "units": "pChEMBL",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "gtopdb_interaction_9769_P11362_nopmid#affinity",
+              "quoted_span": "7.28000020980835",
+              "span_checked_against_source": true
+            },
+            "locator": "gtopdb_interaction_9769_P11362_nopmid#affinity",
+            "projection_version": 1,
+            "quote": "7.28000020980835",
+            "record_available": true,
+            "source_context_hash": "95d2185f2c77250d612b4da7dfd37b228bb6e8f1721b3efe128869d9ee9fbfab",
+            "source_fact_hash": "29fb87aef3160ddf24e2598bfa7b94ef0ac0b84fbefd751d873120582c621686",
+            "source_id": "src_db_tool_drug_gtopdb_affinity_gtopdb_interaction_9769_P11362_nopmid",
+            "source_ref": "src_db_tool_drug_gtopdb_affinity_gtopdb_interaction_9769_P11362_nopmid",
+            "statement": "affinity = 7.28000020980835 pChEMBL",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44VJ3TF6R02DRX7XGA7V"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "affinity = 7.28000020980835 pChEMBL"
+            },
+            "title": "tool_drug_gtopdb_affinity record gtopdb_interaction_9769_P11362_nopmid",
+            "unit": "pChEMBL",
+            "url": null,
+            "value": 7.28000020980835,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_drug_gtopdb_affinity_gtopdb_interaction_9769_P11362_nopmid",
+              "title": "tool_drug_gtopdb_affinity record gtopdb_interaction_9769_P11362_nopmid",
+              "url": null,
+              "locator": "gtopdb_interaction_9769_P11362_nopmid#affinity",
+              "excerpt": "7.28000020980835",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_fgfr1-curated-potency@v1",
+                  "name": "FGFR1 curated potency",
+                  "attribute_ref": "attr_fgfr1-curated-potency@v1",
+                  "rule_ref": "rule_fgfr1-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44VJ3TF6R02DRX7XGA7V"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44VJ3TF6R02DRX7XGA7V"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_vegfr1-curated-potency@v1",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_7757ba594e5e",
+            "claim_id": "claim_01M52N44WGKMX8TSG4CRZ3SQE9",
+            "context": {
+              "assay": "B",
+              "conditions": "assay_chembl_id: CHEMBL5620449; assay_type: B; document_chembl_id: CHEMBL5620341; molecule_chembl_id: CHEMBL4297190; parent_molecule_chembl_id: CHEMBL4297190; standard_type: IC50; standard_units: nM; standard_value: 1.0; target_organism: Homo sapiens",
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "curated_measurement",
+              "limitations": [
+                "The population or experimental system was not recorded in this claim."
+              ],
+              "population": null,
+              "reading_depth": "not_read",
+              "units": "pChEMBL",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "chembl_activity_26132410#pchembl_value",
+              "quoted_span": "9.0",
+              "span_checked_against_source": true
+            },
+            "locator": "chembl_activity_26132410#pchembl_value",
+            "projection_version": 1,
+            "quote": "9.0",
+            "record_available": true,
+            "source_context_hash": "5182e82061370c4d4d841fe72daf36922128fff063662c056b1bf8b74de22649",
+            "source_fact_hash": "43e26fc1d62333b950a8f365c83edc2f789c6664f6f00be5db957f26825c5e6b",
+            "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132410",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132410",
+            "statement": "pchembl_value = 9.0 pChEMBL",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44WGKMX8TSG4CRZ3SQE9"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "pchembl_value = 9.0 pChEMBL"
+            },
+            "title": "tool_drug_chembl_bioactivity record chembl_activity_26132410",
+            "unit": "pChEMBL",
+            "url": null,
+            "value": 9.0,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132410",
+              "title": "tool_drug_chembl_bioactivity record chembl_activity_26132410",
+              "url": null,
+              "locator": "chembl_activity_26132410#pchembl_value",
+              "excerpt": "9.0",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_vegfr1-curated-potency@v1",
+                  "name": "VEGFR1 curated potency",
+                  "attribute_ref": "attr_vegfr1-curated-potency@v1",
+                  "rule_ref": "rule_vegfr1-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44WGKMX8TSG4CRZ3SQE9"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44WGKMX8TSG4CRZ3SQE9"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_vegfr1-curated-potency@v1",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_4d6c7b5dab15",
+            "claim_id": "claim_01M52N44WJ9N25ZBA20324TE6W",
+            "context": {
+              "assay": "B",
+              "conditions": "assay_chembl_id: CHEMBL5635784; assay_type: B; document_chembl_id: CHEMBL5634108; molecule_chembl_id: CHEMBL4297190; parent_molecule_chembl_id: CHEMBL4297190; standard_type: IC50; standard_units: nM; standard_value: 2.0; target_organism: Homo sapiens",
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "curated_measurement",
+              "limitations": [
+                "The population or experimental system was not recorded in this claim."
+              ],
+              "population": null,
+              "reading_depth": "not_read",
+              "units": "pChEMBL",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "chembl_activity_26187716#pchembl_value",
+              "quoted_span": "8.7",
+              "span_checked_against_source": true
+            },
+            "locator": "chembl_activity_26187716#pchembl_value",
+            "projection_version": 1,
+            "quote": "8.7",
+            "record_available": true,
+            "source_context_hash": "1915b06df30e140f81ab012a41fecb25e1f641889028afc648e526f8444c46fd",
+            "source_fact_hash": "fafe108104f68065a2a465d2a90fc32d7c44d0bf9b05882369b388872f71d296",
+            "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187716",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187716",
+            "statement": "pchembl_value = 8.7 pChEMBL",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44WJ9N25ZBA20324TE6W"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "pchembl_value = 8.7 pChEMBL"
+            },
+            "title": "tool_drug_chembl_bioactivity record chembl_activity_26187716",
+            "unit": "pChEMBL",
+            "url": null,
+            "value": 8.7,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187716",
+              "title": "tool_drug_chembl_bioactivity record chembl_activity_26187716",
+              "url": null,
+              "locator": "chembl_activity_26187716#pchembl_value",
+              "excerpt": "8.7",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_vegfr1-curated-potency@v1",
+                  "name": "VEGFR1 curated potency",
+                  "attribute_ref": "attr_vegfr1-curated-potency@v1",
+                  "rule_ref": "rule_vegfr1-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44WJ9N25ZBA20324TE6W"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44WJ9N25ZBA20324TE6W"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_vegfr2-curated-potency@v1",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_78ac2d62517a",
+            "claim_id": "claim_01M52N44WVXM95EY9EYSNZKCPT",
+            "context": {
+              "assay": "B",
+              "conditions": "assay_chembl_id: CHEMBL5620451; assay_type: B; document_chembl_id: CHEMBL5620341; molecule_chembl_id: CHEMBL4297190; parent_molecule_chembl_id: CHEMBL4297190; standard_type: IC50; standard_units: nM; standard_value: 1.0; target_organism: Homo sapiens",
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "curated_measurement",
+              "limitations": [
+                "The population or experimental system was not recorded in this claim."
+              ],
+              "population": null,
+              "reading_depth": "not_read",
+              "units": "pChEMBL",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "chembl_activity_26132412#pchembl_value",
+              "quoted_span": "9.0",
+              "span_checked_against_source": true
+            },
+            "locator": "chembl_activity_26132412#pchembl_value",
+            "projection_version": 1,
+            "quote": "9.0",
+            "record_available": true,
+            "source_context_hash": "b638e84624e38a7ba37dbbdcc475726fd162265e9c41dbf1b15d767c29f9e920",
+            "source_fact_hash": "ee52253f21f46aba9e4a25aede56d8a2bc3e7013d9b616234d9c3f3c0c18c733",
+            "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132412",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132412",
+            "statement": "pchembl_value = 9.0 pChEMBL",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44WVXM95EY9EYSNZKCPT"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "pchembl_value = 9.0 pChEMBL"
+            },
+            "title": "tool_drug_chembl_bioactivity record chembl_activity_26132412",
+            "unit": "pChEMBL",
+            "url": null,
+            "value": 9.0,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132412",
+              "title": "tool_drug_chembl_bioactivity record chembl_activity_26132412",
+              "url": null,
+              "locator": "chembl_activity_26132412#pchembl_value",
+              "excerpt": "9.0",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_vegfr2-curated-potency@v1",
+                  "name": "VEGFR2 curated potency",
+                  "attribute_ref": "attr_vegfr2-curated-potency@v1",
+                  "rule_ref": "rule_vegfr2-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44WVXM95EY9EYSNZKCPT"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44WVXM95EY9EYSNZKCPT"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_vegfr2-curated-potency@v1",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_d9ad0909c20b",
+            "claim_id": "claim_01M52N44WXBBSZXBGCVPT431XB",
+            "context": {
+              "assay": "B",
+              "conditions": "assay_chembl_id: CHEMBL5635785; assay_type: B; document_chembl_id: CHEMBL5634108; molecule_chembl_id: CHEMBL4297190; parent_molecule_chembl_id: CHEMBL4297190; standard_type: IC50; standard_units: nM; standard_value: 24.0; target_organism: Homo sapiens",
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "curated_measurement",
+              "limitations": [
+                "The population or experimental system was not recorded in this claim."
+              ],
+              "population": null,
+              "reading_depth": "not_read",
+              "units": "pChEMBL",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "chembl_activity_26187717#pchembl_value",
+              "quoted_span": "7.62",
+              "span_checked_against_source": true
+            },
+            "locator": "chembl_activity_26187717#pchembl_value",
+            "projection_version": 1,
+            "quote": "7.62",
+            "record_available": true,
+            "source_context_hash": "e246d3ee0e8fcf417abb657e049b39b319907bbc2a2ae5f4e89f91ead7b35948",
+            "source_fact_hash": "5a910bf814e96d22833157c8b62aa3e1a7fc3aa97e9c6ac73d566bf3a22f8efd",
+            "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187717",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187717",
+            "statement": "pchembl_value = 7.62 pChEMBL",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44WXBBSZXBGCVPT431XB"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "pchembl_value = 7.62 pChEMBL"
+            },
+            "title": "tool_drug_chembl_bioactivity record chembl_activity_26187717",
+            "unit": "pChEMBL",
+            "url": null,
+            "value": 7.62,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187717",
+              "title": "tool_drug_chembl_bioactivity record chembl_activity_26187717",
+              "url": null,
+              "locator": "chembl_activity_26187717#pchembl_value",
+              "excerpt": "7.62",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_vegfr2-curated-potency@v1",
+                  "name": "VEGFR2 curated potency",
+                  "attribute_ref": "attr_vegfr2-curated-potency@v1",
+                  "rule_ref": "rule_vegfr2-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44WXBBSZXBGCVPT431XB"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44WXBBSZXBGCVPT431XB"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_vegfr2-curated-potency@v1",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_70266a3e5d00",
+            "claim_id": "claim_01M52N44X1KQZ6XSPN479JW1MC",
+            "context": {
+              "assay": null,
+              "conditions": "action: Inhibition; affinity_type: pIC50; assay_description: In a biochemical assay using recombinant KDR kinase catalytic domain.; gtopdb_ligand_id: 9769; gtopdb_version: GtoPdb Version: 2026.3.1 - published: 2026-10-12; primary_target: false; selectivity: Not Determined; target_uniprot: P35968; type: Inhibitor",
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "curated_measurement",
+              "limitations": [
+                "The population or experimental system was not recorded in this claim.",
+                "An assay description was not recorded in this claim."
+              ],
+              "population": null,
+              "reading_depth": "not_read",
+              "units": "pChEMBL",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "gtopdb_interaction_9769_P35968_nopmid#affinity",
+              "quoted_span": "7.679999828338623",
+              "span_checked_against_source": true
+            },
+            "locator": "gtopdb_interaction_9769_P35968_nopmid#affinity",
+            "projection_version": 1,
+            "quote": "7.679999828338623",
+            "record_available": true,
+            "source_context_hash": "bca7c0a9a307b2dc5227cafef07091ede8b96cdf6f930cd9ff025bafa2505730",
+            "source_fact_hash": "a36c18e55f916c19e792d5506e35112f0fe1deea615a15687e917ae089569e1a",
+            "source_id": "src_db_tool_drug_gtopdb_affinity_gtopdb_interaction_9769_P35968_nopmid",
+            "source_ref": "src_db_tool_drug_gtopdb_affinity_gtopdb_interaction_9769_P35968_nopmid",
+            "statement": "affinity = 7.679999828338623 pChEMBL",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44X1KQZ6XSPN479JW1MC"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "affinity = 7.679999828338623 pChEMBL"
+            },
+            "title": "tool_drug_gtopdb_affinity record gtopdb_interaction_9769_P35968_nopmid",
+            "unit": "pChEMBL",
+            "url": null,
+            "value": 7.679999828338623,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_drug_gtopdb_affinity_gtopdb_interaction_9769_P35968_nopmid",
+              "title": "tool_drug_gtopdb_affinity record gtopdb_interaction_9769_P35968_nopmid",
+              "url": null,
+              "locator": "gtopdb_interaction_9769_P35968_nopmid#affinity",
+              "excerpt": "7.679999828338623",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_vegfr2-curated-potency@v1",
+                  "name": "VEGFR2 curated potency",
+                  "attribute_ref": "attr_vegfr2-curated-potency@v1",
+                  "rule_ref": "rule_vegfr2-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44X1KQZ6XSPN479JW1MC"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44X1KQZ6XSPN479JW1MC"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_vegfr3-curated-potency@v1",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_adccd04bcf9e",
+            "claim_id": "claim_01M52N44XBYA2WPTZB0XW4WAGK",
+            "context": {
+              "assay": "B",
+              "conditions": "assay_chembl_id: CHEMBL5620452; assay_type: B; document_chembl_id: CHEMBL5620341; molecule_chembl_id: CHEMBL4297190; parent_molecule_chembl_id: CHEMBL4297190; standard_type: IC50; standard_units: nM; standard_value: 1.0; target_organism: Homo sapiens",
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "curated_measurement",
+              "limitations": [
+                "The population or experimental system was not recorded in this claim."
+              ],
+              "population": null,
+              "reading_depth": "not_read",
+              "units": "pChEMBL",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "chembl_activity_26132413#pchembl_value",
+              "quoted_span": "9.0",
+              "span_checked_against_source": true
+            },
+            "locator": "chembl_activity_26132413#pchembl_value",
+            "projection_version": 1,
+            "quote": "9.0",
+            "record_available": true,
+            "source_context_hash": "37acf805cb0a061bda2f64a044dc9bca9f8490503cc28389bc50860d3a49aa25",
+            "source_fact_hash": "f56ba615ff6c1a757af49e8b8e04482cc44225f803f62f2724d0434e572c88c4",
+            "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132413",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132413",
+            "statement": "pchembl_value = 9.0 pChEMBL",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44XBYA2WPTZB0XW4WAGK"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "pchembl_value = 9.0 pChEMBL"
+            },
+            "title": "tool_drug_chembl_bioactivity record chembl_activity_26132413",
+            "unit": "pChEMBL",
+            "url": null,
+            "value": 9.0,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132413",
+              "title": "tool_drug_chembl_bioactivity record chembl_activity_26132413",
+              "url": null,
+              "locator": "chembl_activity_26132413#pchembl_value",
+              "excerpt": "9.0",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_vegfr3-curated-potency@v1",
+                  "name": "VEGFR3 curated potency",
+                  "attribute_ref": "attr_vegfr3-curated-potency@v1",
+                  "rule_ref": "rule_vegfr3-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44XBYA2WPTZB0XW4WAGK"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44XBYA2WPTZB0XW4WAGK"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "admission_state": "admitted",
+            "attribute_ref": "attr_vegfr3-curated-potency@v1",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "claim_artifact_id": "art_ee17dea35ee6",
+            "claim_id": "claim_01M52N44XD2RP0HG9G11QW9DF1",
+            "context": {
+              "assay": "B",
+              "conditions": "assay_chembl_id: CHEMBL5635786; assay_type: B; document_chembl_id: CHEMBL5634108; molecule_chembl_id: CHEMBL4297190; parent_molecule_chembl_id: CHEMBL4297190; standard_type: IC50; standard_units: nM; standard_value: 1.0; target_organism: Homo sapiens",
+              "entities": [
+                "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+              ],
+              "evidence_kind": "curated_measurement",
+              "limitations": [
+                "The population or experimental system was not recorded in this claim."
+              ],
+              "population": null,
+              "reading_depth": "not_read",
+              "units": "pChEMBL",
+              "verification_status": "unverified"
+            },
+            "document_artifact_id": null,
+            "location": {
+              "location_kind": "record_field",
+              "locator_value": "chembl_activity_26187719#pchembl_value",
+              "quoted_span": "9.0",
+              "span_checked_against_source": true
+            },
+            "locator": "chembl_activity_26187719#pchembl_value",
+            "projection_version": 1,
+            "quote": "9.0",
+            "record_available": true,
+            "source_context_hash": "7aedf21f1345938c262312752f848cb9157535d103ca2ce57d50561ab385ce23",
+            "source_fact_hash": "4b9a2a8c686688744d9a57a8b54b95839444a4af12f75ab9f8219cfd16ff8ed3",
+            "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187719",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187719",
+            "statement": "pchembl_value = 9.0 pChEMBL",
+            "summary": {
+              "claim_refs": [
+                "claim_01M52N44XD2RP0HG9G11QW9DF1"
+              ],
+              "derived": true,
+              "method": "recorded_fact_projection",
+              "text": "pchembl_value = 9.0 pChEMBL"
+            },
+            "title": "tool_drug_chembl_bioactivity record chembl_activity_26187719",
+            "unit": "pChEMBL",
+            "url": null,
+            "value": 9.0,
+            "value_high": null,
+            "value_low": null,
+            "source": {
+              "source_id": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187719",
+              "title": "tool_drug_chembl_bioactivity record chembl_activity_26187719",
+              "url": null,
+              "locator": "chembl_activity_26187719#pchembl_value",
+              "excerpt": "9.0",
+              "section_path": [],
+              "document_artifact_id": null,
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_vegfr3-curated-potency@v1",
+                  "name": "VEGFR3 curated potency",
+                  "attribute_ref": "attr_vegfr3-curated-potency@v1",
+                  "rule_ref": "rule_vegfr3-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44XD2RP0HG9G11QW9DF1"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_01M52N44XD2RP0HG9G11QW9DF1"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "claim_id": "claim_supp_12e86db8334ec3a75b6213d3",
+            "source_id": "src_doi_10.1038/s42004-023-01084-0",
+            "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+            "title": "Structural basis and selectivity of sulfatinib binding to FGFR and CSF-1R",
+            "quote": "sulfatinib demonstrated potent inhibition of FGFR1 and CSF-1R, with IC50 values of 34 and 5 nM, respectively",
+            "locator": "sec2.1.p1",
+            "url": "https://doi.org/10.1038/s42004-023-01084-0",
+            "statement": "Sulfatinib inhibited FGFR1 with an IC50 of 34 nM and CSF-1R with an IC50 of 5 nM.",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "attribute_ref": "attr_fgfr1-curated-potency@v1",
+            "value": 34,
+            "unit": "nM",
+            "admission_state": "admitted",
+            "record_available": true,
+            "context": {
+              "population": "wild-type FGFR1",
+              "assay": "ADP-Glo kinase inhibition assay (Promega), 384-well, threefold dilution, triplicate",
+              "conditions": "assay: ADP-Glo kinase inhibition assay (Promega), 384-well, threefold dilution, triplicate; assay_protein_range_uM: 0.025; 0.2; buffer: 40 mM Tris-HCl pH7.5, 20 mM NaCl, 20 mM MgCl2, 1 mM TCEP, 0.1 mg/mL BSA, 4% DMSO; construct: FGFR1 kinase domain residues458-765; E.coli BL21 Rosetta expression; method_source_passages: locator_value: sec4.4.p1; quoted_span: The inhibition by sulfatinib was determined by the measurement of kinase activities following the ADP-Glo assay kit (Promega)6,44,45. Assays were performed in 384-well plates using sulfatinib (triple dilution method), proteins (0.025–0.2 μM), and poly (4:1 Glu, Tyr) peptides (Abcam, UK) (1 mg/mL) in assay buffer (40 mM Tris-HCl, pH 7.5, 20 mM NaCl, 20 mM MgCl2, 1 mM TCEP, 0.1 mg/mL BSA, and 4% DMSO). The reaction was initiated by the addition of ATP into the assay mixture, and then ADP-Glo was added to terminate the reaction and deplete the remaining ATP. Following the addition of detection reagent to convert the generated ADP to ATP, the luminescence was detected by a plate reader (Perkin Elmer). Samples were run in triplicate and the IC50 values were calculated by log[Inhibitor] versus kinase activity ratio in GraphPad Prism 8.0.; section_path: Methods; Kinase inhibition assay; locator_value: sec4.1.p1; quoted_span: FGFRs were prepared as previously described6,34,44,45. Briefly, FGFR1 (residues 458–765), FGFR2 (residues 458–768), FGFR3 (residues 450–758) as well as FGFR4 (residues 445–753), and their mutants, FGFR1C584S, FGFR1V561M, FGFR2V564I, FGFR2V564F and FGFR3V555M, were cloned into a modified pET28a vector in frame with an N-terminal PreScission-cleavable 6×His tag and expressed in E. coli BL21 Rosetta cells. For crystallization, FGFR1C584S was co-expressed with untagged YOPH to induce non-phosphorylated proteins. The harvested cell pellets were lysed in a buffer containing 20 mM Tris-HCl, pH 8.0, 500 mM NaCl, 20 mM imidazole and 0.5 mM TCEP, and FGFRs were purified over Ni-NTA resin followed by enzymatic digestion with PreScission for 6×His-tag cleavage and further purified by anion exchange chromatography (GE Healthcare). For crystallization, FGFR1C584S was further purified by gel filtration chromatography (GE Healthcare). The proteins were concentrated to 5–16 mg/mL and stored at −80 °C.; section_path: Methods; Expression and purification of the human FGFR kinase domain; species: human; substrate: poly (4:1 Glu, Tyr), 1 mg/mL; target_variant: wild_type; unknown_conditions: ATP concentration; target-specific protein concentration; reaction incubation time",
+              "units": "nM",
+              "limitations": [],
+              "entities": [
+                "sulfatinib",
+                "FGFR1"
+              ],
+              "evidence_kind": "peer_reviewed",
+              "reading_depth": "full_text",
+              "verification_status": "unverified"
+            },
+            "summary": {
+              "text": "Sulfatinib inhibited FGFR1 with an IC50 of 34 nM and CSF-1R with an IC50 of 5 nM.",
+              "method": "recorded_fact_projection",
+              "derived": true,
+              "claim_refs": [
+                "claim_supp_12e86db8334ec3a75b6213d3"
+              ]
+            },
+            "value_low": null,
+            "value_high": null,
+            "document_artifact_id": "art_04fbde456bfc",
+            "claim_artifact_id": "art_397f2c2a7471",
+            "location": {
+              "location_kind": "paragraph",
+              "locator_value": "sec2.1.p1",
+              "quoted_span": "sulfatinib demonstrated potent inhibition of FGFR1 and CSF-1R, with IC50 values of 34 and 5 nM, respectively",
+              "section_path": [
+                "Results",
+                "Potent inhibition of FGFRs and CSF-1R by sulfatinib"
+              ],
+              "span_checked_against_source": true
+            },
+            "projection_version": 1,
+            "source_fact_hash": "342c92122d24896756f0dafe2fcce018ac1087207440feb27718bed297f55f03",
+            "source_context_hash": "52dae70cfe99ff2af5ce4d9e73493a9c9072e6894b00d7dc22a0047433aea80e",
+            "source": {
+              "source_id": "src_doi_10.1038/s42004-023-01084-0",
+              "title": "Structural basis and selectivity of sulfatinib binding to FGFR and CSF-1R",
+              "url": "https://doi.org/10.1038/s42004-023-01084-0",
+              "locator": "sec2.1.p1",
+              "excerpt": "sulfatinib demonstrated potent inhibition of FGFR1 and CSF-1R, with IC50 values of 34 and 5 nM, respectively",
+              "section_path": [
+                "Results",
+                "Potent inhibition of FGFRs and CSF-1R by sulfatinib"
+              ],
+              "document_artifact_id": "art_04fbde456bfc",
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_fgfr1-curated-potency@v1",
+                  "name": "FGFR1 curated potency",
+                  "attribute_ref": "attr_fgfr1-curated-potency@v1",
+                  "rule_ref": "rule_fgfr1-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_supp_12e86db8334ec3a75b6213d3"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_supp_12e86db8334ec3a75b6213d3"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          },
+          {
+            "claim_id": "claim_supp_9a0d01fa20d940b85f4c2ae7",
+            "source_id": "src_doi_10.1038/s42004-023-01084-0",
+            "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+            "title": "Structural basis and selectivity of sulfatinib binding to FGFR and CSF-1R",
+            "quote": "sulfatinib demonstrated potent inhibition of FGFR1 and CSF-1R, with IC50 values of 34 and 5 nM, respectively",
+            "locator": "sec2.1.p1",
+            "url": "https://doi.org/10.1038/s42004-023-01084-0",
+            "statement": "Sulfatinib inhibited CSF-1R with an IC50 of 5 nM.",
+            "basis": "measured",
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "attribute_ref": "attr_csf1r-curated-potency@v1",
+            "value": 5,
+            "unit": "nM",
+            "admission_state": "admitted",
+            "record_available": true,
+            "context": {
+              "population": "wild-type CSF-1R",
+              "assay": "ADP-Glo kinase inhibition assay (Promega), 384-well, threefold dilution, triplicate",
+              "conditions": "assay: ADP-Glo kinase inhibition assay (Promega), 384-well, threefold dilution, triplicate; assay_protein_range_uM: 0.025; 0.2; buffer: 40 mM Tris-HCl pH7.5, 20 mM NaCl, 20 mM MgCl2, 1 mM TCEP, 0.1 mg/mL BSA, 4% DMSO; construct: CSF-1R kinase domain residues542-919, deletion696-741, C677T/C830S/C907T; SF9 expression; method_source_passages: locator_value: sec4.4.p1; quoted_span: The inhibition by sulfatinib was determined by the measurement of kinase activities following the ADP-Glo assay kit (Promega)6,44,45. Assays were performed in 384-well plates using sulfatinib (triple dilution method), proteins (0.025–0.2 μM), and poly (4:1 Glu, Tyr) peptides (Abcam, UK) (1 mg/mL) in assay buffer (40 mM Tris-HCl, pH 7.5, 20 mM NaCl, 20 mM MgCl2, 1 mM TCEP, 0.1 mg/mL BSA, and 4% DMSO). The reaction was initiated by the addition of ATP into the assay mixture, and then ADP-Glo was added to terminate the reaction and deplete the remaining ATP. Following the addition of detection reagent to convert the generated ADP to ATP, the luminescence was detected by a plate reader (Perkin Elmer). Samples were run in triplicate and the IC50 values were calculated by log[Inhibitor] versus kinase activity ratio in GraphPad Prism 8.0.; section_path: Methods; Kinase inhibition assay; locator_value: sec4.2.p1; quoted_span: Wild-type CSF-1R (residues 542–919, △696–741, C677T, C830S, C907T) and CSF-1RT663I carrying an N-terminal 6×His tag was cloned into a pFastBac expression vector, and was expressed in SF9 cells using the Invitrogen Bac-to-Bac Baculovirus Expression System41. For crystallization, CSF-1R was co-expressed with N-terminal GST-tagged YOPH to induce non-phosphorylated proteins. The harvested cell pellets were lysed by sonication in lysis buffer consisting of 40 mM K-phosphate, pH 8.0, 200 mM NaCl, 0.5 mM PMSF, and protease inhibitor mixture (EDTA-free, Roche). After centrifugation, the clarified cell lysate was supplemented with 20 mM imidazole, and incubated with Ni-NTA beads (GE Healthcare). The Ni-NTA bead-bound CSF-1R protein was eluted using 25 mM HEPES, pH 7.0, 150 mM NaCl and 200 mM imidazole, and was subsequently supplemented with 10 mM DTT after elution. CSF-1R was further purified using a cation exchange column (GE Healthcare) followed by a Superdex200 gel filtration column (GE Healthcare) equilibrated in 20 mM HEPES, pH 7.0, 150 mM NaCl and 10 mM DTT.; section_path: Methods; Expression and purification of the human CSF-1R kinase domain; species: human; substrate: poly (4:1 Glu, Tyr), 1 mg/mL; target_variant: wild_type; unknown_conditions: ATP concentration; target-specific protein concentration; reaction incubation time",
+              "units": "nM",
+              "limitations": [],
+              "entities": [
+                "sulfatinib",
+                "CSF-1R"
+              ],
+              "evidence_kind": "peer_reviewed",
+              "reading_depth": "full_text",
+              "verification_status": "unverified"
+            },
+            "summary": {
+              "text": "Sulfatinib inhibited CSF-1R with an IC50 of 5 nM.",
+              "method": "recorded_fact_projection",
+              "derived": true,
+              "claim_refs": [
+                "claim_supp_9a0d01fa20d940b85f4c2ae7"
+              ]
+            },
+            "value_low": null,
+            "value_high": null,
+            "document_artifact_id": "art_04fbde456bfc",
+            "claim_artifact_id": "art_b8671a3c2ae7",
+            "location": {
+              "location_kind": "paragraph",
+              "locator_value": "sec2.1.p1",
+              "quoted_span": "sulfatinib demonstrated potent inhibition of FGFR1 and CSF-1R, with IC50 values of 34 and 5 nM, respectively",
+              "section_path": [
+                "Results",
+                "Potent inhibition of FGFRs and CSF-1R by sulfatinib"
+              ],
+              "span_checked_against_source": true
+            },
+            "projection_version": 1,
+            "source_fact_hash": "bde80b99adb7359c223c7bda682aaf3d5822ac6b8bbd8fbfd7d86690553c2ca0",
+            "source_context_hash": "a5f279f0aa880bac54eb0aa3c1c5531887d2da8de860153d8b53d4b2dfddff19",
+            "source": {
+              "source_id": "src_doi_10.1038/s42004-023-01084-0",
+              "title": "Structural basis and selectivity of sulfatinib binding to FGFR and CSF-1R",
+              "url": "https://doi.org/10.1038/s42004-023-01084-0",
+              "locator": "sec2.1.p1",
+              "excerpt": "sulfatinib demonstrated potent inhibition of FGFR1 and CSF-1R, with IC50 values of 34 and 5 nM, respectively",
+              "section_path": [
+                "Results",
+                "Potent inhibition of FGFRs and CSF-1R by sulfatinib"
+              ],
+              "document_artifact_id": "art_04fbde456bfc",
+              "context_available": false,
+              "context_status": "detail_not_loaded"
+            },
+            "links": {
+              "criteria": [
+                {
+                  "detail_ref": "rule_csf1r-curated-potency@v1",
+                  "name": "CSF1R curated potency",
+                  "attribute_ref": "attr_csf1r-curated-potency@v1",
+                  "rule_ref": "rule_csf1r-curated-potency@v1",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_supp_9a0d01fa20d940b85f4c2ae7"
+                  ],
+                  "relationship": "used_in_assessment"
+                }
+              ],
+              "candidates": [
+                {
+                  "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+                  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+                  "relationships": [
+                    "used_in_assessment"
+                  ],
+                  "via_claim_refs": [
+                    "claim_supp_9a0d01fa20d940b85f4c2ae7"
+                  ],
+                  "relationship": "used_in_assessment",
+                  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                  "label": "Surufatinib"
+                }
+              ],
+              "counts": {
+                "criteria": 1,
+                "candidates": 1
+              },
+              "scope": {
+                "candidate_ref": null,
+                "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+                "snapshot_published_at": "2026-10-16T15:31:26.714Z",
+                "mode": "selected_snapshot",
+                "candidate_unit": "unique_candidates",
+                "criteria_unit": "criterion_versions"
+              }
+            }
+          }
+        ],
+        "raw": {
+          "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+          "cell_availability": {
+            "attr_csf1r-curated-potency@v1": "available",
+            "attr_documented-oral-administration@v1": "available",
+            "attr_fgfr1-curated-potency@v1": "available",
+            "attr_food-effect-on-auc-fold-change@v1": "unavailable",
+            "attr_molecular-weight-da@v1": "available",
+            "attr_oral-bioavailability-human-measured-f@v1": "unavailable",
+            "attr_predicted-aqueous-solubility-log-mol-l@v1": "unavailable",
+            "attr_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1": "unavailable",
+            "attr_predicted-brenk-alert-count@v1": "unavailable",
+            "attr_predicted-caco-2-permeability-admet-ai-caco2-wang-log-10-6-c@v1": "unavailable",
+            "attr_predicted-clinical-toxicity-probability-exploratory@v1": "unavailable",
+            "attr_predicted-cyp1a2-inhibition-probability@v1": "unavailable",
+            "attr_predicted-cyp2c19-inhibition-probability@v1": "unavailable",
+            "attr_predicted-cyp2c9-inhibition-probability@v1": "unavailable",
+            "attr_predicted-cyp2c9-substrate-probability@v1": "unavailable",
+            "attr_predicted-cyp3a4-inhibition-probability-exploratory@v1": "unavailable",
+            "attr_predicted-cyp3a4-substrate-probability-exploratory@v1": "available",
+            "attr_predicted-drug-induced-liver-injury-dili-probability-explora@v1": "unavailable",
+            "attr_predicted-herg-blocking-probability-exploratory@v1": "unavailable",
+            "attr_predicted-human-hepatocyte-intrinsic-clearance-exploratory@v1": "unavailable",
+            "attr_predicted-logp-rdkit@v1": "unavailable",
+            "attr_predicted-microsomal-intrinsic-clearance-exploratory@v1": "unavailable",
+            "attr_predicted-nih-alert-count@v1": "unavailable",
+            "attr_predicted-pains-alert-count@v1": "unavailable",
+            "attr_predicted-plasma-protein-binding-rate-admet-ai-ppbr-az@v1": "unavailable",
+            "attr_predicted-skin-reaction-probability-exploratory@v1": "unavailable",
+            "attr_predicted-volume-of-distribution-at-steady-state@v1": "unavailable",
+            "attr_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1": "unavailable",
+            "attr_vegfr1-curated-potency@v1": "available",
+            "attr_vegfr2-curated-potency@v1": "available",
+            "attr_vegfr3-curated-potency@v1": "available"
+          },
+          "clears_hard_rules": true,
+          "clears_mandated_criteria": true,
+          "counter_evidence_refs": [],
+          "coverage": 1.0,
+          "determination_bases": {
+            "derived": 2
+          },
+          "direct_preference_coverage": 0.35294117647058826,
+          "gap_filled_criteria": [],
+          "gate_blocked_by": [],
+          "identity_labels": [
+            "Surufatinib"
+          ],
+          "mandated_blocked_by": [],
+          "mandated_coverage": 1.0,
+          "mandated_gates": [
+            "attr_documented-oral-administration@v1"
+          ],
+          "mandated_gates_unanswered": [],
+          "measured_vs_predicted_counts": {
+            "curated": 6,
+            "derived": 2,
+            "measured": 1,
+            "predicted": 1
+          },
+          "missing": [],
+          "n_fail_hard": 0,
+          "n_mandated": 5,
+          "n_mandated_answered": 5,
+          "n_unknown_hard": 0,
+          "per_criterion_refs": [
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_documented-oral-administration@v1_rule_documented-oral-administration@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_molecular-weight-da@v1_rule_molecular-weight-da@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-aqueous-solubility-log-mol-l@v1_rule_predicted-aqueous-solubility-log-mol-l@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1_rule_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-brenk-alert-count@v1_rule_predicted-brenk-alert-count@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-caco-2-permeability-admet-ai-caco2-wang-log-10-6-c@v1_rule_predicted-caco-2-permeability-admet-ai-caco2-wang-log-10-6-c@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-clinical-toxicity-probability-exploratory@v1_rule_predicted-clinical-toxicity-probability-exploratory@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-cyp1a2-inhibition-probability@v1_rule_predicted-cyp1a2-inhibition-probability@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-cyp2c19-inhibition-probability@v1_rule_predicted-cyp2c19-inhibition-probability@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-cyp2c9-inhibition-probability@v1_rule_predicted-cyp2c9-inhibition-probability@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-cyp2c9-substrate-probability@v1_rule_predicted-cyp2c9-substrate-probability@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-cyp3a4-inhibition-probability-exploratory@v1_rule_predicted-cyp3a4-inhibition-probability-exploratory@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-cyp3a4-substrate-probability-exploratory@v1_rule_predicted-cyp3a4-substrate-probability-exploratory@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-drug-induced-liver-injury-dili-probability-explora@v1_rule_predicted-drug-induced-liver-injury-dili-probability-explora@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-herg-blocking-probability-exploratory@v1_rule_predicted-herg-blocking-probability-exploratory@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-human-hepatocyte-intrinsic-clearance-exploratory@v1_rule_predicted-human-hepatocyte-intrinsic-clearance-exploratory@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-logp-rdkit@v1_rule_predicted-logp-rdkit@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-microsomal-intrinsic-clearance-exploratory@v1_rule_predicted-microsomal-intrinsic-clearance-exploratory@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-nih-alert-count@v1_rule_predicted-nih-alert-count@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-pains-alert-count@v1_rule_predicted-pains-alert-count@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-plasma-protein-binding-rate-admet-ai-ppbr-az@v1_rule_predicted-plasma-protein-binding-rate-admet-ai-ppbr-az@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-skin-reaction-probability-exploratory@v1_rule_predicted-skin-reaction-probability-exploratory@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-volume-of-distribution-at-steady-state@v1_rule_predicted-volume-of-distribution-at-steady-state@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_csf1r-curated-potency@v1_rule_csf1r-curated-potency@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_fgfr1-curated-potency@v1_rule_fgfr1-curated-potency@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_food-effect-on-auc-fold-change@v1_rule_food-effect-on-auc-fold-change@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_oral-bioavailability-human-measured-f@v1_rule_oral-bioavailability-human-measured-f@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1_rule_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_vegfr1-curated-potency@v1_rule_vegfr1-curated-potency@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_vegfr2-curated-potency@v1_rule_vegfr2-curated-potency@v1_live",
+            "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_vegfr3-curated-potency@v1_rule_vegfr3-curated-potency@v1_live"
+          ],
+          "position": null,
+          "preference_coverage": 0.35294117647058826,
+          "preference_score": 0.8666666666666666,
+          "qualification": {
+            "applicable_hard_count": 1,
+            "blocking_hard_rule_refs": [],
+            "failed_hard_rule_refs": [],
+            "hard_blocked": 0,
+            "hard_direct_coverage": 1.0,
+            "hard_failed": 0,
+            "hard_passed": 1,
+            "hard_total": 1,
+            "missing_direct_required_rule_refs": [],
+            "qualified": true,
+            "required_direct_answered": 5,
+            "required_direct_coverage": 1.0,
+            "required_total": 5,
+            "state": "qualified",
+            "verified_hard_count": 1
+          },
+          "qualification_state": "qualified",
+          "qualified": true,
+          "rank_note": "too little preference evidence to rank (coverage 0.35 below 0.50)",
+          "review_status": "none",
+          "state": "recommended",
+          "state_reason": "qualification: qualified",
+          "verdicts": {
+            "attr_csf1r-curated-potency@v1": "available",
+            "attr_documented-oral-administration@v1": "pass",
+            "attr_fgfr1-curated-potency@v1": "available",
+            "attr_food-effect-on-auc-fold-change@v1": "unknown_missing",
+            "attr_molecular-weight-da@v1": "pass",
+            "attr_oral-bioavailability-human-measured-f@v1": "unknown_missing",
+            "attr_predicted-aqueous-solubility-log-mol-l@v1": "unknown_missing",
+            "attr_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1": "unknown_missing",
+            "attr_predicted-brenk-alert-count@v1": "unknown_missing",
+            "attr_predicted-caco-2-permeability-admet-ai-caco2-wang-log-10-6-c@v1": "unknown_missing",
+            "attr_predicted-clinical-toxicity-probability-exploratory@v1": "unknown_missing",
+            "attr_predicted-cyp1a2-inhibition-probability@v1": "unknown_missing",
+            "attr_predicted-cyp2c19-inhibition-probability@v1": "unknown_missing",
+            "attr_predicted-cyp2c9-inhibition-probability@v1": "unknown_missing",
+            "attr_predicted-cyp2c9-substrate-probability@v1": "unknown_missing",
+            "attr_predicted-cyp3a4-inhibition-probability-exploratory@v1": "unknown_missing",
+            "attr_predicted-cyp3a4-substrate-probability-exploratory@v1": "available",
+            "attr_predicted-drug-induced-liver-injury-dili-probability-explora@v1": "unknown_missing",
+            "attr_predicted-herg-blocking-probability-exploratory@v1": "unknown_missing",
+            "attr_predicted-human-hepatocyte-intrinsic-clearance-exploratory@v1": "unknown_missing",
+            "attr_predicted-logp-rdkit@v1": "unknown_missing",
+            "attr_predicted-microsomal-intrinsic-clearance-exploratory@v1": "unknown_missing",
+            "attr_predicted-nih-alert-count@v1": "unknown_missing",
+            "attr_predicted-pains-alert-count@v1": "unknown_missing",
+            "attr_predicted-plasma-protein-binding-rate-admet-ai-ppbr-az@v1": "unknown_missing",
+            "attr_predicted-skin-reaction-probability-exploratory@v1": "unknown_missing",
+            "attr_predicted-volume-of-distribution-at-steady-state@v1": "unknown_missing",
+            "attr_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1": "unknown_missing",
+            "attr_vegfr1-curated-potency@v1": "available",
+            "attr_vegfr2-curated-potency@v1": "available",
+            "attr_vegfr3-curated-potency@v1": "available"
+          }
+        },
+        "legacy_rank_only": false,
+        "evaluation_mode": "staged"
+      }
+    }
+  ]
+}

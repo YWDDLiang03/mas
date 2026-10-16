@@ -1,0 +1,100 @@
+{
+  "workflow_id": "wf_cb4caec3dec348908fb3d34eae5b11d1",
+  "task_id": "task_01M52CBE5GYPK9F0MCZYBMPH84",
+  "draft_id": null,
+  "title": "Oral TME — full browser verification",
+  "state": "completed",
+  "phase": "results",
+  "message": "Results are ready",
+  "started_at": "2026-10-16T12:52:44.094Z",
+  "updated_at": "2026-10-16T15:31:54.488Z",
+  "finished_at": "2026-10-16T15:31:54.442Z",
+  "progress": {
+    "completed": 8,
+    "planned": 8,
+    "denominator_kind": "enumerated_fixed"
+  },
+  "budget": {
+    "used_usd": 4.210147199999997,
+    "limit_usd": 5.5,
+    "cost_status": "recorded_estimate"
+  },
+  "phases": [
+    {
+      "id": "task",
+      "label": "Understand the task",
+      "state": "completed",
+      "started_at": "2026-10-16T12:52:50.971Z",
+      "finished_at": "2026-10-16T13:56:24.408Z"
+    },
+    {
+      "id": "evidence",
+      "label": "Prepare evidence",
+      "state": "completed",
+      "started_at": "2026-10-16T12:52:54.692Z",
+      "finished_at": "2026-10-16T13:56:26.852Z"
+    },
+    {
+      "id": "propose",
+      "label": "Discover criteria",
+      "state": "completed",
+      "started_at": "2026-10-16T12:52:55.516Z",
+      "finished_at": "2026-10-16T13:56:26.852Z"
+    },
+    {
+      "id": "refine",
+      "label": "Review and refine",
+      "state": "completed",
+      "started_at": "2026-10-16T13:56:26.852Z",
+      "finished_at": "2026-10-16T15:07:31.304Z"
+    },
+    {
+      "id": "review",
+      "label": "Resolve decisions",
+      "state": "completed",
+      "started_at": "2026-10-16T15:07:31.304Z",
+      "finished_at": "2026-10-16T15:13:30.212Z"
+    },
+    {
+      "id": "freeze",
+      "label": "Save evaluation rules",
+      "state": "completed",
+      "started_at": "2026-10-16T15:13:30.212Z",
+      "finished_at": "2026-10-16T15:13:42.591Z"
+    },
+    {
+      "id": "screen",
+      "label": "Screen candidates",
+      "state": "completed",
+      "started_at": "2026-10-16T15:13:42.591Z",
+      "finished_at": "2026-10-16T15:31:54.276Z"
+    },
+    {
+      "id": "results",
+      "label": "Publish results",
+      "state": "completed",
+      "started_at": "2026-10-16T15:31:54.276Z",
+      "finished_at": "2026-10-16T15:31:54.442Z"
+    }
+  ],
+  "questions": [],
+  "run_id": "run_01M52MDREXKHWK58QTFJH4EHWK",
+  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_1",
+  "phase_label": "Publish results",
+  "active_stage": null,
+  "iteration": null,
+  "batch": null,
+  "active_criteria_count": 53,
+  "last_stage_change": {
+    "before": 53,
+    "after": 53,
+    "stage": "promote",
+    "iteration": 0
+  },
+  "activity_detail": "final check before promotion",
+  "active_actor": "critic",
+  "can_pause": false,
+  "can_resume": false,
+  "can_stop": false,
+  "can_reevaluate": true
+}

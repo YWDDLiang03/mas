@@ -167,6 +167,18 @@ class AdjudicationError(RuntimeError):
     """An item that cannot be adjudicated at all: not a rule version, or no adjudicator to call."""
 
 
+def _completion_limit(roster: ModelRoster) -> int:
+    """Give the configured DeepSeek reasoning adapter room to finish one judgment.
+
+    Recorded calls repeatedly exhausted 4k and 8k before finishing below 16k.
+    This is an output ceiling, not a requested response length or a budget change;
+    the exact request and every billed provider attempt remain recorded.
+    """
+    adapter = roster.adapter("adjudicator")
+    return (24000 if adapter.record.model_id.startswith("deepseek")
+            and getattr(adapter, "thinking", None) is True else 4000)
+
+
 def _words(text: str) -> set[str]:
     return {w.strip(".") for w in _WORDS.findall((text or "").lower())} - _STOP - {""}
 
@@ -606,12 +618,24 @@ def _cited_claims(core: Core, task_id: str, attribute: dict[str, Any], item: dic
                            else core.journal.streams("run_"))
     attribute_ref = (f"{attribute['attribute_id']}@v{attribute['version']}"
                      if attribute.get("attribute_id") and attribute.get("version") else None)
-    found = ledger.claims(core, streams)
-    out = [c for c in found if c["claim_id"] in cited]
+    out = [c for c in ledger.claims(core, streams, claim_ids=cited) if c["claim_id"] in cited]
     if boundary and attribute_ref:
         seen = {c["claim_id"] for c in out}
-        out += [c for c in found if c["claim_id"] not in seen and c.get("attribute_ref") == attribute_ref
-                and c.get("determination_basis") in MODEL_BASES]
+        # Preserve the original two-part union: all cited admissions first,
+        # then this attribute's model claims. Extra duplicates remain duplicates;
+        # only IDs already present in the cited part are excluded.
+        # Some inherited admissions do not repeat the artifact's attribute_ref
+        # in event metadata. Match the original artifact field, not that metadata.
+        query = ("SELECT json_extract(a.body,'$.payload') FROM events e JOIN artifacts a "
+                 "ON a.artifact_id=json_extract(e.body,'$.payload.artifact_id') "
+                 "WHERE e.stream_id=? AND e.seq>=1 AND e.event_type IN ('evidence.admitted','evidence.quarantined') "
+                 "AND json_extract(e.body,'$.payload.admission_state')='admitted' "
+                 "AND json_extract(a.body,'$.payload.attribute_ref')=? "
+                 "AND json_extract(a.body,'$.payload.determination_basis') IN (SELECT value FROM json_each(?)) "
+                 "ORDER BY e.seq")
+        for stream_id in streams:
+            out += [claim for row in core.store.db.execute(query, (stream_id, attribute_ref, json.dumps(MODEL_BASES)))
+                    if (claim := json.loads(row[0]))["claim_id"] not in seen]
     return out
 
 
@@ -836,7 +860,7 @@ def cited_claims(core: Core, task_id: str, item: dict[str, Any], attribute: dict
         return []
     bundle = item.get("inspection_bundle") or {}
     streams = [task_id] + ([bundle["derivation_run"]] if bundle.get("derivation_run") else [])
-    return [c for c in ledger.claims(core, streams) if c["claim_id"] in cited]
+    return [c for c in ledger.claims(core, streams, claim_ids=cited) if c["claim_id"] in cited]
 
 
 def _adjudicate_dispute(core: Core, task_id: str, item: dict[str, Any], rule: dict[str, Any],
@@ -857,7 +881,7 @@ def _adjudicate_dispute(core: Core, task_id: str, item: dict[str, Any], rule: di
     bench = ModelRoster(roster.adapters, {**roster.roles, "adjudicator": marker["adjudicator_adapter_id"]})
     response = call_role(core, bench, task_id, ModelRequest(
         role="adjudicator", system=ADJUDICATOR_SYSTEM, messages=[{"role": "user", "content": content}],
-        response_schema=ADJUDICATION_SCHEMA, max_tokens=4000,
+        response_schema=ADJUDICATION_SCHEMA, max_tokens=_completion_limit(bench),
         metadata={"question": "adjudicate a proposer/critic dispute"}), ids={"task_id": task_id}, budget=budget)
     answer = response.data
     verdict = vocab.require("adjudication_verdict", answer["verdict"])
@@ -897,7 +921,7 @@ def _grant_bound(core: Core, task_id: str, item: dict[str, Any], rule: dict[str,
     bench = ModelRoster(roster.adapters, {**roster.roles, "adjudicator": marker["adjudicator_adapter_id"]})
     response = call_role(core, bench, task_id, ModelRequest(
         role="adjudicator", system=BOUND_GRANT_SYSTEM, messages=[{"role": "user", "content": content}],
-        response_schema=BOUND_GRANT_SCHEMA, max_tokens=4000,
+        response_schema=BOUND_GRANT_SCHEMA, max_tokens=_completion_limit(bench),
         metadata={"question": "grant or refuse a declared interpretation of a bound"}),
         ids={"task_id": task_id}, budget=budget)
     answer = response.data
@@ -985,8 +1009,38 @@ def _apply_revision(rule: dict[str, Any], revision: dict[str, Any], attribute: d
 
 # --- adjudicating -----------------------------------------------------------------------------------
 
+def _review_hard_requirement(core, task_id, rule, attribute, claims, *, roster, budget):
+    """Review evidence, requirement status and population applicability without changing the rule."""
+    from .derivation import _claims_block
+    if roster is None:
+        raise AdjudicationError("hard requirement needs an evidence/applicability review; no adjudicator is configured")
+    marker = independence(roster)
+    schema = {"type": "object", "required": ["supported", "applicable_to_task", "property_is_a_requirement", "reasoning", "cited_claim_ids"],
+              "properties": {**{key: {"type": "boolean"} for key in ("supported", "applicable_to_task", "property_is_a_requirement")},
+                             "reasoning": {"type": "string"}, "cited_claim_ids": {"type": "array", "items": {"type": "string"}}}}
+    bench = ModelRoster(roster.adapters, {**roster.roles, "adjudicator": marker["adjudicator_adapter_id"]})
+    content = (f"Objective: {task_mod.get(core, task_id)['objective_text']}\n"
+               f"Criterion: {json.dumps(_dispute_view(attribute, rule), ensure_ascii=False)}\n"
+               f"Cited claims:\n{_claims_block(claims)}")
+    response = call_role(core, bench, task_id, ModelRequest(role="adjudicator",
+        system="Judge whether the cited evidence supports this exact hard rule and its applicability to the task population. "
+               "A hard rule rejects a candidate: require evidence that failure makes it unsuitable, not merely less preferred. "
+               "Do not invent bounds or edit the criterion. Missing evidence or unresolved disagreement stays pending. "
+               "Predictions cannot establish a hard condition. Cite only supplied claims.",
+        messages=[{"role": "user", "content": content}], response_schema=schema, max_tokens=4000,
+        metadata={"question": "review a hard requirement and population applicability"}), ids={"task_id": task_id}, budget=budget)
+    answer = response.data
+    offered = {c["claim_id"] for c in claims}
+    cited = set(answer["cited_claim_ids"])
+    if not cited or not cited <= offered or not all(answer[key] for key in
+            ("supported", "applicable_to_task", "property_is_a_requirement")):
+        raise AdjudicationError("hard condition remains pending: " + answer["reasoning"][:500])
+    return dict(answer, cited_claim_ids=sorted(cited), independence=marker, request_id=response.request_id)
+
+
 def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None = None,
-               budget: Any = None, settings: dict[str, Any] | None = None) -> dict[str, Any]:
+               budget: Any = None, settings: dict[str, Any] | None = None,
+               qualification_policy: str | None = None) -> dict[str, Any]:
     """Resolve one open review queue item without a person, and record how.
 
     Raises `AdjudicationError` when the item is not resolvable this way at all (not a rule version,
@@ -1007,11 +1061,27 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
     rule = criteria.load(core, rule_ref, task_id)
     attribute = criteria.load(core, rule["attribute_ref"], task_id)
     claims_read = _cited_claims(core, task_id, attribute, item, rule)
+    new_policy = (qualification_policy or (settings or {}).get("qualification.policy")) == "qualification_first_v1"
     route, restated = route_of(rule, attribute, context, item, claims_read, settings)
     adjudication_id = new_id("adj")
     by, dispute, revision, grant, boundary_refused = MACHINE, None, None, None, None
+    requirement_review = None
+    if new_policy and rule["rule_kind"] == "hard_exclusion" and route == "irreversible_without_authority":
+        claims_read = bound_support.resolve_claims(core, task_id, attribute.get("supporting_claim_refs") or []) or []
+        claims_read = [c for c in claims_read if c.get("determination_basis") not in ("predicted", "simulated")
+                       and c.get("evidence_kind") != "model_prediction"]
+        support = bound_support.validate(attribute, rule, claims=claims_read)
+        if rule["cutoff_basis"] != "source_stated_value" or not claims_read or support["unsupported_paths"] or support["review_paths"]:
+            raise AdjudicationError("hard condition remains pending: its exact evidence basis or applicability needs review")
+        requirement_review = _review_hard_requirement(core, task_id, rule, attribute, claims_read, roster=roster, budget=budget)
+        route = "hard_requirement_reviewed"
 
-    if route == "dispute_adjudicated":
+    if route == "hard_requirement_reviewed":
+        resolution, reason = "approve", requirement_review["reasoning"]
+        marker = requirement_review["independence"]
+        by = make_actor("agent", f"adjudicator:{marker['adjudicator_adapter_id']}", "adjudicator",
+                        model_family=marker["adjudicator_family"], version=marker["adjudicator_model_id"])
+    elif route == "dispute_adjudicated":
         if roster is None:
             raise AdjudicationError(f"{item['item_id']} is a proposer/critic dispute and needs the adjudicator "
                                     f"role; no model roster was given")
@@ -1110,6 +1180,16 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
                   + "; ".join(refused["refusals"]))
         boundary_refused = refused
 
+    if new_policy and rule["rule_kind"] == "hard_exclusion" and resolution == "approve" \
+            and route == "dispute_adjudicated" and restated_constraint(rule, attribute, context) is None:
+        offered = bound_support.resolve_claims(core, task_id, attribute.get("supporting_claim_refs") or []) or []
+        offered = [c for c in offered if c.get("determination_basis") not in ("predicted", "simulated")
+                   and c.get("evidence_kind") != "model_prediction"]
+        support = bound_support.validate(attribute, rule, claims=offered)
+        if not offered or support["unsupported_paths"] or support["review_paths"]:
+            raise AdjudicationError("hard condition remains pending: the evidence basis is unresolved")
+        requirement_review = _review_hard_requirement(core, task_id, rule, attribute, offered, roster=roster, budget=budget)
+
     # WHY the routes compose: a disputed proposal may itself be a hard exclusion or an expert-set
     # cutoff, and `criteria.propose` raises the dispute item *instead of* the confirmation item for
     # it. Approving on the adjudicator's verdict alone would hand the dispute route exactly the
@@ -1119,7 +1199,7 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         reason += "; its cutoff is still expert_set, which no agent can supply"
     elif resolution == "approve" and rule["rule_kind"] == "hard_exclusion" \
             and restated_constraint(rule, attribute, context) is None \
-            and not (grant and grant["hard_exclusion"]):
+            and not (grant and grant["hard_exclusion"]) and not requirement_review:
         # WHY route 6 is excepted here and nothing else is: this composition exists because no agent
         # may delete candidates on its own say-so, and a granted exclusion is the one case where an
         # agent was asked that question directly, on the cited evidence, and answered it. It is the
@@ -1141,6 +1221,9 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         resolution = "demote_to_preference"
         reason += "; it is still a hard exclusion the task text does not state, so it stops excluding"
 
+    if new_policy and (resolution.startswith("demote_") or (rule["rule_kind"] == "hard_exclusion" and
+            (rule["cutoff_basis"] == "model_decision_boundary" or (grant and not grant["cited_claim_ids"])))):
+        raise AdjudicationError("criterion remains pending under qualification_first_v1: " + reason)
     kind = RESOLUTIONS[resolution] or rule["rule_kind"]
     rewritten = _demoted(rule, kind)
     attribute_ref_after, edits = rule["attribute_ref"], []
@@ -1186,7 +1269,8 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         # same field an `hd_` uses to say the opposite.
         "approval_kind": vocab.require("approval_kind", "agent_verdict"),
         "confirmed_by_a_person": False, "actor": by, "adjudicated_at": utc_now(),
-        "cites": restated or ({"claim_ids": dispute["cited_claim_ids"]} if dispute else {}),
+        "cites": restated or ({"claim_ids": (dispute or requirement_review)["cited_claim_ids"]}
+                              if dispute or requirement_review else {}),
         "rule_ref_before": rule_ref, "rule_ref_after": rule_ref_after,
         "rule_kind_before": criteria.load(core, rule_ref, task_id)["rule_kind"],
         "rule_kind_after": criteria.load(core, rule_ref_after, task_id)["rule_kind"],
@@ -1197,6 +1281,8 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         "scores_candidates": scores,
         # Both versions and a field-level diff of the revision, applied or refused (§6 F4).
         "revision": revision,
+        "qualification_policy": "qualification_first_v1" if new_policy else "legacy",
+        "requirement_review": requirement_review,
         "requires_explicit_review": bool(revision and revision["requires_explicit_review"]),
         # What route 6 granted, if anything: the paths, the verdict, and whether the exclusion was
         # granted with the bound. `granted_bounds` reads this and nothing else, so a rule set learns
@@ -1212,10 +1298,10 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
         # its endpoint, metric and floor on route 7, or -- where the basis claimed a model boundary
         # and the route refused it -- every condition that failed. `None` for every other basis.
         "predictor_boundary": restated if route == "predictor_boundary_adopted" else boundary_refused,
-        "verdict": (dispute or grant or {}).get("verdict"),
-        "reasoning": (dispute or grant or {}).get("reasoning"),
-        "cited_claim_ids": (dispute or grant or {}).get("cited_claim_ids") or [],
-        "independence": (dispute or grant or {}).get("independence"),
+        "verdict": (dispute or grant or requirement_review or {}).get("verdict"),
+        "reasoning": (dispute or grant or requirement_review or {}).get("reasoning"),
+        "cited_claim_ids": (dispute or grant or requirement_review or {}).get("cited_claim_ids") or [],
+        "independence": (dispute or grant or requirement_review or {}).get("independence"),
     }
     artifact_id = core.artifacts.put("machine_adjudication", record)
     # WHY `decision.recorded` and not a new event kind: `human.review_decided` is the `hd_` path and
@@ -1232,7 +1318,7 @@ def adjudicate(core: Core, item: dict[str, Any], *, roster: ModelRoster | None =
 
 def adjudicate_open(core: Core, task_id: str | None = None, *, roster: ModelRoster | None = None,
                     only_item: str | None = None, budget: Any = None,
-                    settings: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+                    settings: dict[str, Any] | None = None, qualification_policy: str | None = None) -> list[dict[str, Any]]:
     """Adjudicate the open rule-version items of one task (or every task), oldest first.
 
     An item this cannot resolve is left open with the reason, never half-resolved: the queue is the
@@ -1249,7 +1335,8 @@ def adjudicate_open(core: Core, task_id: str | None = None, *, roster: ModelRost
         if item["state"] not in ("open", "in_review"):
             continue
         try:
-            out.append(adjudicate(core, item, roster=roster, budget=budget, settings=settings))
+            out.append(adjudicate(core, item, roster=roster, budget=budget, settings=settings,
+                                  qualification_policy=qualification_policy))
         except (AdjudicationError, ModelError) as error:
             out.append({"queue_item_ref": item["item_id"], "subject": item["subject"], "route": None,
                         "resolution": None, "left_open_because": str(error)})

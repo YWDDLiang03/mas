@@ -256,21 +256,26 @@ def test_the_provider_resolves_through_the_core_capability_kind_it_is_bound_to(c
 # --- the catalog and the vocabularies ---------------------------------------------------------
 
 def test_the_catalog_offers_the_whole_panel_and_nothing_it_cannot_answer():
-    """The point of the entry is that the deriving agents choose the endpoint, so the entry holds
-    every one of them -- curating it here would decide, quietly and in advance, which questions
-    about absorption, metabolism and toxicity a screen is allowed to ask."""
-    assert set(ENTRY["units"]) == set(ENTRY["endpoints"]) == set(admet.ENDPOINTS)
-    assert list(ENTRY["units"]) == list(admet.ENDPOINTS)         # the package's own order, unreordered
+    """Every endpoint remains available under its declared, non-overlapping evidence contract."""
+    computed = next(e for e in EVIDENCE_CATALOG if e["question_kind"] == "admet_computed_property")
+    legacy = [endpoint for endpoint in admet.ENDPOINTS if endpoint not in admet.DESCRIPTOR_PROJECTIONS]
+    assert set(ENTRY["units"]) == set(ENTRY["endpoints"]) == set(legacy)
+    assert list(ENTRY["units"]) == legacy
+    assert set(computed["endpoints"]) == set(admet.DESCRIPTOR_PROJECTIONS)
+    assert set(ENTRY["endpoints"]) | set(computed["endpoints"]) == set(admet.ENDPOINTS)
+    assert computed["evidence_kind"] == "database_entry" and computed["determination_basis"] == "derived"
     assert len(admet.ENDPOINTS) == len(admet.MODEL_ENDPOINTS) + len(admet.DESCRIPTOR_ENDPOINTS)
-    assert all(ENTRY["units"][e] for e in admet.ENDPOINTS)       # every endpoint is bindable: units are required
+    assert all(ENTRY["units"][e] for e in legacy)
     for endpoint in admet.CLASSIFIERS:
         spec = admet.ENDPOINTS[endpoint]
         assert spec["unit"] == "probability" and spec["decision_boundary"] == 0.5
         assert "[0,1]" in ENTRY["endpoints"][endpoint]
     for endpoint in admet.DESCRIPTOR_ENDPOINTS:
         assert admet.ENDPOINTS[endpoint]["training_dataset"] is None
-        assert "not a trained model" in ENTRY["endpoints"][endpoint]
-    assert str(len(admet.ENDPOINTS)) in ENTRY["parameters"]["endpoint"]
+        if endpoint not in admet.DESCRIPTOR_PROJECTIONS:
+            assert "not a trained model" in ENTRY["endpoints"][endpoint]
+    assert str(len(legacy)) in ENTRY["parameters"]["endpoint"]
+    assert "not a violation count" in ENTRY["endpoints"]["Lipinski"]
 
 
 def test_the_recorded_panel_is_in_the_package_s_own_order_and_says_what_the_package_says():

@@ -1,0 +1,37 @@
+{
+  "mode": "applied",
+  "plan_sha256": "d6f12aa13cf0296885a6a37df3c85c9d56c3aea1f02b98030d5aa4e122850ce0",
+  "results": [
+    {
+      "rule_ref": "rule_predicted-brenk-alert-count@v2",
+      "attribute_ref": "attr_predicted-brenk-alert-count@v2",
+      "adjudication_id": "adj_01M52PTN440TPEJTFJRZ3VNENN",
+      "artifact_id": "art_90b129c77d60",
+      "reused": false
+    },
+    {
+      "rule_ref": "rule_predicted-logp-rdkit@v2",
+      "attribute_ref": "attr_predicted-logp-rdkit@v2",
+      "adjudication_id": "adj_01M52PTNPXPXHQ9BEAHMBJPXQA",
+      "artifact_id": "art_1e59aaff9b59",
+      "reused": false
+    },
+    {
+      "rule_ref": "rule_predicted-nih-alert-count@v2",
+      "attribute_ref": "attr_predicted-nih-alert-count@v2",
+      "adjudication_id": "adj_01M52PTP9X796DZ37ZY2K20Y58",
+      "artifact_id": "art_7ff4c5d7c4f3",
+      "reused": false
+    },
+    {
+      "rule_ref": "rule_predicted-pains-alert-count@v2",
+      "attribute_ref": "attr_predicted-pains-alert-count@v2",
+      "adjudication_id": "adj_01M52PTPXH12264QQHQM53RE1F",
+      "artifact_id": "art_a126f985fa3b",
+      "reused": false
+    }
+  ],
+  "old_freeze_preserved": true,
+  "new_freeze_required": true,
+  "model_calls": 0
+}

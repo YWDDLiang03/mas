@@ -31,9 +31,10 @@ from .ids import new_id
 
 
 class ModelError(RuntimeError):
-    def __init__(self, error_class: str, message: str):
+    def __init__(self, error_class: str, message: str, *, accounting: dict[str, Any] | None = None):
         super().__init__(f"{error_class}: {message}")
         self.error_class = error_class
+        self.accounting = accounting or {}
 
 
 @dataclass(frozen=True)
@@ -72,9 +73,12 @@ class ModelResponse:
     provider_path: str
     usage: dict[str, int] = field(default_factory=dict)
     latency_ms: int = 0
-    cost_usd: float = 0.0
+    cost_usd: float | None = None
     reasoning: str = ""   # provider reasoning text, kept in the trace only
     truncated: bool = False   # the provider stopped at the token limit, so the reply is incomplete
+    usage_status: str | None = None
+    cost_status: str | None = None
+    provider_attempts: list[dict[str, Any]] = field(default_factory=list)
 
 
 class ModelAdapter(Protocol):
@@ -151,12 +155,44 @@ def _secret(env_name: str | None, key_file: str | None = None) -> str:
     return value
 
 
-def _cost(usage: dict[str, int], price_in: float | None, price_out: float | None) -> float:
-    """Spend in USD from token usage and per-million-token prices; 0 when prices are not configured."""
-    if price_in is None and price_out is None:
-        return 0.0
-    return ((usage.get("input_tokens", 0) * (price_in or 0.0)) +
-            (usage.get("output_tokens", 0) * (price_out or 0.0))) / 1_000_000
+def _cost(usage: dict[str, int], price_in: float | None, price_out: float | None) -> float | None:
+    """Known tariff subtotal; absent usage or prices remain unknown, rather than zero."""
+    terms = [usage[key] * price / 1_000_000
+             for key, price in (("input_tokens", price_in), ("output_tokens", price_out))
+             if key in usage and price is not None]
+    return sum(terms) if terms else None
+
+
+def _usage_status(usage: dict[str, int]) -> str:
+    return "complete" if all(key in usage for key in ("input_tokens", "output_tokens")) else "partial" if usage else "unknown"
+
+
+def _cost_status(usage: dict[str, int], price_in: float | None, price_out: float | None) -> str:
+    if _cost(usage, price_in, price_out) is None:
+        return "unknown"
+    complete = _usage_status(usage) == "complete" and all(
+        price is not None or usage[key] == 0
+        for key, price in (("input_tokens", price_in), ("output_tokens", price_out)))
+    return "estimated" if complete else "partial"
+
+
+def _aggregate_accounting(attempts: list[dict[str, Any]]) -> dict[str, Any]:
+    actual = [attempt for attempt in attempts if attempt.get("status") != "not_attempted"]
+    usage: dict[str, int] = {}
+    for attempt in actual:
+        for key, value in (attempt.get("usage") or {}).items():
+            if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                usage[key] = usage.get(key, 0) + value
+    known = [attempt["cost_usd"] for attempt in actual if attempt.get("cost_usd") is not None]
+    cost = sum(known) if known else None
+    return {"usage": usage,
+            "usage_status": "complete" if actual and all(a.get("usage_status") == "complete" for a in actual)
+                            else "partial" if usage else "unknown",
+            "cost_usd": cost, "known_cost_usd": cost,
+            "cost_status": "estimated" if actual and all(a.get("cost_status") == "estimated" for a in actual)
+                           else "partial" if known else "unknown",
+            "cost_is_estimate": True,
+            "attempt_count": len(actual)}
 
 
 def redact(text: str, secrets: list[str]) -> str:
@@ -195,10 +231,11 @@ class AnthropicAdapter:
         body = reply.json()
         text = "".join(part.get("text", "") for part in body.get("content", []) if part.get("type") == "text")
         usage = body.get("usage", {})
-        tokens = {"input_tokens": usage.get("input_tokens", 0), "output_tokens": usage.get("output_tokens", 0)}
+        tokens = {key: usage[key] for key in ("input_tokens", "output_tokens") if key in usage}
         return ModelResponse(request.request_id, text, None, body.get("model", self.record.model_id), "anthropic_api",
                              tokens, int((time.monotonic() - started) * 1000),
-                             cost_usd=_cost(tokens, self.price_in, self.price_out))
+                             cost_usd=_cost(tokens, self.price_in, self.price_out), usage_status=_usage_status(tokens),
+                             cost_status=_cost_status(tokens, self.price_in, self.price_out))
 
 
 class OpenAICompatibleAdapter:
@@ -254,34 +291,94 @@ class OpenAICompatibleAdapter:
         return payload
 
     def complete(self, request: ModelRequest) -> ModelResponse:
+        return self.complete_controlled(request)
+
+    def complete_controlled(self, request: ModelRequest, *,
+                            before_attempt: Callable[[dict[str, Any]], None] | None = None,
+                            on_attempt: Callable[[dict[str, Any]], None] | None = None) -> ModelResponse:
+        """Report and control each actual HTTP attempt, including internal retries.
+
+        Callbacks receive metadata and accounting, never credentials or raw replies.
+        A cooperative exception keeps its identity and completed-attempt accounting.
+        The ordinary complete(request) entry point retains its previous behaviour.
+        """
         key = _secret(self.api_key_env, self.api_key_file)
         payload = self.payload(request)
         started = time.monotonic()
-        usage_total = {"input_tokens": 0, "output_tokens": 0}
+        provider_attempts = []
+
+        def attach_accounting(error: Exception) -> None:
+            error.accounting = dict(_aggregate_accounting(provider_attempts), provider_attempts=provider_attempts)
+
+        def publish_attempt(record: dict[str, Any]) -> None:
+            provider_attempts.append(record)
+            if on_attempt is not None:
+                fields = ("request_id", "provider_attempt_index", "max_tokens", "status", "usage_status",
+                          "cost_usd", "cost_status", "response_id", "finish_reason", "error_class")
+                summary = {key: record.get(key) for key in fields}
+                summary["usage"] = dict(record.get("usage") or {})
+                summary["known_cost_usd"] = record.get("cost_usd")
+                try:
+                    on_attempt(summary)
+                except Exception as error:
+                    attach_accounting(error)
+                    raise
+
         max_tokens = request.max_tokens
         ceiling = max(request.max_tokens, min(4 * request.max_tokens, self.max_token_ceiling))
         finish_reason = None
         for attempt in range(self.empty_reply_retries + 1):
             payload["max_tokens"] = max_tokens
+            attempt_record = {"request_id": request.request_id, "provider_attempt_index": attempt + 1,
+                              "max_tokens": max_tokens, "status": "failed", "usage": {}, "usage_status": "unknown",
+                              "cost_usd": None, "cost_status": "unknown"}
+            if before_attempt is not None:
+                try:
+                    before_attempt({"request_id": request.request_id, "provider_attempt_index": attempt + 1,
+                                    "max_tokens": max_tokens})
+                except Exception as error:
+                    provider_attempts.append(dict(attempt_record, status="not_attempted",
+                                                  error_class=error.error_class if isinstance(error, ModelError) else type(error).__name__))
+                    attach_accounting(error)
+                    raise
             try:
                 reply = requests.post(f"{self.base_url}/chat/completions", timeout=self.timeout_s,
                                       headers={"authorization": f"Bearer {key}", "content-type": "application/json"},
                                       json=payload)
-            except requests.RequestException as error:
-                raise ModelError("transient_network", redact(str(error), [key])) from None
-            if reply.status_code == 429:
-                raise ModelError("rate_limited", redact(reply.text[:300], [key]))
-            if reply.status_code >= 400:
-                raise ModelError("auth_rejected" if reply.status_code in (401, 403) else "upstream_server_error",
-                                 redact(reply.text[:500], [key]))
-            body = reply.json()
-            choice = body["choices"][0]
-            message = choice["message"]
-            finish_reason = choice.get("finish_reason")
-            usage = body.get("usage", {})
-            usage_total["input_tokens"] += usage.get("prompt_tokens", 0)
-            usage_total["output_tokens"] += usage.get("completion_tokens", 0)
-            text = message.get("content") or ""
+                attempt_record["raw_response"] = redact(reply.text, [key])
+                if reply.status_code == 429:
+                    raise ModelError("rate_limited", redact(reply.text[:300], [key]))
+                if reply.status_code >= 400:
+                    raise ModelError("auth_rejected" if reply.status_code in (401, 403) else "upstream_server_error",
+                                     redact(reply.text[:500], [key]))
+                body = reply.json()
+                usage = body.get("usage") or {}
+                tokens = {target: usage[source] for source, target in
+                          (("prompt_tokens", "input_tokens"), ("completion_tokens", "output_tokens")) if source in usage}
+                attempt_record.update(usage=tokens, usage_status=_usage_status(tokens),
+                                      cost_usd=_cost(tokens, self.price_in, self.price_out),
+                                      cost_status=_cost_status(tokens, self.price_in, self.price_out),
+                                      response_id=body.get("id"))
+                choice = body["choices"][0]
+                message = choice["message"]
+                finish_reason = choice.get("finish_reason")
+                text = message.get("content") or ""
+                attempt_record.update(status="returned", text=text, reasoning=message.get("reasoning_content") or "",
+                                      finish_reason=finish_reason)
+            except InterruptedError as error:
+                attempt_record["error_class"] = type(error).__name__
+                publish_attempt(attempt_record)
+                attach_accounting(error)
+                raise
+            except Exception as error:
+                error_class = (error.error_class if isinstance(error, ModelError) else
+                               "transient_network" if isinstance(error, requests.RequestException) else "parse_failed")
+                attempt_record["error_class"] = error_class
+                publish_attempt(attempt_record)
+                accounting = _aggregate_accounting(provider_attempts)
+                accounting["provider_attempts"] = provider_attempts
+                raise ModelError(error_class, redact(str(error), [key]), accounting=accounting) from None
+            publish_attempt(attempt_record)
             if finish_reason == "length" and max_tokens < ceiling:
                 # A reply cut off at the limit is never a complete JSON value, and a reasoning
                 # model can spend the whole allowance before the answer starts (measured on
@@ -290,9 +387,11 @@ class OpenAICompatibleAdapter:
                 continue
             if text.strip() or attempt == self.empty_reply_retries:
                 break   # providers in JSON mode may occasionally return empty content; ask again
+        accounting = _aggregate_accounting(provider_attempts)
         return ModelResponse(request.request_id, text, None, body.get("model", self.record.model_id),
-                             "openai_compatible_api", usage_total, int((time.monotonic() - started) * 1000),
-                             cost_usd=_cost(usage_total, self.price_in, self.price_out),
+                             "openai_compatible_api", accounting["usage"], int((time.monotonic() - started) * 1000),
+                             cost_usd=accounting["cost_usd"], usage_status=accounting["usage_status"],
+                             cost_status=accounting["cost_status"], provider_attempts=provider_attempts,
                              reasoning=message.get("reasoning_content") or "",
                              truncated=finish_reason == "length")
 
@@ -326,11 +425,18 @@ class ExchangeAdapter:
     def wait(self, request: ModelRequest) -> ModelResponse:
         response_path = self.root / "responses" / f"{request.request_id}.json"
         started, deadline = time.monotonic(), time.monotonic() + self.timeout_s
-        while not response_path.exists():
-            if time.monotonic() > deadline:
-                raise ModelError("timeout", f"no response for {request.request_id} within {self.timeout_s}s")
-            time.sleep(self.poll_s)
-        body = json.loads(response_path.read_text(encoding="utf-8"))
+        while True:
+            try:
+                raw = response_path.read_text(encoding="utf-8")
+                break
+            except (FileNotFoundError, PermissionError):
+                # Atomic publication does not prevent a short Windows sharing lock.
+                # Keep polling under the original deadline, without treating it as a reply.
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise ModelError("timeout", f"no readable response for {request.request_id} within {self.timeout_s}s") from None
+                time.sleep(min(self.poll_s, remaining))
+        body = json.loads(raw)
         text = body.get("text") if body.get("text") is not None else json.dumps(body.get("data"))
         return ModelResponse(request.request_id, text, body.get("data"), body.get("model_id", self.record.model_id),
                              "exchange_bridge", body.get("usage", {}), int((time.monotonic() - started) * 1000))
@@ -445,19 +551,98 @@ def call_role(core, roster: ModelRoster, stream_id: str, request: ModelRequest, 
     from .journal import actor as make_actor
 
     adapter = roster.adapter(request.role)
+    controlled_complete = getattr(adapter, "complete_controlled", None)
+    controlled = callable(controlled_complete)
     who = make_actor("agent", f"{request.role}:{adapter.record.adapter_id}", request.role,
                      model_family=adapter.record.provider_family, version=adapter.record.model_id)
-    if budget is not None and not budget.try_charge("llm_turns", 1):
-        raise ModelError("quota_exhausted", f"llm_turns budget exhausted for {request.role}")
-    if budget is not None and hasattr(budget, "allows") and not budget.allows("usd"):
-        raise ModelError("quota_exhausted", f"spend cap reached before {request.role}")
+    def reserve_turn() -> ModelError | None:
+        if budget is not None and hasattr(budget, "allows") and not budget.allows("usd"):
+            return ModelError("quota_exhausted", f"spend cap reached before {request.role}")
+        if budget is not None and not budget.try_charge("llm_turns", 1):
+            return ModelError("quota_exhausted", f"llm_turns budget exhausted for {request.role}")
+        return None
+
+    def record_spend(cost: float | None) -> None:
+        total = getattr(budget, "root", budget)
+        accountant = budget if hasattr(budget, "record") else total
+        if cost is None or accountant is None or not hasattr(accountant, "record"):
+            return
+        for level in accountant.record("usd", cost):
+            used = total.used.get("usd", 0.0)
+            core.journal.append(stream_id, "run.annotated", actor=make_actor("controller", "budget", "controller"),
+                                payload={"annotation": "budget_threshold", "kind": "usd", "level": level,
+                                         "used": round(used, 4), "cap": total.caps.get("usd"),
+                                         "continues": budget.allows("usd")},
+                                summary=f"provider spend crossed the {level} threshold "
+                                        f"({used:.2f} of {total.caps.get('usd')} USD)")
+
+    if not controlled:
+        refusal = reserve_turn()
+        if refusal is not None:
+            raise refusal
     core.journal.append(stream_id, "agent.started", actor=who, ids=ids or {},
                         payload={"request_id": request.request_id, "role": request.role}, question=request.metadata.get("question"))
     attempt_request, response, problems = request, None, []
-    spent, reasoning = 0.0, []
+    attempts, reasoning, failure = [], [], None
     for attempt in range(max_repairs + 1):
-        response = adapter.complete(attempt_request)
-        spent += response.cost_usd
+        entry = {"attempt_index": attempt + 1, "request_id": attempt_request.request_id,
+                 "request": asdict(attempt_request), "schema_problems": []}
+        if attempt and not controlled:
+            try:
+                refusal = reserve_turn()
+            except InterruptedError as error:
+                # Preserve the paid response and its accounting before propagating a
+                # cooperative pause/stop that arrives between schema-repair attempts.
+                failure = error
+                attempts.append(dict(entry, status="not_attempted", error_class=type(error).__name__))
+                break
+            if refusal is not None:
+                failure = refusal
+                attempts.append(dict(entry, status="not_attempted", error_class=refusal.error_class))
+                break
+        def before_provider_attempt(metadata: dict[str, Any]) -> None:
+            refusal = reserve_turn()
+            if refusal is not None:
+                raise refusal
+
+        def provider_attempt_finished(summary: dict[str, Any]) -> None:
+            # Provider attempts are charged here, once, before a retry may start.
+            # The logical agent.finished event later replaces this subtotal in
+            # readers; it is never another debit to the shared budget.
+            record_spend(summary.get("cost_usd"))
+            payload = {**summary, "annotation": "model_provider_attempt", "request_id": request.request_id,
+                       "attempt_request_id": summary.get("request_id"), "logical_attempt_index": attempt + 1,
+                       "role": request.role}
+            core.journal.append(stream_id, "run.annotated", actor=who, ids=ids or {}, payload=payload,
+                                budget=budget.snapshot() if budget is not None and hasattr(budget, "snapshot") else None,
+                                summary=f"{request.role} provider attempt {summary.get('provider_attempt_index')} finished")
+            observer = getattr(budget, "on_model_attempt", None)
+            if callable(observer):
+                observer(payload)
+
+        try:
+            response = controlled_complete(attempt_request, before_attempt=before_provider_attempt,
+                                           on_attempt=provider_attempt_finished) if controlled else adapter.complete(attempt_request)
+        except Exception as error:
+            failure = error
+            partial = getattr(error, "accounting", {}) or {}
+            entry.update(status="not_attempted" if controlled and not partial.get("attempt_count") else "failed",
+                         usage=partial.get("usage") or {},
+                         usage_status=partial.get("usage_status", "unknown"),
+                         cost_usd=partial.get("cost_usd"), cost_status=partial.get("cost_status", "unknown"),
+                         provider_attempts=partial.get("provider_attempts") or [],
+                         error_class=error.error_class if isinstance(error, ModelError) else type(error).__name__)
+            if not controlled:
+                record_spend(entry["cost_usd"])
+            attempts.append(entry)
+            break
+        entry.update(status="returned", response=asdict(response), usage=dict(response.usage or {}),
+                     usage_status=response.usage_status or _usage_status(response.usage or {}),
+                     cost_usd=response.cost_usd,
+                     cost_status=response.cost_status or ("estimated" if response.cost_usd is not None else "unknown"))
+        if not controlled:
+            record_spend(response.cost_usd)
+        attempts.append(entry)
         if response.reasoning:
             reasoning.append(response.reasoning)
         if request.response_schema is None:
@@ -467,12 +652,12 @@ def call_role(core, roster: ModelRoster, stream_id: str, request: ModelRequest, 
             problems = validate(data, request.response_schema)
         except ModelError as error:
             data, problems = None, [str(error)]
+        entry["schema_problems"] = list(problems)
         if not problems:
             response.data = data
             break
+        entry["status"] = "schema_invalid"
         if attempt < max_repairs:
-            if budget is not None:
-                budget.try_charge("llm_turns", 1)
             attempt_request = ModelRequest(
                 role=request.role, system=request.system, response_schema=request.response_schema,
                 max_tokens=2 * attempt_request.max_tokens if response.truncated else request.max_tokens,
@@ -481,27 +666,42 @@ def call_role(core, roster: ModelRoster, stream_id: str, request: ModelRequest, 
                 messages=request.messages + [{"role": "assistant", "content": response.text},
                                              {"role": "user", "content": "Your reply did not match the schema: "
                                               + "; ".join(problems[:10]) + ". Reply again with corrected JSON only."}])
-    trace_id = core.artifacts.put("trace", {"request": asdict(request), "final_text": response.text,
-                                            "model_id": response.model_id, "provider_path": response.provider_path,
+    if failure is None and problems:
+        failure = ModelError("parse_failed", "; ".join(problems[:5]))
+    accounting = _aggregate_accounting(attempts)
+    if controlled:
+        accounting["provider_attempt_count"] = sum(
+            len([provider for provider in entry.get("provider_attempts", (entry.get("response") or {}).get("provider_attempts", []))
+                 if provider.get("status") != "not_attempted"]) for entry in attempts)
+    model_id = response.model_id if response is not None else adapter.record.model_id
+    provider_path = response.provider_path if response is not None else "unknown"
+    schema_ok = failure is None and not problems
+    outcome = ("ok" if schema_ok else "interrupted" if isinstance(failure, InterruptedError) else
+               "budget_exhausted" if isinstance(failure, ModelError) and failure.error_class == "quota_exhausted" else "failed")
+    trace_id = core.artifacts.put("trace", {"request": asdict(request), "final_text": response.text if response else "",
+                                            "model_id": model_id, "provider_path": provider_path,
                                             "schema_problems": problems, "reasoning": reasoning,
-                                            "truncated": response.truncated,
-                                            "max_tokens_final": attempt_request.max_tokens})
+                                            "truncated": response.truncated if response else False,
+                                            "max_tokens_final": attempt_request.max_tokens,
+                                            "attempts": attempts, "accounting": accounting, "outcome": outcome,
+                                            "error_class": (failure.error_class if isinstance(failure, ModelError)
+                                                            else type(failure).__name__ if failure else None)})
     core.journal.append(stream_id, "agent.finished", actor=who, ids=ids or {}, visibility="default",
-                        payload={"request_id": request.request_id, "role": request.role, "usage": response.usage,
-                                 "cost_usd": round(spent, 6), "provider_path": response.provider_path,
-                                 "model_id": response.model_id, "trace_blob": trace_id, "schema_ok": not problems,
-                                 "reply_truncated": response.truncated},
-                        summary=f"{request.role} replied" + ("" if not problems else " (schema problems)"))
-    if budget is not None and hasattr(budget, "record"):
-        total = getattr(budget, "root", budget)
-        for level in budget.record("usd", spent):
-            used = total.used.get("usd", 0.0)
-            core.journal.append(stream_id, "run.annotated", actor=make_actor("controller", "budget", "controller"),
-                                payload={"annotation": "budget_threshold", "kind": "usd", "level": level,
-                                         "used": round(used, 4), "cap": total.caps.get("usd"),
-                                         "continues": budget.allows("usd")},
-                                summary=f"provider spend crossed the {level} threshold "
-                                        f"({used:.2f} of {total.caps.get('usd')} USD)")
-    if problems:
-        raise ModelError("parse_failed", "; ".join(problems[:5]))
+                        payload={"request_id": request.request_id, "role": request.role, **accounting,
+                                 "provider_path": provider_path, "model_id": model_id, "trace_blob": trace_id,
+                                 "schema_ok": schema_ok, "reply_truncated": response.truncated if response else False,
+                                 "outcome": outcome,
+                                 "error_class": (failure.error_class if isinstance(failure, ModelError)
+                                                 else type(failure).__name__ if failure else None)},
+                        summary=f"{request.role} finished ({outcome})")
+    if failure is not None:
+        if isinstance(failure, (ModelError, InterruptedError)):
+            failure.accounting = dict(accounting, trace_blob=trace_id,
+                                      provider_attempts=[provider for entry in attempts for provider in
+                                          entry.get("provider_attempts", (entry.get("response") or {}).get("provider_attempts", []))])
+        raise failure
+    response.usage = accounting["usage"]
+    response.usage_status = accounting["usage_status"]
+    response.cost_usd = accounting["cost_usd"]
+    response.cost_status = accounting["cost_status"]
     return response

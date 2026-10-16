@@ -1,0 +1,111 @@
+{
+  "recorded_at": "2026-10-15T23:41:55.905542+00:00",
+  "task_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+  "run_id": "run_01M50X7EYSBXPDCP0SG859666R",
+  "snapshot_id": "lb_task_01M50Q5EZE12GGDES5QNWR0JQX_1",
+  "supplement_ref": "art_ae77c0685a78",
+  "conversion": "pChEMBL = -log10(IC50 in mol/L) = 9 - log10(IC50 in nM)",
+  "checks": [
+    {
+      "target": "CSF1R",
+      "attribute_ref": "attr_csf1r-curated-potency@v2",
+      "aggregation": "median of admitted cell evidence",
+      "input_claims": [
+        {
+          "claim_id": "claim_supp_7cda9b16ec9735592857ccb8",
+          "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+          "locator": "sec2.1.p1",
+          "original_value": 5,
+          "original_unit": "nM",
+          "pchembl_value": 8.301029995663981,
+          "span_checked_against_source": true
+        }
+      ],
+      "recomputed_value": 8.301029995663981,
+      "recorded_value": 8.301029995663981,
+      "absolute_difference": 0.0,
+      "status": "pass"
+    },
+    {
+      "target": "FGFR1",
+      "attribute_ref": "attr_fgfr1-curated-potency@v2",
+      "aggregation": "median of admitted cell evidence",
+      "input_claims": [
+        {
+          "claim_id": "claim_supp_83672b2db7eef2e883b7a245",
+          "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+          "locator": "sec2.1.p1",
+          "original_value": 34,
+          "original_unit": "nM",
+          "pchembl_value": 7.468521082957745,
+          "span_checked_against_source": true
+        },
+        {
+          "claim_id": "claim_01M50X94ZMQAMQYHWJEZ2YKJB8",
+          "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132415",
+          "locator": "chembl_activity_26132415#pchembl_value",
+          "original_value": 7.82,
+          "original_unit": "pChEMBL",
+          "pchembl_value": 7.82,
+          "span_checked_against_source": true
+        },
+        {
+          "claim_id": "claim_01M50X94ZNYQ3MSPY8WG9PWZE3",
+          "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187720",
+          "locator": "chembl_activity_26187720#pchembl_value",
+          "original_value": 7.82,
+          "original_unit": "pChEMBL",
+          "pchembl_value": 7.82,
+          "span_checked_against_source": true
+        },
+        {
+          "claim_id": "claim_01M50X94ZQ27NGYNFC2V6ZPTTM",
+          "source_ref": "src_db_tool_drug_gtopdb_affinity_gtopdb_interaction_9769_P11362_nopmid",
+          "locator": "gtopdb_interaction_9769_P11362_nopmid#affinity",
+          "original_value": 7.28000020980835,
+          "original_unit": "pChEMBL",
+          "pchembl_value": 7.28000020980835,
+          "span_checked_against_source": true
+        }
+      ],
+      "recomputed_value": 7.6442605414788725,
+      "recorded_value": 7.6442605414788725,
+      "absolute_difference": 0.0,
+      "status": "pass"
+    }
+  ],
+  "imputed_values_used": false,
+  "selection": "exploratory_known_gap_source; not an independent or symmetric all-candidate literature search",
+  "remaining_missing": {
+    "attribute_ref": "attr_curated-mechanism-of-action-records-confirming-engagement-of@v2",
+    "rule_ref": "rule_curated-mechanism-of-action-records-confirming-engagement-of@v2",
+    "rule_kind": "preference",
+    "verdict": "unknown_missing",
+    "verdict_label": "unknown (missing)",
+    "value": null,
+    "unit": "count of required receptors",
+    "value_kind": "missing",
+    "determination_basis": "absent",
+    "reason_text": "Curated mechanism-of-action records confirming engagement of the required receptors: unknown — no admitted claim from an accepted source; this is not a failure.",
+    "basis_precedence": null,
+    "evidence": [],
+    "counter_evidence": []
+  },
+  "retained_preference_failure": {
+    "attribute_ref": "attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v2",
+    "rule_ref": "rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v3",
+    "rule_kind": "preference",
+    "verdict": "fail",
+    "verdict_label": "fail",
+    "value": 121.0,
+    "unit": "Å²",
+    "value_kind": "derived",
+    "determination_basis": "derived",
+    "reason_text": "Topological polar surface area against the stated oral-absorption level for kinase inhibitors = 121 Å² (1 claim(s)); rule <= 90 Å² → fail.",
+    "basis_precedence": null,
+    "evidence": [
+      "claim_01M50XE1P69DH5ET3YC0YVDNX1"
+    ],
+    "counter_evidence": []
+  }
+}

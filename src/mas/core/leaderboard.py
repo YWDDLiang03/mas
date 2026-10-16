@@ -8,6 +8,7 @@ abstention. Every state change against the parent snapshot carries a change reco
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from . import assessor, vocab
@@ -63,10 +64,12 @@ def leaderboard_record(core: Core, task_context: dict[str, Any], members: list[s
 
 def snapshots(core: Core, task_id: str) -> list[dict[str, Any]]:
     out = []
-    for stream in core.journal.streams("run_"):
-        for event in core.journal.replay(stream):
-            if event.event_type == "leaderboard.snapshot_published" and event.payload["task_id"] == task_id:
-                out.append(core.artifacts.payload(event.payload["artifact_id"]))
+    rows = core.store.db.execute("SELECT body FROM events WHERE event_type = ? AND stream_id LIKE 'run_%' "
+        "AND COALESCE(json_extract(body, '$.payload.task_id'), json_extract(body, '$.ids.task_id')) = ? "
+        "ORDER BY stream_id, seq", ("leaderboard.snapshot_published", task_id))
+    for (body,) in rows:
+        event = json.loads(body)
+        out.append(core.artifacts.payload(event["payload"]["artifact_id"]))
     return sorted(out, key=lambda s: s["published_at"])
 
 
@@ -120,7 +123,9 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
                    ranking_coverage_floor: float = 0.5,
                    mandated_rule_refs: list[str] | tuple[str, ...] = (),
                    mandated_coverage_floor: float = assessor.DEFAULT_MANDATED_COVERAGE_FLOOR,
-                   calibration_guard: dict[str, Any] | None = None) -> dict[str, Any]:
+                   calibration_guard: dict[str, Any] | None = None,
+                   rank_requires_mandated_coverage: bool = True, qualification_policy: str = "legacy",
+                   qualifications: dict[str, dict[str, Any]] | None = None, evaluation_mode: str = "full") -> dict[str, Any]:
     # WHY the demoted kinds come from the cells rather than from the rule set's entries: the
     # calibration guard demotes a hard exclusion for this run (`controller._calibration_guard`), the
     # registry's rule is untouched, and the cells are what carry the kind this board was computed
@@ -139,6 +144,11 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
         # What this candidate answers of the criteria the task itself mandates
         # (`assessor.mandated_coverage`), and which of them it does not.
         own = assessor.mandated_coverage(candidate_cells, mandated_rule_refs)
+        if qualification_policy == assessor.QUALIFICATION_POLICY:
+            mine = [c for c in candidate_cells if c["rule_ref"] in mandated_rule_refs and c["rule_kind"] != "hard_exclusion"]
+            own.update(answered_n=sum(assessor.direct_evidence(c) for c in mine),
+                       coverage=sum(assessor.direct_evidence(c) for c in mine) / len(mine) if mine else None,
+                       unanswered=sorted(c["attribute_ref"] for c in mine if not assessor.direct_evidence(c)))
         entries.append({
             "candidate_ref": candidate_id, "identity_labels": [identity.get("preferred_label") or identity.get("input_label")],
             "state": summary["state"], "state_reason": summary["state_reason"], "preference_score": score,
@@ -191,6 +201,18 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
         })
     for entry in entries:
         notes = []
+        if qualification_policy == assessor.QUALIFICATION_POLICY:
+            q = (qualifications or {}).get(entry["candidate_ref"], {"state": "not_ready", "qualified": False})
+            entry.update(qualification=q, qualification_state=q["state"], qualified=q["qualified"],
+                         direct_preference_coverage=entry["preference_coverage"],
+                         cell_availability={c["attribute_ref"]: c.get("availability", "unavailable")
+                                            for c in cells.get(entry["candidate_ref"], [])})
+            entry["clears_hard_rules"] = (q.get("applicable_hard_count", 0) > 0 and
+                not q.get("blocking_hard_rule_refs") and not q.get("failed_hard_rule_refs"))
+            entry["gate_blocked_by"] = q.get("blocking_hard_rule_refs", []) + q.get("failed_hard_rule_refs", [])
+            if not q["qualified"]:
+                entry["preference_score"] = None
+                notes.append(f"qualification: {q['state']}")
         if entry["clears_mandated_criteria"] is False:
             notes.append(f"{entry['n_mandated'] - entry['n_mandated_answered']} of the {entry['n_mandated']} criteria "
                          f"the task itself requires are unanswered ({', '.join(entry['mandated_blocked_by'])}); "
@@ -200,11 +222,13 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
                          f"below {ranking_coverage_floor:.2f})")
         if notes:
             entry["rank_note"] = "; ".join(notes)
-    # Eligible for a position: cleared the gates, has a score, has enough scoring inputs, and has
-    # been answered on the task's own criteria. `is not False` and not a truth test, because None is
-    # "the task mandates nothing here" and must not read as a failure.
+    # A legacy board gates positions on mandated coverage. A profile may register rank separately
+    # from that eligibility reading; the coverage, qualification and blocking unknowns remain.
+    # `is not False` keeps an absent mandated population from reading as a failure.
     ranked = [e for e in entries if e["state"] in ("recommended", "provisional") and e["preference_score"] is not None
-              and e["preference_coverage"] >= ranking_coverage_floor and e["clears_mandated_criteria"] is not False]
+              and (qualification_policy != assessor.QUALIFICATION_POLICY or e.get("qualified") is True)
+              and e["preference_coverage"] >= ranking_coverage_floor
+              and (not rank_requires_mandated_coverage or e["clears_mandated_criteria"] is not False)]
     ranked.sort(key=lambda e: (-e["preference_score"], STATE_ORDER[e["state"]], -e["preference_coverage"], -(e["coverage"] or 0),
                                e["candidate_ref"]))
     if has_preferences:
@@ -214,7 +238,7 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
     admitted = [e for e in entries if e["state"] == "recommended"]
     all_cells = [c for cs in cells.values() for c in cs]
     applicable = [c for c in all_cells if c["verdict"] != "inapplicable"]
-    value_bearing = [c for c in applicable if c["verdict"] in ("pass", "fail")]
+    value_bearing = [c for c in applicable if c["verdict"] in ("pass", "fail", "available")]
     abstentions: dict[str, int] = {}
     for e in entries:
         if e["state"] in ("provisional", "unassessed"):
@@ -260,6 +284,7 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
                             # holds off the ranking. Recorded whether or not it excluded anybody, so
                             # the number the board was built with is reproducible from the board.
                             "mandated_coverage_floor": mandated_coverage_floor,
+                            "rank_requires_mandated_coverage": rank_requires_mandated_coverage,
                             "mandated_rule_refs": sorted(mandated_rule_refs),
                             "ineligible_for_mandated_coverage": sum(1 for e in entries
                                                                     if e["clears_mandated_criteria"] is False),
@@ -281,4 +306,22 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
         "calibration_guard": calibration_guard,
         "published_at": utc_now(),
     }
+    if qualification_policy == assessor.QUALIFICATION_POLICY:
+        skipped = [c for c in all_cells if c.get("not_assessed_reason") == "skipped_after_rejection"]
+        missing = [c for c in all_cells if c["verdict"] in ("unknown_missing", "unknown_conflicted")]
+        readiness = "ready" if any(q.get("applicable_hard_count", 0) and q.get("verified_hard_count", 0)
+                                    for q in (qualifications or {}).values()) else "not_ready"
+        snapshot.update(qualification_policy=qualification_policy, evaluation_mode=evaluation_mode, readiness=readiness,
+                        qualified_count=sum(e.get("qualified", False) for e in entries),
+                        all_pass_count=sum(e.get("qualified", False) for e in entries))
+        snapshot["reporting_tuple"].update(qualification_policy=qualification_policy, evaluation_mode=evaluation_mode,
+            normalization_population="qualified_only", readiness=readiness, skipped_after_rejection_n=len(skipped),
+            missing_or_conflicted_n=len(missing), error_n=sum(bool(c.get("tool_error_ref")) for c in all_cells),
+            assessed_cell_n=sum(c["verdict"] != "not_assessed" for c in all_cells),
+            recorded_cell_n=len(all_cells), qualified_n=snapshot["qualified_count"],
+            assessment_completeness=sum(c["verdict"] != "not_assessed" for c in all_cells) / len(all_cells) if all_cells else 0.0,
+            direct_coverage_fraction=sum(assessor.direct_evidence(c) for c in applicable) / len(applicable) if applicable else 0.0)
+        if readiness == "not_ready":
+            snapshot["result_kind"] = "no_recommendation"
+            snapshot["abstention_reason"] = "qualification_not_ready"
     return snapshot

@@ -519,7 +519,8 @@ def _use(rule_ref: str, attribute_ref: str, rule_sets: list[dict[str, Any]],
                       f"this run: {deferred.get('reason') or 'no reason recorded'}")
     elif deferred is not None:
         status = "deferred"
-        reason = f"{deferred['capability']} was held out of this run: {deferred.get('reason') or 'no reason recorded'}"
+        reason = (deferred.get("reason") if deferred.get("reason_kind") in ("non_executable_preference", "unresolved_review") else
+                  f"{deferred['capability']} was held out of this run: {deferred.get('reason') or 'no reason recorded'}")
     elif collapsed is not None:
         status = "collapsed_away"
         reason = (f"its attribute was merged into {collapsed['merged_into']} by {collapsed['collapse_id']}; "
@@ -595,6 +596,24 @@ def snapshot(core: Core, task_id: str, *, at_seq: int | None = None, with_board:
                    by_pool_criterion.get(base_id), rule_sets, queue, adjudication_by_rule, collapses, board,
                    claim_cache, task_context_ref)
              for base_id in sorted(latest_attributes)]
+    inventory = criteria.registry_inventory(pinned_core, task_id)
+    retirements = {}
+    for event in pinned_core.journal.replay(task_id):
+        if event.event_type == "criterion.change_recorded" and event.payload.get("registry"):
+            if event.payload["registry_state"] == "retired":
+                retirements[event.payload["rule_ref"]] = event.payload
+            else:
+                retirements.pop(event.payload["rule_ref"], None)
+    for card in cards:
+        retirement = retirements.get(card["identity"]["rule_ref"])
+        if retirement:
+            card["lifecycle"]["registry_retirement"] = retirement
+            card["use"] = {"status": "retired", "rule_set_ref": card["use"].get("rule_set_ref"),
+                           "reason": retirement["reason_text"], "last_frozen_use": card["use"]}
+        elif card["lifecycle"].get("merged_away") and not card["lifecycle"]["merged_away"].get("withdrawn"):
+            card["use"] = {"status": "collapsed_away", "rule_set_ref": card["use"].get("rule_set_ref"),
+                           "reason": "the quantity is carried by its recorded surviving criterion",
+                           "last_frozen_use": card["use"]}
 
     lifecycle = _lifecycle(folded, collapses, registry, rule_sets)
     counts = _counts(cards, folded, trajectory, registry, rule_sets, collapses, queue, adjudications, lifecycle)
@@ -620,6 +639,7 @@ def snapshot(core: Core, task_id: str, *, at_seq: int | None = None, with_board:
         "latest_rule_set_ref": rule_sets[-1]["rule_set_ref"] if rule_sets else None,
         "board": board,
         "criteria": cards,
+        "registry_inventory": inventory,
         "recovery_comparison_set": _recovery_comparison_set(cards, lifecycle),
         "lifecycle": lifecycle,
         "derivation_trajectory": trajectory,
@@ -806,7 +826,7 @@ def _recovery_comparison_set(cards: list[dict[str, Any]], lifecycle: dict[str, A
     restate a requirement the task supplied, and a recovery figure that does not separate them would
     describe a supplied requirement as an independently derived one (§12.2, §2.4).
     """
-    included = [c for c in cards if c["use"]["status"] not in ("collapsed_away",)]
+    included = [c for c in cards if c["use"]["status"] not in ("collapsed_away", "retired")]
     excluded = [{"attribute_ref": c["identity"]["attribute_ref"], "rule_ref": c["identity"]["rule_ref"],
                  "name": c["name"], "reason": c["use"]["reason"],
                  "same_quantity_as": (c["lifecycle"]["merged_away"] or {}).get("into")}
@@ -824,6 +844,9 @@ def _recovery_comparison_set(cards: list[dict[str, Any]], lifecycle: dict[str, A
                       "measurement_identity_sha256": c["matching_facets"]["measurement_identity_sha256"]}
                      for c in included],
         "included_count": len(included),
+        "excluded_as_retired": [{"attribute_ref": c["identity"]["attribute_ref"],
+                                  "rule_ref": c["identity"]["rule_ref"], "reason": c["use"]["reason"]}
+                                 for c in cards if c["use"]["status"] == "retired"],
         "excluded_as_a_repeated_variant": excluded,
         "excluded_as_pruned_pool_items": lifecycle["pool_items_not_promoted_count"],
         "by_origin": {kind: {"count": len(refs), "attribute_refs": sorted(refs)}
@@ -934,8 +957,8 @@ def _counts(cards: list[dict[str, Any]], folded: dict[str, dict[str, Any]], traj
             collapses: list[dict[str, Any]], queue: dict[str, dict[str, Any]],
             adjudications: list[dict[str, Any]], lifecycle: dict[str, Any]) -> dict[str, Any]:
     """Each quoted number with the population it counts, measured from the pinned snapshot."""
-    proposals = sum(step["added"] for step in trajectory)
-    promoted = [c for c in cards if (c["lifecycle"]["pool_state"] == "promoted")]
+    proposals = sum(step["added"] for step in trajectory if step["stage"] == "propose")
+    promoted = [c for c in cards if c["origin"].get("pool_criterion")]
     templates = [c for c in cards if c["origin"]["kind"] in ("adapter_template", "task_mandated_template")]
     latest = rule_sets[-1] if rule_sets else {}
     bound = [c for c in cards if any(p["basis"] == "source_stated_value" and p["claim_refs"]
@@ -946,11 +969,14 @@ def _counts(cards: list[dict[str, Any]], folded: dict[str, dict[str, Any]], traj
         "proposals_added_to_pool": {
             "value": proposals,
             "counts": "pool lineages created by the propose stage, over every round in this task"},
+        "registered_reduction_inputs": {
+            "value": sum(step["added"] for step in trajectory if step["stage"] == "registry_inputs"),
+            "counts": "existing registered criteria imported for reduction; these are not new proposals"},
         "pool_lineages": {"value": len(folded), "counts": "distinct `cri_` lineages the pool ever held"},
         "promoted_pool_items": {
             "value": sum(1 for e in folded.values() if e["state"] == "promoted"),
-            "counts": "pool lineages whose final state is `promoted`; each wrote one attribute and "
-                      "one rule into the registry"},
+            "counts": "pool lineages whose final state is `promoted`; registry reduction can retain "
+                      "an existing version without writing another criterion"},
         "pruned_pool_items": {"value": lifecycle["pool_items_not_promoted_count"],
                               "counts": "pool lineages that never reached the registry, by final state: "
                                         + ", ".join(f"{state} {len(found)}" for state, found
@@ -960,6 +986,9 @@ def _counts(cards: list[dict[str, Any]], folded: dict[str, dict[str, Any]], traj
             "counts": "distinct attribute ids in the registry, each paired with one rule id; this is "
                       "the promoted pool items plus the criteria the adapter templates registered "
                       "without entering the pool"},
+        "active_registered_criteria": {
+            "value": sum(c["use"]["status"] not in ("retired", "collapsed_away") for c in cards),
+            "counts": "registered criteria still active, including pending/disputed and capability-deferred rules"},
         "registered_from_pool": {"value": len(promoted),
                                  "counts": "registered criteria whose attribute a pool promotion wrote"},
         "registered_from_templates": {
@@ -1405,7 +1434,8 @@ def render_markdown(payload: dict[str, Any]) -> str:
         "|---|---|---|",
     ]
     for key in ("proposals_added_to_pool", "pool_lineages", "promoted_pool_items", "pruned_pool_items",
-                "registered_criteria", "registered_from_pool", "registered_from_templates",
+                "registered_criteria", "active_registered_criteria", "registered_reduction_inputs",
+                "registered_from_pool", "registered_from_templates",
                 "registry_versions", "scoring_now", "deferred_now", "scoring_with_a_route_held_out_now",
                 "collapsed_away_now", "collapses",
                 "review_queue", "unresolved_disputes", "machine_adjudications", "expert_decisions",
@@ -1513,6 +1543,24 @@ def _lifecycle_markdown(payload: dict[str, Any]) -> list[str]:
 
 def render_reconciliation(payload: dict[str, Any]) -> str:
     counts = payload["counts"]
+    if counts.get("registered_reduction_inputs", {}).get("value") or \
+            (payload.get("registry_inventory") or {}).get("retired_latest_count"):
+        inventory = payload["registry_inventory"]
+        latest = payload["rule_sets"][-1] if payload["rule_sets"] else None
+        return "\n".join([
+            "# Criteria count reconciliation", "",
+            f"Task `{payload['task']['task_context_ref']}` at seq {payload['journal_position']['pinned_seq']}.", "",
+            f"- historical registered criterion ids: {counts['registered_criteria']['value']}",
+            f"- currently active registered criteria: {inventory['active_registered_count']} "
+            f"(including {inventory['pending_review_count']} with pending review)",
+            f"- scoring under the latest frozen policy: {inventory['scoring_in_latest_frozen_set_count']}; "
+            f"rule set `{latest['rule_set_ref'] if latest else None}`",
+            f"- explicitly retired/superseded latest rules: {inventory['retired_latest_count']}",
+            f"- original proposals added to the pool: {counts['proposals_added_to_pool']['value']}",
+            f"- registered inputs imported for reduction: {counts['registered_reduction_inputs']['value']}; "
+            "these are existing criteria, not new proposals", "",
+            "Historical cards and pool changes remain in the review snapshot. Pending and capability-deferred "
+            "rules remain active until explicitly retired; a reduction does not relabel them as removed.", ""])
     rule_sets = {r["rule_set_ref"]: r for r in payload["rule_sets"]}
     latest = payload["rule_sets"][-1] if payload["rule_sets"] else {"rule_set_ref": None, "counts": {}}
     first = payload["rule_sets"][0] if payload["rule_sets"] else {"rule_set_ref": None, "counts": {}}

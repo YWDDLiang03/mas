@@ -65,9 +65,14 @@ def cmd_next(root: Path, wait_s: float, agent: str = "agent") -> int:
     deadline = time.monotonic() + wait_s
     while True:
         for request in _pending(root):
-            if _claim(root, request, agent):
-                print(request.read_text(encoding="utf-8"))
-                return 0
+            try:
+                if _claim(root, request, agent):
+                    print(request.read_text(encoding="utf-8"))
+                    return 0
+            except PermissionError:
+                # Windows can briefly deny a read just after atomic publication.
+                # Retry the owned request before claiming any additional work.
+                break
         if _finished(root) and not _pending(root):
             print(json.dumps({"status": "done"}))
             return 3

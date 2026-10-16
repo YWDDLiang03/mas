@@ -1,0 +1,59 @@
+{
+  "task_id": "task_01M51AQ0JK0MYN47806ZD5XS1B",
+  "task_pinned_seq": 7968,
+  "reads_finished_only": true,
+  "writes_primary": 0,
+  "note": "Read-only exact-prompt recovery probe. Reviewer field comparison uses public finished-actor metadata; deployed review_once additionally checks its configured roster. No attempt was persisted.",
+  "items": [
+    {
+      "item_id": "q_01M51HP6K70XY79D02XKE50VK4",
+      "rule_ref": "rule_measured-oral-bioavailability-f-any-species@v1",
+      "matched": true,
+      "result": {
+        "outcome": "unresolved",
+        "reason_text": "criterion remains pending under qualification_first_v1: the critic's finding stands, so the criterion does not score as proposed",
+        "reason_origin": "deterministic_reconstruction_from_completed_dispute_trace",
+        "model_verdict": "uphold_objection",
+        "model_reasoning": "The critic's findings stand. The cited claims show oral bioavailability is species-dependent: claim_01M4YKRBAM3RY27VHTXG2KB0E3 reports F% of 4.9, 2.2, 6.8 and 3.5 across mouse, rat, dog and human, while claim_01M4YKRB8TWAJYAJ8WMDRSBZ2Q reports F% of 43, 50 and 81 across mouse, rat and dog. Taking the maximum across species therefore selects the most favourable species rather than a comparable cross-candidate value. This also means candidates with more species tested have more chances to record a high maximum, whereas single-species candidates such as those in claim_01M4YKA9MBBVA85RC9NMYXTQQJ, claim_01M4YKA9MRFW42C41EAF4TT08M, claim_01M4YKRB6TTSC4B88AFCDNYKZT and claim_01M4YKRBA1Q787XX2C8MB1ZGN2 do not. The rule's on_conflict unknown_no_penalty does not address this species-driven aggregation bias. The criterion should not score as proposed.",
+        "source_agent_records": [
+          {
+            "finished_seq": 7949,
+            "request_id": "brief_01M51HS5H04QNZQ24S7MSNJW2B",
+            "trace_ref": "art_7abb9efffd0c",
+            "recorded_at": "2026-10-16T05:10:40.825Z",
+            "cost_usd": 0.026754299999999998,
+            "cost_status": "estimated"
+          }
+        ],
+        "source_kind": "legacy_completed_trace",
+        "reused": true
+      },
+      "scope_sha256": "484beca4ba3f0e319d15e6bf1e40c0113bb724df2dfccfc07586e3e663e1c7bd"
+    },
+    {
+      "item_id": "q_01M51HPDR11AX9654VZ36W7Q8B",
+      "rule_ref": "rule_vegfr2-engagement-on-record@v1",
+      "matched": true,
+      "result": {
+        "outcome": "unresolved",
+        "reason_text": "criterion remains pending under qualification_first_v1: a revision may not set acceptable_determination_bases, acceptable_value_sources, aggregation; those fields are not this rule's to change",
+        "reason_origin": "deterministic_reconstruction_from_completed_dispute_trace",
+        "model_verdict": "revise",
+        "model_reasoning": "The cited claims do establish that VEGFR2 engagement is a meaningful and discriminating property for this compound class, but they do so through two evidence types only: narrative target-coverage assertions about named drugs (e.g. claim_01M4X8B2XJWC1TRR1YYHT0CW2H for sunitinib, claim_01M4X8CB82F7TDRHVP4K9F57FM for cabozantinib, claim_01M4X8NA3JZAVD93B23WNZ4EQV for the sunitinib table entry) and measured VEGFR2 inhibition values (claim_01M4X8J29BWEZG0YP4TRW5WEDR, claim_01M4ZH91D09PH80W5S6Q1YXFFR, claim_01M4ZHKW2VDPT5PBBAY4W5DFBA). None of the cited claims is a curated mechanism-table entry, so the criterion's restriction of acceptable_value_sources to database_entry and acceptable_determination_bases to curated excludes the very evidence type its own support rests on; a compound with the measured VEGFR2 inhibition that the claims describe would be scored 'unknown', which is exactly the failure mode named in the falsification test. The critic's completeness and symmetry concerns (findings 2 and 3) are already partly defused by the existing unknown_no_penalty defaults, since absence is not penalized, but the residual support gap is real and is settled by widening the accepted bases/sources rather than by discarding the criterion. The revision only relaxes the criterion (more evidence types count, no cutoff introduced, still a preference, not a hard exclusion).",
+        "source_agent_records": [
+          {
+            "finished_seq": 7953,
+            "request_id": "brief_01M51HYXM13S6M7B3VAAZKABRH",
+            "trace_ref": "art_215a1a488304",
+            "recorded_at": "2026-10-16T05:12:44.250Z",
+            "cost_usd": 0.017760599999999998,
+            "cost_status": "estimated"
+          }
+        ],
+        "source_kind": "legacy_completed_trace",
+        "reused": true
+      },
+      "scope_sha256": "cf915a35906fb3f725fea4c738de826977185eaeba9da30f3bfbc7484ad001f4"
+    }
+  ]
+}

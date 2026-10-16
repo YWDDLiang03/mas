@@ -1,0 +1,72 @@
+{
+  "status": "pass",
+  "run_id": "run_01M50X7EYSBXPDCP0SG859666R",
+  "task_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+  "snapshot_id": "lb_task_01M50Q5EZE12GGDES5QNWR0JQX_1",
+  "rules_ref": "rules@v1",
+  "profile_ref": "art_5a84d471a676",
+  "binding_sha256": "3616434ed6b3da87700c79b86e06b1bade45b0cf28c52016a5889d9136db7699",
+  "published_snapshot_sha256": "fb1c67295c3eacac567b8737511db2bc5f2139840d329dd91d8f95eabea458d3",
+  "evidence_snapshot_sha256": "d3419799a3e3c7bb8d1b71d151854dab39b443482de6218efccbc66161bff478",
+  "source_sha256": "1f8cd8ce24c35e354b340a5c7543de51354d1d9a277b8dce0e13d5bad0f21b4e",
+  "profile_digest": "bd0c586552f5061ac3c73ce66b669288b62e433e325f9e9c918fa2237cb0a304",
+  "profile_conforms": true,
+  "identity_count": 3177,
+  "scoring_rule_count": 9,
+  "frozen_cell_count": 28593,
+  "sweep_completeness": 1.0,
+  "identity_set_sha256": "d2c5184f5fa061bf80de5a8965cab574aabe3268d5094823637e57c28a6ddd58",
+  "identity_artifacts_sha256": "03aedfd431a7b3d5ab2617ec299c8b8200ff0d086d7e98d5629442e49d8d3019",
+  "cell_artifacts_sha256": "c62d13e577e224593c6871e829e9938e9d62ccdf759f6af0abb4d02449d9400a",
+  "saved_comparable_entries_sha256": "82917b626b0422bdf0c655bc8527fa79573a33f021874e24b60faaa4081c3089",
+  "rebuilt_comparable_entries_sha256": "82917b626b0422bdf0c655bc8527fa79573a33f021874e24b60faaa4081c3089",
+  "comparison_fields": [
+    "identity_labels",
+    "state",
+    "state_reason",
+    "preference_score",
+    "preference_coverage",
+    "coverage",
+    "position",
+    "clears_hard_rules",
+    "n_fail_hard",
+    "n_unknown_hard",
+    "gate_blocked_by",
+    "missing",
+    "clears_mandated_criteria",
+    "n_mandated",
+    "n_mandated_answered",
+    "mandated_coverage",
+    "mandated_blocked_by",
+    "mandated_gates",
+    "mandated_gates_unanswered",
+    "verdicts",
+    "measured_vs_predicted_counts",
+    "gap_filled_criteria",
+    "determination_bases",
+    "rank_note"
+  ],
+  "float_tolerance": 1e-12,
+  "difference_count": 0,
+  "differences": [],
+  "started_at": "2026-10-15T23:27:02.545Z",
+  "finished_at": "2026-10-15T23:27:09.489Z",
+  "store_read_only": true,
+  "method": "frozen assessments -> calibration -> roll-up -> score -> full leaderboard comparison",
+  "claim_scope": {
+    "establishes": [
+      "offline aggregation/scoring/ranking reproducibility"
+    ],
+    "not_reperformed": [
+      "identity resolution",
+      "source retrieval",
+      "claim extraction",
+      "cell assessment"
+    ],
+    "does_not_establish": [
+      "biological effectiveness",
+      "expert agreement",
+      "independent validation"
+    ]
+  }
+}

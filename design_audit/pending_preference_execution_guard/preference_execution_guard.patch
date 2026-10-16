@@ -1,0 +1,256 @@
+--- a/src/mas/core/criteria.py
++++ b/src/mas/core/criteria.py
+@@ -454,6 +454,49 @@
+         raise InvariantViolation("units", f"cutoff unit {cutoff.get('unit')!r} differs from attribute unit {attr.get('unit')!r}")
+ 
+ 
++def preference_execution_problems(attribute: dict[str, Any], rule: dict[str, Any]) -> list[str]:
++    """Mechanical scoring readiness, independent of scientific approval. Pure; hard rules unchanged."""
++    if rule.get("rule_kind") != "preference":
++        return []
++    predicate = rule.get("predicate_form", "threshold")
++    cutoff = rule.get("cutoff")
++    if cutoff is None:
++        if predicate != "ordering":
++            return [f"preference has no executable predicate: {predicate!r} needs a declared comparison "
++                    "cutoff; no cutoff or pass value is inferred"]
++        if attribute.get("direction") not in ("higher_better", "lower_better"):
++            return ["preference ordering requires higher_better or lower_better; "
++                    f"{attribute.get('direction')!r} defines no executable order"]
++        # Preserve the assessor's existing numeric categorical/ordinal encodings. Their type
++        # label or lack of a physical unit alone does not make an explicit order unexecutable.
++        return []
++    if not isinstance(cutoff, dict) or not cutoff:
++        return ["preference has no executable comparison: cutoff must be a non-empty comparison record"]
++    try:
++        check_rule(rule, attribute)
++    except InvariantViolation as error:
++        return [f"preference comparison is not executable: {error}"]
++    return []
++
++
++def preference_execution_findings(core: Core, task_id: str, *,
++                                 rule_set: dict[str, Any] | None = None) -> list[dict[str, Any]]:
++    """Read-only findings for active proposals, or the exact entries of a selected frozen set."""
++    entries = (rule_set["entries"] if rule_set is not None else
++               [{"rule_ref": f"{rule['rule_id']}@v{rule['version']}", "attribute_ref": rule["attribute_ref"]}
++                for rule in registered_rule_records(core, task_id)])
++    findings = []
++    for entry in entries:
++        rule = load(core, entry["rule_ref"], task_id)
++        attribute = load(core, entry["attribute_ref"], task_id)
++        problems = preference_execution_problems(attribute, rule)
++        if problems:
++            findings.append({"rule_ref": entry["rule_ref"], "attribute_ref": entry["attribute_ref"],
++                             "scope": "rule", "reason_kind": "non_executable_preference",
++                             "reason": "; ".join(problems), "problems": problems})
++    return findings
++
++
+ def _versions(core: Core, task_id: str, kind: str, base_id: str) -> list[dict[str, Any]]:
+     return [e.payload for e in core.journal.replay(task_id)
+             if e.event_type == "criterion.version_proposed" and e.payload["kind"] == kind and e.payload["id"] == base_id]
+@@ -699,7 +742,7 @@
+     if declared:
+         return tuple(sorted(set(declared)))
+     return tuple(sorted({capability for row in (rule_set.get("deferred") or [])
+-                         for capability in (row.get("capabilities") or [row["capability"]])}))
++                         for capability in (row.get("capabilities") or [row.get("capability")]) if capability}))
+ 
+ 
+ def deferral_reason(rule_set: dict[str, Any]) -> str:
+@@ -790,6 +833,7 @@
+         if event.event_type == "criterion.version_proposed" and event.payload["kind"] == "rule":
+             proposed[event.payload["id"]] = f"{event.payload['id']}@v{event.payload['version']}"   # latest version wins
+     entries, deferred, machine_adjudicated, collapsed_away = [], [], [], []
++    execution_findings = {row["rule_ref"]: row for row in preference_execution_findings(core, task_id)}
+     bounds_unsupported, bounds_withheld, decisions_not_carried, bounds_granted = [], [], [], []
+     for rule_ref in sorted(proposed.values()):
+         rule = load(core, rule_ref, task_id)
+@@ -804,6 +848,12 @@
+             continue
+         adjudication_record = adjudicated.get(rule_ref)
+         attr = load(core, rule["attribute_ref"], task_id)
++        if rule_ref in execution_findings:
++            # Keep the proposal active and auditable, but never put a non-executable
++            # preference into scoring or its coverage denominator. Approval cannot invent
++            # an absent comparison. This is a rule deferral, not a capability deferral.
++            deferred.append(execution_findings[rule_ref])
++            continue
+         # Which of this attribute's routes this run holds out, and whether that leaves the rule
+         # anything to score on (see DEFERRAL_SCOPES above).
+         #
+@@ -957,7 +1007,10 @@
+     if not entries:
+         held = len(bounds_unsupported) + len(bounds_withheld)
+         raise InvariantViolation("unconfirmed", "no rule version may enter the set yet"
+-                                 + (f"; {held} were held out over bound support" if held else ""))
++                                 + (f"; {held} were held out over bound support" if held else "")
++                                 + ("; non-executable preferences: " + "; ".join(
++                                     f"{row['rule_ref']}: {row['reason']}" for row in execution_findings.values())
++                                    if execution_findings else ""))
+     existing = [e for e in core.journal.replay(task_id) if e.event_type == "criterion.version_approved"]
+     version = len(existing) + 1
+     admission_predicate = {"entries": [{k: e[k] for k in ("acceptable_value_sources", "on_states", "cutoff_basis")} for e in entries],
+--- a/src/mas/core/measurement.py
++++ b/src/mas/core/measurement.py
+@@ -133,6 +133,11 @@
+         raise MeasurementError("rank_requires_mandated_coverage must be an explicit boolean")
+     context = task_mod.get(core, task_id)
+     rule_set = criteria.rule_set(core, task_id, rule_set_ref)
++    execution_findings = criteria.preference_execution_findings(core, task_id, rule_set=rule_set)
++    if execution_findings:
++        raise MeasurementError("selected scoring set contains non-executable preferences; confirm a new "
++                               "rule set to defer them before registering a new measurement: " + "; ".join(
++                                   f"{row['rule_ref']}: {row['reason']}" for row in execution_findings))
+     required_binding_check = check_required_anchors(core, task_id, rule_set=rule_set)
+     evaluation_mode = evaluation_mode or (settings["evaluation.mode"] if settings is not None else "staged")
+     qualification_policy = qualification_policy or (settings["qualification.policy"] if settings is not None else "qualification_first_v1")
+--- a/src/mas/core/criteria_export.py
++++ b/src/mas/core/criteria_export.py
+@@ -519,7 +519,8 @@
+                       f"this run: {deferred.get('reason') or 'no reason recorded'}")
+     elif deferred is not None:
+         status = "deferred"
+-        reason = f"{deferred['capability']} was held out of this run: {deferred.get('reason') or 'no reason recorded'}"
++        reason = (deferred.get("reason") if deferred.get("reason_kind") == "non_executable_preference" else
++                  f"{deferred['capability']} was held out of this run: {deferred.get('reason') or 'no reason recorded'}")
+     elif collapsed is not None:
+         status = "collapsed_away"
+         reason = (f"its attribute was merged into {collapsed['merged_into']} by {collapsed['collapse_id']}; "
+--- a/src/mas/cli/main.py
++++ b/src/mas/cli/main.py
+@@ -625,7 +625,8 @@
+                 print(f"  route deferred {item['rule_ref']} ({', '.join(item.get('capabilities') or [])} held out; "
+                       f"scores on {', '.join(item.get('scores_on') or []) or 'no route'}): {item['reason']}")
+             else:
+-                print(f"  deferred {item['rule_ref']} ({item['capability']}): {item['reason']}")
++                label = item.get("capability") or item.get("reason_kind") or "rule"
++                print(f"  deferred {item['rule_ref']} ({label}): {item['reason']}")
+         for item in rules.get("collapsed_away", []):
+             # A rule held out of the set by a machine has to be visible here, not only in the journal:
+             # a reader counting the rules would otherwise see one quantity where two were registered.
+--- /dev/null
++++ b/tests/test_preference_execution_guard.py
+@@ -0,0 +1,121 @@
++"""Prospective preference execution guard. Synthetic temporary stores; no model/network."""
++import json
++import pytest
++
++from mas.adapters.drug.registration import EVIDENCE_CATALOG
++from mas.adapters.drug.universe import UniverseRecordField
++from mas.core import assessor, criteria, criteria_export, ledger, measurement, review, task
++from mas.core.journal import actor
++
++OPERATOR = actor("human", "synthetic-guard-operator", "operator", identity_basis="recorded_attestation")
++SPEC = {"objective_text": "Synthetic preference execution check", "mode": "exploratory", "scope_entities": [],
++        "candidate_universe": {"kind": "enumerated_set", "members": ["synthetic"]}, "constraints": [],
++        "evaluation_scope": {"comparison_basis": "both", "abstention_allowed": True}}
++CAT = {"name": "Synthetic engagement on record", "definition": "A curated statement of target engagement",
++       "measurement_kind": "categorical", "unit": None, "direction": "non_directional",
++       "acceptable_value_sources": ["database_entry"], "acceptable_determination_bases": ["curated"],
++       "aggregation": "consensus", "evidence_request": {"capability": "interaction_evidence_lookup",
++       "question_kind": "mechanism_records", "parameters": {"target_chembl_id": "SYNTH_TARGET"}}}
++QUANT = {"name": "Synthetic molecular weight", "definition": "Molecular weight of the candidate",
++         "measurement_kind": "quantitative", "unit": "g/mol", "direction": "lower_better",
++         "acceptable_value_sources": ["database_entry"], "aggregation": "median",
++         "evidence_request": {"capability": "property_estimate", "question_kind": "computed_property",
++                              "parameters": {"property": "MolecularWeight"}}}
++NONE = {"rule_kind": "preference", "cutoff": None, "cutoff_basis": "none_evidence_insufficient"}
++ORDER = dict(NONE, predicate_form="ordering")
++
++
++def test_non_executable_preferences_remain_active_and_deferred_without_changing_hard_pending(core):
++    task_id, _ = task.record_version(core, SPEC, by=OPERATOR)
++    pairs = []
++    for attribute, rule in ((CAT, NONE),
++                            (dict(QUANT, name="Unordered numeric preference", direction="non_directional"), ORDER),
++                            (dict(CAT, name="Categorical ordering without a direction"), ORDER),
++                            (QUANT, ORDER),
++                            (dict(QUANT, name="Unresolved hard condition"), {"rule_kind": "hard_exclusion",
++                             "cutoff": {"comparator": "<=", "value": 500, "unit": "g/mol"}, "cutoff_basis": "expert_set"})):
++        pairs.append(criteria.propose(core, task_id, attribute, rule, by=OPERATOR))
++    before = {ref: criteria.load(core, ref, task_id) for pair in pairs for ref in pair}
++    queue = review.items(core, [task_id])
++    with pytest.raises(criteria.InvariantViolation, match="await an expert decision"):
++        criteria.confirm_rule_set(core, task_id, by=OPERATOR)
++    selected_ref = criteria.confirm_rule_set(core, task_id, by=OPERATOR, allow_pending=True)
++    selected = criteria.rule_set(core, task_id, selected_ref)
++    assert {row["rule_ref"] for row in selected["entries"]} == {pairs[3][1]}
++    assert {row["rule_ref"] for row in selected["deferred"]} == {pair[1] for pair in pairs[:3]}
++    assert all(row["reason_kind"] == "non_executable_preference" and row["scope"] == "rule" and row["problems"]
++               for row in selected["deferred"])
++    assert pairs[-1][1] in selected["pending"] and review.items(core, [task_id]) == queue
++    assert criteria.registry_inventory(core, task_id)["active_registered_count"] == 5
++    assert criteria.registry_inventory(core, task_id)["scoring_in_latest_frozen_set_count"] == 1
++    assert criteria.deferred_capabilities(selected) == ()
++    assert criteria.preference_execution_findings(core, task_id, rule_set=selected) == []
++    for pair in pairs:
++        for ref in pair:
++            assert criteria.load(core, ref, task_id) == before[ref]
++    for attr_ref, rule_ref in pairs[:3]:
++        exported = criteria_export._use(rule_ref, attr_ref, [selected], None)
++        assert exported["status"] == "deferred" and exported["reason"]
++    profile = measurement.register(core, task_id, by=OPERATOR, rule_set_ref=selected_ref,
++        primary_board="Synthetic execution guard", rationale="Mechanical scoring readiness",
++        expected_effect="Do not count non-executable preferences")
++    assert measurement.load(core, task_id, profile)["policy"]["scoring_policy"]["scoring_rule_refs"] == sorted(
++        [pairs[3][1]])
++    # allow_pending did not remove the unresolved hard constraint from the record.
++    with pytest.raises(criteria.InvariantViolation, match="await an expert decision"):
++        criteria.confirm_rule_set(core, task_id, by=OPERATOR)
++
++
++def test_valid_numeric_ordering_and_declared_boolean_comparison_remain_executable():
++    assert criteria.preference_execution_problems(QUANT, ORDER) == []
++    boolean = dict(NONE, predicate_form="categorical_membership", cutoff_basis="task_constraint",
++                   cutoff={"comparator": "==", "value": True})
++    assert criteria.preference_execution_problems(CAT, boolean) == []
++    assert criteria.preference_execution_problems(CAT, dict(NONE, rule_kind="hard_exclusion")) == []
++    attribute = dict(QUANT, attribute_id="attr_synthetic", version=1)
++    rule = dict(ORDER, rule_id="rule_synthetic", version=1)
++    observed = {"claim_id": "claim_synthetic", "source_ref": "src_synthetic", "admission_state": "admitted",
++                "evidence_kind": "database_entry", "determination_basis": "derived", "value": 300, "unit": "g/mol"}
++    cell, _ = assessor.assess_cell(candidate={"candidate_id": "synthetic"}, attribute=attribute, rule=rule,
++        rule_set_ref="rules@v1", claims=[observed], resolved=True, qualification_policy="qualification_first_v1")
++    assert cell["verdict"] == "available" and cell["value"] == 300
++
++
++@pytest.mark.parametrize("kind,unit", [("categorical", "phase"), ("ordinal", None)])
++def test_existing_numeric_phase_and_unitless_ordinal_ordering_are_preserved(core, tmp_path, kind, unit):
++    entry = next(row for row in EVIDENCE_CATALOG if row["question_kind"] == "record_field")
++    assert entry["units"]["max_phase"] == "phase"
++    path = tmp_path / "synthetic_universe.json"
++    path.write_text(json.dumps({"source": "synthetic phase fixture", "universe": [
++        {"inchikey": "SYNTH_A", "chembl_id": "SYNTH_CHEMBL_A", "max_phase": 2},
++        {"inchikey": "SYNTH_B", "chembl_id": "SYNTH_CHEMBL_B", "max_phase": 4}]}))
++    provider = UniverseRecordField(path)
++    attribute = dict(CAT, name=f"Synthetic phase encoded as {kind}", measurement_kind=kind,
++        unit=unit, direction="higher_better", acceptable_determination_bases=["measured"],
++        evidence_request={"capability": "record_field_lookup", "question_kind": "record_field",
++                          "parameters": {"field": "max_phase"}})
++    assert criteria.preference_execution_problems(attribute, ORDER) == []
++    task_id, _ = task.record_version(core, SPEC, by=OPERATOR)
++    attr_ref, rule_ref = criteria.propose(core, task_id, attribute, ORDER, by=OPERATOR)
++    selected_ref = criteria.confirm_rule_set(core, task_id, by=OPERATOR)
++    selected = criteria.rule_set(core, task_id, selected_ref)
++    assert [row["rule_ref"] for row in selected["entries"]] == [rule_ref] and selected["deferred"] == []
++    cells = {}
++    for key in ("SYNTH_A", "SYNTH_B"):
++        response = provider.invoke("record_field", {"identifier": key, "field": "max_phase"})
++        observed = response.values[0]
++        claim = dict(claim_id=f"claim_{key}", source_ref="src_synthetic_phase", candidate_ref=key,
++                     evidence_kind="database_entry", determination_basis="measured", value=observed["value"],
++                     unit=observed["unit"], reading_depth="not_read",
++                     location={"location_kind": "database_record", "locator_value": f"{key}:max_phase"})
++        ledger.record_claim(core, task_id, claim, by=OPERATOR, admission_state="admitted",
++                            admission_reasons=["synthetic local fixture"])
++        cell, _ = assessor.assess_cell(candidate={"candidate_id": key},
++            attribute=criteria.load(core, attr_ref, task_id), rule=criteria.load(core, rule_ref, task_id),
++            rule_set_ref=selected_ref, claims=[dict(claim, admission_state="admitted")], resolved=True,
++            qualification_policy="qualification_first_v1")
++        assert cell["verdict"] == "available" and cell["value"] == observed["value"]
++        cells[key] = [cell]
++    scores = assessor.preference_scores(cells, {rule_ref: {"rule_kind": "preference", "predicate_form": "ordering",
++        "direction": "higher_better"}}, {}, qualified_candidates=set(cells), qualification_policy="qualification_first_v1")
++    assert scores == {"SYNTH_A": (0.0, 1.0), "SYNTH_B": (1.0, 1.0)}

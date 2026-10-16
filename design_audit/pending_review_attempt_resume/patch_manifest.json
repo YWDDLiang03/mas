@@ -1,0 +1,17 @@
+[
+  {
+    "path": "src/mas/core/investigation.py",
+    "base_sha256": "f34132af14d0084540061031397ffbd3d88a2c968f56e73880abe0253d60ca63",
+    "patched_sha256": "a21ecfca829a0f088b3fdf72b76d21035ba2c9b86ff27f56712c654c0e456414"
+  },
+  {
+    "path": "src/mas/core/review_attempts.py",
+    "base_sha256": null,
+    "patched_sha256": "366fff4bc258b143fd53ae5b0fde69f1a0c6e27d7abac117054df7bec1d747ae"
+  },
+  {
+    "path": "tests/test_review_attempt_resume.py",
+    "base_sha256": null,
+    "patched_sha256": "7cae5d22c37903bd0e2c3b5c0accad85a2c2bb4d2d04a672bd0365964cfce6c3"
+  }
+]

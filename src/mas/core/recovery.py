@@ -177,7 +177,9 @@ def frozen_snapshots(core: Core, task_id: str, *, rule_set_refs: list[str] | Non
 # --- the intake ------------------------------------------------------------------------------
 
 def _check_evaluator(by: dict[str, Any], what: str) -> None:
-    if by.get("kind") != "human" or by.get("role") != "evaluator":
+    # An isolated external agent records its real identity; it does not impersonate
+    # a person. Deriving roles and an ordinary agent/evaluator remain unauthorized.
+    if (by.get("kind"), by.get("role")) not in (("human", "evaluator"), ("agent", EVALUATOR_ROLE)):
         raise RecoveryError("rejected_unauthorized",
                             f"{what} is an evaluator command; the acting session holds "
                             f"{by.get('role')!r} as a {by.get('kind')!r}")
@@ -291,7 +293,8 @@ def read_intake(core: Core, task_id: str, *, by: dict[str, Any], purpose: str,
 
 def access_log(core: Core, task_id: str) -> list[dict[str, Any]]:
     """Every logged read of evaluator-only content for this case, in order."""
-    return [{"seq": event.seq, "read_at": event.recorded_at, "actor": event.actor,
+    return [{"seq": event.seq, "read_at": event.payload.get("read_at") or event.recorded_at,
+             "logged_at": event.recorded_at, "actor": event.actor,
              "role": (event.actor or {}).get("role"), "subject": event.payload.get("subject"),
              "purpose": event.payload.get("purpose")}
             for event in core.journal.replay(case_stream(core, task_id))
@@ -690,6 +693,36 @@ def propose_mapping(core: Core, roster: ModelRoster, task_id: str, *, intake: di
 
 # --- exposure --------------------------------------------------------------------------------
 
+def _inheritance_sources(core: Core, task_id: str, at_seq: int | None = None) -> list[dict[str, Any]]:
+    """The pinned ancestry of a derived case, without reading an evaluator-only artifact."""
+    from . import task as task_mod
+
+    context_core = criteria_export.pinned(core, task_id, at_seq)[0] if at_seq is not None else core
+    context = _task_context(context_core, task_id) or {}
+    seen = {task_id}
+    sources = []
+    while True:
+        inheritance = context.get("inheritance") or {}
+        source_id = context.get("derived_from_task_id") or inheritance.get("source_task_id")
+        if not source_id:
+            return sources
+        # Older shortlist copies may retain their parent's inheritance block. The task's direct
+        # derivation edge is authoritative; an ancestor's pin cannot pin a different task stream.
+        if inheritance.get("source_task_id") not in (None, source_id):
+            inheritance = {}
+        if source_id in seen:
+            raise RecoveryError("inheritance_cycle", f"the inherited case lineage repeats {source_id}")
+        seen.add(source_id)
+        source_seq = inheritance.get("source_at_seq")
+        source_core, source_seq = criteria_export.pinned(core, source_id, source_seq)
+        context = task_mod.get(source_core, source_id)
+        sources.append({"task_id": source_id, "source_at_seq": source_seq,
+                        "task_context_ref": f"{source_id}@v{context['version']}",
+                        "case_ref": inheritance.get("source_case_ref") or case_stream(source_core, source_id),
+                        "source_snapshot_artifact_id": inheritance.get("source_snapshot_artifact_id"),
+                        "source_snapshot_sha256": inheritance.get("source_snapshot_sha256")})
+
+
 def exposure_declaration(core: Core, task_id: str, *, intake: dict[str, Any],
                          derived: dict[str, Any]) -> dict[str, Any]:
     """Whether the coordinator or any deriving agent had seen the list before the criteria froze.
@@ -699,7 +732,31 @@ def exposure_declaration(core: Core, task_id: str, *, intake: dict[str, Any],
     intake. A read timestamped before the freeze by a deriving role or the coordinator is the one
     finding that voids an independent recovery claim, so it is computed rather than asserted.
     """
+    sources = _inheritance_sources(core, task_id, derived.get("pinned_seq"))
     log = access_log(core, task_id)
+    seen_reads = {(case_stream(core, task_id), read["seq"]) for read in log}
+    source_decisions = []
+    for source in sources:
+        # A source read after inheritance but before the child freeze is still exposure. Only the
+        # source criteria/context are pinned; access logs deliberately remain live across cases.
+        for event in core.journal.replay(source["case_ref"]):
+            identity = (source["case_ref"], event.seq)
+            if event.event_type != "evaluator_only.read" or identity in seen_reads:
+                continue
+            seen_reads.add(identity)
+            log.append({"seq": event.seq, "read_at": event.recorded_at, "actor": event.actor,
+                        "role": (event.actor or {}).get("role"), "subject": event.payload.get("subject"),
+                        "purpose": event.payload.get("purpose"), "source_task_id": source["task_id"],
+                        "source_case_ref": source["case_ref"]})
+        for event in core.journal.replay(source["task_id"], to_seq=source["source_at_seq"]):
+            if event.event_type == "human.review_decided" and (event.payload.get("subject") or {}).get("kind") in (
+                    "attribute_version", "rule_version", "rule_set_version", "cutoff_setting"):
+                source_decisions.append({"source_task_id": source["task_id"], "seq": event.seq,
+                                         "decision_id": event.payload["decision_id"],
+                                         "subject": event.payload.get("subject"),
+                                         "decision": event.payload.get("decision"),
+                                         "historical_list_exposure": event.payload.get("historical_list_exposure"),
+                                         "decided_by": (event.payload.get("actor") or event.actor).get("id")})
     frozen_at = intake["freeze"]["frozen_at"]
     before_freeze = [read for read in log if read["read_at"] < frozen_at]
     by_deriving = [read for read in log if (read["role"] or "") in DERIVING_ROLES]
@@ -716,11 +773,20 @@ def exposure_declaration(core: Core, task_id: str, *, intake: dict[str, Any],
     # and that is a finding about the declarations rather than about the derivation.
     assisted_refs = sorted({ref for value, refs in declared.items() for ref in refs
                             if value in ("exposed", "undeclared")})
+    # Copying work carries its lineage, while source decisions confer no authority on a new case.
+    if sources:
+        assisted_refs = sorted(entry["attribute_ref"] for entry in derived["criteria"])
     tainted = [read for read in before_freeze if (read["role"] or "") in DERIVING_ROLES]
     return {
         "statement": "Whether the list was seen before the criteria froze, from the access log and the "
                      "exposure declarations on the decisions that confirmed each criterion. Where a "
-                     "declaration and the log disagree, the log prevails.",
+                     "declaration and the log disagree, the log prevails. Inherited cases carry "
+                     "their source-case reads and source confirming declarations and are reported "
+                     "as descriptive assisted readings, not new independent validation.",
+        "reading_kind": "descriptive_inherited" if sources else "original_case",
+        "is_independent_validation": not bool(sources or tainted or assisted_refs),
+        "inherited_from": sources,
+        "source_confirming_decisions": source_decisions,
         "criteria_frozen_at": frozen_at, "criteria_frozen_at_seq": intake["freeze"]["frozen_at_seq"],
         "intake_recorded_at": intake["recorded_at"],
         "intake_arrived_after_the_freeze": intake["recorded_at"] >= frozen_at,
@@ -737,7 +803,8 @@ def exposure_declaration(core: Core, task_id: str, *, intake: dict[str, Any],
         "criteria_in_the_assisted_view": assisted_refs,
         "criteria_in_the_independent_view": sorted({entry["attribute_ref"] for entry in derived["criteria"]}
                                                    - set(assisted_refs)),
-        "recovery_view": vocab.require("recovery_view", "assisted" if (tainted or assisted_refs) else "independent"),
+        "recovery_view": vocab.require("recovery_view", "assisted" if (sources or tainted or assisted_refs)
+                                       else "independent"),
     }
 
 
@@ -751,8 +818,21 @@ def compare(core: Core, task_id: str, *, by: dict[str, Any], roster: ModelRoster
     A supplied `mapping` is for an evaluator whose model runs outside this process; it passes the
     same gate as one this module requested, and the record says which route produced it.
     """
+    _check_evaluator(by, "comparing the historical-criteria intake")
+    for event in core.journal.replay(case_stream(core, task_id)):
+        if event.event_type == "evaluation.recorded" and event.payload.get("record_kind") == COMPARISON_KIND:
+            raise RecoveryError("comparison_already_recorded",
+                                f"{event.payload['comparison_id']} already compared this case; "
+                                "read the recorded report, or register a new descriptive inherited case")
+    header = intake_reference(core, task_id)
+    if header is None:
+        raise RecoveryError("no_intake", f"no historical-criteria intake has been recorded for {task_id}")
+    pinned_at = header["freeze"]["frozen_at_seq"]
+    if at_seq is not None and at_seq != pinned_at:
+        raise RecoveryError("comparison_pin_mismatch",
+                            f"the intake fixes the criteria at seq {pinned_at}; "
+                            f"seq {at_seq} would compare a different set after opening the list")
     intake = read_intake(core, task_id, by=by, purpose="primary_cqa_recovery")
-    pinned_at = at_seq if at_seq is not None else intake["freeze"]["frozen_at_seq"]
     derived = derived_set(core, task_id, at_seq=pinned_at)
     if mapping is None:
         if roster is None:
@@ -764,8 +844,8 @@ def compare(core: Core, task_id: str, *, by: dict[str, Any], roster: ModelRoster
         route = "model_proposed"
     else:
         route = "supplied_by_the_evaluator"
-        judged_by = {"role": EVALUATOR_ROLE, "adapter_id": None, "model_id": None,
-                     "supplied_by": by, "distinct_from": None,
+        judged_by = {"role": EVALUATOR_ROLE, "adapter_id": None, "model_id": by.get("model_id"),
+                     "supplied_by": by, "distinct_from": by.get("isolated_from_roles"),
                      "note": "proposed outside this process by the evaluator named in `supplied_by`; it "
                              "passed the same gate as a mapping this module requested"}
     gate = check_mapping(mapping, intake=intake, derived=derived)
@@ -930,6 +1010,7 @@ def report(core: Core, task_id: str, *, by: dict[str, Any], comparison: dict[str
                                            if e["attribute_ref"] == ref), None)
                                      for ref in record["derived_attribute_refs"]])
                 for record in comparison["comparisons"]]
+    exposure = exposure_declaration(core, task_id, intake=intake, derived=derived)
     return {
         "schema_version": SCHEMA_VERSION, "report_kind": REPORT_KIND,
         "visibility": vocab.require("field_visibility", "evaluator_only"),
@@ -958,7 +1039,7 @@ def report(core: Core, task_id: str, *, by: dict[str, Any], comparison: dict[str
         "counts": counts,
         "mappings": mappings,
         "origin_stratified": _origin_view(comparison["comparisons"], derived, counts),
-        "exposure": exposure_declaration(core, task_id, intake=intake, derived=derived),
+        "exposure": exposure,
         "limits": [
             "The historical comparison does not replace an independent assessment of criterion quality "
             "and source support (§12.2).",
@@ -966,7 +1047,9 @@ def report(core: Core, task_id: str, *, by: dict[str, Any], comparison: dict[str
             "failure of the derivation; the rationale per item says which.",
             "No binary success claim is made here: §12.2 asks for a minimum recovery requirement "
             "registered before unsealing, and this report does not register one after the fact.",
-        ],
+        ] + (["This case inherits an existing registry and its exposure lineage. Its recovery is a "
+              "descriptive assisted reading; the original case's comparison remains the original result."]
+             if exposure["inherited_from"] else []),
         "reported_at": utc_now(),
     }
 
@@ -1111,6 +1194,8 @@ def render_markdown(report_record: dict[str, Any]) -> str:
               f"- the coordinator or a deriving agent saw the list before the freeze: "
               f"{_inline(exposure['coordinator_or_deriving_agent_saw_the_list_before_the_freeze'])}",
               f"- recovery view: **{exposure['recovery_view']}**",
+              f"- reading kind: {_inline(exposure.get('reading_kind'))}; "
+              f"inherited source cases: {_inline(exposure.get('inherited_from'))}",
               f"- logged reads: {exposure['reads_logged']} "
               f"({len(exposure['reads_before_the_freeze'])} before the freeze, "
               f"{len(exposure['reads_by_a_deriving_role'])} by a deriving role)",
@@ -1154,6 +1239,8 @@ def render_counts(summary: dict[str, Any]) -> str:
         f"- the coordinator or a deriving agent saw the list before the freeze: "
         f"{_inline(summary['exposure']['coordinator_or_deriving_agent_saw_the_list_before_the_freeze'])}",
         f"- recovery view: **{summary['exposure']['recovery_view']}**",
+        f"- reading kind: {_inline(summary['exposure'].get('reading_kind'))}; "
+        f"inherited source cases: {_inline(summary['exposure'].get('inherited_from'))}",
         f"- logged reads: {_inline(summary['exposure_reads'])}",
         f"- declared on the confirming decisions: "
         f"{_inline(summary['exposure']['declared_on_confirming_decisions'])}",
