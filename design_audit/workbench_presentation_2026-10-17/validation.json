@@ -127,10 +127,14 @@
     "evidence-collection-display.json"
   ],
   "presentation": {
-    "slides": 24,
-    "notes": 24,
-    "native_charts": 1,
-    "native_tables": 19,
-    "sha256": "2e54f6d60be21190cecd939727b3baa2cd55e2fb3975cf9572430315ce12e2da"
+    "slides": 26,
+    "main_slides": 24,
+    "appendix_slides": 2,
+    "notes": 26,
+    "native_charts": 4,
+    "native_tables": 2,
+    "file": "MAS_流程机制与案例_20261017.pptx",
+    "sha256": "002191dd713ca5b4f45f8d97809a8c6c19b7696144d870c42511ff307daa980c",
+    "final_slides_individually_reviewed": 26
   }
 }

@@ -1,26 +1,22 @@
-{
-  "settings": {
-    "path": "assets/24-formal-settings-mid.jpg",
-    "alt": "实际mid设置页面"
+[
+  {
+    "file": "24-formal-settings-mid.jpg",
+    "sha256": "96e7ff0864904839923a7e57f4c19c96327bf16bcec16f6681657ff1c4c50aff",
+    "basis": "actual saved or read-only browser screenshot"
   },
-  "workbench": {
-    "path": "assets/workspace-latest.png",
-    "alt": "最新研究的工作台、阶段进度与任务概览",
-    "crop": {
-      "left": 0,
-      "right": 0.015,
-      "top": 0,
-      "bottom": 0.35
-    }
+  {
+    "file": "csv-import.jpg",
+    "sha256": "47d071790b12ef1465f8c02343ee989c886b9254a53307c309623f131989b2a2",
+    "basis": "actual saved or read-only browser screenshot"
   },
-  "evidence": {
-    "path": "assets/evidence-fgfr1-grouped.png",
-    "alt": "FGFR1实际文献分组、34nM原文及Surufatinib评估关联",
-    "crop": {
-      "left": 0.205,
-      "right": 0.045,
-      "top": 0.225,
-      "bottom": 0.024
-    }
+  {
+    "file": "evidence-fgfr1-grouped.png",
+    "sha256": "e76640b03250b3345ed83fc7480f9a1c870c670388fd61ba26a06fd0651344a4",
+    "basis": "actual saved or read-only browser screenshot"
+  },
+  {
+    "file": "leaderboard.jpg",
+    "sha256": "cab4225ae483884791711d3b62d412f9f144d75e880ec66104a7e15404a5d411",
+    "basis": "actual saved or read-only browser screenshot"
   }
-}
+]
