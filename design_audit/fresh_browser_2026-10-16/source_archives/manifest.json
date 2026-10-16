@@ -1,0 +1,50 @@
+[
+  {
+    "role": "initial-generation",
+    "file": "initial-generation-b7f38e2682426287.zip",
+    "bytes": 1158576,
+    "sha256": "c811b1df0367a005aa7dec7c68c9b36664d24e81628fa6d335907519ee765b39",
+    "implementation": {
+      "package_version": "0.1.0",
+      "code_commit": "184cd5bb43a2bfef93ecdfb1e9e51341057da516",
+      "uncommitted_changes": true,
+      "source_sha256": "b7f38e2682426287c5fb7d0cdb5fcfefee901e6a3c6be86fb904a8c47db44476"
+    }
+  },
+  {
+    "role": "refinement-and-first-evaluation",
+    "file": "refinement-and-first-evaluation-860546f355cbb5b9.zip",
+    "bytes": 1627461,
+    "sha256": "7f8176ef9cb9ed0e8b814f2565c5d4ff6ae3db4db7cd15f4ace6844a543f93c5",
+    "implementation": {
+      "package_version": "0.1.0",
+      "code_commit": "184cd5bb43a2bfef93ecdfb1e9e51341057da516",
+      "uncommitted_changes": true,
+      "source_sha256": "860546f355cbb5b910f1f5aea155e510e090471d1023622d853c86616d65029c"
+    }
+  },
+  {
+    "role": "verified-evaluation",
+    "file": "verified-evaluation-f758fb09d3584036.zip",
+    "bytes": 1931681,
+    "sha256": "7ce0740c5ac05dbcc380ec5a0dc3bf348bfda795fdf676cf32d7851c4fe4052e",
+    "implementation": {
+      "package_version": "0.1.0",
+      "code_commit": "184cd5bb43a2bfef93ecdfb1e9e51341057da516",
+      "uncommitted_changes": true,
+      "source_sha256": "f758fb09d35840363ae9895210ce41b9630f688ecbbc71f84f06b671ece735ab"
+    }
+  },
+  {
+    "role": "delivered-workbench",
+    "file": "delivered-workbench-f7a759a177e5ecc6.zip",
+    "bytes": 2323451,
+    "sha256": "5069cb5bdd22d048f2fea058193bd78b70dcc734bf97ebbb43456fffb6216e02",
+    "implementation": {
+      "package_version": "0.1.0",
+      "code_commit": "ebcbd49b7ac1978bf7ae368b67800a9273eb7801",
+      "uncommitted_changes": false,
+      "source_sha256": "f7a759a177e5ecc6c077c18f1184b524acf10bc01e8b04401a1b221f2cba604d"
+    }
+  }
+]

@@ -1,2 +1,14 @@
 # Preserve the released package bytes so its SHA-256 manifest stays valid.
 MAS_MultiAgent_Design_Audit_EN_20261012/** -text
+
+# Keep frozen export files byte-identical to their published SHA-256 manifests.
+design_audit/fresh_browser_2026-10-16/results-snapshot2/** -text
+design_audit/fresh_browser_2026-10-16/results/** -text
+design_audit/workbench_redesign_2026-10-16/final/wf_033db93e15fa4bb289c2e03606674f6b-snapshot2/** -text
+design_audit/workbench_redesign_2026-10-16/final/wf_033db93e15fa4bb289c2e03606674f6b/** -text
+
+# Keep the delivered deck sources and report portable without newline rewriting.
+design_audit/fresh_browser_2026-10-16/presentation_source/** -text
+design_audit/fresh_browser_2026-10-16/source_archives/** -text
+design_audit/fresh_browser_2026-10-16/MAS_* -text
+design_audit/fresh_browser_2026-10-16/REPORT.md -text

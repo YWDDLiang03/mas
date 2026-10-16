@@ -1,11 +1,10 @@
 {
-  "ui_sha256": "7f30622b75299fa0759fd391769456179d73cc807b59af492ecba64a6aef93c1",
-  "archive": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\var\\provenance\\workbench-v2-ui\\7f30622b75299fa0",
+  "ui_sha256": "665b24695c0aa95237b3d2a74f82d3bc72a1cf690c650d97dd287a23cc1cc11b",
+  "archive": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\var\\provenance\\workbench-v2-ui\\665b24695c0aa952",
   "files": {
     "assets/index-C1u1eX5f.css": "7736d961bf4ee3846bb613c4aa76d0015fb8c9c61c9b8a77813896655c5f8fa9",
-    "assets/index-Cl8w0uLR.js": "c5e955fedba521c6da8254b5b312899ea2273e3084fb2335fd2b0b059c9f325f",
-    "index.html": "b9dae3b7e8d76ad4900c172a857ce121360065756d60a7656a687f33a58a89ca"
+    "assets/index-CPk7LTHx.js": "7bb68ddaa8f592fdd5aeb45c0af14f3fed8deff8e77c361b7965acf90a63f9f6",
+    "index.html": "d5336e37c6fd20718ded9e9c4ee9183a6b139e984e0c9bd2ccaff2f14f694584"
   },
-  "deployed_at": "2026-10-16T16:21:26.081552+00:00",
-  "backend_restarted": false
+  "deployed_at": "2026-10-16T16:47:17.054375+00:00"
 }

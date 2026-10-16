@@ -16,3 +16,6 @@ design_audit/**/*.db
 design_audit/**/*.db-wal
 design_audit/**/*.db-shm
 design_audit/**/store.lock
+
+# Temporary native chart workbooks created during presentation export.
+.chart-data-*/
