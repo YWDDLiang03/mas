@@ -4,7 +4,7 @@
 
 Pre-repair historical baseline. These records are exported unchanged from the live store. They are the output of a derivation whose merge stage performed zero merges across every round, whose proposer/critic debate deferred its disagreements to the review queue rather than settling them, and whose open disputes are still open. No criterion was improved, corrected or tidied during export; corrected records belong to a later version published with a diff.
 
-**Snapshot:** task stream `task_01M4X892V1EAER2GHWE1RE19ZN` pinned at journal sequence 1452. The exact records behind every card are in `derived_criteria_review.json`; the refs, hashes and code commit are in `derived_criteria_manifest.json`. The counts below are reconciled in `criteria_count_reconciliation.md`.
+**Snapshot:** task stream `task_01M4X892V1EAER2GHWE1RE19ZN` pinned at journal sequence 1465. The exact records behind every card are in `derived_criteria_review.json`; the refs, hashes and code commit are in `derived_criteria_manifest.json`. The counts below are reconciled in `criteria_count_reconciliation.md`.
 
 ## The task these criteria were derived for
 
@@ -38,19 +38,19 @@ Each card also opens with **recovery-comparison facets**: the operational quanti
 | `registered_criteria` | `93` | distinct attribute ids in the registry, each paired with one rule id; this is the promoted pool items plus the criteria the adapter templates registered without entering the pool |
 | `registered_from_pool` | `86` | registered criteria whose attribute a pool promotion wrote |
 | `registered_from_templates` | `7` | registered criteria an adapter template wrote directly, bypassing the pool |
-| `registry_versions` | `{"attribute": 98, "rule": 98}` | attribute and rule *versions*, not criteria; a second version is a revision of one criterion, not another criterion |
-| `scoring_now` | `19` | rules in rules@v3, the latest confirmed set |
-| `deferred_now` | `67` | registered rules held out of the latest set entirely, because every evidence route they declare needs a capability that was not run |
+| `registry_versions` | `{"attribute": 98, "rule": 99}` | attribute and rule *versions*, not criteria; a second version is a revision of one criterion, not another criterion |
+| `scoring_now` | `11` | rules in rules@v6, the latest confirmed set |
+| `deferred_now` | `78` | registered rules held out of the latest set entirely, because every evidence route they declare needs a capability that was not run |
 | `scoring_with_a_route_held_out_now` | `5` | rules in the latest set that score on some of their evidence routes while others are held out of this run; they are counted in `scoring_now`, never in `deferred_now` |
 | `collapsed_away_now` | `0` | registered rules whose attribute a collapse merged away |
 | `collapses` | `{"applied": 0, "withdrawn": 0}` | collapse records; each merged several registrations of one quantity into one attribute reading every route |
-| `review_queue` | `{"open": 56}` | review items raised against this task, by state |
-| `unresolved_disputes` | `25` | open review items raised because a proposer and a critic still disagreed after one revision |
-| `machine_adjudications` | `0` | items resolved by software with no person; recorded as `agent_verdict`, never as an expert approval |
+| `review_queue` | `{"machine_adjudicated": 3, "open": 53}` | review items raised against this task, by state |
+| `unresolved_disputes` | `24` | open review items raised because a proposer and a critic still disagreed after one revision |
+| `machine_adjudications` | `3` | items resolved by software with no person; recorded as `agent_verdict`, never as an expert approval |
 | `expert_decisions` | `0` | `hd_` records; an expert decision needs a person at a terminal |
-| `bounds` | `{"no_cutoff_evidence_insufficient": 43, "source_stated_with_claims": 0, "task_constraint_cutoff": 1}` | registered criteria carrying a numeric bound whose basis is a cited claim, a bound restating a task constraint, and no bound at all |
+| `bounds` | `{"no_cutoff_evidence_insufficient": 44, "source_stated_with_claims": 0, "task_constraint_cutoff": 1}` | registered criteria carrying a numeric bound whose basis is a cited claim, a bound restating a task constraint, and no bound at all |
 | `comparable_from_fields` | `0` | registered criteria all four rubric facets can be read off without reading prose; the applicability gap is schema-wide, so this is zero while no attribute records applicability as a field |
-| `matching_facet_gaps` | `{"applicability": 93, "decision_semantics": 1, "operational_quantity": 67, "threshold": 50}` | registered criteria whose records do not answer one of the four recovery-rubric facets from fields alone; the cards name the absence per criterion |
+| `matching_facet_gaps` | `{"applicability": 93, "decision_semantics": 1, "operational_quantity": 67, "threshold": 49}` | registered criteria whose records do not answer one of the four recovery-rubric facets from fields alone; the cards name the absence per criterion |
 
 ## Confirmed rule sets
 
@@ -59,6 +59,9 @@ Each card also opens with **recovery-comparison facets**: the operational quanti
 | `rules@v1` | 9 | 38 | 41 | 0 | 0 | `exploratory` |
 | `rules@v2` | 54 | 56 | 0 | 0 | 0 | `exploratory` |
 | `rules@v3` | 19 | 56 | 67 | 5 | 0 | `exploratory` |
+| `rules@v4` | 43 | 56 | 11 | 0 | 0 | `exploratory` |
+| `rules@v5` | 8 | 56 | 78 | 5 | 0 | `exploratory` |
+| `rules@v6` | 11 | 53 | 78 | 5 | 0 | `exploratory` |
 
 `rules@v1` is labelled `exploratory` because:
 - 38 rule proposals await an expert decision
@@ -73,13 +76,27 @@ Each card also opens with **recovery-comparison facets**: the operational quanti
 - 56 rule proposals await an expert decision
 - 2 of them score candidates while disputed: rule_curated-mechanism-of-action-records-confirming-engagement-of@v1, rule_required-receptor-engagement-coverage-documented-on-curated-@v1
 
+`rules@v4` is labelled `exploratory` because:
+- 56 rule proposals await an expert decision
+- 17 of them score candidates while disputed: rule_co-inhibition-burden-against-non-required-receptor-kinases@v1, rule_curated-mechanism-of-action-records-confirming-engagement-of@v1, rule_fgfr1-inclusive-fgfr-family-breadth@v1, rule_highest-required-receptor-residual-activity-in-a-1-micromola@v1, rule_human-oral-absorption-fraction-fa-reported-in-clinical-studi@v1, rule_kinases-inhibited-by-at-least-90-at-a-1-micromolar-screening@v1, rule_kinome-wide-inhibition-breadth-at-the-50-threshold@v1, rule_pan-vegfr-family-engagement-of-vegfr1-vegfr2-and-vegfr3-by-o@v1, rule_reported-inter-individual-variability-in-oral-exposure@v1, rule_reported-selectivity-of-the-required-vegfr-arm-over-off-targ@v1, rule_required-receptor-engagement-coverage-documented-on-curated-@v1, rule_required-receptors-designated-in-the-report-s-primary-strong@v1, rule_required-receptors-documented-as-inhibited-at-clinically-ach@v1, rule_selectivity-margin-over-off-target-protein-kinases@v1, rule_simultaneous-engagement-of-the-five-required-receptors-repor@v1, rule_weakest-required-receptor-potency-across-the-five-tumour-mic@v1, rule_worst-reported-treatment-emergent-toxicity-burden@v1
+
+`rules@v5` is labelled `exploratory` because:
+- 56 rule proposals await an expert decision
+- 2 of them score candidates while disputed: rule_curated-mechanism-of-action-records-confirming-engagement-of@v1, rule_required-receptor-engagement-coverage-documented-on-curated-@v1
+
+`rules@v6` is labelled `exploratory` because:
+- 53 rule proposals await an expert decision
+- 2 of them score candidates while disputed: rule_curated-mechanism-of-action-records-confirming-engagement-of@v1, rule_required-receptor-engagement-coverage-documented-on-curated-@v1
+- 3 rules were adjudicated by an agent; no person has confirmed them: rule_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1, rule_molecular-weight-against-the-class-typical-upper-size-edge-f@v1, rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v2
+- 1 rules score on a bound an agent granted on a declared interpretation rather than on a threshold their source states: rule_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1
+
 ## The board these criteria were last applied on
 
-- **snapshot** `lb_task_01M4X892V1EAER2GHWE1RE19ZN_1` on `rules@v3`, run `run_01M506J2Q5GK32R0GQ7R035M90`, published 2026-10-15T19:06:01.090Z
-- **candidates assessed** 3177 · **ranked** 16 · result kind `ranked_under_score`
-- **reporting tuple**: `{"abstention_n_by_reason": {"hard rules await an expert decision": 3177}, "admitted_n": 0, "budget": {"caps": {"usd": 20.0}, "soft_kinds": ["usd"], "used": {"tool_calls": 88957}, "warn_at": 0.8}, "coverage_fraction": 0.6339645146861488, "eligible_on_mandated_criteria": 16, "ineligible_for_mandated_coverage": 3161, "mandated_coverage_floor": 1.0, "mandated_rule_refs": ["rule_csf1r-curated-potency@v2", "rule_fgfr1-curated-potency@v2", "rule_vegfr1-curated-potency@v2", "rule_vegfr2-curated-potency@v2", "rule_vegfr3-curated-potency@v2"], "precision_among_admitted": null, "ranked_with_a_mandated_gate_unanswered": 0, "ranking_coverage_floor": 0.5, "sweep_completeness": 1.0, "unranked_for_coverage": 0}`
-- **human review summary**: `{"expert_confirmed_n": 0, "expert_confirmed_rules": [], "machine_adjudicated_n": 0, "machine_adjudicated_rules": [], "note": null, "recommended_requires_hd": true}`
-- snapshot artifact `art_8d7c986c2211` sha256 `8d7c986c2211addbde43a37ea4c185d0149d69052f99a2f53376e3fec2ef55d6`
+- **snapshot** `lb_task_01M4X892V1EAER2GHWE1RE19ZN_3` on `rules@v6`, run `run_01M50QPNFS2FAYN6B4PGVZXX27`, published 2026-10-15T22:33:20.763Z
+- **candidates assessed** 3177 · **ranked** 50 · result kind `ranked_under_score`
+- **reporting tuple**: `{"abstention_n_by_reason": {"hard rules await an expert decision": 3177}, "admitted_n": 0, "budget": {"caps": {"usd": 20.0}, "soft_kinds": ["usd"], "used": {"tool_calls": 63541}, "warn_at": 0.8}, "coverage_fraction": 0.3560820671302258, "eligible_on_mandated_criteria": 3177, "ineligible_for_mandated_coverage": 0, "mandated_coverage_floor": 0.0, "mandated_rule_refs": ["rule_csf1r-curated-potency@v2", "rule_fgfr1-curated-potency@v2", "rule_vegfr1-curated-potency@v2", "rule_vegfr2-curated-potency@v2", "rule_vegfr3-curated-potency@v2"], "precision_among_admitted": null, "ranked_with_a_mandated_gate_unanswered": 0, "ranking_coverage_floor": 0.5, "sweep_completeness": 1.0, "unranked_for_coverage": 3038}`
+- **human review summary**: `{"expert_confirmed_n": 0, "expert_confirmed_rules": [], "machine_adjudicated_n": 3, "machine_adjudicated_rules": ["rule_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1", "rule_molecular-weight-against-the-class-typical-upper-size-edge-f@v1", "rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v2"], "note": "3 of this board's rules were adjudicated by an agent; no person has confirmed them", "recommended_requires_hd": true}`
+- snapshot artifact `art_be5637fe0c1d` sha256 `be5637fe0c1db4a47f4fe93e340495ba0ae62f5fe2cfbbd5328843afc9bb598e`
 
 ## Derivation trajectory
 
@@ -172,7 +189,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 | 36 | Intestinal CYP3A4 inhibition-induced increase in oral exposure (victim liability) | `attr_intestinal-cyp3a4-inhibition-induced-increase-in-oral-exposu@v1` | `preference` | `{"comparator": "<=", "unit": "% increase in AUC", "value": 11}` | `deferred` |
 | 37 | Kinases inhibited by at least 90% at a 1 micromolar screening concentration | `attr_kinases-inhibited-by-at-least-90-at-a-1-micromolar-screening@v1` | `preference` | `{"comparator": "<=", "unit": "count of kinases", "value": 38}` | `deferred` |
 | 38 | Kinome-wide inhibition breadth at the >=50% threshold | `attr_kinome-wide-inhibition-breadth-at-the-50-threshold@v1` | `preference` | `{"comparator": "<=", "unit": "count of kinases", "value": 31}` | `deferred` |
-| 39 | Lipophilicity relative to the upper edge of the stated optimal kinase-inhibitor band | `attr_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1` | `preference` | `{"comparator": "<=", "unit": "log units", "value": 4}` | `not_entered_pending_decision` |
+| 39 | Lipophilicity relative to the upper edge of the stated optimal kinase-inhibitor band | `attr_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1` | `preference` | `{"comparator": "<=", "unit": "log units", "value": 4}` | `scoring` |
 | 40 | Literature-reported VEGFR1 IC50 | `attr_literature-reported-vegfr1-ic50@v1` | `preference` | `{"comparator": "<=", "unit": "µM", "value": 0.59}` | `deferred` |
 | 41 | Lowest creatinine clearance at which the agent's clearance is documented unchanged | `attr_lowest-creatinine-clearance-at-which-the-agent-s-clearance-i@v1` | `preference` | `{"comparator": "<=", "unit": "mL/min", "value": 30}` | `deferred` |
 | 42 | Magnitude of meal-induced change in oral exposure (absolute fed-versus-fasted change in AUC or F) | `attr_magnitude-of-meal-induced-change-in-oral-exposure-absolute-f@v1` | `preference` | — | `deferred` |
@@ -180,7 +197,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 | 44 | Meal-induced AUC increase | `attr_meal-induced-auc-increase@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 20}` | `deferred` |
 | 45 | Meal-induced AUC reduction | `attr_meal-induced-auc-reduction@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 32}` | `deferred` |
 | 46 | Minimum percent inhibition across the five required receptors | `attr_minimum-percent-inhibition-across-the-five-required-receptor@v1` | `preference` | `{"comparator": ">=", "unit": "% inhibition", "value": 70}` | `deferred` |
-| 47 | Molecular weight against the class-typical upper size edge for clinically relevant kinase inhibitors | `attr_molecular-weight-against-the-class-typical-upper-size-edge-f@v1` | `preference` | `{"comparator": "<=", "unit": "g/mol", "value": 500}` | `not_entered_pending_decision` |
+| 47 | Molecular weight against the class-typical upper size edge for clinically relevant kinase inhibitors | `attr_molecular-weight-against-the-class-typical-upper-size-edge-f@v1` | `preference` | `{"comparator": "<=", "unit": "g/mol", "value": 500}` | `scoring` |
 | 48 | Nail change incidence | `attr_nail-change-incidence@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 30}` | `deferred` |
 | 49 | Nail toxicity requiring dose reduction or interruption | `attr_nail-toxicity-requiring-dose-reduction-or-interruption@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 3}` | `deferred` |
 | 50 | Oral administration reported in the clinical literature | `attr_oral-administration-reported-in-the-clinical-literature@v1` | `exploratory_consideration` | — | `deferred` |
@@ -190,17 +207,17 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 | 54 | Pan-VEGFR family engagement of VEGFR1, VEGFR2 and VEGFR3 by one agent | `attr_pan-vegfr-family-engagement-of-vegfr1-vegfr2-and-vegfr3-by-o@v1` | `preference` | — | `deferred` |
 | 55 | Peak on-treatment natriuretic peptide elevation | `attr_peak-on-treatment-natriuretic-peptide-elevation@v1` | `preference` | — | `deferred` |
 | 56 | Pharmacogenomic variability in drug metabolism | `attr_pharmacogenomic-variability-in-drug-metabolism@v1` | `preference` | — | `deferred` |
-| 57 | Predicted aqueous solubility | `attr_predicted-aqueous-solubility@v1` | `preference` | — | `scoring` |
-| 58 | Predicted CYP3A4 substrate liability as a presystemic first-pass loss surrogate | `attr_predicted-cyp3a4-substrate-liability-as-a-presystemic-first-@v1` | `preference` | — | `scoring` |
-| 59 | Predicted drug-induced liver injury probability | `attr_predicted-drug-induced-liver-injury-probability@v1` | `preference` | — | `scoring` |
-| 60 | Predicted hERG channel blockade probability | `attr_predicted-herg-channel-blockade-probability@v1` | `preference` | — | `scoring` |
-| 61 | Predicted human liver microsomal intrinsic clearance | `attr_predicted-human-liver-microsomal-intrinsic-clearance@v1` | `preference` | — | `scoring` |
-| 62 | Predicted intestinal epithelial permeability (Caco-2 effective permeability) | `attr_predicted-intestinal-epithelial-permeability-caco-2-effectiv@v1` | `preference` | — | `scoring` |
-| 63 | Predicted oral bioavailability probability | `attr_predicted-oral-bioavailability-probability@v1` | `preference` | — | `scoring` |
-| 64 | Predicted P-glycoprotein interaction liability at the intestinal barrier | `attr_predicted-p-glycoprotein-interaction-liability-at-the-intest@v1` | `preference` | — | `scoring` |
-| 65 | Predicted passive transcellular permeability (PAMPA) | `attr_predicted-passive-transcellular-permeability-pampa@v1` | `preference` | — | `scoring` |
-| 66 | Predicted probability of clinical toxicity | `attr_predicted-probability-of-clinical-toxicity@v1` | `preference` | — | `scoring` |
-| 67 | Predicted probability of human intestinal absorption | `attr_predicted-probability-of-human-intestinal-absorption@v1` | `preference` | — | `scoring` |
+| 57 | Predicted aqueous solubility | `attr_predicted-aqueous-solubility@v1` | `preference` | — | `deferred` |
+| 58 | Predicted CYP3A4 substrate liability as a presystemic first-pass loss surrogate | `attr_predicted-cyp3a4-substrate-liability-as-a-presystemic-first-@v1` | `preference` | — | `deferred` |
+| 59 | Predicted drug-induced liver injury probability | `attr_predicted-drug-induced-liver-injury-probability@v1` | `preference` | — | `deferred` |
+| 60 | Predicted hERG channel blockade probability | `attr_predicted-herg-channel-blockade-probability@v1` | `preference` | — | `deferred` |
+| 61 | Predicted human liver microsomal intrinsic clearance | `attr_predicted-human-liver-microsomal-intrinsic-clearance@v1` | `preference` | — | `deferred` |
+| 62 | Predicted intestinal epithelial permeability (Caco-2 effective permeability) | `attr_predicted-intestinal-epithelial-permeability-caco-2-effectiv@v1` | `preference` | — | `deferred` |
+| 63 | Predicted oral bioavailability probability | `attr_predicted-oral-bioavailability-probability@v1` | `preference` | — | `deferred` |
+| 64 | Predicted P-glycoprotein interaction liability at the intestinal barrier | `attr_predicted-p-glycoprotein-interaction-liability-at-the-intest@v1` | `preference` | — | `deferred` |
+| 65 | Predicted passive transcellular permeability (PAMPA) | `attr_predicted-passive-transcellular-permeability-pampa@v1` | `preference` | — | `deferred` |
+| 66 | Predicted probability of clinical toxicity | `attr_predicted-probability-of-clinical-toxicity@v1` | `preference` | — | `deferred` |
+| 67 | Predicted probability of human intestinal absorption | `attr_predicted-probability-of-human-intestinal-absorption@v1` | `preference` | — | `deferred` |
 | 68 | Rat plasma clearance | `attr_rat-plasma-clearance@v1` | `preference` | `{"comparator": "<=", "unit": "mL/min/kg", "value": 124}` | `deferred` |
 | 69 | Reported aqueous solubility of the compound | `attr_reported-aqueous-solubility-of-the-compound@v1` | `preference` | — | `deferred` |
 | 70 | Reported human oral bioavailability against a same-class benchmark | `attr_reported-human-oral-bioavailability-against-a-same-class-ben@v1` | `preference` | `{"comparator": ">=", "unit": "%", "value": 58}` | `deferred` |
@@ -217,7 +234,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 | 81 | Stomatitis or oral mucositis incidence | `attr_stomatitis-or-oral-mucositis-incidence@v1` | `preference` | `{"comparator": "<=", "unit": "%", "value": 35.0}` | `deferred` |
 | 82 | Susceptibility to CYP3A4 inducer-mediated exposure reduction | `attr_susceptibility-to-cyp3a4-inducer-mediated-exposure-reduction@v1` | `preference` | — | `deferred` |
 | 83 | Terminal half-life upper bound as an accumulation-risk flag | `attr_terminal-half-life-upper-bound-as-an-accumulation-risk-flag@v1` | `preference` | `{"comparator": "<=", "unit": "h", "value": 120}` | `deferred` |
-| 84 | Topological polar surface area relative to the stated oral-absorption level for kinase inhibitors | `attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1` | `preference` | `{"comparator": "<=", "unit": "Å²", "value": 90}` | `not_entered_pending_decision` |
+| 84 | Topological polar surface area relative to the stated oral-absorption level for kinase inhibitors | `attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1` | `preference` | — | `scoring` |
 | 85 | Treatment-related deaths reported | `attr_treatment-related-deaths-reported@v1` | `preference` | `{"comparator": "<=", "unit": "deaths", "value": 1}` | `deferred` |
 | 86 | Urinary recovery of the administered dose | `attr_urinary-recovery-of-the-administered-dose@v1` | `preference` | `{"comparator": "<=", "unit": "% of administered dose", "value": 16}` | `deferred` |
 | 87 | VEGFR inhibitory potency advantage over first-generation VEGFR tyrosine kinase inhibitors (fold) | `attr_vegfr-inhibitory-potency-advantage-over-first-generation-veg@v1` | `preference` | `{"comparator": ">=", "unit": "fold", "value": 50}` | `deferred` |
@@ -334,7 +351,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -445,7 +462,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -568,7 +585,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -673,7 +690,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -793,7 +810,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -922,7 +939,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1051,7 +1068,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1183,7 +1200,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1276,7 +1293,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
+- status `not_entered_pending_decision` on `rules@v6` — awaiting a decision on an open review item
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1417,7 +1434,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1537,7 +1554,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1704,7 +1721,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -1810,10 +1827,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
+- status `scoring` on `rules@v6`
 - rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_conformational-flexibility-rotatable-bond-count@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_conformational-flexibility-rotatable-bond-count@v1", "scoring_routes": [{"capability": "property_estimate", "question_kind": "computed_property"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3084}`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3", "observed": 3084}`
 
 ---
 
@@ -1942,7 +1959,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -2035,10 +2052,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `scoring` on `rules@v6` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: `{"acceptable_value_sources": ["curated_measurement", "peer_reviewed"], "attribute_ref": "attr_csf1r-curated-potency@v2", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [{"capability": "literature_retrieval", "question_kind": "search"}], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_blocks_recommendation", "unknown_blocks_recommendation"], "rule_kind": "preference", "rule_ref": "rule_csf1r-curated-potency@v2", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}, {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 37}`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3", "observed": 36}`
 
 ---
 
@@ -2152,7 +2169,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
+- status `not_entered_pending_decision` on `rules@v6` — awaiting a decision on an open review item
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -2272,7 +2289,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
+- status `not_entered_pending_decision` on `rules@v6` — awaiting a decision on an open review item
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -2394,10 +2411,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
+- status `scoring` on `rules@v6`
 - rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_curated-mechanism-of-action-records-confirming-engagement-of@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": true, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_curated-mechanism-of-action-records-confirming-engagement-of@v1", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}]}`
 - scores while disputed: `True` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 0}`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3", "observed": 0}`
 
 ---
 
@@ -2508,7 +2525,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -2601,10 +2618,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `scoring` on `rules@v6` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: `{"acceptable_value_sources": ["curated_measurement", "peer_reviewed"], "attribute_ref": "attr_fgfr1-curated-potency@v2", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [{"capability": "literature_retrieval", "question_kind": "search"}], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_blocks_recommendation", "unknown_blocks_recommendation"], "rule_kind": "preference", "rule_ref": "rule_fgfr1-curated-potency@v2", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}, {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 40}`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3", "observed": 40}`
 
 ---
 
@@ -2781,7 +2798,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -2888,7 +2905,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3005,7 +3022,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3131,7 +3148,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3254,7 +3271,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3368,7 +3385,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3494,7 +3511,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3609,7 +3626,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3741,7 +3758,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3870,7 +3887,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -3999,7 +4016,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4115,7 +4132,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4250,7 +4267,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4388,7 +4405,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4514,7 +4531,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4656,7 +4673,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4778,7 +4795,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -4916,7 +4933,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5013,9 +5030,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 - authority this criterion owes before it may score: none by the trigger table
 - expert decisions: —
-- machine adjudications: —
-- open review item `q_01M4Y38XZETPBTF8CPWFYEKEYM` (`open`, blocking `True`, raised 2026-10-14T20:57:13.966Z): rule.cutoff.value reads 4 as a decision line that its source does not state as one
-  - inspection bundle: —
+- machine adjudication `adj_01M50JFYEKD4T97YK5NFPM7N4H` · route `bound_interpretation_granted` · resolution `approve` · approval kind `agent_verdict` · confirmed by a person `False`
+  - reason: an agent read the cited claims, the interpretation declared for rule.cutoff.value and the rule, and granted the bound: it may score as a cutoff and is recorded as resting on that interpretation, not as a threshold its source states
+  - cites: `{"bounds": [{"applicability_rationale": "The passage calls logP approximately 2-4 optimal for kinase inhibitors; 4 is the stated upper edge of that optimal band and is applied as the lipophilicity ceiling for candidates of the same class that must be orally absorbed.", "claim_id": "claim_01M4X8AJ48X0A1MB80GB6V5YVY", "comparator": "<=", "inference": "at_most_the_reported_value", "interpretation": {"inference": "at_most_the_reported_value", "measurement": "the passage calls moderate lipophilicity, typically logP approximately 2-4, optimal for kinase inhibitors", "population_rationale": "Candidates are kinase inhibitors that must be orally absorbed, the class the passage describes; 4 is the source's own upper edge for that class, so a candidate above it sits outside the band the source calls optimal and, per the same source, tends to poor solubility, higher clearance and greater efflux liability, hence ranks lower. This is a preference, not an exclusion, because the band is offered as optimality rather than a requirement."}, "parameter_path": "rule.cutoff.value", "range_endpoint": {"claim_id": "claim_01M4X8AJ48X0A1MB80GB6V5YVY", "endpoint": 4.0, "range": [2.0, 4.0]}, "statement_kind": "provides_heuristic", "trace_kind": "claim_quote", "unit": "log units", "value": 4}], "claim_ids": ["claim_01M4X8AJ48X0A1MB80GB6V5YVY"], "field": "bound_support", "match": "interpretation_declared", "parameter_paths": ["rule.cutoff.value"]}` · claims `["claim_01M4X8AJ48X0A1MB80GB6V5YVY", "claim_01M4X8AJ5VYCEAVVZ4FZK8MXZ0"]` · independence `{"adjudicator_adapter_id": "deepseek_reasoning", "adjudicator_family": "deepseek", "adjudicator_model_id": "deepseek-v4-flash", "adjudicator_saw_proposer_rationale": false, "bound_adapter_id": "deepseek_reasoning", "critic_family": "deepseek", "distinct_from_critic": false, "distinct_from_proposer": false, "proposer_family": "deepseek", "roster_offered_a_third_family": false}`
+- open review items: —
 - unresolved proposer/critic disputes: —
 - exposure: derivation configuration `reference_disclosed` · historical-list exposure `["no expert decision exists for this criterion"]`
   - the sealed eleven-CQA list was not in the derivation agents' context; the known reference compound was disclosed, which is a separate exposure
@@ -5042,10 +5060,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
-- rule-set entry: —
-- scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- status `scoring` on `rules@v6`
+- rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1", "authority": "machine_adjudication", "bound_support": {"claims_resolved": 3, "needing_a_decision": [], "range_endpoints": ["rule.cutoff.value"], "states": {"rule.cutoff.value": "interpretation_granted"}, "traces": {"rule.cutoff.value": "claim_quote"}}, "confirmed_by": "adj_01M50JFYEKD4T97YK5NFPM7N4H", "cutoff_basis": "source_stated_value", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_lipophilicity-relative-to-the-upper-edge-of-the-stated-optim@v1", "scoring_routes": [{"capability": "property_estimate", "question_kind": "computed_property"}]}`
+- scores while disputed: `False` · machine adjudicated: `True` · reads a collapsed attribute: `False`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3", "observed": 2956}`
 
 ---
 
@@ -5146,7 +5164,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5268,7 +5286,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5466,7 +5484,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5585,7 +5603,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5694,7 +5712,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5803,7 +5821,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -5956,7 +5974,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6038,10 +6056,11 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 - authority this criterion owes before it may score: none by the trigger table
 - expert decisions: —
-- machine adjudications: —
-- open review item `q_01M4Y38XPSQCWNVFNQWT85QN2Q` (`open`, blocking `True`, raised 2026-10-14T20:57:13.689Z): proposer and critic still disagree after one revision
-  - inspection bundle: `{"derivation_run": "run_01M4Y0ZAYEVP12Y6SKRF1EDD7V", "open_critic_findings": [{"check": "evidence_support", "finding": "The cited quote states a class-typical size range of approximately 380-500 Da but does not state that 500 Da is a developability ceiling or that larger molecules are less developable; the proposal itself concedes the source offers a 'rule of thumb' and 'no harm for smaller molecules', so the 500 cutoff is an inference not supported by the quote.", "proposal_index": 0, "referent": "claim_01M4X8AJ3QSQSXFKYXHEA3H0HS", "verdict": "fail"}, {"check": "counter_evidence_considered", "finding": "No counter-evidence is addressed that many clinically successful kinase inhibitors (e.g., lenvatinib, regorafenib, cabozantinib) exceed 500 Da, which directly undercuts the heuristic.", "proposal_index": 0, "referent": "rule.bound_support[0].applicability_rationale", "verdict": "fail"}], "pool_criterion": "cri_01M4X9KDZ07PWB63VES6D78WQ6"}`
-- unresolved proposer/critic disputes: `q_01M4Y38XPSQCWNVFNQWT85QN2Q`
+- machine adjudication `adj_01M50HQXTJQ3TXMQFNNEREDK9A` · route `dispute_adjudicated` · resolution `approve` · approval kind `agent_verdict` · confirmed by a person `False`
+  - reason: the critic's findings do not stand against the claims the criterion cites
+  - cites: `{"claim_ids": []}` · claims — · independence `{"adjudicator_adapter_id": "deepseek_reasoning", "adjudicator_family": "deepseek", "adjudicator_model_id": "deepseek-v4-flash", "adjudicator_saw_proposer_rationale": false, "bound_adapter_id": "deepseek_reasoning", "critic_family": "deepseek", "distinct_from_critic": false, "distinct_from_proposer": false, "proposer_family": "deepseek", "roster_offered_a_third_family": false}`
+- open review items: —
+- unresolved proposer/critic disputes: —
 - exposure: derivation configuration `reference_disclosed` · historical-list exposure `["no expert decision exists for this criterion"]`
   - the sealed eleven-CQA list was not in the derivation agents' context; the known reference compound was disclosed, which is a separate exposure
 - critic findings: —
@@ -6073,10 +6092,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
-- rule-set entry: —
-- scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- status `scoring` on `rules@v6`
+- rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_molecular-weight-against-the-class-typical-upper-size-edge-f@v1", "authority": "machine_adjudication", "bound_support": {"claims_resolved": 1, "needing_a_decision": ["rule.cutoff.value"], "range_endpoints": ["rule.cutoff.value"], "states": {"rule.cutoff.value": "interpretation_added"}, "traces": {"rule.cutoff.value": "claim_range_end"}}, "confirmed_by": "adj_01M50HQXTJQ3TXMQFNNEREDK9A", "cutoff_basis": "source_stated_value", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_molecular-weight-against-the-class-typical-upper-size-edge-f@v1", "scoring_routes": [{"capability": "property_estimate", "question_kind": "computed_property"}]}`
+- scores while disputed: `False` · machine adjudicated: `True` · reads a collapsed attribute: `False`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3", "observed": 3084}`
 
 ---
 
@@ -6193,7 +6212,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6307,7 +6326,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6399,7 +6418,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6521,7 +6540,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6644,7 +6663,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6758,7 +6777,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -6931,7 +6950,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -7061,7 +7080,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -7166,7 +7185,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -7303,10 +7322,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
-- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-aqueous-solubility@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_predicted-aqueous-solubility@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
+- status `deferred` on `rules@v6` — predicted_property_lookup was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
+- rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
+- measured coverage: —
 
 ---
 
@@ -7449,10 +7468,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
-- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-cyp3a4-substrate-liability-as-a-presystemic-first-@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_predicted-cyp3a4-substrate-liability-as-a-presystemic-first-@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
+- status `deferred` on `rules@v6` — predicted_property_lookup was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
+- rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
+- measured coverage: —
 
 ---
 
@@ -7575,10 +7594,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
-- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-drug-induced-liver-injury-probability@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-drug-induced-liver-injury-probability@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
+- status `deferred` on `rules@v6` — predicted_property_lookup was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
+- rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
+- measured coverage: —
 
 ---
 
@@ -7709,10 +7728,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
-- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-herg-channel-blockade-probability@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-herg-channel-blockade-probability@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
+- status `deferred` on `rules@v6` — predicted_property_lookup was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
+- rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
+- measured coverage: —
 
 ---
 
@@ -7831,10 +7850,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
-- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-human-liver-microsomal-intrinsic-clearance@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-human-liver-microsomal-intrinsic-clearance@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
+- status `deferred` on `rules@v6` — predicted_property_lookup was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
+- rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
+- measured coverage: —
 
 ---
 
@@ -7986,10 +8005,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
-- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-intestinal-epithelial-permeability-caco-2-effectiv@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_predicted-intestinal-epithelial-permeability-caco-2-effectiv@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
+- status `deferred` on `rules@v6` — predicted_property_lookup was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
+- rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
+- measured coverage: —
 
 ---
 
@@ -8105,10 +8124,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
-- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-oral-bioavailability-probability@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-oral-bioavailability-probability@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
+- status `deferred` on `rules@v6` — predicted_property_lookup was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
+- rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
+- measured coverage: —
 
 ---
 
@@ -8242,10 +8261,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
-- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-p-glycoprotein-interaction-liability-at-the-intest@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_predicted-p-glycoprotein-interaction-liability-at-the-intest@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
+- status `deferred` on `rules@v6` — predicted_property_lookup was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
+- rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
+- measured coverage: —
 
 ---
 
@@ -8349,10 +8368,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
-- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-passive-transcellular-permeability-pampa@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-passive-transcellular-permeability-pampa@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
+- status `deferred` on `rules@v6` — predicted_property_lookup was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
+- rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
+- measured coverage: —
 
 ---
 
@@ -8481,10 +8500,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
-- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-probability-of-clinical-toxicity@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_predicted-probability-of-clinical-toxicity@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
+- status `deferred` on `rules@v6` — predicted_property_lookup was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
+- rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
+- measured coverage: —
 
 ---
 
@@ -8612,10 +8631,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
-- rule-set entry: `{"acceptable_value_sources": ["model_prediction"], "attribute_ref": "attr_predicted-probability-of-human-intestinal-absorption@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_predicted-probability-of-human-intestinal-absorption@v1", "scoring_routes": [{"capability": "predicted_property_lookup", "question_kind": "admet_prediction"}]}`
+- status `deferred` on `rules@v6` — predicted_property_lookup was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
+- rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 3177}`
+- measured coverage: —
 
 ---
 
@@ -8731,7 +8750,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -8845,7 +8864,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -8959,7 +8978,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9081,7 +9100,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9195,7 +9214,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9308,7 +9327,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9418,7 +9437,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9550,10 +9569,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3`
+- status `scoring` on `rules@v6`
 - rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_required-receptor-engagement-coverage-documented-on-curated-@v1", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": true, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "route_to_human"], "rule_kind": "preference", "rule_ref": "rule_required-receptor-engagement-coverage-documented-on-curated-@v1", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}, {"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}, {"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}, {"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}, {"capability": "interaction_evidence_lookup", "question_kind": "mechanism_records"}]}`
 - scores while disputed: `True` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 0}`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3", "observed": 0}`
 
 ---
 
@@ -9685,7 +9704,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9810,7 +9829,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -9957,7 +9976,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10071,7 +10090,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10246,7 +10265,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10361,7 +10380,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10466,7 +10485,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10586,7 +10605,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10595,12 +10614,12 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 ### 84. Topological polar surface area relative to the stated oral-absorption level for kinase inhibitors
 
-- **attribute** `attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1` · **rule** `rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v1` · **task** `task_01M4X892V1EAER2GHWE1RE19ZN@v1`
-- **all versions**: attribute `["attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1"]`, rule `["rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v1"]`; supersedes —
-- **record hashes**: attribute `e140e517c914f0e1e8c2af37bafbc5a61dcdb0acc85cab732b45d5527c610b9e`, rule `2ef9c0fe4557f30a37a7de3d80ed67ee57d6458ecd6941f83c52160eaa713e31`
+- **attribute** `attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1` · **rule** `rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v2` · **task** `task_01M4X892V1EAER2GHWE1RE19ZN@v1`
+- **all versions**: attribute `["attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1"]`, rule `["rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v1", "rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v2"]`; supersedes —
+- **record hashes**: attribute `e140e517c914f0e1e8c2af37bafbc5a61dcdb0acc85cab732b45d5527c610b9e`, rule `5559b2c4ab49fd503bf86a8828f91c578b54a6325813b9ca250ad6783b6e961a`
 - **origin**: `literature_derived` · proposed by `{"id": "proposer:deepseek-v4-flash", "kind": "agent", "model_family": "deepseek", "role": "proposer"}` · derivation configuration `reference_disclosed`
 - **derived from**: `{"derivation_run": "run_01M4Y0ZAYEVP12Y6SKRF1EDD7V", "pool_criterion": "cri_01M4X9KE08KA603JR3KVD4Y8EN@v5"}` · dimension `oral_bioavailability`
-- **written by software**: —
+- **written by software**: `{"rule_adjudicated_by": "adj_01M50J164C9MG7Z1D3Z92J3JP0"}`
 
 **Recovery-comparison facets** (same operational quantity · applicability · decision semantics · threshold)
 
@@ -10608,13 +10627,12 @@ The derived set for a recovery mapping: every registered criterion whose quantit
   - read from `["property_estimate"]` asking `["computed_property"]`; evidence kinds `["database_entry"]`; determination bases `["derived"]`
   - measurement identity `ff82a68d62b25e8dc99fb3f7c55afb351e7f703109c84c828e6f546ff34e79b2`
 - **applicability**: every candidate in the task's declared universe; no narrower population is recorded as a field · result kind `all_pass_set` · on inapplicable `unknown_no_penalty` · condition field —
-- **decision semantics**: role `preference` (`preference`) · predicate form `threshold` · direction `lower_better`
-  - predicate: passes when the aggregated value is <= 90 Å²
-  - on missing `unknown_no_penalty` · on conflict `unknown_no_penalty` · decision identity `4b4d02a96cbe55e1f984d106faf997fbf72e7a2c2eff7acb61b5ccad8c06957c`
-- **threshold**: `present` — `<= 90 Å²` · basis `source_stated_value` · cutoff support —
+- **decision semantics**: role `preference` (`preference`) · predicate form `ordering` · direction `lower_better`
+  - predicate: orders candidates by the quantity, lower_better; no cutoff
+  - on missing `unknown_no_penalty` · on conflict `unknown_no_penalty` · decision identity `410d2722efe2ccb0574e9e15681fa736d21c8c7b0da41e0b27e760615b65632e`
+- **threshold**: `explicitly_absent` · basis `none_evidence_insufficient` · cutoff support —
 - **comparable from fields alone**: `False`
   - gap: applicability: no structured population or condition field exists in this schema; what the criterion is and is not about is stated in the definition prose
-  - gap: threshold: a cutoff is present and the schema records no per-cutoff support record, so which passage justifies this number is not stated
 
 **Operational definition**
 
@@ -10629,7 +10647,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Rule**
 
-- **kind** `preference` · **predicate form** `threshold` · **cutoff** `{"comparator": "<=", "unit": "Å²", "value": 90}` (`present`) · **cutoff basis** `source_stated_value`
+- **kind** `preference` · **predicate form** `ordering` · **cutoff** — (`explicitly_absent`) · **cutoff basis** `none_evidence_insufficient`
 - **on missing** `unknown_no_penalty` · **on inapplicable** `unknown_no_penalty` · **on conflict** `unknown_no_penalty`
 - **weight**: — — unweighted mean over observed contributions; the confirmed ordering method declares an empty weight vector
 
@@ -10641,7 +10659,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Parameter support**
 
-- `rule.cutoff.value` = `90` `<=` unit `Å²` · basis `source_stated_value` · claims — · support field: none; the rule schema carries no per-cutoff support record
+- no executable scientific parameter: the rule carries no cutoff and the attribute declares no transform
 
 **Verification, reported as three separate checks**
 
@@ -10668,9 +10686,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 - authority this criterion owes before it may score: none by the trigger table
 - expert decisions: —
-- machine adjudications: —
-- open review item `q_01M4Y38XVE9P5H512WTKAZ1SCR` (`open`, blocking `True`, raised 2026-10-14T20:57:13.838Z): rule.cutoff.value reads 90 as a decision line that its source does not state as one
-  - inspection bundle: —
+- machine adjudication `adj_01M50J164C9MG7Z1D3Z92J3JP0` · route `bound_interpretation_granted` · resolution `withdraw_the_cutoff` · approval kind `agent_verdict` · confirmed by a person `False`
+  - reason: an agent read the cited claims and the interpretation declared for rule.cutoff.value and refused the bound: The cited claim only reports “TPSA values below approximately 90 Å2” with an oral-bioavailability attribute hint. It does not establish that 90 Å² is a screening threshold, does not identify the population as orally administered kinase inhibitors, and does not by itself show that lower TPSA is syste; the criterion keeps ranking candidates on the measurement, which asserts no bound
+  - cites: `{"bounds": [{"applicability_rationale": "The source offers approximately 90 Å² as the polar-surface-area level associated with the orally available kinase-inhibitor profile, the same class as the candidates; applied as a soft ceiling.", "claim_id": "claim_01M4X8AJ4STQ79J38R6J1BGZGA", "comparator": "<=", "inference": "at_most_the_reported_value", "interpretation": {"inference": "at_most_the_reported_value", "measurement": "the passage gives approximately 90 Å² as the polar-surface-area level below which the compounds it discusses fall", "population_rationale": "Candidates are orally administered kinase inhibitors, the class the passage describes; a candidate at or below the reported polar-surface-area level carries no more polar surface than the class level associated with that profile, so it is at least as favourable on this axis and ranks above more polar molecules."}, "parameter_path": "rule.cutoff.value", "range_endpoint": null, "statement_kind": "provides_heuristic", "trace_kind": "claim_quote", "unit": "Å²", "value": 90}], "claim_ids": ["claim_01M4X8AJ4STQ79J38R6J1BGZGA"], "field": "bound_support", "match": "interpretation_declared", "parameter_paths": ["rule.cutoff.value"]}` · claims `["claim_01M4X8AJ4STQ79J38R6J1BGZGA"]` · independence `{"adjudicator_adapter_id": "deepseek_reasoning", "adjudicator_family": "deepseek", "adjudicator_model_id": "deepseek-v4-flash", "adjudicator_saw_proposer_rationale": false, "bound_adapter_id": "deepseek_reasoning", "critic_family": "deepseek", "distinct_from_critic": false, "distinct_from_proposer": false, "proposer_family": "deepseek", "roster_offered_a_third_family": false}`
+- open review items: —
 - unresolved proposer/critic disputes: —
 - exposure: derivation configuration `reference_disclosed` · historical-list exposure `["no expert decision exists for this criterion"]`
   - the sealed eleven-CQA list was not in the derivation agents' context; the known reference compound was disclosed, which is a separate exposure
@@ -10697,10 +10716,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
-- rule-set entry: —
-- scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: —
+- status `scoring` on `rules@v6`
+- rule-set entry: `{"acceptable_value_sources": ["database_entry"], "attribute_ref": "attr_topological-polar-surface-area-relative-to-the-stated-oral-a@v1", "authority": "machine_adjudication", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "adj_01M50J164C9MG7Z1D3Z92J3JP0", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_no_penalty", "unknown_no_penalty"], "rule_kind": "preference", "rule_ref": "rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v2", "scoring_routes": [{"capability": "property_estimate", "question_kind": "computed_property"}]}`
+- scores while disputed: `False` · machine adjudicated: `True` · reads a collapsed attribute: `False`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3", "observed": 3084}`
 
 ---
 
@@ -10822,7 +10841,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -10937,7 +10956,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -11048,7 +11067,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -11141,10 +11160,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `scoring` on `rules@v6` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: `{"acceptable_value_sources": ["curated_measurement", "peer_reviewed"], "attribute_ref": "attr_vegfr1-curated-potency@v2", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [{"capability": "literature_retrieval", "question_kind": "search"}], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_blocks_recommendation", "unknown_blocks_recommendation"], "rule_kind": "preference", "rule_ref": "rule_vegfr1-curated-potency@v2", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}, {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 42}`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3", "observed": 42}`
 
 ---
 
@@ -11234,10 +11253,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `scoring` on `rules@v6` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: `{"acceptable_value_sources": ["curated_measurement", "peer_reviewed"], "attribute_ref": "attr_vegfr2-curated-potency@v2", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [{"capability": "literature_retrieval", "question_kind": "search"}], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_blocks_recommendation", "unknown_blocks_recommendation"], "rule_kind": "preference", "rule_ref": "rule_vegfr2-curated-potency@v2", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}, {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 84}`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3", "observed": 84}`
 
 ---
 
@@ -11327,10 +11346,10 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `scoring` on `rules@v3` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `scoring` on `rules@v6` — scores on interaction_evidence_lookup, interaction_evidence_lookup; literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: `{"acceptable_value_sources": ["curated_measurement", "peer_reviewed"], "attribute_ref": "attr_vegfr3-curated-potency@v2", "authority": "trigger_table", "bound_support": {"claims_resolved": 0, "needing_a_decision": [], "range_endpoints": [], "states": {}, "traces": {}}, "confirmed_by": "auto:trigger_table", "cutoff_basis": "none_evidence_insufficient", "deferred_routes": [{"capability": "literature_retrieval", "question_kind": "search"}], "disputed": false, "on_states": ["unknown_no_penalty", "unknown_blocks_recommendation", "unknown_blocks_recommendation"], "rule_kind": "preference", "rule_ref": "rule_vegfr3-curated-potency@v2", "scoring_routes": [{"capability": "interaction_evidence_lookup", "question_kind": "pchembl_values"}, {"capability": "interaction_evidence_lookup", "question_kind": "gtopdb_affinity"}]}`
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
-- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_1", "observed": 34}`
+- measured coverage: `{"assessed": 3177, "board": "lb_task_01M4X892V1EAER2GHWE1RE19ZN_3", "observed": 34}`
 
 ---
 
@@ -11451,7 +11470,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `not_entered_pending_decision` on `rules@v3` — awaiting a decision on an open review item
+- status `not_entered_pending_decision` on `rules@v6` — awaiting a decision on an open review item
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -11649,7 +11668,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -11967,7 +11986,7 @@ The derived set for a recovery mapping: every registered criterion whose quantit
 
 **Use**
 
-- status `deferred` on `rules@v3` — literature_retrieval was held out of this run: rate-limited literature sources make a per-candidate literature pass take hours over the 3,177-candidate sweep; held out for the registered screen, the literature pass reported as outstanding
+- status `deferred` on `rules@v6` — literature_retrieval was held out of this run: the registered endpoint ranks on measured evidence with eligibility reported separately; the three physicochemical rules were machine-adjudicated as the Oct-14 baseline did (adj_01M50HQXTJQ3TXMQFNNEREDK9A, adj_01M50J164C9MG7Z1D3Z92J3JP0, adj_01M50JFYEKD4T97YK5NFPM7N4H); predicted-ADMET scoring saturates coverage and literature collection is rate-limited at universe scale
 - rule-set entry: —
 - scores while disputed: `False` · machine adjudicated: `False` · reads a collapsed attribute: `False`
 - measured coverage: —
@@ -13216,9 +13235,9 @@ Items that did not reach the registry, or reached it and were merged away. None 
 ### Registry versions merged away by a collapse (0)
 
 
-### Superseded registry versions (0)
+### Superseded registry versions (1)
 
-—
+`["rule_topological-polar-surface-area-relative-to-the-stated-oral-a@v1"]`
 
 
 ## Withheld from this export

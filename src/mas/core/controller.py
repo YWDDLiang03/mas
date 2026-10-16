@@ -543,11 +543,26 @@ class RunController:
                        question=f"apply {rule_ref} to every resolved candidate")
             todo = [c for c in order if (rule_ref, c) not in st.cells]
             st.reused += len(order) - len(todo)
-            for candidate_id in todo:
+
+            # WHY this pass runs its candidates through the same pool the literature pass uses
+            # (measured 15 October 2026 the hard way): a measured-cell sweep of 3,177 candidates x 11
+            # rules is one tool round trip per cell, and serially that is ~120 cells/min — about five
+            # hours for one screen, with the process four-fifths idle on network waits. The cells of
+            # one rule pass are independent of one another (each gathers its own evidence and the
+            # journal is append-only), which is the same argument `_literature_pass` already relies
+            # on; `assess.workers` is the operator's bound on how many may be in flight at once.
+            def work(candidate_id: str) -> bool:
                 cell, reason = self._assess(st, item, candidate_id, pass_budget, step_ids, cache)
                 self._record_cell(st, cell, reason, step_ids, planned_cells)
-                budget_cut = (cell["verdict"] == "not_assessed"
-                              and cell["not_assessed_reason"] == "budget_exhausted") or budget_cut
+                return (cell["verdict"] == "not_assessed"
+                        and cell["not_assessed_reason"] == "budget_exhausted")
+
+            if self.workers > 1 and len(todo) > 1:
+                with ThreadPoolExecutor(max_workers=self.workers) as pool:
+                    cut_here = any(list(pool.map(work, todo)))
+            else:
+                cut_here = any([work(candidate_id) for candidate_id in todo])
+            budget_cut = cut_here or budget_cut
             self._emit(run_id, "step.completed", ids=step_ids, state_to="completed",
                        payload={"rule_ref": rule_ref, "budget_used": pass_budget.used})
             self._emit(run_id, "checkpoint.written", ids=dict(step_ids, checkpoint_id=f"ckpt_{run_id}_{index + 1}"),
