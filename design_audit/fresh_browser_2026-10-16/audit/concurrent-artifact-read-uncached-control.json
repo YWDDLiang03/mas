@@ -1,8 +1,0 @@
-{
-  "test_iterations": 100,
-  "cached_statements": 0,
-  "seconds": 17.184215899993433,
-  "sqlite_version": "3.50.4",
-  "temp_root": "C:\\Users\\admin\\AppData\\Local\\Temp\\mas-uncached-repro-6k7yu70s",
-  "failures": []
-}

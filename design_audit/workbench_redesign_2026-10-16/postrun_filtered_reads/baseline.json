@@ -1,9 +1,0 @@
-{
-  "source_sha256": {
-    "src/mas/core/criteria.py": "71fdddfdd19791021bc2d3863ba8380a48f9e17bc9bae78111f4e701b3ca477d",
-    "src/mas/core/ledger.py": "9d43346b5de07c3b19e76ed87c01341db3af8169bb6da074cc8d378313b8fa52",
-    "src/mas/core/adjudication.py": "4e41984c677979bec1fd3066d9f4b58ef11bdf7faa889ab793076b753e96af08"
-  },
-  "applied": false,
-  "rebase_note": "Preserves concurrent _completion_limit addition; only the two cited-reader functions are transplanted"
-}

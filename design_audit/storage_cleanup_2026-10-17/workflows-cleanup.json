@@ -1,0 +1,14 @@
+{
+  "before": {
+    "drafts": 2,
+    "workflows": 6,
+    "events": 4157
+  },
+  "after": {
+    "drafts": 0,
+    "workflows": 2,
+    "events": 3805
+  },
+  "integrity_check": "ok",
+  "scientific_records_modified": false
+}

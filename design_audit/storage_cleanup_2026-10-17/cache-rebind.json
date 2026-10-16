@@ -1,0 +1,33 @@
+{
+  "status": "rebound",
+  "cache": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\var\\primary\\workbench-linked-read.db",
+  "source": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\var\\primary\\store\\store.db",
+  "previous_source_identity": {
+    "path": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\var\\storage-cleanup-20261017\\primary-store-candidate-v3\\store.db",
+    "device": 17482482334539238579,
+    "inode": 34902897112287798
+  },
+  "source_identity": {
+    "path": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\var\\primary\\store\\store.db",
+    "device": 17482482334539238579,
+    "inode": 34902897112287798
+  },
+  "pointer_validation": {
+    "stages.opened_row": 0,
+    "stages.closed_row": 0,
+    "criteria_current.updated_row": 0,
+    "criteria_listing.updated_row": 0,
+    "criterion_versions.source_row": 0,
+    "criterion_changes.source_row": 0,
+    "snapshots.published_row": 0,
+    "assessments.source_row": 0,
+    "claims.source_row": 0,
+    "evidence_links.source_row": 0,
+    "evidence_links.assessment_row": 0,
+    "evidence_links.superseded_row": 0,
+    "assessment_event_mismatches": 0
+  },
+  "cache_sha256": "6a2806a2f93e483f7615da97c425e8d846a3bcb41ee381d7bfc4167114f52fe4",
+  "scientific_writes": 0,
+  "models_called": 0
+}
