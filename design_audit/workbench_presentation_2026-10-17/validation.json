@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-17",
+  "scope": "Display and read-only explanation; no research run or model call",
+  "production_url": "http://127.0.0.1:8769/workbench/",
+  "browser_checks": [
+    "Two visible studies, rank 4 and rank 1 unchanged",
+    "Score numerator, denominator and each preference contribution",
+    "BRENK tied value worked example",
+    "Score-to-criterion-and-candidate evidence navigation",
+    "Literature, database and calculation source types",
+    "Exact duplicate findings retain adopted and set-aside records",
+    "Collection description saved through UI and persisted after restart",
+    "Hidden original source remains bound when reusing old setup",
+    "English and Chinese UI",
+    "1440 px and 390 px layouts",
+    "Production score detail after restart"
+  ],
+  "automated_checks": [
+    {
+      "command": "pytest tests/test_score_details.py tests/test_workspace_display.py tests/test_ui.py -q",
+      "passed": 38
+    },
+    {
+      "command": "pytest tests/test_read_model.py tests/test_evidence_groups.py -q",
+      "passed": 31
+    },
+    {
+      "command": "npm --prefix web/client run build",
+      "result": "passed"
+    }
+  ],
+  "source_integrity": {
+    "last_event_row": 2151293,
+    "last_event_type": "run.completed",
+    "last_event_at": "2026-10-16T16:25:14.087Z",
+    "last_artifact_id": "art_f2ddc889ffb5",
+    "source_events_added": 0,
+    "existing_export_hashes_match": true
+  },
+  "performance": {
+    "method": "Five fresh ReadModel instances per query, each followed by a repeat; OS disk cache not flushed. P95 uses nearest rank (max for n=5).",
+    "queries": {
+      "CBE_literature": {
+        "fresh_reader_ms": [
+          891.463100007968,
+          898.4284999896772,
+          843.2405999919865,
+          862.6138999825343,
+          801.7195000138599
+        ],
+        "cached_ms": [
+          6.500500021502376,
+          11.071799992350861,
+          4.651199997169897,
+          5.92339999275282,
+          5.20189999951981
+        ],
+        "median_fresh_reader_ms": 862.6138999825343,
+        "p95_fresh_reader_ms": 898.4284999896772,
+        "p95_cached_ms": 11.071799992350861,
+        "sources": 162
+      },
+      "AQ0_literature": {
+        "fresh_reader_ms": [
+          228.35330001544207,
+          221.8849000055343,
+          236.8500999873504,
+          243.32270000013523,
+          258.3951999840792
+        ],
+        "cached_ms": [
+          4.672400013078004,
+          5.618499999400228,
+          4.951199982315302,
+          5.291900015436113,
+          4.67150000622496
+        ],
+        "median_fresh_reader_ms": 236.8500999873504,
+        "p95_fresh_reader_ms": 258.3951999840792,
+        "p95_cached_ms": 5.618499999400228,
+        "sources": 162
+      },
+      "BRENK_candidate": {
+        "fresh_reader_ms": [
+          7.426700001815334,
+          7.418799999868497,
+          6.917199993040413,
+          6.993599992711097,
+          7.0463999873027205
+        ],
+        "cached_ms": [
+          5.427999974926934,
+          4.719900025520474,
+          5.794900003820658,
+          5.185799993341789,
+          7.1226999862119555
+        ],
+        "median_fresh_reader_ms": 7.0463999873027205,
+        "p95_fresh_reader_ms": 7.426700001815334,
+        "p95_cached_ms": 7.1226999862119555,
+        "sources": 2
+      },
+      "FGFR1_candidate": {
+        "fresh_reader_ms": [
+          7.616200018674135,
+          7.791300013195723,
+          8.14289998379536,
+          7.4563000234775245,
+          7.597299991175532
+        ],
+        "cached_ms": [
+          5.040999996708706,
+          5.030400003306568,
+          4.609399999026209,
+          3.8382000057026744,
+          4.3465999769978225
+        ],
+        "median_fresh_reader_ms": 7.616200018674135,
+        "p95_fresh_reader_ms": 8.14289998379536,
+        "p95_cached_ms": 5.040999996708706,
+        "sources": 4
+      }
+    }
+  },
+  "display_files": [
+    "workspace-display.json",
+    "evidence-collection-display.json"
+  ],
+  "presentation": {
+    "slides": 24,
+    "notes": 24,
+    "native_charts": 1,
+    "native_tables": 19,
+    "sha256": "2e54f6d60be21190cecd939727b3baa2cd55e2fb3975cf9572430315ce12e2da"
+  }
+}

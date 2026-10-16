@@ -17,6 +17,8 @@ from mas.ui.read_api import ReadAPI
 from mas.ui.workflows import WorkflowManager
 from mas.ui.uploads import UploadStore
 from mas.ui.research_briefs import ResearchBriefService
+from mas.ui.workspace_display import WorkspaceDisplay
+from mas.ui.evidence_collections import EvidenceCollections
 
 INPUT_FIELDS = {'title', 'objective', 'targets', 'constraints', 'library_id', 'source_task_id',
                 'evidence_mode', 'evaluation_mode', 'workers', 'budget_usd', 'reference_candidate',
@@ -37,6 +39,8 @@ class WorkbenchAPI:
         self.read = ReadAPI(self.model)
         self.workflows = WorkflowManager(operations, self.model)
         self.uploads = UploadStore(operations.store_root)
+        self.display = WorkspaceDisplay(operations.store_root.parent / 'workbench-display.json')
+        self.collections = EvidenceCollections(self.model, operations.store_root.parent / 'workbench-evidence-display.json')
         self.assets = Path(os.environ.get('MAS_WORKBENCH_ASSET_DIR') or operations.working_directory / 'web/client/dist').resolve()
         self._closing = threading.Event()
         self._error = None
@@ -55,20 +59,19 @@ class WorkbenchAPI:
     def bootstrap(self):
         status = self.model.status()
         try:
-            tasks = self.model.tasks() if status.get('ready') else []
+            tasks = self.display.tasks(self.model.tasks()) if status.get('ready') else []
         except (KeyError, ValueError, RuntimeError):
             tasks = []
-        available = libraries(self.operations)
+        available = self.display.libraries(libraries(self.operations))
         selected = self.operations.current_task
         current = next((t for t in tasks if t['task_id'] == selected), None)
         if not current and tasks:
             selected = tasks[0]['task_id']
-        sources = [{'task_id': t['task_id'], 'label': t.get('title') or t.get('objective') or t['task_id']}
-                   for t in tasks if t.get('criteria_count', 0) > 0]
-        return {'tasks': tasks, 'drafts': self.workflows.drafts(),
+        sources = self.collections.list([t['task_id'] for t in tasks if t.get('criteria_count', 0) > 0])
+        return {'tasks': tasks, 'drafts': self.display.drafts(self.workflows.drafts()),
                 'libraries': [{k: v for k, v in x.items() if k != 'path'} for x in available],
                 'evidence_sources': sources, 'current_task_id': selected,
-                'workflows': self.workflows.list(), 'operation_token': self.operations.token,
+                'workflows': self.visible_workflows(), 'operation_token': self.operations.token,
                 'defaults': {'objective': '', 'targets': [], 'constraints': '',
                              'entity_type': 'drug', 'evidence_upload_id': None,
                              'library_id': available[0]['id'] if available else None,
@@ -76,6 +79,9 @@ class WorkbenchAPI:
                              'evaluation_mode': 'staged', 'workers': self.operations.settings['assess.workers'],
                              'budget_usd': self.operations.settings['budget.usd_max']},
                 'projection': status}
+
+    def visible_workflows(self):
+        return self.display.workflows(self.workflows.list())
 
     def get(self, path, query):
         parts = [unquote(p) for p in path.split('/') if p][2:]
@@ -87,15 +93,19 @@ class WorkbenchAPI:
                                   if field['key'] not in ('interaction.mode', 'rank.mandated_coverage_floor', 'budget.on_exhaust')]
             return settings
         if parts == ['workflows']:
-            return {'items': self.workflows.list()}
+            return {'items': self.visible_workflows()}
+        if len(parts) == 2 and parts[0] == 'evidence-collections':
+            return dict(self.collections.get(parts[1]), display_editable=bool(self.operations.token))
         if len(parts) == 2 and parts[0] == 'uploads':
             record = self.uploads.read(parts[1])
             return {key: record.get(key) for key in ('upload_id', 'kind', 'filename', 'row_count', 'label', 'entity_type', 'content_sha256')}
         if len(parts) == 2 and parts[0] == 'workflows':
-            return self.workflows.get(parts[1])
+            return self.display.workflow(self.workflows.get(parts[1]))
         if len(parts) >= 3 and parts[0] == 'tasks':
             data = self.read.get(parts[1], parts[2], query, parts[3] if len(parts) > 3 else None)
             if parts[2] == 'overview':
+                data['task'] = self.display.task(data['task'])
+                data['snapshots'] = self.display.snapshots(data.get('snapshots', []))
                 data['workflow'] = next((wf for wf in self.workflows.list() if wf.get('task_id') == parts[1]), None)
                 if data['workflow']:
                     data['task']['input'] = public_input(self.workflows._read(data['workflow']['workflow_id'])['input'])
@@ -103,6 +113,10 @@ class WorkbenchAPI:
                 else:
                     data['input'] = self.model.task_input(parts[1])
                     data['task']['input'] = data['input']
+                if data['workflow']:
+                    data['workflow'] = self.display.workflow(data['workflow'])
+            if parts[2] == 'snapshots':
+                data['items'] = self.display.snapshots(data['items'])
             return data
         raise KeyError('This workbench resource is not available.')
 
@@ -111,6 +125,8 @@ class WorkbenchAPI:
         if parts == ['settings']:
             self.operations.save_settings(request.get('settings') or {})
             return self.get('/api/workbench/settings', {})
+        if len(parts) == 3 and parts[0] == 'evidence-collections' and parts[2] == 'display':
+            return dict(self.collections.update(parts[1], request), display_editable=bool(self.operations.token))
         if parts == ['uploads', 'preview']:
             return self.uploads.public_preview(self.uploads.preview(request))
         if len(parts) == 3 and parts[0] == 'uploads' and parts[2] == 'commit':

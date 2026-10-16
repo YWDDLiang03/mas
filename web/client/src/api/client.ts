@@ -1,4 +1,5 @@
 import type { Bootstrap, CandidateDetail, CandidatesPage, Criterion, CriterionDetail, Draft, EntityType, Evidence, EvidenceDetail, EvidenceQuery, InterpretationPreparation, Overview, Page, RevisionResult, Settings, Snapshot, Stage, TaskInput, UploadKind, UploadPreview, UploadResult, Workflow } from './types';
+import type { EvidenceCollection, EvidenceSourcePage, SourceKind } from './types';
 
 const ROOT = '/api/workbench';
 let operationToken = '';
@@ -46,6 +47,9 @@ export const api = {
   candidate: (task: string, id: string, snapshot?: string, signal?: AbortSignal) => request<CandidateDetail>(taskPath(task) + '/candidates/' + encodeURIComponent(id) + query({ snapshot }), { signal }),
   csvUrl: (task: string, snapshot?: string | null) => ROOT + taskPath(task) + '/export.csv' + query({ snapshot }),
   evidence: (task: string, options: EvidenceQuery, signal?: AbortSignal) => request<Page<Evidence>>(taskPath(task) + '/evidence' + query({ ...options, page_size: 50 }), { signal }),
+  evidenceSources: (task: string, options: EvidenceQuery & { kind?: SourceKind }, signal?: AbortSignal) => request<EvidenceSourcePage>(taskPath(task) + '/evidence-sources' + query({ ...options, page_size: 20 }), { signal }),
+  evidenceCollection: (task: string, signal?: AbortSignal) => request<EvidenceCollection>('/evidence-collections/' + encodeURIComponent(task), { signal }),
+  saveEvidenceCollection: (task: string, display: { label: string; description: string; topics: string[] }) => post<EvidenceCollection>('/evidence-collections/' + encodeURIComponent(task) + '/display', display),
   evidenceDetail: (task: string, claim: string, options: { snapshot?: string; criteria_page?: number; candidate_page?: number; link_page_size?: number } = {}, signal?: AbortSignal) => request<EvidenceDetail>(taskPath(task) + '/evidence/' + encodeURIComponent(claim) + query(options), { signal }),
   settings: (signal?: AbortSignal) => request<Settings>('/settings', { signal }),
   saveSettings: (settings: Record<string, unknown>) => post<Settings>('/settings', { settings }),

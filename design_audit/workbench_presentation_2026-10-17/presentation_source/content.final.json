@@ -1,0 +1,3233 @@
+{
+  "created": "2026-10-17",
+  "title": "MAS研究工作台：流程、组件与一次完整研究",
+  "slides": [
+    {
+      "page": 1,
+      "title": "MAS 研究工作台",
+      "narration": "这份汇报先介绍一次研究的完整流程，再说明各组件如何交换任务、证据、标准和结果，最后用最新的口服多靶点研究走完相同流程。研究者可以从候选结论回到逐项结果、实际采用的证据和保存的原文。",
+      "source": "设计背景：MAS_MultiAgent_Design_Audit_EN_20261012/01_Concept_Overview_EN.md；design_audit/optimized_design.md §§5、8、9。具体功能按当前实现与下列实际记录解释，历史设计中的计划不作为已成功能力。\n独立核算：design_audit/fresh_browser_2026-10-16/audit/snapshot2-summary.md、snapshot2-audit.json；34/34检查通过。评估3177×31=98487单元；snapshot lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2。"
+    },
+    {
+      "page": 2,
+      "title": "完整研究流程",
+      "narration": "工作流程有八个阶段。研究者先指定目标、候选和材料。系统固定证据，提出标准，通过批评、修订和合并形成工作集。审查与冻结明确本次使用哪些规则。随后系统逐项读取候选事实，先判资格再排序。结果包含未解决项、来源位置和完整导出。修改标准会保存新版本，并据此建立新的评估结果。",
+      "source": "设计背景：MAS_MultiAgent_Design_Audit_EN_20261012/01_Concept_Overview_EN.md；design_audit/optimized_design.md §§5、8、9。具体功能按当前实现与下列实际记录解释，历史设计中的计划不作为已成功能力。\n实际任务：design_audit/fresh_browser_2026-10-16/results-snapshot2/task.json；task_01M52CBE5GYPK9F0MCZYBMPH84。此任务是reference_disclosed；生成阶段排除了明确提及参考候选的事实。\n当前流程：README.md Research workbench。"
+    },
+    {
+      "page": 3,
+      "title": "任务输入与规范化",
+      "narration": "规范化组件将用户原话转换成明确的任务字段。实际任务要求单一口服药物，并同时涉及五个靶点。口服是明确硬条件，五个靶点构成必须回答的范围。靶点效力可以排序，但任务没有给出统一数值截点。自有数据的性质、条件或单位无法准确对应时，工作台提出具体问题，用户补充回答后继续。",
+      "source": "实际任务：design_audit/fresh_browser_2026-10-16/results-snapshot2/task.json；task_01M52CBE5GYPK9F0MCZYBMPH84。此任务是reference_disclosed；生成阶段排除了明确提及参考候选的事实。\n实现：src/mas/core/investigation.py task normalization；上传任务按property catalog核对。"
+    },
+    {
+      "page": 4,
+      "title": "证据集合与候选库",
+      "narration": "候选库定义评谁，证据集合定义依据什么。本轮从空CQA开始，复用已固定的事实与历史工具结果。生成阶段排除了明确提及参考候选的事实；任务仍披露参考候选及研究范围，采用披露参考候选身份的口径。候选评估按同一事实政策处理全库，保留原来源及证据类别。",
+      "source": "实际任务：design_audit/fresh_browser_2026-10-16/results-snapshot2/task.json；task_01M52CBE5GYPK9F0MCZYBMPH84。此任务是reference_disclosed；生成阶段排除了明确提及参考候选的事实。\n实际CQA：design_audit/fresh_browser_2026-10-16/results-snapshot2/cqa.json、source-cqa-history.json、stages.json；工作记录口径active_registered_plus_unregistered_proposals。\n本轮evidence stage：claims_reused=3021、criteria_copied=0、documents_read=0、new_searches=0。"
+    },
+    {
+      "page": 5,
+      "title": "一条证据记录",
+      "narration": "以保存文献中的一条测量为例。原文报告sulfatinib对FGFR1和CSF-1R的IC50分别为34和5nM。系统为两个靶点分别保存结构化事实，并保留同一段原文与位置。这里展示FGFR1的34nM；最终候选值按冻结标准与其他合格记录汇总，在案例后段列出具体计算。该原文是体外激酶实验，实验条件的缺项继续保留。",
+      "source": "事实来源：results-snapshot2/surufatinib.json 中 detail.evidence；原文、locator、claim/source hash及reading depth保留。事实manifest为art_dd17f6345b54。\nFGFR1 claim_supp_0fc07290141d48a811fe3d11；source src_doi_10.1038/s42004-023-01084-0；locator sec2.1.p1。原文alias sulfatinib保留。"
+    },
+    {
+      "page": 6,
+      "title": "提出、批评与裁决的分工",
+      "narration": "Proposer根据任务与事实提出属性、用途、来源路线和检验想法。Critic检查证据支持、单位、适用性、重复及反例，给出具体问题。Proposer再回应可修的问题。Adjudicator处理持续争议或来源解释，记录接受、拒绝或未解决的理由。确定性校验负责格式、引用及执行定义，模型同意也要经过这些检查。实际分子量项经历了经验线解释与复核，该决定保留为机器审查记录。",
+      "source": "设计背景：MAS_MultiAgent_Design_Audit_EN_20261012/01_Concept_Overview_EN.md；design_audit/optimized_design.md §§5、8、9。具体功能按当前实现与下列实际记录解释，历史设计中的计划不作为已成功能力。\n实际CQA：design_audit/fresh_browser_2026-10-16/results-snapshot2/cqa.json、source-cqa-history.json、stages.json；工作记录口径active_registered_plus_unregistered_proposals。\nMW相关：rule_molecular-weight-da@v1；machine review adj_01M52MB0NDN2S5WEDHXP14CPJ8。"
+    },
+    {
+      "page": 7,
+      "title": "属性与决策规则",
+      "narration": "CQA在这里是研究中需要测量和判断的性质。属性记录测什么、单位、条件、证据路线和汇总方法；规则记录怎样比较及怎样处理缺失。以分子量为例，结构计算得到Da数值，冻结规则把500Da经验线用于偏好。CSF1R没有数值截点，但有明确连续排序方向，仍可执行。",
+      "source": "实际CQA：design_audit/fresh_browser_2026-10-16/results-snapshot2/cqa.json、source-cqa-history.json、stages.json；工作记录口径active_registered_plus_unregistered_proposals。\n分子量attribute/rule_molecular-weight-da@v1；CSF1R attribute/rule_csf1r-curated-potency@v1。"
+    },
+    {
+      "page": 8,
+      "title": "CQA 池的提炼操作",
+      "narration": "提出阶段先保留有依据的候选想法，提炼阶段逐项处理。Filter核对是否已有标准覆盖、是否有支持和有效读取路线，再由Critic批评。Distill明确性质、方向和适用范围。Refine回应已记录的问题。Merge把同一量和用途的提议合成一个项并保留来源谱系。未解决的内容在池内或审查区继续保留。",
+      "source": "实际CQA：design_audit/fresh_browser_2026-10-16/results-snapshot2/cqa.json、source-cqa-history.json、stages.json；工作记录口径active_registered_plus_unregistered_proposals。\n当前操作定义：src/mas/core/derivation_stages.py propose/filter_stage/distill_stage/refine_stage/merge_stage。"
+    },
+    {
+      "page": 9,
+      "title": "实际谱系：分子量的合并与修订",
+      "narration": "最新研究第二轮合并了六个分子量提议，测量性质、路线、单位和方向一致。它们对经验线和汇总方式有不同表述，合并项保留来源，并明确按中位数汇总实际值。这里合并的是提议及来源，候选的实际值按声明方法另外汇总。第三轮Critic指出反例支持不足。Refine补充经验解释与适用性，机器审查随后接受这条偏好线。每一步都保留父项、版本和理由。",
+      "source": "实际CQA：design_audit/fresh_browser_2026-10-16/results-snapshot2/cqa.json、source-cqa-history.json、stages.json；工作记录口径active_registered_plus_unregistered_proposals。\n六父项与merge child cri_01M52KSFQBB9B84Y16HNPGBCM2@v1；filter@v2、refine@v3；最终attr/rule_molecular-weight-da@v1。支持claim_01M4YGKFS9V8MZAS1VB9ACXDYD等3条；machine bound interpretation granted。"
+    },
+    {
+      "page": 10,
+      "title": "硬条件、偏好与参考项",
+      "narration": "用途决定一项标准怎样影响结果。口服记录是任务明确要求的硬条件；靶点效力和结构性质作为偏好，帮助合格者排序；Food-AUC等参考项提供背景。五个必需靶点的直接证据要求单独核对。参考项有数值和有可执行判读方法也分别记录，四项已有预测值的参考仍等待判读方法。",
+      "source": "实际CQA：design_audit/fresh_browser_2026-10-16/results-snapshot2/cqa.json、source-cqa-history.json、stages.json；工作记录口径active_registered_plus_unregistered_proposals。\n实际评分复算：var/usability-score-20261017/new-suruf-score-details.json/.csv；snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2；run=run_01M52Q4VRB00T5Z3QJW08SSV96；rules@v2；source score=0.7592592592592593。\ncontext状态说明：design_audit/fresh_browser_2026-10-16/audit/context-method-explanation-fix-proof.json。"
+    },
+    {
+      "page": 11,
+      "title": "审查与冻结",
+      "narration": "冻结将当前工作标准转换成一次评估固定使用的规则集。它核对任务要求、来源和单位、比较方式、边界解释及未解决复核，输出启用项和延后清单。实际logP提议原称2到4最佳区间，却一度只有大于等于2；后续修订的依据与执行定义仍未一致，因此两条最佳区间提议最终没有进入这次评分。它们的失败版本和理由仍在。",
+      "source": "实际CQA：design_audit/fresh_browser_2026-10-16/results-snapshot2/cqa.json、source-cqa-history.json、stages.json；工作记录口径active_registered_plus_unregistered_proposals。\ndesign_audit/fresh_browser_2026-10-16/cqa-logp-evolution.md；pool cri_01M52ERBH5STHY9ZZXR1C9JSBM；rule_predicted-lipophilicity与rule_lipophilicity-logp-within-optimal-kinase-inhibitor-range最终deferred。"
+    },
+    {
+      "page": 12,
+      "title": "工具执行与证据类型",
+      "narration": "工具组件接到标准的具体问题，再读取相应候选事实。读取结果携带单位、输入、方法、实现版本及来源。记录中的实测、结构计算和训练模型预测分别保留。实际四个RDKit描述符原被统一标成预测，复核算法后用新版本改为结构计算；原数值、方向、阈值和旧快照均保留。同量有直接证据时优先使用，预测辅助偏好。",
+      "source": "事实来源：results-snapshot2/surufatinib.json 中 detail.evidence；原文、locator、claim/source hash及reading depth保留。事实manifest为art_dd17f6345b54。\nADMET-AI 2.0.1官方physchem源码审阅与机械迁移：scripts/correct_descriptor_basis.py；tool_compute_admet_descriptors implementation admet-ai-2.0.1-rdkit-descriptor-projection-1。"
+    },
+    {
+      "page": 13,
+      "title": "逐层筛选与两种评估模式",
+      "narration": "筛选首先核对适用且经过审查的硬条件和必需直接证据。明确硬失败进入淘汰；缺证、冲突或未解决硬审查进入待补；没有有效硬条件时为未就绪。分阶段模式（staged）只在确认硬失败后跳过后续昂贵评估并记录原因；未知仍继续检查其他门槛。合成载体例子中C的细胞活率55%低于80%硬要求，随后四格明确跳过。该例已经离线核对完整模式（full）和分阶段模式的合格集与排序一致。",
+      "source": "合成工程示例：design_audit/workbench_usability_2026-10-16/FINAL_ACCEPTANCE.md；var/workbench-usability/fixtures/carriers.csv与carrier-measurements.csv。数据明确为synthetic engineering fixture，不是实验证据。\n规则语义：src/mas/core/assessor.py qualification；Controller staged skip。载体示例15cells，staged实际11evaluated+4skipped。"
+    },
+    {
+      "page": 14,
+      "title": "偏好分数与直接证据覆盖率",
+      "narration": "阈值偏好按通过或失败给1或0。连续偏好先在有值的合格候选中排序，换成0到1的经验分位；并列取平均位置，比较组包含该项有值的合格候选。分数用有可用值的偏好加权平均。直接证据覆盖率另算，分母包含全部适用偏好。实际BRENK中两个候选更差、八个候选并列，比较分为0.611111，对本轮总分贡献0.040741。NIH和PAINS都是十个候选同为零，各比较分0.5。",
+      "source": "实际评分复算：var/usability-score-20261017/new-suruf-score-details.json/.csv；snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2；run=run_01M52Q4VRB00T5Z3QJW08SSV96；rules@v2；source score=0.7592592592592593。\n冻结ranking_coverage_floor=0.5；qualified_tied_empirical_percentile；所有17偏好权重均为1。n=1时实现比较分为1。"
+    },
+    {
+      "page": 15,
+      "title": "研究者工作台",
+      "narration": "工作台把任务输入、持续进度、标准历史、候选结果与证据回查放在同一个研究上下文。用户切换页面后仍能看到当前阶段和活动。暂停在活动边界保存状态；标准编辑保留新版本，历史快照继续可读。阶段轨道显示当前活动与已完成阶段。研究者可以进入标准历史核对变化，或从候选逐项结果进入实际证据。",
+      "source": "实际UI记录：README.md Research workbench；design_audit/fresh_browser_2026-10-16/UI_REVIEW.md；最终截图见assets.json。"
+    },
+    {
+      "page": 16,
+      "title": "实例起点：口服多靶点研究",
+      "narration": "最新实例从浏览器Settings和New research开始。配置均为mid，四个并发工作者。候选库有3177个药物。口服是硬条件，CSF1R、VEGFR1、VEGFR2、VEGFR3和FGFR1是必需范围。新任务没有继承旧标准，固定证据后重新提出CQA。原输入披露Surufatinib为参考候选；生成排除明确提及它的事实，候选评估仍按统一规则。",
+      "source": "实际任务：design_audit/fresh_browser_2026-10-16/results-snapshot2/task.json；task_01M52CBE5GYPK9F0MCZYBMPH84。此任务是reference_disclosed；生成阶段排除了明确提及参考候选的事实。\n配置原始截图24-formal-settings-mid.jpg；正式科学运行记录费用约$4.2101，费用记录保持。"
+    },
+    {
+      "page": 17,
+      "title": "实例中的标准展开与三轮提炼",
+      "narration": "初始6项任务绑定包含五靶点与口服。按目标覆盖、口服相关性质、代谢稳定性和安全性提出1911条提议，加上任务绑定达到1917工作项。三轮提炼后依次剩147、68和53个当前工作项。这里每个数量都采用同一工作记录口径，含尚待处理的记录。数量变化可回到具体修改、合并和移除，例如前述分子量六父合并。",
+      "source": "实际CQA：design_audit/fresh_browser_2026-10-16/results-snapshot2/cqa.json、source-cqa-history.json、stages.json；工作记录口径active_registered_plus_unregistered_proposals。\n精确stage after：0,6,293,504,1192,1917,1373,1337,291,147,109,97,78,68,63,62,53,53；promote=53。"
+    },
+    {
+      "page": 18,
+      "title": "实例中的冻结方案",
+      "narration": "最终53个工作项包括45个已注册和8个未注册提议。本次评估启用31条，即1个硬条件、17个偏好与13个参考。其余22个没有进入评估，包括14个已注册延后和8个未注册待处理。5个未解决复核是14中的子集。延后原因包括执行定义不完整和审查未解。最佳logP区间与机制engagement项给出了具体例子。",
+      "source": "实际CQA：design_audit/fresh_browser_2026-10-16/results-snapshot2/cqa.json、source-cqa-history.json、stages.json；工作记录口径active_registered_plus_unregistered_proposals。\nvar/fresh-browser-20261016/frozen-criteria-summary.json/.csv；53refs唯一。规则集rules@v2保留同样计数，四描述符仅版本迁移。"
+    },
+    {
+      "page": 19,
+      "title": "实例中的口服与必需靶点证据",
+      "narration": "口服硬条件由保存的人类临床给药句支持。句中的250mg是给药信息，是否口服的判断来自明确的orally表述及候选归属。五个必需靶点都有直接测量记录，任务范围5/5已回答。表中的pChEMBL是按冻结属性汇总的值，有的来自多条测量。它们进入效力排序；本任务把这些效力值用于排序，未设置统一的效力硬阈值。",
+      "source": "事实来源：results-snapshot2/surufatinib.json 中 detail.evidence；原文、locator、claim/source hash及reading depth保留。事实manifest为art_dd17f6345b54。\n口服示例claim_01M52QZFZHBESVFSHMK8TX8AGV，DOI10.1080/07853890.2026.2698360，sec2.3.p1。实际评分复算：var/usability-score-20261017/new-suruf-score-details.json/.csv；snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2；run=run_01M52Q4VRB00T5Z3QJW08SSV96；rules@v2；source score=0.7592592592592593。"
+    },
+    {
+      "page": 20,
+      "title": "实例评分明细：靶点与结构性质",
+      "narration": "这张表列出17个偏好中的9个。每项权重都为1。总分贡献为该项标准化比较分除以15。五个靶点按合格且有值者计算分位数。分子量480.6Da满足500Da偏好线，所以比较分为1。RDKit和结构警报是确定性计算。BRENK有八人并列，因此比较分为0.6111；NIH的十个候选同为零，比较分为0.5。准确值、路线和每条原始观察都在附带评分表和保存记录中。",
+      "source": "实际评分复算：var/usability-score-20261017/new-suruf-score-details.json/.csv；snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2；run=run_01M52Q4VRB00T5Z3QJW08SSV96；rules@v2；source score=0.7592592592592593。\nrule_csf1r-curated-potency@v1\nrule_vegfr1-curated-potency@v1\nrule_vegfr2-curated-potency@v1\nrule_vegfr3-curated-potency@v1\nrule_fgfr1-curated-potency@v1\nrule_molecular-weight-da@v1\nrule_predicted-logp-rdkit@v2\nrule_predicted-brenk-alert-count@v2\nrule_predicted-nih-alert-count@v2"
+    },
+    {
+      "page": 21,
+      "title": "实例评分明细：预测与缺证",
+      "narration": "这张表列余下8个偏好。五项模型预测参与辅助分数，但不增加直接证据覆盖。F%和Tmax缺证，保留在适用偏好的17项分母中；它们不进入本轮有值项的分数分母。15个有值项的比较分合计11.3888888889，除以权重总和15得到0.7592592593。直接证据另有10项，除以17得到58.82%，高于冻结的50%排位要求。",
+      "source": "实际评分复算：var/usability-score-20261017/new-suruf-score-details.json/.csv；snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2；run=run_01M52Q4VRB00T5Z3QJW08SSV96；rules@v2；source score=0.7592592592592593。\nrule_predicted-pains-alert-count@v2\nrule_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1\nrule_predicted-cyp1a2-inhibition-probability@v1\nrule_predicted-cyp2c19-inhibition-probability@v1\nrule_predicted-cyp2c9-inhibition-probability@v1\nrule_predicted-cyp2c9-substrate-probability@v1\nrule_oral-bioavailability-human-measured-f@v1\nrule_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1"
+    },
+    {
+      "page": 22,
+      "title": "实例结果与保留的首次记录",
+      "narration": "最终3177个候选中10个合格并排名，3167个待补证据，明确淘汰和未评估均为零。Surufatinib排名1/10，分数0.7593。首次保存结果有6个合格候选，均未达到排位要求；Surufatinib的直接偏好覆盖为6/17，约35%，因此没有名次。后续纠正了已有事实复用与四个结构描述符的证据分类，另存第二快照。硬条件、权重和覆盖要求未改。排名表示当前冻结标准下的研究优先级。",
+      "source": "独立核算：design_audit/fresh_browser_2026-10-16/audit/snapshot2-summary.md、snapshot2-audit.json；34/34检查通过。评估3177×31=98487单元；snapshot lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2。\n首次snapshot1保留：direct6/17；最终snapshot2 direct10/17；所有旧artifact hashes核对。"
+    },
+    {
+      "page": 23,
+      "title": "结果怎样回到来源",
+      "narration": "候选逐项结果连接实际采用的证据，证据再连接保存的原文和上下文。FGFR1汇总采用四条记录：34nM原文转换为pChEMBL约7.4685，另有7.82、7.82及7.2800，按中位数得到7.6443。新的证据分组将测量数值、结构计算和支持研究用途的文献分开展示。部分结构偏好的用途依据较间接，研究者可以据此判断下一步验证。",
+      "source": "事实来源：results-snapshot2/surufatinib.json 中 detail.evidence；原文、locator、claim/source hash及reading depth保留。事实manifest为art_dd17f6345b54。\n实际评分复算：var/usability-score-20261017/new-suruf-score-details.json/.csv；snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2；run=run_01M52Q4VRB00T5Z3QJW08SSV96；rules@v2；source score=0.7592592592592593。\nFGFR1 raw values:[34nM,7.82pChEMBL,7.82pChEMBL,7.28000020980835pChEMBL]；34nM转换=-log10(34e-9)；median=7.6442605414788725。"
+    },
+    {
+      "page": 24,
+      "title": "自有数据与下一步研究",
+      "narration": "自有数据入口接受稳定候选ID及逐条观测，保留性质、值、单位、条件和来源。合成载体示例里，粒径来自DLS条件，细胞活率是硬要求，递送效率用于排序，表面电荷只有记录要求而无方向偏好。上传的依据类型保留用户的声明。药物实例后续可补人F%、Tmax和Food-AUC，明确四项参考的判读方法，并检验间接结构偏好的研究价值。交付包括可编辑汇报、讲稿、完整候选、评分明细及标准和证据历史。",
+      "source": "合成工程示例：design_audit/workbench_usability_2026-10-16/FINAL_ACCEPTANCE.md；var/workbench-usability/fixtures/carriers.csv与carrier-measurements.csv。数据明确为synthetic engineering fixture，不是实验证据。\n原药物未知项与context状态：独立核算：design_audit/fresh_browser_2026-10-16/audit/snapshot2-summary.md、snapshot2-audit.json；34/34检查通过。评估3177×31=98487单元；snapshot lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2。"
+    }
+  ],
+  "sourceScore": {
+    "study": "new",
+    "task_id": "task_01M52CBE5GYPK9F0MCZYBMPH84",
+    "run_id": "run_01M52Q4VRB00T5Z3QJW08SSV96",
+    "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2",
+    "snapshot_artifact_id": "art_f2ddc889ffb5",
+    "snapshot_payload_sha256": "e4ca61f6085257d1e8a1b149e4010ddd81d5415467f52ae250d8c11da0c1157e",
+    "rule_set_ref": "rules@v2",
+    "ordering_method": {
+      "kind": "weighted_preference",
+      "tie_break": "candidate_id",
+      "weight_vector": {}
+    },
+    "qualified_cohort": [
+      {
+        "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+        "names": [
+          "Surufatinib"
+        ]
+      },
+      {
+        "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+        "names": [
+          "Pazopanib"
+        ]
+      },
+      {
+        "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+        "names": [
+          "Axitinib"
+        ]
+      },
+      {
+        "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+        "names": [
+          "Vandetanib"
+        ]
+      },
+      {
+        "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+        "names": [
+          "Nintedanib"
+        ]
+      },
+      {
+        "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+        "names": [
+          "Sorafenib"
+        ]
+      },
+      {
+        "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+        "names": [
+          "Sunitinib"
+        ]
+      },
+      {
+        "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+        "names": [
+          "Entrectinib"
+        ]
+      },
+      {
+        "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+        "names": [
+          "Fedratinib"
+        ]
+      },
+      {
+        "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+        "names": [
+          "Midostaurin"
+        ]
+      }
+    ],
+    "rank": 1,
+    "source_score": 0.7592592592592593,
+    "recomputed_score": 0.7592592592592593,
+    "score_numerator": 11.38888888888889,
+    "score_denominator": 15,
+    "direct_coverage_numerator": 10,
+    "direct_coverage_denominator": 17,
+    "direct_preference_coverage": 0.5882352941176471,
+    "frozen_preference_entries": 17,
+    "selected_preference_entries": 17,
+    "score_participating_entries": 15,
+    "suppressed_rule_refs": [],
+    "contributions": [
+      {
+        "rule_ref": "rule_csf1r-curated-potency@v1",
+        "attribute_ref": "attr_csf1r-curated-potency@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_csf1r-curated-potency@v1_rule_csf1r-curated-potency@v1_live",
+        "name": "CSF1R curated potency",
+        "definition": "Median pChEMBL value (-log10 of the molar IC50, Ki, Kd or EC50) over point measurements against CSF1R (CHEMBL1844), pooled across every available expert curation and every reported measurement in the peer-reviewed literature",
+        "raw_observations": [
+          {
+            "claim_id": "claim_supp_c46f483890b2a5faa7d5a5f6",
+            "artifact_id": "art_bb05f130eeaa",
+            "value": 5,
+            "value_low": null,
+            "value_high": null,
+            "unit": "nM",
+            "basis": "measured",
+            "evidence_kind": "peer_reviewed",
+            "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+            "locator": "sec2.1.p1"
+          }
+        ],
+        "assessed_value": 8.301029995663981,
+        "unit": "pChEMBL",
+        "value_kind": "measured",
+        "determination_basis": "measured",
+        "direct_evidence": true,
+        "raw_verdict": "available",
+        "direction": "higher_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "5800f057ae44826cbf0bc9b765ecf52c598c542e6270fea441d2631b090f7dd0",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 9,
+        "tie_count_including_self": 1,
+        "desirability": 1,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 1,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 1,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.06666666666666667
+      },
+      {
+        "rule_ref": "rule_fgfr1-curated-potency@v1",
+        "attribute_ref": "attr_fgfr1-curated-potency@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_fgfr1-curated-potency@v1_rule_fgfr1-curated-potency@v1_live",
+        "name": "FGFR1 curated potency",
+        "definition": "Median pChEMBL value (-log10 of the molar IC50, Ki, Kd or EC50) over point measurements against FGFR1 (CHEMBL3650), pooled across every available expert curation and every reported measurement in the peer-reviewed literature",
+        "raw_observations": [
+          {
+            "claim_id": "claim_supp_0fc07290141d48a811fe3d11",
+            "artifact_id": "art_76d9fac6ddbd",
+            "value": 34,
+            "value_low": null,
+            "value_high": null,
+            "unit": "nM",
+            "basis": "measured",
+            "evidence_kind": "peer_reviewed",
+            "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+            "locator": "sec2.1.p1"
+          },
+          {
+            "claim_id": "claim_01M52QZG7H4CYSRM3SV3E6SEWA",
+            "artifact_id": "art_788b5dc38d9e",
+            "value": 7.82,
+            "value_low": null,
+            "value_high": null,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "evidence_kind": "curated_measurement",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132415",
+            "locator": "chembl_activity_26132415#pchembl_value"
+          },
+          {
+            "claim_id": "claim_01M52QZG7KDSKWK1PA1GFZ40KH",
+            "artifact_id": "art_f3b1128099de",
+            "value": 7.82,
+            "value_low": null,
+            "value_high": null,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "evidence_kind": "curated_measurement",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187720",
+            "locator": "chembl_activity_26187720#pchembl_value"
+          },
+          {
+            "claim_id": "claim_01M52QZG7P7E1TAGRTR5K092GW",
+            "artifact_id": "art_2327e8549095",
+            "value": 7.28000020980835,
+            "value_low": null,
+            "value_high": null,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "evidence_kind": "curated_measurement",
+            "source_ref": "src_db_tool_drug_gtopdb_affinity_gtopdb_interaction_9769_P11362_nopmid",
+            "locator": "gtopdb_interaction_9769_P11362_nopmid#affinity"
+          }
+        ],
+        "assessed_value": 7.6442605414788725,
+        "unit": "pChEMBL",
+        "value_kind": "curated",
+        "determination_basis": "measured",
+        "direct_evidence": true,
+        "raw_verdict": "available",
+        "direction": "higher_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "89f4fbda8e60da942115dd1791a37d1cbd2601be6077fc93c38c314f722d65df",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 9,
+        "tie_count_including_self": 1,
+        "desirability": 1,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 1,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 1,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.06666666666666667
+      },
+      {
+        "rule_ref": "rule_molecular-weight-da@v1",
+        "attribute_ref": "attr_molecular-weight-da@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_molecular-weight-da@v1_rule_molecular-weight-da@v1_live",
+        "name": "Molecular weight (Da)",
+        "definition": "Molecular weight of the compound in Daltons (g/mol), computed from structure by the curated descriptor route rather than a trained prediction; lower values are preferred because size above roughly 500 Da approaches the upper limit compatible with efficient passive intestinal diffusion and increases efflux-transporter recognition.",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG06AVBFV2MZXMJ2HD4W",
+            "artifact_id": "art_f7c06a8a68ae",
+            "value": 480.6,
+            "value_low": null,
+            "value_high": null,
+            "unit": "g/mol",
+            "basis": "derived",
+            "evidence_kind": "database_entry",
+            "source_ref": "src_db_tool_drug_pubchem_property_pubchem_cid_52920501",
+            "locator": "pubchem_cid_52920501#MolecularWeight"
+          }
+        ],
+        "assessed_value": 480.6,
+        "unit": "Da",
+        "value_kind": "derived",
+        "determination_basis": "derived",
+        "direct_evidence": true,
+        "raw_verdict": "pass",
+        "direction": "lower_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": {
+          "comparator": "<=",
+          "unit": "Da",
+          "value": 500
+        },
+        "predicate_form": "threshold",
+        "quantity_identity": "614145c201671074ec738674194dcb2f107287e9208a461785f72cf4a5882931",
+        "normalization_method": "binary_pass_fail",
+        "normalization_n": null,
+        "strictly_worse_count": null,
+        "tie_count_including_self": null,
+        "desirability": 1,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 1,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 1,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.06666666666666667
+      },
+      {
+        "rule_ref": "rule_oral-bioavailability-human-measured-f@v1",
+        "attribute_ref": "attr_oral-bioavailability-human-measured-f@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_oral-bioavailability-human-measured-f@v1_rule_oral-bioavailability-human-measured-f@v1_live",
+        "name": "Oral bioavailability (human, measured F%)",
+        "definition": "Reported absolute or relative oral bioavailability (F%) in humans, as a measured pharmacokinetic parameter. Higher values indicate greater fraction of an orally administered dose reaching systemic circulation intact. This is a preference ordering, not a requirement: low F% compounds may still be clinically effective if the dose can be escalated.",
+        "raw_observations": [],
+        "assessed_value": null,
+        "unit": "%",
+        "value_kind": "missing",
+        "determination_basis": "absent",
+        "direct_evidence": false,
+        "raw_verdict": "unknown_missing",
+        "direction": "higher_better",
+        "aggregation": "max",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "e5e9685647bb35c20277d089ea29958d9871e9fe1e1208e7cd3728bfc51068d7",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 0,
+        "strictly_worse_count": null,
+        "tie_count_including_self": null,
+        "desirability": null,
+        "weight": 1,
+        "included_in_score": false,
+        "inclusion_reason": "no_usable_scoring_value",
+        "score_numerator_contribution": null,
+        "score_denominator_weight": 0,
+        "coverage_numerator_weight": 0,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": null,
+        "final_score_contribution": null
+      },
+      {
+        "rule_ref": "rule_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1",
+        "attribute_ref": "attr_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1_rule_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1_live",
+        "name": "Predicted blood-brain barrier penetration probability (BBB_Martins)",
+        "definition": "Model-predicted probability of blood-brain barrier penetration; lower probability is generally preferred for peripheral targets to minimise CNS side effects.",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG0TWFH19YYVCH8DS646",
+            "artifact_id": "art_9f8676c0d5e8",
+            "value": 0.5975157022476196,
+            "value_low": null,
+            "value_high": null,
+            "unit": "probability",
+            "basis": "predicted",
+            "evidence_kind": "model_prediction",
+            "source_ref": "src_db_tool_predict_admet_panel_admet_ai_BBB_Martins_d669e617030bdf82",
+            "locator": "admet_ai_BBB_Martins_d669e617030bdf82#BBB_Martins"
+          }
+        ],
+        "assessed_value": 0.5975157022476196,
+        "unit": "probability",
+        "value_kind": "predicted",
+        "determination_basis": "predicted",
+        "direct_evidence": false,
+        "raw_verdict": "available",
+        "direction": "lower_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "c14e63122904e14f8f8dd4b95a0d858df753932a7c84d08797e686c41ac08663",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 4,
+        "tie_count_including_self": 1,
+        "desirability": 0.4444444444444444,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 0.4444444444444444,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 0,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.029629629629629627
+      },
+      {
+        "rule_ref": "rule_predicted-brenk-alert-count@v2",
+        "attribute_ref": "attr_predicted-brenk-alert-count@v2",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-brenk-alert-count@v2_rule_predicted-brenk-alert-count@v2_live",
+        "name": "Predicted BRENK alert count",
+        "definition": "Number of BRENK alerts from RDKit; higher counts indicate greater likelihood of problematic substructures.",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG15ZP51WCW8FQYFWSQQ",
+            "artifact_id": "art_813d4a207217",
+            "value": 0,
+            "value_low": null,
+            "value_high": null,
+            "unit": "count",
+            "basis": "derived",
+            "evidence_kind": "database_entry",
+            "source_ref": "src_db_tool_compute_admet_descriptors_admet_ai_BRENK_alert_d669e617030bdf82",
+            "locator": "admet_ai_BRENK_alert_d669e617030bdf82#BRENK_alert"
+          }
+        ],
+        "assessed_value": 0,
+        "unit": "count",
+        "value_kind": "derived",
+        "determination_basis": "derived",
+        "direct_evidence": true,
+        "raw_verdict": "available",
+        "direction": "lower_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "fa8e7cc54697dd8fd219011dd0ca2c9f3d1c72b8b05d07d605c097f64ccfe1f5",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 2,
+        "tie_count_including_self": 8,
+        "desirability": 0.6111111111111112,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 0.6111111111111112,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 1,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.040740740740740744
+      },
+      {
+        "rule_ref": "rule_predicted-cyp1a2-inhibition-probability@v1",
+        "attribute_ref": "attr_predicted-cyp1a2-inhibition-probability@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-cyp1a2-inhibition-probability@v1_rule_predicted-cyp1a2-inhibition-probability@v1_live",
+        "name": "Predicted CYP1A2 inhibition probability",
+        "definition": "Model-predicted probability that the compound inhibits CYP1A2, in [0,1]; higher values indicate greater drug-drug interaction liability.",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG21MQ5VBXKM4R97A67C",
+            "artifact_id": "art_a713488756c4",
+            "value": 0.38265037536621094,
+            "value_low": null,
+            "value_high": null,
+            "unit": "probability",
+            "basis": "predicted",
+            "evidence_kind": "model_prediction",
+            "source_ref": "src_db_tool_predict_admet_panel_admet_ai_CYP1A2_Veith_d669e617030bdf82",
+            "locator": "admet_ai_CYP1A2_Veith_d669e617030bdf82#CYP1A2_Veith"
+          }
+        ],
+        "assessed_value": 0.38265037536621094,
+        "unit": "probability",
+        "value_kind": "predicted",
+        "determination_basis": "predicted",
+        "direct_evidence": false,
+        "raw_verdict": "available",
+        "direction": "lower_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "b6502546a663c03ed60459accf7769fdd4b5d1bd3acc25875f0ac3f238442687",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 5,
+        "tie_count_including_self": 1,
+        "desirability": 0.5555555555555556,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 0.5555555555555556,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 0,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.03703703703703704
+      },
+      {
+        "rule_ref": "rule_predicted-cyp2c19-inhibition-probability@v1",
+        "attribute_ref": "attr_predicted-cyp2c19-inhibition-probability@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-cyp2c19-inhibition-probability@v1_rule_predicted-cyp2c19-inhibition-probability@v1_live",
+        "name": "Predicted CYP2C19 inhibition probability",
+        "definition": "Model-predicted probability that the compound inhibits CYP2C19, in [0,1]; higher values indicate greater drug-drug interaction liability.",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG2BRFGGQRC5TWMFSAWJ",
+            "artifact_id": "art_add36dc701bd",
+            "value": 0.14042264223098755,
+            "value_low": null,
+            "value_high": null,
+            "unit": "probability",
+            "basis": "predicted",
+            "evidence_kind": "model_prediction",
+            "source_ref": "src_db_tool_predict_admet_panel_admet_ai_CYP2C19_Veith_d669e617030bdf82",
+            "locator": "admet_ai_CYP2C19_Veith_d669e617030bdf82#CYP2C19_Veith"
+          }
+        ],
+        "assessed_value": 0.14042264223098755,
+        "unit": "probability",
+        "value_kind": "predicted",
+        "determination_basis": "predicted",
+        "direct_evidence": false,
+        "raw_verdict": "available",
+        "direction": "lower_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "3c397b2e8d9df93d68de509ef9fa1d337874dc92f419607759957232b0d36de0",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 7,
+        "tie_count_including_self": 1,
+        "desirability": 0.7777777777777778,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 0.7777777777777778,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 0,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.05185185185185185
+      },
+      {
+        "rule_ref": "rule_predicted-cyp2c9-inhibition-probability@v1",
+        "attribute_ref": "attr_predicted-cyp2c9-inhibition-probability@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-cyp2c9-inhibition-probability@v1_rule_predicted-cyp2c9-inhibition-probability@v1_live",
+        "name": "Predicted CYP2C9 inhibition probability",
+        "definition": "Model-predicted probability that the compound inhibits CYP2C9, in [0,1]; higher values indicate greater drug-drug interaction liability.",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG2N8XMQ523WDAMXG1XN",
+            "artifact_id": "art_8f9fa13df045",
+            "value": 0.09985051304101944,
+            "value_low": null,
+            "value_high": null,
+            "unit": "probability",
+            "basis": "predicted",
+            "evidence_kind": "model_prediction",
+            "source_ref": "src_db_tool_predict_admet_panel_admet_ai_CYP2C9_Veith_d669e617030bdf82",
+            "locator": "admet_ai_CYP2C9_Veith_d669e617030bdf82#CYP2C9_Veith"
+          }
+        ],
+        "assessed_value": 0.09985051304101944,
+        "unit": "probability",
+        "value_kind": "predicted",
+        "determination_basis": "predicted",
+        "direct_evidence": false,
+        "raw_verdict": "available",
+        "direction": "lower_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "1c97edef96735fc2cb38f021d35f83c5a93de9fa52eeee26d2b6b1aa8e9b3510",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 7,
+        "tie_count_including_self": 1,
+        "desirability": 0.7777777777777778,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 0.7777777777777778,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 0,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.05185185185185185
+      },
+      {
+        "rule_ref": "rule_predicted-cyp2c9-substrate-probability@v1",
+        "attribute_ref": "attr_predicted-cyp2c9-substrate-probability@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-cyp2c9-substrate-probability@v1_rule_predicted-cyp2c9-substrate-probability@v1_live",
+        "name": "Predicted CYP2C9 substrate probability",
+        "definition": "Model-predicted probability that the compound is a CYP2C9 substrate, in [0,1]; higher values indicate greater susceptibility to CYP2C9-mediated metabolism and potential drug-drug interactions.",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG302D7RZWGP8DJY3S42",
+            "artifact_id": "art_10fd7f88876d",
+            "value": 0.18206293880939484,
+            "value_low": null,
+            "value_high": null,
+            "unit": "probability",
+            "basis": "predicted",
+            "evidence_kind": "model_prediction",
+            "source_ref": "src_db_tool_predict_admet_panel_admet_ai_CYP2C9_Substrate_CarbonMangels_d669e617030bdf82",
+            "locator": "admet_ai_CYP2C9_Substrate_CarbonMangels_d669e617030bdf82#CYP2C9_Substrate_CarbonMangels"
+          }
+        ],
+        "assessed_value": 0.18206293880939484,
+        "unit": "probability",
+        "value_kind": "predicted",
+        "determination_basis": "predicted",
+        "direct_evidence": false,
+        "raw_verdict": "available",
+        "direction": "lower_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "00fb470425f16ec5ee3fdd661eab4660a8e5454e2a86d0c21de7a71fbd1374f7",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 9,
+        "tie_count_including_self": 1,
+        "desirability": 1,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 1,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 0,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.06666666666666667
+      },
+      {
+        "rule_ref": "rule_predicted-logp-rdkit@v2",
+        "attribute_ref": "attr_predicted-logp-rdkit@v2",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-logp-rdkit@v2_rule_predicted-logp-rdkit@v2_live",
+        "name": "Predicted logP (RDKit)",
+        "definition": "Model-predicted logP (RDKit); lower values are preferred because lipophilic, poorly soluble agents show food-dependent and variable oral absorption.",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG4S61Y7ZC3DMC0G68D1",
+            "artifact_id": "art_90f8a2299f59",
+            "value": 3.783220000000002,
+            "value_low": null,
+            "value_high": null,
+            "unit": "log units",
+            "basis": "derived",
+            "evidence_kind": "database_entry",
+            "source_ref": "src_db_tool_compute_admet_descriptors_admet_ai_logP_d669e617030bdf82",
+            "locator": "admet_ai_logP_d669e617030bdf82#logP"
+          }
+        ],
+        "assessed_value": 3.783220000000002,
+        "unit": "log units",
+        "value_kind": "derived",
+        "determination_basis": "derived",
+        "direct_evidence": true,
+        "raw_verdict": "available",
+        "direction": "lower_better",
+        "aggregation": "max",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "4d16831a6cac20cdc52b9bf1bd54ba52ffd349b9c76a93f65ac76a4303ea0a4e",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 6,
+        "tie_count_including_self": 1,
+        "desirability": 0.6666666666666666,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 0.6666666666666666,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 1,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.04444444444444444
+      },
+      {
+        "rule_ref": "rule_predicted-nih-alert-count@v2",
+        "attribute_ref": "attr_predicted-nih-alert-count@v2",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-nih-alert-count@v2_rule_predicted-nih-alert-count@v2_live",
+        "name": "Predicted NIH alert count",
+        "definition": "Number of NIH alerts from RDKit; higher counts indicate greater likelihood of problematic substructures.",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG5DHE5VCEN5RT3WN1MJ",
+            "artifact_id": "art_7c7d9288e76c",
+            "value": 0,
+            "value_low": null,
+            "value_high": null,
+            "unit": "count",
+            "basis": "derived",
+            "evidence_kind": "database_entry",
+            "source_ref": "src_db_tool_compute_admet_descriptors_admet_ai_NIH_alert_d669e617030bdf82",
+            "locator": "admet_ai_NIH_alert_d669e617030bdf82#NIH_alert"
+          }
+        ],
+        "assessed_value": 0,
+        "unit": "count",
+        "value_kind": "derived",
+        "determination_basis": "derived",
+        "direct_evidence": true,
+        "raw_verdict": "available",
+        "direction": "lower_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "8cbe1be14e584cf4b76aea925ca462a2c73679c59a996480c4a2970cc8dedc7f",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 0,
+        "tie_count_including_self": 10,
+        "desirability": 0.5,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 0.5,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 1,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.03333333333333333
+      },
+      {
+        "rule_ref": "rule_predicted-pains-alert-count@v2",
+        "attribute_ref": "attr_predicted-pains-alert-count@v2",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_predicted-pains-alert-count@v2_rule_predicted-pains-alert-count@v2_live",
+        "name": "Predicted PAINS alert count",
+        "definition": "Number of PAINS alerts from RDKit; higher counts indicate greater likelihood of assay interference and poor drug-likeness.",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG5RTE2XKNCJJ5T9VV7Q",
+            "artifact_id": "art_ce5a7ff659de",
+            "value": 0,
+            "value_low": null,
+            "value_high": null,
+            "unit": "count",
+            "basis": "derived",
+            "evidence_kind": "database_entry",
+            "source_ref": "src_db_tool_compute_admet_descriptors_admet_ai_PAINS_alert_d669e617030bdf82",
+            "locator": "admet_ai_PAINS_alert_d669e617030bdf82#PAINS_alert"
+          }
+        ],
+        "assessed_value": 0,
+        "unit": "count",
+        "value_kind": "derived",
+        "determination_basis": "derived",
+        "direct_evidence": true,
+        "raw_verdict": "available",
+        "direction": "lower_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "6cc404742ad9455b6fe4276cdc4b797c5720bffdb8eaff4ee194ce41f442ed9d",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 0,
+        "tie_count_including_self": 10,
+        "desirability": 0.5,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 0.5,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 1,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.03333333333333333
+      },
+      {
+        "rule_ref": "rule_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1",
+        "attribute_ref": "attr_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1_rule_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1_live",
+        "name": "Time to maximum plasma concentration (Tmax, median of reported values)",
+        "definition": "Median of reported times to maximum plasma concentration after oral administration, in hours; when a source reports only a range, the range midpoint is used. Lower values indicate faster absorption. This is a preference ordering, not a requirement: longer Tmax may still be compatible with oral bioavailability and efficacy.",
+        "raw_observations": [],
+        "assessed_value": null,
+        "unit": "h",
+        "value_kind": "missing",
+        "determination_basis": "absent",
+        "direct_evidence": false,
+        "raw_verdict": "unknown_missing",
+        "direction": "lower_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "b7361a48452f173b548a0743ab62d1c97c739df01193eaaa1a0850477fd224cf",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 0,
+        "strictly_worse_count": null,
+        "tie_count_including_self": null,
+        "desirability": null,
+        "weight": 1,
+        "included_in_score": false,
+        "inclusion_reason": "no_usable_scoring_value",
+        "score_numerator_contribution": null,
+        "score_denominator_weight": 0,
+        "coverage_numerator_weight": 0,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": null,
+        "final_score_contribution": null
+      },
+      {
+        "rule_ref": "rule_vegfr1-curated-potency@v1",
+        "attribute_ref": "attr_vegfr1-curated-potency@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_vegfr1-curated-potency@v1_rule_vegfr1-curated-potency@v1_live",
+        "name": "VEGFR1 curated potency",
+        "definition": "Median pChEMBL value (-log10 of the molar IC50, Ki, Kd or EC50) over point measurements against VEGFR1 (CHEMBL1868), pooled across every available expert curation and every reported measurement in the peer-reviewed literature",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG8HX14MXHY677KKJBWE",
+            "artifact_id": "art_e86bfe23178b",
+            "value": 9,
+            "value_low": null,
+            "value_high": null,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "evidence_kind": "curated_measurement",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132410",
+            "locator": "chembl_activity_26132410#pchembl_value"
+          },
+          {
+            "claim_id": "claim_01M52QZG8K7WK3YTW084BQC2XB",
+            "artifact_id": "art_8f2a38fc5eb1",
+            "value": 8.7,
+            "value_low": null,
+            "value_high": null,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "evidence_kind": "curated_measurement",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187716",
+            "locator": "chembl_activity_26187716#pchembl_value"
+          }
+        ],
+        "assessed_value": 8.85,
+        "unit": "pChEMBL",
+        "value_kind": "curated",
+        "determination_basis": "measured",
+        "direct_evidence": true,
+        "raw_verdict": "available",
+        "direction": "higher_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "1f269f30bfd7e1279f69b4f0657d803d46650779d2eaf8ed73fb70d31e44afcc",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 8,
+        "tie_count_including_self": 1,
+        "desirability": 0.8888888888888888,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 0.8888888888888888,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 1,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.059259259259259255
+      },
+      {
+        "rule_ref": "rule_vegfr2-curated-potency@v1",
+        "attribute_ref": "attr_vegfr2-curated-potency@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_vegfr2-curated-potency@v1_rule_vegfr2-curated-potency@v1_live",
+        "name": "VEGFR2 curated potency",
+        "definition": "Median pChEMBL value (-log10 of the molar IC50, Ki, Kd or EC50) over point measurements against VEGFR2 (CHEMBL279), pooled across every available expert curation and every reported measurement in the peer-reviewed literature",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG8XQTFK1ZP4QWZ9YAG4",
+            "artifact_id": "art_3a3350fdb275",
+            "value": 9,
+            "value_low": null,
+            "value_high": null,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "evidence_kind": "curated_measurement",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132412",
+            "locator": "chembl_activity_26132412#pchembl_value"
+          },
+          {
+            "claim_id": "claim_01M52QZG8YMG0JVZG7BA83Y812",
+            "artifact_id": "art_3608ee79c9d7",
+            "value": 7.62,
+            "value_low": null,
+            "value_high": null,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "evidence_kind": "curated_measurement",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187717",
+            "locator": "chembl_activity_26187717#pchembl_value"
+          },
+          {
+            "claim_id": "claim_01M52QZG92KNWWE3PSX7KYWWTX",
+            "artifact_id": "art_907c1fa1c5ce",
+            "value": 7.679999828338623,
+            "value_low": null,
+            "value_high": null,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "evidence_kind": "curated_measurement",
+            "source_ref": "src_db_tool_drug_gtopdb_affinity_gtopdb_interaction_9769_P35968_nopmid",
+            "locator": "gtopdb_interaction_9769_P35968_nopmid#affinity"
+          }
+        ],
+        "assessed_value": 7.679999828338623,
+        "unit": "pChEMBL",
+        "value_kind": "curated",
+        "determination_basis": "measured",
+        "direct_evidence": true,
+        "raw_verdict": "available",
+        "direction": "higher_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "42015c6fa4b3d04fc04562ba8c9e3490f67826e35d9e1a5c48ed3e5758d1e133",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 7,
+        "tie_count_including_self": 1,
+        "desirability": 0.7777777777777778,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 0.7777777777777778,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 1,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.05185185185185185
+      },
+      {
+        "rule_ref": "rule_vegfr3-curated-potency@v1",
+        "attribute_ref": "attr_vegfr3-curated-potency@v1",
+        "assessment_id": "asm_cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N_attr_vegfr3-curated-potency@v1_rule_vegfr3-curated-potency@v1_live",
+        "name": "VEGFR3 curated potency",
+        "definition": "Median pChEMBL value (-log10 of the molar IC50, Ki, Kd or EC50) over point measurements against VEGFR3 (CHEMBL1955), pooled across every available expert curation and every reported measurement in the peer-reviewed literature",
+        "raw_observations": [
+          {
+            "claim_id": "claim_01M52QZG9BZ61WYB3XHPZ4808N",
+            "artifact_id": "art_a13bf72fd7e1",
+            "value": 9,
+            "value_low": null,
+            "value_high": null,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "evidence_kind": "curated_measurement",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26132413",
+            "locator": "chembl_activity_26132413#pchembl_value"
+          },
+          {
+            "claim_id": "claim_01M52QZG9CG0F86NPXH2CG3AVX",
+            "artifact_id": "art_6d5f9ff4da0f",
+            "value": 9,
+            "value_low": null,
+            "value_high": null,
+            "unit": "pChEMBL",
+            "basis": "measured",
+            "evidence_kind": "curated_measurement",
+            "source_ref": "src_db_tool_drug_chembl_bioactivity_chembl_activity_26187719",
+            "locator": "chembl_activity_26187719#pchembl_value"
+          }
+        ],
+        "assessed_value": 9,
+        "unit": "pChEMBL",
+        "value_kind": "curated",
+        "determination_basis": "measured",
+        "direct_evidence": true,
+        "raw_verdict": "available",
+        "direction": "higher_better",
+        "aggregation": "median",
+        "value_transform": null,
+        "cutoff": null,
+        "predicate_form": "ordering",
+        "quantity_identity": "e8279ff753291edd217531854cab84d996848c646581686711950d8a4d306b73",
+        "normalization_method": "qualified_tied_empirical_percentile",
+        "normalization_n": 10,
+        "strictly_worse_count": 8,
+        "tie_count_including_self": 1,
+        "desirability": 0.8888888888888888,
+        "weight": 1,
+        "included_in_score": true,
+        "inclusion_reason": "available",
+        "score_numerator_contribution": 0.8888888888888888,
+        "score_denominator_weight": 1,
+        "coverage_numerator_weight": 1,
+        "coverage_denominator_weight": 1,
+        "superseded_by_direct_rule_refs": [],
+        "weight_fraction_in_score": 0.06666666666666667,
+        "final_score_contribution": 0.059259259259259255
+      }
+    ],
+    "normalization_stats": {
+      "rule_csf1r-curated-potency@v1": {
+        "rule_ref": "rule_csf1r-curated-potency@v1",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 5.92,
+            "count": 1
+          },
+          {
+            "value": 6.21,
+            "count": 1
+          },
+          {
+            "value": 6.48,
+            "count": 1
+          },
+          {
+            "value": 7.08,
+            "count": 1
+          },
+          {
+            "value": 7.270000076293945,
+            "count": 1
+          },
+          {
+            "value": 7.32,
+            "count": 1
+          },
+          {
+            "value": 7.395,
+            "count": 1
+          },
+          {
+            "value": 7.4,
+            "count": 1
+          },
+          {
+            "value": 7.55,
+            "count": 1
+          },
+          {
+            "value": 8.301029995663981,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 6.48,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 1,
+            "desirability": 0.2222222222222222
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 7.270000076293945,
+            "strictly_worse_count": 4,
+            "tie_count_including_self": 1,
+            "desirability": 0.4444444444444444
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 7.4,
+            "strictly_worse_count": 7,
+            "tie_count_including_self": 1,
+            "desirability": 0.7777777777777778
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 6.21,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 7.55,
+            "strictly_worse_count": 8,
+            "tie_count_including_self": 1,
+            "desirability": 0.8888888888888888
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 7.395,
+            "strictly_worse_count": 6,
+            "tie_count_including_self": 1,
+            "desirability": 0.6666666666666666
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 8.301029995663981,
+            "strictly_worse_count": 9,
+            "tie_count_including_self": 1,
+            "desirability": 1
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 5.92,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 7.08,
+            "strictly_worse_count": 3,
+            "tie_count_including_self": 1,
+            "desirability": 0.3333333333333333
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 7.32,
+            "strictly_worse_count": 5,
+            "tie_count_including_self": 1,
+            "desirability": 0.5555555555555556
+          }
+        ]
+      },
+      "rule_fgfr1-curated-potency@v1": {
+        "rule_ref": "rule_fgfr1-curated-potency@v1",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 5.44,
+            "count": 1
+          },
+          {
+            "value": 5.8,
+            "count": 1
+          },
+          {
+            "value": 6.079999923706055,
+            "count": 1
+          },
+          {
+            "value": 6.17,
+            "count": 1
+          },
+          {
+            "value": 6.55,
+            "count": 1
+          },
+          {
+            "value": 6.57,
+            "count": 1
+          },
+          {
+            "value": 6.6,
+            "count": 1
+          },
+          {
+            "value": 6.8,
+            "count": 1
+          },
+          {
+            "value": 7.1899999999999995,
+            "count": 1
+          },
+          {
+            "value": 7.6442605414788725,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 5.8,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 6.8,
+            "strictly_worse_count": 7,
+            "tie_count_including_self": 1,
+            "desirability": 0.7777777777777778
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 6.6,
+            "strictly_worse_count": 6,
+            "tie_count_including_self": 1,
+            "desirability": 0.6666666666666666
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 6.55,
+            "strictly_worse_count": 4,
+            "tie_count_including_self": 1,
+            "desirability": 0.4444444444444444
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 6.17,
+            "strictly_worse_count": 3,
+            "tie_count_including_self": 1,
+            "desirability": 0.3333333333333333
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 6.57,
+            "strictly_worse_count": 5,
+            "tie_count_including_self": 1,
+            "desirability": 0.5555555555555556
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 7.6442605414788725,
+            "strictly_worse_count": 9,
+            "tie_count_including_self": 1,
+            "desirability": 1
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 5.44,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 6.079999923706055,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 1,
+            "desirability": 0.2222222222222222
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 7.1899999999999995,
+            "strictly_worse_count": 8,
+            "tie_count_including_self": 1,
+            "desirability": 0.8888888888888888
+          }
+        ]
+      },
+      "rule_oral-bioavailability-human-measured-f@v1": {
+        "rule_ref": "rule_oral-bioavailability-human-measured-f@v1",
+        "n": 0,
+        "denominator_n_minus_one": null,
+        "single_value_convention": 1,
+        "value_frequencies": [],
+        "population": []
+      },
+      "rule_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1": {
+        "rule_ref": "rule_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 0.30249276757240295,
+            "count": 1
+          },
+          {
+            "value": 0.35359063744544983,
+            "count": 1
+          },
+          {
+            "value": 0.39192214608192444,
+            "count": 1
+          },
+          {
+            "value": 0.4714290499687195,
+            "count": 1
+          },
+          {
+            "value": 0.5636192560195923,
+            "count": 1
+          },
+          {
+            "value": 0.5975157022476196,
+            "count": 1
+          },
+          {
+            "value": 0.6070954203605652,
+            "count": 1
+          },
+          {
+            "value": 0.7001038789749146,
+            "count": 1
+          },
+          {
+            "value": 0.9060986638069153,
+            "count": 1
+          },
+          {
+            "value": 0.9430469274520874,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 0.35359063744544983,
+            "strictly_worse_count": 8,
+            "tie_count_including_self": 1,
+            "desirability": 0.8888888888888888
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 0.39192214608192444,
+            "strictly_worse_count": 7,
+            "tie_count_including_self": 1,
+            "desirability": 0.7777777777777778
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 0.6070954203605652,
+            "strictly_worse_count": 3,
+            "tie_count_including_self": 1,
+            "desirability": 0.3333333333333333
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 0.4714290499687195,
+            "strictly_worse_count": 6,
+            "tie_count_including_self": 1,
+            "desirability": 0.6666666666666666
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 0.30249276757240295,
+            "strictly_worse_count": 9,
+            "tie_count_including_self": 1,
+            "desirability": 1
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 0.5636192560195923,
+            "strictly_worse_count": 5,
+            "tie_count_including_self": 1,
+            "desirability": 0.5555555555555556
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 0.5975157022476196,
+            "strictly_worse_count": 4,
+            "tie_count_including_self": 1,
+            "desirability": 0.4444444444444444
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 0.9060986638069153,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 0.9430469274520874,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 0.7001038789749146,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 1,
+            "desirability": 0.2222222222222222
+          }
+        ]
+      },
+      "rule_predicted-brenk-alert-count@v2": {
+        "rule_ref": "rule_predicted-brenk-alert-count@v2",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 0,
+            "count": 8
+          },
+          {
+            "value": 1,
+            "count": 1
+          },
+          {
+            "value": 2,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 8,
+            "desirability": 0.6111111111111112
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 8,
+            "desirability": 0.6111111111111112
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 8,
+            "desirability": 0.6111111111111112
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 8,
+            "desirability": 0.6111111111111112
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 8,
+            "desirability": 0.6111111111111112
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 8,
+            "desirability": 0.6111111111111112
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 8,
+            "desirability": 0.6111111111111112
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 8,
+            "desirability": 0.6111111111111112
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 1,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 2,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          }
+        ]
+      },
+      "rule_predicted-cyp1a2-inhibition-probability@v1": {
+        "rule_ref": "rule_predicted-cyp1a2-inhibition-probability@v1",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 0.007052617613226175,
+            "count": 1
+          },
+          {
+            "value": 0.06668125092983246,
+            "count": 1
+          },
+          {
+            "value": 0.06725437939167023,
+            "count": 1
+          },
+          {
+            "value": 0.10136610269546509,
+            "count": 1
+          },
+          {
+            "value": 0.38265037536621094,
+            "count": 1
+          },
+          {
+            "value": 0.39198312163352966,
+            "count": 1
+          },
+          {
+            "value": 0.41913366317749023,
+            "count": 1
+          },
+          {
+            "value": 0.4362705647945404,
+            "count": 1
+          },
+          {
+            "value": 0.6739155054092407,
+            "count": 1
+          },
+          {
+            "value": 0.9080253839492798,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 0.06725437939167023,
+            "strictly_worse_count": 7,
+            "tie_count_including_self": 1,
+            "desirability": 0.7777777777777778
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 0.4362705647945404,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 1,
+            "desirability": 0.2222222222222222
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 0.007052617613226175,
+            "strictly_worse_count": 9,
+            "tie_count_including_self": 1,
+            "desirability": 1
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 0.10136610269546509,
+            "strictly_worse_count": 6,
+            "tie_count_including_self": 1,
+            "desirability": 0.6666666666666666
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 0.39198312163352966,
+            "strictly_worse_count": 4,
+            "tie_count_including_self": 1,
+            "desirability": 0.4444444444444444
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 0.9080253839492798,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 0.38265037536621094,
+            "strictly_worse_count": 5,
+            "tie_count_including_self": 1,
+            "desirability": 0.5555555555555556
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 0.41913366317749023,
+            "strictly_worse_count": 3,
+            "tie_count_including_self": 1,
+            "desirability": 0.3333333333333333
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 0.6739155054092407,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 0.06668125092983246,
+            "strictly_worse_count": 8,
+            "tie_count_including_self": 1,
+            "desirability": 0.8888888888888888
+          }
+        ]
+      },
+      "rule_predicted-cyp2c19-inhibition-probability@v1": {
+        "rule_ref": "rule_predicted-cyp2c19-inhibition-probability@v1",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 0.11011283099651337,
+            "count": 1
+          },
+          {
+            "value": 0.11327210813760757,
+            "count": 1
+          },
+          {
+            "value": 0.14042264223098755,
+            "count": 1
+          },
+          {
+            "value": 0.17511209845542908,
+            "count": 1
+          },
+          {
+            "value": 0.20862893760204315,
+            "count": 1
+          },
+          {
+            "value": 0.27507147192955017,
+            "count": 1
+          },
+          {
+            "value": 0.4202291965484619,
+            "count": 1
+          },
+          {
+            "value": 0.49758344888687134,
+            "count": 1
+          },
+          {
+            "value": 0.6233962774276733,
+            "count": 1
+          },
+          {
+            "value": 0.9118574261665344,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 0.6233962774276733,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 0.11327210813760757,
+            "strictly_worse_count": 8,
+            "tie_count_including_self": 1,
+            "desirability": 0.8888888888888888
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 0.27507147192955017,
+            "strictly_worse_count": 4,
+            "tie_count_including_self": 1,
+            "desirability": 0.4444444444444444
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 0.17511209845542908,
+            "strictly_worse_count": 6,
+            "tie_count_including_self": 1,
+            "desirability": 0.6666666666666666
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 0.49758344888687134,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 1,
+            "desirability": 0.2222222222222222
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 0.9118574261665344,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 0.14042264223098755,
+            "strictly_worse_count": 7,
+            "tie_count_including_self": 1,
+            "desirability": 0.7777777777777778
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 0.11011283099651337,
+            "strictly_worse_count": 9,
+            "tie_count_including_self": 1,
+            "desirability": 1
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 0.20862893760204315,
+            "strictly_worse_count": 5,
+            "tie_count_including_self": 1,
+            "desirability": 0.5555555555555556
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 0.4202291965484619,
+            "strictly_worse_count": 3,
+            "tie_count_including_self": 1,
+            "desirability": 0.3333333333333333
+          }
+        ]
+      },
+      "rule_predicted-cyp2c9-inhibition-probability@v1": {
+        "rule_ref": "rule_predicted-cyp2c9-inhibition-probability@v1",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 0.024960007518529892,
+            "count": 1
+          },
+          {
+            "value": 0.09981626272201538,
+            "count": 1
+          },
+          {
+            "value": 0.09985051304101944,
+            "count": 1
+          },
+          {
+            "value": 0.1252332180738449,
+            "count": 1
+          },
+          {
+            "value": 0.19338032603263855,
+            "count": 1
+          },
+          {
+            "value": 0.3337136507034302,
+            "count": 1
+          },
+          {
+            "value": 0.5625418424606323,
+            "count": 1
+          },
+          {
+            "value": 0.5700488090515137,
+            "count": 1
+          },
+          {
+            "value": 0.7647300362586975,
+            "count": 1
+          },
+          {
+            "value": 0.8787104487419128,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 0.7647300362586975,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 0.1252332180738449,
+            "strictly_worse_count": 6,
+            "tie_count_including_self": 1,
+            "desirability": 0.6666666666666666
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 0.3337136507034302,
+            "strictly_worse_count": 4,
+            "tie_count_including_self": 1,
+            "desirability": 0.4444444444444444
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 0.19338032603263855,
+            "strictly_worse_count": 5,
+            "tie_count_including_self": 1,
+            "desirability": 0.5555555555555556
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 0.5700488090515137,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 1,
+            "desirability": 0.2222222222222222
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 0.8787104487419128,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 0.09985051304101944,
+            "strictly_worse_count": 7,
+            "tie_count_including_self": 1,
+            "desirability": 0.7777777777777778
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 0.024960007518529892,
+            "strictly_worse_count": 9,
+            "tie_count_including_self": 1,
+            "desirability": 1
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 0.09981626272201538,
+            "strictly_worse_count": 8,
+            "tie_count_including_self": 1,
+            "desirability": 0.8888888888888888
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 0.5625418424606323,
+            "strictly_worse_count": 3,
+            "tie_count_including_self": 1,
+            "desirability": 0.3333333333333333
+          }
+        ]
+      },
+      "rule_predicted-cyp2c9-substrate-probability@v1": {
+        "rule_ref": "rule_predicted-cyp2c9-substrate-probability@v1",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 0.18206293880939484,
+            "count": 1
+          },
+          {
+            "value": 0.18484269082546234,
+            "count": 1
+          },
+          {
+            "value": 0.19181525707244873,
+            "count": 1
+          },
+          {
+            "value": 0.1980472356081009,
+            "count": 1
+          },
+          {
+            "value": 0.2001550942659378,
+            "count": 1
+          },
+          {
+            "value": 0.2133977711200714,
+            "count": 1
+          },
+          {
+            "value": 0.22952541708946228,
+            "count": 1
+          },
+          {
+            "value": 0.2311365157365799,
+            "count": 1
+          },
+          {
+            "value": 0.24904605746269226,
+            "count": 1
+          },
+          {
+            "value": 0.3595219552516937,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 0.19181525707244873,
+            "strictly_worse_count": 7,
+            "tie_count_including_self": 1,
+            "desirability": 0.7777777777777778
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 0.24904605746269226,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 0.2001550942659378,
+            "strictly_worse_count": 5,
+            "tie_count_including_self": 1,
+            "desirability": 0.5555555555555556
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 0.2133977711200714,
+            "strictly_worse_count": 4,
+            "tie_count_including_self": 1,
+            "desirability": 0.4444444444444444
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 0.3595219552516937,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 0.1980472356081009,
+            "strictly_worse_count": 6,
+            "tie_count_including_self": 1,
+            "desirability": 0.6666666666666666
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 0.18206293880939484,
+            "strictly_worse_count": 9,
+            "tie_count_including_self": 1,
+            "desirability": 1
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 0.18484269082546234,
+            "strictly_worse_count": 8,
+            "tie_count_including_self": 1,
+            "desirability": 0.8888888888888888
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 0.2311365157365799,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 1,
+            "desirability": 0.2222222222222222
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 0.22952541708946228,
+            "strictly_worse_count": 3,
+            "tie_count_including_self": 1,
+            "desirability": 0.3333333333333333
+          }
+        ]
+      },
+      "rule_predicted-logp-rdkit@v2": {
+        "rule_ref": "rule_predicted-logp-rdkit@v2",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 3.1390400000000005,
+            "count": 1
+          },
+          {
+            "value": 3.3349400000000013,
+            "count": 1
+          },
+          {
+            "value": 3.6159000000000026,
+            "count": 1
+          },
+          {
+            "value": 3.783220000000002,
+            "count": 1
+          },
+          {
+            "value": 4.426100000000003,
+            "count": 1
+          },
+          {
+            "value": 4.639100000000004,
+            "count": 1
+          },
+          {
+            "value": 4.823620000000004,
+            "count": 1
+          },
+          {
+            "value": 5.026900000000005,
+            "count": 1
+          },
+          {
+            "value": 5.549700000000003,
+            "count": 1
+          },
+          {
+            "value": 5.906800000000007,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 5.906800000000007,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 3.1390400000000005,
+            "strictly_worse_count": 9,
+            "tie_count_including_self": 1,
+            "desirability": 1
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 5.026900000000005,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 1,
+            "desirability": 0.2222222222222222
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 4.823620000000004,
+            "strictly_worse_count": 3,
+            "tie_count_including_self": 1,
+            "desirability": 0.3333333333333333
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 5.549700000000003,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 4.639100000000004,
+            "strictly_worse_count": 4,
+            "tie_count_including_self": 1,
+            "desirability": 0.4444444444444444
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 3.783220000000002,
+            "strictly_worse_count": 6,
+            "tie_count_including_self": 1,
+            "desirability": 0.6666666666666666
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 4.426100000000003,
+            "strictly_worse_count": 5,
+            "tie_count_including_self": 1,
+            "desirability": 0.5555555555555556
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 3.3349400000000013,
+            "strictly_worse_count": 8,
+            "tie_count_including_self": 1,
+            "desirability": 0.8888888888888888
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 3.6159000000000026,
+            "strictly_worse_count": 7,
+            "tie_count_including_self": 1,
+            "desirability": 0.7777777777777778
+          }
+        ]
+      },
+      "rule_predicted-nih-alert-count@v2": {
+        "rule_ref": "rule_predicted-nih-alert-count@v2",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 0,
+            "count": 10
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          }
+        ]
+      },
+      "rule_predicted-pains-alert-count@v2": {
+        "rule_ref": "rule_predicted-pains-alert-count@v2",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 0,
+            "count": 10
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 0,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 10,
+            "desirability": 0.5
+          }
+        ]
+      },
+      "rule_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1": {
+        "rule_ref": "rule_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1",
+        "n": 0,
+        "denominator_n_minus_one": null,
+        "single_value_convention": 1,
+        "value_frequencies": [],
+        "population": []
+      },
+      "rule_vegfr1-curated-potency@v1": {
+        "rule_ref": "rule_vegfr1-curated-potency@v1",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 5.37,
+            "count": 1
+          },
+          {
+            "value": 6.1,
+            "count": 1
+          },
+          {
+            "value": 6.35,
+            "count": 1
+          },
+          {
+            "value": 7,
+            "count": 1
+          },
+          {
+            "value": 7.47,
+            "count": 1
+          },
+          {
+            "value": 7.51,
+            "count": 1
+          },
+          {
+            "value": 7.925,
+            "count": 1
+          },
+          {
+            "value": 8.74,
+            "count": 1
+          },
+          {
+            "value": 8.85,
+            "count": 1
+          },
+          {
+            "value": 10,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 6.35,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 1,
+            "desirability": 0.2222222222222222
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 7.925,
+            "strictly_worse_count": 6,
+            "tie_count_including_self": 1,
+            "desirability": 0.6666666666666666
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 6.1,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 5.37,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 7.51,
+            "strictly_worse_count": 5,
+            "tie_count_including_self": 1,
+            "desirability": 0.5555555555555556
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 10,
+            "strictly_worse_count": 9,
+            "tie_count_including_self": 1,
+            "desirability": 1
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 8.85,
+            "strictly_worse_count": 8,
+            "tie_count_including_self": 1,
+            "desirability": 0.8888888888888888
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 7,
+            "strictly_worse_count": 3,
+            "tie_count_including_self": 1,
+            "desirability": 0.3333333333333333
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 8.74,
+            "strictly_worse_count": 7,
+            "tie_count_including_self": 1,
+            "desirability": 0.7777777777777778
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 7.47,
+            "strictly_worse_count": 4,
+            "tie_count_including_self": 1,
+            "desirability": 0.4444444444444444
+          }
+        ]
+      },
+      "rule_vegfr2-curated-potency@v1": {
+        "rule_ref": "rule_vegfr2-curated-potency@v1",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 5.28,
+            "count": 1
+          },
+          {
+            "value": 5.5,
+            "count": 1
+          },
+          {
+            "value": 6.4,
+            "count": 1
+          },
+          {
+            "value": 7.230000009536743,
+            "count": 1
+          },
+          {
+            "value": 7.4,
+            "count": 1
+          },
+          {
+            "value": 7.445,
+            "count": 1
+          },
+          {
+            "value": 7.52,
+            "count": 1
+          },
+          {
+            "value": 7.679999828338623,
+            "count": 1
+          },
+          {
+            "value": 8.33,
+            "count": 1
+          },
+          {
+            "value": 9.6,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 5.5,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 7.52,
+            "strictly_worse_count": 6,
+            "tie_count_including_self": 1,
+            "desirability": 0.6666666666666666
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 6.4,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 1,
+            "desirability": 0.2222222222222222
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 5.28,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 7.230000009536743,
+            "strictly_worse_count": 3,
+            "tie_count_including_self": 1,
+            "desirability": 0.3333333333333333
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 9.6,
+            "strictly_worse_count": 9,
+            "tie_count_including_self": 1,
+            "desirability": 1
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 7.679999828338623,
+            "strictly_worse_count": 7,
+            "tie_count_including_self": 1,
+            "desirability": 0.7777777777777778
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 7.4,
+            "strictly_worse_count": 4,
+            "tie_count_including_self": 1,
+            "desirability": 0.4444444444444444
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 7.445,
+            "strictly_worse_count": 5,
+            "tie_count_including_self": 1,
+            "desirability": 0.5555555555555556
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 8.33,
+            "strictly_worse_count": 8,
+            "tie_count_including_self": 1,
+            "desirability": 0.8888888888888888
+          }
+        ]
+      },
+      "rule_vegfr3-curated-potency@v1": {
+        "rule_ref": "rule_vegfr3-curated-potency@v1",
+        "n": 10,
+        "denominator_n_minus_one": 9,
+        "single_value_convention": 1,
+        "value_frequencies": [
+          {
+            "value": 5.7,
+            "count": 1
+          },
+          {
+            "value": 6.17,
+            "count": 1
+          },
+          {
+            "value": 6.52,
+            "count": 1
+          },
+          {
+            "value": 6.7,
+            "count": 1
+          },
+          {
+            "value": 7.33,
+            "count": 1
+          },
+          {
+            "value": 7.46,
+            "count": 1
+          },
+          {
+            "value": 7.57,
+            "count": 1
+          },
+          {
+            "value": 7.89,
+            "count": 1
+          },
+          {
+            "value": 9,
+            "count": 1
+          },
+          {
+            "value": 10,
+            "count": 1
+          }
+        ],
+        "population": [
+          {
+            "candidate_ref": "cand_inchikey-BMGQWWVMWDBQGC-IIFHNQTCSA-N",
+            "names": [
+              "Midostaurin"
+            ],
+            "assessed_value": 6.17,
+            "strictly_worse_count": 1,
+            "tie_count_including_self": 1,
+            "desirability": 0.1111111111111111
+          },
+          {
+            "candidate_ref": "cand_inchikey-CUIHSIWYWATEQL-UHFFFAOYSA-N",
+            "names": [
+              "Pazopanib"
+            ],
+            "assessed_value": 7.33,
+            "strictly_worse_count": 4,
+            "tie_count_including_self": 1,
+            "desirability": 0.4444444444444444
+          },
+          {
+            "candidate_ref": "cand_inchikey-HAYYBYPASCDWEQ-UHFFFAOYSA-N",
+            "names": [
+              "Entrectinib"
+            ],
+            "assessed_value": 6.7,
+            "strictly_worse_count": 3,
+            "tie_count_including_self": 1,
+            "desirability": 0.3333333333333333
+          },
+          {
+            "candidate_ref": "cand_inchikey-JOOXLOJCABQBSG-UHFFFAOYSA-N",
+            "names": [
+              "Fedratinib"
+            ],
+            "assessed_value": 5.7,
+            "strictly_worse_count": 0,
+            "tie_count_including_self": 1,
+            "desirability": 0
+          },
+          {
+            "candidate_ref": "cand_inchikey-MLDQJTXFUGDVEO-UHFFFAOYSA-N",
+            "names": [
+              "Sorafenib"
+            ],
+            "assessed_value": 7.57,
+            "strictly_worse_count": 6,
+            "tie_count_including_self": 1,
+            "desirability": 0.6666666666666666
+          },
+          {
+            "candidate_ref": "cand_inchikey-RITAVMQDGBJQJZ-FMIVXFBMSA-N",
+            "names": [
+              "Axitinib"
+            ],
+            "assessed_value": 10,
+            "strictly_worse_count": 9,
+            "tie_count_including_self": 1,
+            "desirability": 1
+          },
+          {
+            "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+            "names": [
+              "Surufatinib"
+            ],
+            "assessed_value": 9,
+            "strictly_worse_count": 8,
+            "tie_count_including_self": 1,
+            "desirability": 0.8888888888888888
+          },
+          {
+            "candidate_ref": "cand_inchikey-UHTHHESEBZOYNR-UHFFFAOYSA-N",
+            "names": [
+              "Vandetanib"
+            ],
+            "assessed_value": 6.52,
+            "strictly_worse_count": 2,
+            "tie_count_including_self": 1,
+            "desirability": 0.2222222222222222
+          },
+          {
+            "candidate_ref": "cand_inchikey-WINHZLLDWRZWRT-ATVHPVEESA-N",
+            "names": [
+              "Sunitinib"
+            ],
+            "assessed_value": 7.46,
+            "strictly_worse_count": 5,
+            "tie_count_including_self": 1,
+            "desirability": 0.5555555555555556
+          },
+          {
+            "candidate_ref": "cand_inchikey-XZXHXSATPCNXJR-ZIADKAODSA-N",
+            "names": [
+              "Nintedanib"
+            ],
+            "assessed_value": 7.89,
+            "strictly_worse_count": 7,
+            "tie_count_including_self": 1,
+            "desirability": 0.7777777777777778
+          }
+        ]
+      }
+    },
+    "publication_rowid": 2151289,
+    "publication_seq": 289061,
+    "snapshot_fields": [
+      "abstention_reason",
+      "all_pass_count",
+      "calibration_guard",
+      "candidate_entries",
+      "change_records",
+      "evaluation_mode",
+      "evidence_snapshot_id",
+      "human_review_summary",
+      "interaction_estimate_provider",
+      "leaderboard_id",
+      "measurement_profile",
+      "no_recommendation",
+      "ordering_method",
+      "parent_snapshot_id",
+      "published_at",
+      "qualification_policy",
+      "qualified_count",
+      "readiness",
+      "reporting_tuple",
+      "result_kind",
+      "round_id",
+      "rules@v",
+      "run_id",
+      "snapshot_id",
+      "strat@v",
+      "task_context_id@v",
+      "task_id",
+      "tool_coverage",
+      "verified_supplements"
+    ],
+    "candidate_entry_fields": [
+      "candidate_ref",
+      "cell_availability",
+      "clears_hard_rules",
+      "clears_mandated_criteria",
+      "counter_evidence_refs",
+      "coverage",
+      "determination_bases",
+      "direct_preference_coverage",
+      "gap_filled_criteria",
+      "gate_blocked_by",
+      "identity_labels",
+      "mandated_blocked_by",
+      "mandated_coverage",
+      "mandated_gates",
+      "mandated_gates_unanswered",
+      "measured_vs_predicted_counts",
+      "missing",
+      "n_fail_hard",
+      "n_mandated",
+      "n_mandated_answered",
+      "n_unknown_hard",
+      "per_criterion_refs",
+      "position",
+      "preference_coverage",
+      "preference_score",
+      "qualification",
+      "qualification_state",
+      "qualified",
+      "review_status",
+      "state",
+      "state_reason",
+      "verdicts"
+    ],
+    "snapshot_has_per_criterion_contributions": false,
+    "per_criterion_refs_are_only_assessment_ids": true,
+    "source_assessment_artifacts_loaded": 310,
+    "raw_claims_unresolved": []
+  },
+  "assets": {
+    "settings": {
+      "path": "assets/24-formal-settings-mid.jpg",
+      "alt": "实际mid设置页面"
+    },
+    "workbench": {
+      "path": "assets/workspace-latest.png",
+      "alt": "最新研究的工作台、阶段进度与任务概览",
+      "crop": {
+        "left": 0,
+        "right": 0.015,
+        "top": 0,
+        "bottom": 0.35
+      }
+    },
+    "evidence": {
+      "path": "assets/evidence-fgfr1-grouped.png",
+      "alt": "FGFR1实际文献分组、34nM原文及Surufatinib评估关联",
+      "crop": {
+        "left": 0.205,
+        "right": 0.045,
+        "top": 0.225,
+        "bottom": 0.024
+      }
+    }
+  }
+}

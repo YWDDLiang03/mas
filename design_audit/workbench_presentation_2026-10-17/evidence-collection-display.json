@@ -1,0 +1,70 @@
+{
+  "scope": "UI display metadata only",
+  "collections": [
+    {
+      "task_id": "task_01M51AQ0JK0MYN47806ZD5XS1B",
+      "label": "Oral multi-target evidence · comprehensive study",
+      "claim_count": 3157,
+      "source_count": 164,
+      "cutoff": "2026-10-15",
+      "counts_basis": "pinned_fact_manifest"
+    },
+    {
+      "task_id": "task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "label": "Oral multi-target evidence · latest study",
+      "claim_count": 3157,
+      "source_count": 164,
+      "cutoff": "2026-10-15",
+      "counts_basis": "pinned_fact_manifest"
+    },
+    {
+      "task_id": "task_01M50Q5EZE12GGDES5QNWR0JQX",
+      "label": "Oral multi-target evidence · original collection",
+      "claim_count": 10497,
+      "source_count": 4455,
+      "cutoff": "2026-10-15",
+      "counts_basis": "admitted_task_evidence"
+    }
+  ],
+  "display_settings": {
+    "version": 1,
+    "collections": {
+      "task_01M51AQ0JK0MYN47806ZD5XS1B": {
+        "label": "Oral multi-target evidence · comprehensive study",
+        "description": "Saved literature findings and compound records used by the comprehensive study. Covers target activity, oral administration and development properties.",
+        "topics": [
+          "CSF1R",
+          "VEGFR1",
+          "VEGFR2",
+          "VEGFR3",
+          "FGFR1",
+          "Oral pharmacology"
+        ]
+      },
+      "task_01M52CBE5GYPK9F0MCZYBMPH84": {
+        "label": "Oral multi-target evidence · latest study",
+        "description": "Saved literature and compound records for oral multi-target research. This collection supplied the evidence for the latest criteria.",
+        "topics": [
+          "CSF1R",
+          "VEGFR1",
+          "VEGFR2",
+          "VEGFR3",
+          "FGFR1",
+          "Oral pharmacology"
+        ]
+      },
+      "task_01M50Q5EZE12GGDES5QNWR0JQX": {
+        "label": "Oral multi-target evidence · original collection",
+        "description": "Original saved evidence selected by the comprehensive study. Its task and source identities are preserved when the setup is reused.",
+        "topics": [
+          "CSF1R",
+          "VEGFR1",
+          "VEGFR2",
+          "VEGFR3",
+          "FGFR1",
+          "Oral pharmacology"
+        ]
+      }
+    }
+  }
+}

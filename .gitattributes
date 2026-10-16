@@ -12,3 +12,6 @@ design_audit/fresh_browser_2026-10-16/presentation_source/** -text
 design_audit/fresh_browser_2026-10-16/source_archives/** -text
 design_audit/fresh_browser_2026-10-16/MAS_* -text
 design_audit/fresh_browser_2026-10-16/REPORT.md -text
+
+# Preserve the presentation, source, and verification package bytes.
+design_audit/workbench_presentation_2026-10-17/** -text whitespace=cr-at-eol

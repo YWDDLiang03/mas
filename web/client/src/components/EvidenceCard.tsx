@@ -30,8 +30,8 @@ function uploadedMeasurement(excerpt?: string | null): UploadedMeasurement | nul
   } catch { return null; }
 }
 
-export function EvidenceCard({ record, task, onOpen, onNavigate, snapshot }: {
-  record: Evidence | CriterionSource; task?: string; onOpen?: (claim: string) => void; onNavigate?: ResearchNavigate; snapshot?: string;
+export function EvidenceCard({ record, task, onOpen, onNavigate, snapshot, compactSource = false }: {
+  record: Evidence | CriterionSource; task?: string; onOpen?: (claim: string) => void; onNavigate?: ResearchNavigate; snapshot?: string; compactSource?: boolean;
 }) {
   const { t } = useI18n();
   const source = record.source;
@@ -46,7 +46,7 @@ export function EvidenceCard({ record, task, onOpen, onNavigate, snapshot }: {
   const conditions = measurement?.conditions;
   const owner = measurement && record.links?.candidates.find(candidate => candidate.candidate_ref === measurement.candidate_id);
   return <article className="evidence-card">
-    <header><div>{record.summary?.text ? <><span className="evidence-record-label">{t('Recorded finding', '已记录发现')}</span><h3>{record.summary.text}</h3><p className="evidence-source-title">{title}</p></> : <h3>{title}</h3>}{locator && <p>{locator}</p>}</div>{evidence.basis && <Badge state={evidence.basis} label={stateText(evidence.basis, t)} />}</header>
+    <header><div>{record.summary?.text ? <><span className="evidence-record-label">{t('Recorded finding', '已记录发现')}</span><h3>{record.summary.text}</h3>{!compactSource && <p className="evidence-source-title">{title}</p>}</> : <h3>{compactSource ? t('Recorded finding', '已记录发现') : title}</h3>}{locator && <p>{locator}</p>}</div>{evidence.basis && <Badge state={evidence.basis} label={stateText(evidence.basis, t)} />}</header>
     {measurement ? <dl className="measurement-facts">
       <div><dt>{t('Observation for', '观测对象')}</dt><dd>{owner?.label && owner.label !== measurement.candidate_id ? `${owner.label} · ${measurement.candidate_id}` : measurement.candidate_id}</dd></div>
       <div><dt>{t('Property', '测量属性')}</dt><dd>{typeof measurement.property_label === 'string' ? measurement.property_label : measurement.property_id}</dd></div>
@@ -56,6 +56,7 @@ export function EvidenceCard({ record, task, onOpen, onNavigate, snapshot }: {
       <div><dt>{t('Source', '来源')}</dt><dd>{measurement.declared_source || measurement.provenance?.filename || title}</dd></div>
       <div><dt>{t('Row locator', '数据行位置')}</dt><dd>{measurement.source_locator || locator || (typeof measurement.row_number === 'number' ? `${t('CSV row', 'CSV 行')} ${measurement.row_number}` : t('Not recorded', '未记录'))}</dd></div>
     </dl> : <>{excerpt && <blockquote>{excerpt}</blockquote>}{evidence.value != null && <p className="numeric evidence-value">{valueText(evidence.value)} {evidence.unit}</p>}</>}
+    {compactSource && evidence.context && <details className="finding-conditions"><summary>{t('Experimental context & conditions', '实验上下文与条件')}</summary><dl>{evidence.context.population && <><dt>{t('Population or system', '研究对象或体系')}</dt><dd>{evidence.context.population}</dd></>}{evidence.context.assay && <><dt>{t('Assay or method', '实验或方法')}</dt><dd>{evidence.context.assay}</dd></>}{evidence.context.conditions && <><dt>{t('Recorded conditions', '已记录条件')}</dt><dd>{evidence.context.conditions}</dd></>}{evidence.context.limitations?.length > 0 && <><dt>{t('Recorded limitations', '已记录限制')}</dt><dd>{evidence.context.limitations.join('\n')}</dd></>}</dl></details>}
     {task && <EvidenceConnections links={record.links} task={task} snapshot={snapshot} onNavigate={onNavigate} onShowAll={open} />}
     <footer>{open ? <button type="button" className="text-button" onClick={open}>{t('Read evidence & context', '查看证据与上下文')} →</button> : record.claim_id && task ? <ResearchLink className="text-button" to={{ task, view: 'evidence', item: record.claim_id, snapshot }} onNavigate={onNavigate}>{t('Read evidence & context', '查看证据与上下文')} →</ResearchLink> : null}{url && <a href={url} target="_blank" rel="noopener noreferrer">{t('Open source', '打开来源')} ↗</a>}<Audit data={record} title={t('Source record', '来源记录')} /></footer>
   </article>;

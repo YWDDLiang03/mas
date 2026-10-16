@@ -120,7 +120,10 @@ CREATE INDEX IF NOT EXISTS claims_id ON claims(task_id,claim_id);
 CREATE INDEX IF NOT EXISTS claims_lookup ON claims(task_id,admission_state,claim_id,source_row DESC);
 CREATE INDEX IF NOT EXISTS claims_source ON claims(task_id,source_id,source_row DESC);
 CREATE TABLE IF NOT EXISTS task_summaries(task_id TEXT PRIMARY KEY,body TEXT NOT NULL);
-""" + EVIDENCE_SCHEMA
+""" + EVIDENCE_SCHEMA + """
+CREATE INDEX IF NOT EXISTS evidence_sources_kind ON evidence_sources(
+ task_id,json_extract(body,'$.source_status'),source_id);
+"""
 
 
 def _json(value: Any) -> str:
@@ -1593,6 +1596,17 @@ class ReadModel:
             total = db.execute(f"SELECT count(*) FROM claims c WHERE {where}", values).fetchone()[0]
             items = [EvidenceRead(self).enrich(db, source, task_id, self._claim(source, row), snapshot=selected,candidate_ref=candidate_ref or None)
                      for row in db.execute(f"SELECT c.* FROM claims c WHERE {where} ORDER BY c.source_row DESC LIMIT ? OFFSET ?", (*values, page_size, offset))]
+            from .evidence_groups import finding_identity
+            identities = getattr(self, '_finding_identity_cache', None)
+            if identities is None:
+                identities = self._finding_identity_cache = {}
+            for item in items:
+                artifact_id = item.get('claim_artifact_id')
+                if artifact_id not in identities:
+                    if len(identities) >= 1024:
+                        identities.pop(next(iter(identities)))
+                    identities[artifact_id] = finding_identity(self._artifact(source, artifact_id, {'claim'}))
+                item['finding_identity'] = identities[artifact_id]
             return {**self._paged(items, total, page, page_size, meta), "snapshot_id": snapshot,
                     "relationships_ready": meta.get("evidence_links_version") == 1}
 

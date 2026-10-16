@@ -415,8 +415,13 @@ class _Handler(BaseHTTPRequestHandler):
             while not api._closing.is_set():
                 for event in api.workflows.events(cursor):
                     cursor = event['cursor']
+                    workflow = event.get('workflow')
+                    if workflow and not api.display.workflow_visible(workflow):
+                        continue
+                    if workflow:
+                        event = dict(event, workflow=api.display.workflow(workflow))
                     emit(event, cursor)
-                for workflow in api.workflows.list():
+                for workflow in api.visible_workflows():
                     encoded = json.dumps(workflow, sort_keys=True)
                     if seen.get(workflow['workflow_id']) != encoded:
                         emit({'kind': 'workflow', 'workflow': workflow, 'task_id': workflow.get('task_id'), 'cursor': cursor})

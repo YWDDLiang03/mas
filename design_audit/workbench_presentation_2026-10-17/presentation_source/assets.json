@@ -1,0 +1,26 @@
+{
+  "settings": {
+    "path": "assets/24-formal-settings-mid.jpg",
+    "alt": "实际mid设置页面"
+  },
+  "workbench": {
+    "path": "assets/workspace-latest.png",
+    "alt": "最新研究的工作台、阶段进度与任务概览",
+    "crop": {
+      "left": 0,
+      "right": 0.015,
+      "top": 0,
+      "bottom": 0.35
+    }
+  },
+  "evidence": {
+    "path": "assets/evidence-fgfr1-grouped.png",
+    "alt": "FGFR1实际文献分组、34nM原文及Surufatinib评估关联",
+    "crop": {
+      "left": 0.205,
+      "right": 0.045,
+      "top": 0.225,
+      "bottom": 0.024
+    }
+  }
+}

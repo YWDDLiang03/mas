@@ -26,6 +26,8 @@ def page_parameters(query: Mapping[str, Any]) -> dict[str, Any]:
 class ReadAPI:
     def __init__(self, model: ReadModel):
         self.model = model
+        from mas.ui.score_details import ScoreDetails
+        self.score_details = ScoreDetails(model)
 
     def get(self, task_id: str, resource: str, query: Mapping[str, Any] | None = None,
             wanted: str | None = None) -> dict[str, Any]:
@@ -34,6 +36,16 @@ class ReadAPI:
             return self.model.overview(task_id)
         if resource == "stages":
             return self.model.stages(task_id)
+        if resource == "scores" and wanted:
+            return self.score_details.get(task_id, wanted, snapshot=_value(query, "snapshot", None))
+        if resource == "evidence-sources":
+            from mas.ui.evidence_groups import source_groups
+            params = page_parameters(query)
+            params['page_size'] = max(1, min(50, int(_value(query, 'page_size', 20))))
+            return source_groups(self.model, task_id, **params, snapshot=_value(query, 'snapshot', None),
+                kind=str(_value(query, 'kind', 'literature')),
+                **{key: str(_value(query, key, '')) for key in
+                   ('criterion_ref', 'attribute_ref', 'rule_ref', 'candidate_ref', 'source_id')})
         if resource == "snapshots":
             return self.model.snapshots(task_id)
         if resource == "research-briefs":

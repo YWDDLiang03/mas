@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react';
 
 type ViewState = Record<string, string | number | boolean>;
-type DataView = 'criteria' | 'candidates' | 'evidence';
+type DataView = 'criteria' | 'candidates' | 'evidence' | 'source-findings';
 
 export function viewStateKey(task: string, view: DataView, scope = '') {
   return `mas.view-state.v1:${encodeURIComponent(task)}:${view}${scope ? ':' + encodeURIComponent(scope) : ''}`;
