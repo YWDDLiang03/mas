@@ -1,0 +1,21 @@
+{
+  "slide_id": "slide_08",
+  "status": "accepted",
+  "outline_status": "approved_by_user",
+  "backend_used": "built-in image tool",
+  "tool_name": "image_gen__imagegen",
+  "mode": "generate",
+  "prompt_source": "sample_08_prompt.txt",
+  "source_image": "C:/Users/admin/.codex/generated_images/01a1411f-2699-71d1-a40b-177b459cb962/exec-3cbe96d4-c30c-403a-96d8-3f761d474d2a.png",
+  "sample_path": "origin_image/slide_08.png",
+  "dimensions": [
+    1672,
+    941
+  ],
+  "sha256": "856ead2712f178b3d9f11738b6f7ee5a3862fefb70d76f7704006eae68987c27",
+  "input_images": [],
+  "local_pixel_edits": false,
+  "qa": "Visually checked: Chinese text legible, three agent roles, review-to-proposer revision loop, unresolved-dispute branch and two outcomes present. Example explicitly marked as illustrative.",
+  "sample_approved": true,
+  "full_deck_generation_authorized": true
+}

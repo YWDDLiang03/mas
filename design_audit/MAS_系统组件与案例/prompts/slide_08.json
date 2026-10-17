@@ -1,0 +1,36 @@
+{
+  "slide": 8,
+  "title": "多智能体协作，让标准经过质疑与修订",
+  "prompt": "# Codex PPT Slide Image Prompt\n\n## Canvas\n{\n  \"type\": \"16:9 full-slide PowerPoint image\",\n  \"language\": \"Chinese\",\n  \"slide_number\": 8,\n  \"render_slide_number\": false\n}\n\n## Deck Goal\nExplain the general MAS system, each component and its design reasons, then walk through the saved oral multi-target case from settings to final export.\n\n## Required Background\n{\n  \"deck_context\": {\n    \"source_summary\": \"MAS organizes evidence into reviewed criteria, then fixes rules to assess and rank qualified candidates. This is research prioritization, not clinical prescribing.\",\n    \"core_claim\": \"Research question → evidence → criteria and review → qualification → ranking → source inspection.\",\n    \"canonical_terms\": [\n      \"提出者\",\n      \"审查者\",\n      \"裁决者\",\n      \"研究标准\",\n      \"硬条件\",\n      \"偏好\",\n      \"参考\",\n      \"待补证据\"\n    ],\n    \"scope\": \"Only render text explicitly requested in this slide. Carrier examples are illustrative, not validated runs. Source-wide context is for understanding, not extra on-slide prose.\"\n  },\n  \"slide_local_context\": {\n    \"exact_on_slide_text\": [],\n    \"layout_and_facts\": \"Reuse approved sample unchanged.\"\n  }\n}\n\n## Global Style\n{\n  \"name\": \"白底浅蓝科学示意图\",\n  \"visual_direction\": \"Match approved sample. Restrained scientific slide, substantial whitespace, dark navy Chinese typography, sky-blue outlines and arrows, pale-blue fills. Small functional line icons only.\",\n  \"color_palette\": \"white #FFFFFF, navy #082646, blue #2086D5, pale blue #E6F3FD, gray #8290A0\",\n  \"typography\": \"Large accurate Simplified Chinese sans-serif; title top left, about 40pt equivalent; labels about 22–26pt; little text.\",\n  \"finish\": \"Flat, crisp, no decoration, no 3D, no robots, no shadow, no page number.\"\n}\n\n## Slide\n{\n  \"number\": 8,\n  \"title\": \"多智能体协作，让标准经过质疑与修订\",\n  \"role\": \"scientific explanatory diagram\",\n  \"intent\": \"Make one research mechanism understandable visually.\"\n}\n\n## Text\n{\n  \"title\": \"多智能体协作，让标准经过质疑与修订\",\n  \"key_points\": [],\n  \"speaker_focus\": null\n}\n\n## Layout\n{\n  \"composition\": \"Reuse approved sample unchanged.\",\n  \"spacing\": \"White canvas with generous margins and no text collisions; choose diagram geometry for this particular content.\"\n}\n\n## Visual Elements\n{\n  \"main_visual\": \"Reuse approved sample unchanged.\"\n}\n\n## Constraints\n[\n  \"Render exactly one finished 16:9 full slide.\",\n  \"Use the provided image only as a style reference, not an edit target. Create the specified new content.\",\n  \"No bullet paragraphs, table, long explanation, slide number, logo, watermarks, slogan or invented facts.\",\n  \"Only render the given title and exact labels. Do not print context, filenames, prompts, English role metadata or this instruction.\",\n  \"Diagrams must use correct directed arrows and readable Chinese. Do not shrink labels to fit; simplify graphical detail.\",\n  \"Use functional diagrams, not a repeated grid of large rectangular cards.\"\n]\n\n## Universal Constraints\n- The final image itself must contain the title and key points.\n- Render Chinese text exactly and legibly; avoid garbled characters.\n- Keep the confirmed deck style consistent while varying layout by slide role.\n- No watermark, unrelated logo, or extra slide number.\n",
+  "out": "slide_08.png",
+  "input_images": [],
+  "requires_context_images": false,
+  "expected_backend": "built-in image tool",
+  "sample_generation_method": {
+    "backend_used": "built-in image tool",
+    "tool_name": "image_gen__imagegen",
+    "mode": "generate",
+    "prompt_source": "sample_08_prompt.txt",
+    "size": "16:9 landscape; native tool defaults",
+    "model_config": "built-in defaults; model and quality not exposed",
+    "approved_sample_path": "C:\\Users\\admin\\Desktop\\ai4med\\mas-final-goal\\design_audit\\MAS_系统组件与案例\\origin_image\\slide_08.png",
+    "input_context_preparation": "Inspect local style reference with view_image; pass it as style-only reference. No screenshot is sent for synthetic redrawing.",
+    "handoff_rule": "Use this same built-in image backend; report a blocker if unavailable."
+  },
+  "generation_contract": {
+    "must_use_selected_image_backend": true,
+    "must_match_sample_generation_method": true,
+    "forbidden_final_image_methods": [
+      "local drawing/rendering scripts",
+      "Pillow-generated slides",
+      "SVG/HTML/CSS/canvas screenshots",
+      "python-pptx/PptxGenJS/native PPT layout screenshots",
+      "manually composited text/image overlays"
+    ],
+    "must_return": [
+      "backend_used",
+      "selected_source",
+      "qa_note"
+    ]
+  }
+}

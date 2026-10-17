@@ -1,0 +1,48 @@
+{
+  "slides": 34,
+  "main_slides": 32,
+  "appendix_slides": 2,
+  "notes_exact_match": 34,
+  "generated_diagram_pages": 19,
+  "recorded_worker_results": 18,
+  "accepted_sample": "slide_08",
+  "original_screenshot_pages": [
+    16,
+    17,
+    18,
+    19,
+    23,
+    25,
+    27,
+    28,
+    29,
+    30,
+    32
+  ],
+  "source_screenshot_blobs_unchanged": true,
+  "generated_image_blobs_unchanged": true,
+  "native_data_charts": 2,
+  "tables_only_in_appendix": [
+    [
+      33,
+      9
+    ],
+    [
+      34,
+      8
+    ]
+  ],
+  "shape_bounds_ok": true,
+  "source_score": 0.7592592592592593,
+  "recomputed_score": 0.7592592592592592,
+  "preference_count": 17,
+  "usable_count": 15,
+  "direct_count": 10,
+  "rank": 1,
+  "qualified_count": 10,
+  "powerpoint_desktop_opened_and_rendered": 34,
+  "visual_review": "Root inspected every generated diagram and every native page; revised crops and Chinese chart fonts were rechecked.",
+  "writing_review": "Two passes: narrative/causal transitions, then exact wording/counts/conditions. Spoken text and presenter cues separated.",
+  "pptx_bytes": 23176665,
+  "pptx_sha256": "46f2e471be8d0df4e90580c19c6ada4a109f6c360bc88a5cad749b58c377bd15"
+}

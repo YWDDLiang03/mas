@@ -25,7 +25,7 @@ Both use mid-level settings and four workers. Their frozen criteria differ, so s
 
 - [Comprehensive CSV](design_audit/workbench_redesign_2026-10-16/final/wf_033db93e15fa4bb289c2e03606674f6b-snapshot2/candidates.csv) · [complete result files](design_audit/workbench_redesign_2026-10-16/final/wf_033db93e15fa4bb289c2e03606674f6b-snapshot2/)
 - [Latest CSV](design_audit/fresh_browser_2026-10-16/results-snapshot2/candidates.csv) · [complete result files](design_audit/fresh_browser_2026-10-16/results-snapshot2/)
-- [Current presentation, speaker notes and score details](design_audit/workbench_presentation_2026-10-17/)
+- [Current presentation and speaker notes](design_audit/MAS_系统组件与案例/) · [Score details](design_audit/workbench_presentation_2026-10-17/Surufatinib_17项评分明细.csv)
 - [CSV input guide](design_audit/workbench_usability_2026-10-16/CSV_GUIDE.md)
 
 The latest study developed **0 → 6 task requirements → 1,917 → 53** working records. Its evaluation uses **18 core decisions** (one hard condition and 17 preferences), plus 13 context entries. Surufatinib passes the oral condition, has direct observations for all five required targets and direct preference coverage of **10/17**. Its score is **0.7592592593**. The remaining 3,167 candidates are pending evidence. Human measured oral F% and Tmax remain missing.

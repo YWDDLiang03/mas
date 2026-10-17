@@ -1,0 +1,42 @@
+Create ONE finished Chinese presentation slide, landscape 16:9, target 2048 × 1152. This is slide 8 of a scientific research workbench presentation. Render the entire slide, edge-to-edge. The user wants a clear diagram with very little text.
+
+STYLE: restrained professional scientific figure, pure white background, dark blue-gray typography, pale sky-blue fills and medium blue arrows. Flat vector-like precision, generous whitespace, crisp Simplified Chinese sans-serif. No gradients, shadows, 3D, robots, people, decorative shapes, tables, bullet lists, watermarks, logo, slide number, footer, or ornamental headings. The visual hierarchy and connected arrows must explain the mechanism by themselves.
+
+TITLE, top left, large bold, exactly:
+“多智能体协作，让标准经过质疑与修订”
+
+A single coherent flowchart occupies the central and lower canvas. Three agent roles: proposer, reviewer, adjudicator. Revision belongs to the same proposer, NOT a fourth agent. Use small functional line illustrations: a document for proposer, magnifying glass over a document for reviewer, a balanced evidence comparison symbol for adjudicator. Icons must remain subordinate to labels.
+
+DIAGRAM LAYOUT AND LOGIC:
+1. Far left, compact input “任务与证据”, with a right-pointing arrow to the proposer.
+2. Main row left-middle, a proposer node:
+   large label “提出者”
+   short action “拟定标准”
+   a compact example attached below this node, visibly marked “示例”:
+   “粒径越小越好”
+3. Main row center-right, a reviewer node:
+   large label “审查者”
+   short action “检查依据与适用性”
+   one short question below it:
+   “适用于什么条件？”
+   A clear right-pointing arrow from proposer to reviewer is labeled “提议”.
+4. Main row far right, a compact blue outcome “纳入标准”.
+   A reviewer-to-outcome right-pointing arrow labeled “通过”.
+5. Below proposer and reviewer, ONE blue returning revision loop:
+   Starts at the reviewer, travels downward and left, and arrowhead ends at proposer.
+   Label clearly “指出问题 → 修订 → 再审查”.
+   A short revised example sits beside the loop, not in a giant text box:
+   “补充适用条件与判断范围”.
+   The loop visually returns the revised proposal for another review through the existing forward proposer-to-reviewer connection.
+6. A separate branch leads from reviewer down and to the right to the adjudicator, clearly outside the revision loop. Label this branch “持续分歧”.
+   The adjudicator is below and slightly right of reviewer:
+   large label “裁决者”
+   short action “核对依据，处理分歧”.
+7. TWO outgoing paths from the adjudicator:
+   one routes up along the far-right region to the SAME existing “纳入标准” outcome, labeled “已解决”;
+   one leads right to a muted gray outcome “待处理”, labeled “未解决”.
+   Do not route these arrows through any text or other nodes. Do not draw an extra outcome with duplicate wording.
+
+Accuracy: This is an illustrative carrier-size example, NOT an actual validated criterion. Do not add numerical thresholds, clinical conclusions, candidate names, or percentages. The example’s revision must visibly add scope; it does not assert that smaller is always better.
+
+Keep all exact Chinese labels legible and spelled correctly. Only the title and diagram labels above. No explanatory paragraph, repeated subtitle, slogan or bottom summary. Aim for a calm, sparse, readable conference slide with an immediately traceable left-to-right main path, a clean correction loop, and a smaller unresolved-dispute branch. Make arrows directional and unambiguous.
