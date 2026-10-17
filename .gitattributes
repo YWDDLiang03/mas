@@ -1,5 +1,5 @@
 # Keep frozen export files byte-identical to their published SHA-256 manifests.
-examples/oral-multitarget/** -text
+examples/oral-multitarget/** -text whitespace=cr-at-eol
 
 # Preserve the presentation, source, and verification package bytes.
 docs/presentation/** -text whitespace=cr-at-eol
