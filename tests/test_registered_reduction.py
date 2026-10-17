@@ -1,6 +1,7 @@
 """Existing-evidence registry reduction; synthetic claims and scripted models only."""
 
 import json
+from collections import Counter
 from copy import deepcopy
 
 import pytest
@@ -71,7 +72,10 @@ def test_smaller_refine_batches_traverse_every_item_without_truncating_the_pool(
     for entry in pool.fold(core, ctx.task_id).values():
         ctx.pool.set_state(entry, "needs_refine", operation="revise", reason_kind="synthetic_findings")
     result = derivation_stages.refine_stage(ctx, 1)
-    assert sizes == [8, 8, 3] and seen == ids and result["revised"] == 19
+    assert sizes == [8, 8, 3] and result["revised"] == 19
+    # Pool order follows criterion IDs; IDs created within one millisecond need
+    # not follow insertion order. Every proposal must still be visited once.
+    assert Counter(seen) == Counter(ids)
     assert all(entry["state"] == "candidate" for entry in pool.fold(core, ctx.task_id).values())
 
 
