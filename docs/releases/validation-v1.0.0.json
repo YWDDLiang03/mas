@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "validated_at_date": "2026-10-17",
+  "environment": {
+    "os": "Windows",
+    "python": "3.14.2",
+    "node": "24.13.0"
+  },
+  "checks": {
+    "offline_suite": {"passed": 677, "live_deselected": 15, "seconds": 46.72},
+    "changed_upload_context_checks": {"passed": 16},
+    "windows_launcher_checks": {"passed": 2},
+    "configuration_upload_checks": {"passed": 26},
+    "fresh_source_install": "passed",
+    "fresh_workspace_outside_checkout": "passed",
+    "fresh_workspace_http_and_built_assets": "200",
+    "fresh_workspace_scientific_events": 0,
+    "fresh_workspace_scientific_artifacts": 0,
+    "frontend_build": "passed",
+    "production_api_read_and_export": "passed",
+    "local_document_links": {"checked": 507, "missing": 0},
+    "frozen_manifest_bound_files": {"checked": 28, "changed": 0},
+    "cqa_comparison_rows": 11,
+    "presentation": {"pages": 34, "hash_preserved": true},
+    "python_wheel_build": "passed",
+    "credential_pattern_files": 0
+  },
+  "release_preparation_model_calls": 0,
+  "new_scientific_runs": 0,
+  "live_provider_and_optional_predictor_revalidated": false,
+  "remote_ci": "Read the GitHub check result for the tagged commit; local checks are recorded here."
+}

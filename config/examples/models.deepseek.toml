@@ -1,0 +1,24 @@
+# Copy to your ignored store directory and pass it with -Models / --models.
+# No network request or credential read occurs when this file is validated.
+# Model IDs and current tariffs: https://api-docs.deepseek.com/
+[providers.deepseek]
+kind = "openai_compatible"
+provider_family = "deepseek"
+base_url = "https://api.deepseek.com"
+model = "deepseek-flash"
+api_key_env = "DEEPSEEK_API_KEY"
+# Optional fallback, outside the repository. Replace the placeholder before use.
+# api_key_file = 'C:/Users/YOUR_USERNAME/.config/mas/deepseek.key'
+thinking = false
+json_response_format = true
+timeout_s = 300
+# Add price_input_per_mtok and price_output_per_mtok in USD per million tokens
+# after checking the current tariff. Omitted prices remain unknown in accounting.
+
+[roles]
+retriever = "deepseek"
+reader = "deepseek"
+summarizer = "deepseek"
+proposer = "deepseek"
+critic = "deepseek"
+adjudicator = "deepseek"

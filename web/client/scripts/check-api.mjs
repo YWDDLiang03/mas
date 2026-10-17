@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { build, stop } from 'esbuild';
 
-const origin = process.argv[2] || 'http://127.0.0.1:8770';
+const origin = process.argv[2] || 'http://127.0.0.1:8769';
 const nativeFetch = globalThis.fetch;
 globalThis.fetch = (url, init) => nativeFetch(new URL(String(url), origin), init);
 const compiled = await build({ entryPoints: ['src/api/client.ts'], bundle: true, write: false, format: 'esm', platform: 'node' });

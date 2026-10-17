@@ -1,7 +1,6 @@
 """Agent-centered multi-agent system for evidence-driven candidate prioritization.
 
-The architecture is specified in ``design_audit/optimized_design.md``; module and
-record names follow its Section 0 glossary.
+The implemented architecture and component reference are documented in ``docs/``.
 """
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"

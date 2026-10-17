@@ -1,0 +1,35 @@
+# Portable baseline. Relative filesystem paths resolve from the launch working
+# directory (the source root when using scripts/start_workbench.ps1).
+[search]
+volume = "mid"
+sources = ["europepmc", "pubmed", "bookshelf", "wikibooks", "wikipedia", "uploads"]
+
+[textbook]
+volume = "mid"
+
+[sources]
+# Empty values select the documented defaults; no private data files are needed.
+cache_dir = ""
+upload_dir = ""
+replay_run_ids = []
+
+[assess]
+workers = 4
+
+[budget]
+usd_max = 10.0
+on_exhaust = "finalize_partial"
+
+[evaluation]
+mode = "staged"
+
+[evidence]
+mode = "existing_only"
+
+[interaction]
+mode = "checkpoint"
+
+[predict]
+# Optional: path to an independently prepared and tested ADMET interpreter.
+# python = 'C:/Users/YOUR_USERNAME/envs/mas-admet/Scripts/python.exe'
+python = ""

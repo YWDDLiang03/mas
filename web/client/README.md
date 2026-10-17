@@ -11,10 +11,10 @@ npm run build
 ```
 
 `npm run check` checks strict TypeScript. `npm run dev` is optional and proxies
-API requests to the local development host on port 8770. The client does not
+API requests to the local backend on port 8769. The client does not
 launch its own API service.
 
-`npm run verify:api -- http://127.0.0.1:8770` runs a small, read-only check using
+`npm run verify:api -- http://127.0.0.1:8769` runs a small, read-only check using
 the actual API client. It covers record pages, global search, details, the full
 CSV and production assets. It does not submit settings, drafts or workflows.
 
@@ -26,8 +26,7 @@ working panels and continuous run feedback. The three-count criterion journey
 and the phase strip carry the visual identity. Display type uses Palatino;
 body type uses Aptos with local fallbacks. Spacing follows an 8 px rhythm, and
 motion is limited to connection/activity and drawer transitions, respecting
-reduced motion. Design feasibility score: impact 4, fit 5, implementation 5,
-performance 5, consistency risk 4; DFII 15.
+reduced motion.
 
 ## Data and interaction
 
@@ -48,5 +47,6 @@ performance 5, consistency risk 4; DFII 15.
 - No demo research data, locally generated scores or browser automation are
   included. Empty, loading and unavailable states reflect the API response.
 
-The first integration checks used read-only GET requests to the real local API.
-Scientific execution and actual browser acceptance are separate host tasks.
+See the [installation guide](../../docs/installation.md) to start the backend,
+the [component reference](../../docs/components/workbench-and-cli.md) for routes
+and records, and the [tutorial](../../docs/tutorial.md) for the saved case.

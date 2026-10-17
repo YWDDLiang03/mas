@@ -509,9 +509,10 @@ def test_the_published_counts_carry_the_measurement_and_none_of_the_historical_i
     assert HISTORICAL_ITEMS[0]["label"] not in on_disk
 
     # The mappings restate the sealed items, so they may not be written where reviewers are sent.
-    with pytest.raises(recovery.RecoveryError) as refusal:
-        recovery.write(report, tmp_path / "design_audit" / "recovery")
-    assert refusal.value.code == "evaluator_only_destination"
+    for published_directory in ("design_audit", "docs", "examples"):
+        with pytest.raises(recovery.RecoveryError) as refusal:
+            recovery.write(report, tmp_path / published_directory / "recovery")
+        assert refusal.value.code == "evaluator_only_destination"
 
 
 def test_a_recorded_comparison_is_reported_again_without_a_second_model_call(frozen, core):

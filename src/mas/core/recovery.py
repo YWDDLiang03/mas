@@ -91,9 +91,9 @@ MANIFEST_JSON = "recovery_manifest.json"
 # The two files that necessarily echo the historical items: the mappings and their rationales cannot
 # be written without them. `write` refuses to put these where the repository publishes its reviewable
 # exports, because the one directory a reviewer is told to read is the one place this content must
-# not land (handoff §11.2 lists `design_audit/` as the published package).
+# not land. The former audit directory remains guarded for compatibility.
 EVALUATOR_ONLY_FILES = (REPORT_JSON, REPORT_MARKDOWN)
-PUBLISHED_DIRECTORIES = ("design_audit",)
+PUBLISHED_DIRECTORIES = ("design_audit", "docs", "examples")
 
 
 class RecoveryError(ValueError):

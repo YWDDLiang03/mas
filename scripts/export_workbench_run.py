@@ -4,7 +4,7 @@ Example, after the workflow has completed::
 
     .venv/Scripts/python.exe -B scripts/export_workbench_run.py \
       --workflow wf_example --base-url http://127.0.0.1:8770 \
-      --store var/primary/store --output design_audit/final/wf_example
+      --store var/workspace/store --output var/exports/wf_example
 
 No polling and no model calls. A non-completed workflow produces no final folder.
 """

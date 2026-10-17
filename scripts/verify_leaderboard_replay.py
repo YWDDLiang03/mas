@@ -4,7 +4,7 @@ Run once with the project interpreter after the final sweep completes::
 
     python scripts/verify_leaderboard_replay.py --store var/primary/store \
         --run RUN --snapshot SNAPSHOT --profile ARTIFACT --rules rules@vN \
-        --expected-candidates 3177 --out design_audit/windows_execution_2026-10-16/replay.json
+        --expected-candidates 3177 --out var/verification/replay.json
 
 The old scores are comparison targets only. The scorer, calibration guard, roll-up
 and leaderboard builder receive persisted assessments and the frozen rule set.

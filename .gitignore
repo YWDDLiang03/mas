@@ -9,13 +9,15 @@ var/
 .venv/
 # case-source documents supplied by the user (not redistributable)
 CELL1.pdf
-# Local acceptance stores and temporary test output; reports remain versioned.
-design_audit/**/temporary-tests/
-design_audit/**/verification-*/
-design_audit/**/*.db
-design_audit/**/*.db-wal
-design_audit/**/*.db-shm
-design_audit/**/store.lock
+# Local workspace databases and credentials.
+*.db
+*.db-wal
+*.db-shm
+store.lock
+.env
+.env.*
+!.env.example
+*.key
 
 # Temporary native chart workbooks created during presentation export.
 .chart-data-*/

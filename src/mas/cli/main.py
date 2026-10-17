@@ -540,7 +540,7 @@ def _export_criteria(args) -> None:
         sys.exit(f"cannot open store: {error}")
     with core:
         try:
-            record = criteria_export.write(core, args.task, args.out or "design_audit", at_seq=args.at_seq,
+            record = criteria_export.write(core, args.task, args.out or "var/exports", at_seq=args.at_seq,
                                            with_board=not args.no_board, implementation=_implementation(),
                                            exported_by=_person("operator"), store_root=str(root))
         except criteria_export.ExportError as error:
@@ -1269,7 +1269,7 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("action", choices=("propose", "derive", "reduce", "reduce-registered", "mandated", "pool", "dedupe", "export",
                                      "audit-bindings", "restore-bindings"))
     c.add_argument("task")
-    c.add_argument("--out", metavar="DIR", help="export: where to write the package (default: design_audit)")
+    c.add_argument("--out", metavar="DIR", help="export: where to write the package (default: var/exports)")
     c.add_argument("--at-seq", type=int, metavar="N",
                    help="export: pin the task stream at this journal sequence (default: its last)")
     c.add_argument("--no-board", action="store_true",

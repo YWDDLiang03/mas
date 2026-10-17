@@ -823,7 +823,7 @@ def mandated_coverage(cells: list[dict[str, Any]], mandated_rule_refs: set[str] 
         value-bearing quantities, not about gates: a gate contributes nothing to the score it would
         be withholding a position from;
       * the gate already carries its own missingness policy, and applying the floor on top conflates
-        "cannot be recommended" with "cannot be ranked". `design_audit/registered_endpoint_decision.md`
+        "cannot be recommended" with "cannot be ranked". The legacy compatibility policy
         records that eligibility is reported separately from position and is not claimed as task
         satisfaction, so the two have to be able to come apart;
       * an unknown produced by a register's coverage is a fact about the register, not evidence about

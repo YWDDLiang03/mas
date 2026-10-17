@@ -194,7 +194,14 @@ def test_recorded_observation_is_opt_in_with_conflicts_and_no_invented_hard_gate
             rule_set_ref="rules_fixture@v1", claims=rows, resolved=True, qualification_policy="qualification_first_v1")[0]
     assert assess(rule, [])["verdict"] == "unknown_missing"
     old = dict(rule, predicate_form="qualitative_judgment")
-    assert assess(old, claims)["verdict"] == "unknown_missing"  # existing rule semantics stay intact
+    # A legacy qualitative rule does not opt into observation availability. The
+    # numeric evidence exists, so what is missing is its interpretation method.
+    uninterpreted = assess(old, claims)
+    assert uninterpreted["verdict"] == "unknown_unresolvable" and uninterpreted["value"] is None
+    assert uninterpreted["interpretation_status"] == "method_not_defined"
+    assert uninterpreted["interpretation_claim_refs"] == [claim["claim_id"] for claim in claims]
+    assert uninterpreted["value_source_claim_refs"] == [] and not assessor.direct_evidence(uninterpreted)
+    assert assess(old, [])["verdict"] == "unknown_missing"
     conflict = dict(claims[0], claim_id="claim_conflicting_observation", value=1.)
     cell = assess(rule, [*claims, conflict])
     assert cell["verdict"] == "unknown_conflicted" and cell["value"] is None

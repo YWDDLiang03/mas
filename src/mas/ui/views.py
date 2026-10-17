@@ -245,18 +245,10 @@ def tasks_and_runs(core: Core) -> dict[str, Any]:
         chain["rounds"] += 1
         chain["runs"].append({key: row[key] for key in ("run_id", "run_purpose_label", "continuation_kind_label",
                                                         "continues_run_id", "state_label", "run")})
-    readings = {}
-    published_manifest = Path(__file__).resolve().parents[3] / "design_audit" / "windows_execution_2026-10-16" / "execution_manifest.json"
-    if published_manifest.is_file():
-        with published_manifest.open(encoding="utf-8") as published:
-            manifest = json.load(published)
-        if any(row["task_id"] == manifest.get("task_id") for row in tasks):
-            readings = {key: manifest.get(key) for key in ("task_id", "primary_reading", "original_cqa_reading",
-                                                          "new_cqa_reading", "cqa_comparability")}
     return _frame("tasks and runs", {
         "store_root": str(core.store.root), "tasks": tasks, "tasks_n": len(tasks), "runs": runs, "runs_n": len(runs),
         "chains": sorted(chains.values(), key=lambda chain: str(chain["chain_id"])),
-        "review_queue": link("/review"), "settings": link("/settings"), "published_readings": readings})
+        "review_queue": link("/review"), "settings": link("/settings"), "published_readings": {}})
 
 
 def board(core: Core, task_id: str, *, snapshot_id: str | None = None, top: int = MAX_ROWS,

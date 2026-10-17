@@ -1,44 +1,4 @@
-# Python environment for the mas service host — exported 2026-10-15 from the working
-# environment (`mas-dev`, Python 3.11.17) that produced every result in
-# design_audit/iteration_log_2026-10-15.md. Reproduce with:
-#
-#   conda create -n mas-dev python=3.11
-#   conda activate mas-dev
-#   pip install -r requirements.txt && pip install -e .
-#
-# The system core is deliberately `requests`-only (design §14.3); everything else below is
-# a dependency of the test/tooling surface.
-#
-# A SECOND interpreter is required for predicted evidence and is NOT part of this file's
-# environment: the ADMET predictor runs in its own environment (by subprocess, so the core
-# never imports it), configured in the store config as `predict.python`. On the host that
-# produced these results:
-#
-#   interpreter : /home/yiwei3_duke/anny/admet-env/bin/python   (Python 3.11.17)
-#   packages    : admet_ai 2.0.1 (Chemprop-RDKit ensembles over TDC datasets), plus its
-#                 own dependency tree. Export it with that interpreter's `pip freeze`
-#                 if a byte-identical rebuild is needed.
-#
-# API keys are NOT in this file and must not be: model rosters (var/primary/store/*.toml)
-# name a key FILE path (`api_key_file`), and the key file lives outside the repository.
-
-Brotli
-PySocks
-Pygments
-backports.zstd
-certifi
-charset-normalizer
-colorama
-exceptiongroup
-h2
-hpack
-hyperframe
-idna
-iniconfig
-packaging
-pluggy
-pytest
-requests
-tomli
-typing_extensions
-urllib3
+# Install from the repository root: python -m pip install -r requirements.txt
+# Core runtime dependencies and development checks are declared in pyproject.toml.
+# Optional ADMET predictors use a separate interpreter; see docs/configuration.md.
+-e .[dev]

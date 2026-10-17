@@ -4,10 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mas"
-version = "0.1.0"
-description = "Agent-centered multi-agent system for evidence-driven candidate prioritization (v1, slice A)"
+version = "1.0.0"
+description = "Evidence-driven research criteria, candidate qualification and ranking"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = ["requests>=2.31"]
+
+[project.urls]
+Repository = "https://github.com/YWDDLiang03/mas"
+Documentation = "https://github.com/YWDDLiang03/mas/tree/main/docs"
+Issues = "https://github.com/YWDDLiang03/mas/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

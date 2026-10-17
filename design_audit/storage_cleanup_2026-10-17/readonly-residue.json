@@ -1,9 +1,0 @@
-{
-  "files": 50,
-  "bytes": 178883393,
-  "locations": [
-    "../mas/.git/objects",
-    "var/reference/Agentic-Doping/.git/objects"
-  ],
-  "reason": "Regular deletion failed because files are read-only. Automatic approval rejected forced removal; no more specific reason was supplied."
-}

@@ -1,11 +1,11 @@
 """Run Controller (C15; design §6): binding, stages, the candidate sweep, checkpoints, resume, ending.
 
-A single-pass (P0) run: bind → normalize → plan → resolve identities → sweep every
-confirmed rule across every resolved candidate (breadth-first by rule, seeded order
-within a rule, no short-circuit after a fail, a budget reserved per rule, a checkpoint
-after each rule pass) → freeze the evidence snapshot → publish the leaderboard
-snapshot → close. A run is `completed` when its sweep is complete; budget exhaustion
-before then makes it `unresolved`. A finished run is never re-entered.
+A single-pass (P0) run binds the task, rules, evidence mode and settings, resolves
+candidate identities, evaluates criteria, freezes evidence and publishes a snapshot.
+Full evaluation visits every cell; staged qualification-first evaluation records
+skipped cells after a verified hard failure. Checkpoints preserve completed work.
+Budget exhaustion leaves the incomplete run unresolved. A finished run is never
+re-entered; subsequent work records a continuation or a new run.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
+from .. import __version__
 from . import (assessor, constants, criteria, evidence, identity, leaderboard, ledger, measurement, sr_stage, supplements,
                task as task_mod, vocab)
 from .budget import Budget
@@ -249,7 +250,7 @@ class RunController:
             "role_bindings": self.roster.role_bindings() if self.roster else [],
             "screening_rounds_budget": screening_rounds, "sweep_scope": "full_universe", "sweep_seed": sweep_seed,
             "memory_mode": memory_mode, "evidence_cutoff": cutoff or utc_now()[:10],
-            "host": {"platform": self.host_platform, "service_host_version": "mas-0.1.0"},
+            "host": {"platform": self.host_platform, "service_host_version": f"mas-{__version__}"},
             "tool_availability_snapshot": self.broker.manifest(),
             "known_reference_outcome_disclosure": [s for s in context.get("seed_candidates", []) if s.get("is_reference_outcome")],
             "derivation_configuration": "reference_disclosed", "budget_envelope": budget_envelope or {},
