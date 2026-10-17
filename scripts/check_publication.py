@@ -75,6 +75,11 @@ def main() -> int:
             verified_files += 1
     if verified_files != 28:
         errors.append(f'Expected 28 manifest-bound result files, found {verified_files}')
+    supplementary = json.loads((case / 'latest/supplementary-manifest.json').read_text(encoding='utf-8'))
+    for name, entry in supplementary['files'].items():
+        path = case / 'latest' / name
+        if path.stat().st_size != entry['bytes'] or digest(path) != entry['sha256']:
+            errors.append('Supplementary research input mismatch: ' + name)
 
     comparison = json.loads((case / 'cqa-comparison.json').read_text(encoding='utf-8'))
     with (case / 'cqa-comparison.csv').open(encoding='utf-8-sig', newline='') as f:

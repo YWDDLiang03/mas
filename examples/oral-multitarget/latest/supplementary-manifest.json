@@ -1,0 +1,17 @@
+{
+  "kind": "preserved_research_explanation_inputs",
+  "files": {
+    "score-details.json": {
+      "bytes": 102671,
+      "sha256": "936d9008359edb882e5104d02e0b60a00799f059597fcfcd7c4a72fbfbb77438"
+    },
+    "score-details.csv": {
+      "bytes": 4682,
+      "sha256": "721aa3c0f417fc1b166eba52161f9f9a61a36f763681f9b5d7cbe253058a2123"
+    },
+    "source-facts.json": {
+      "bytes": 218675,
+      "sha256": "8a0d447c6b524d58dd1924c5a054f4f31c10239494cc5a4519a6e55e3961dc63"
+    }
+  }
+}
