@@ -1,5 +1,7 @@
 # Criteria, pool evolution and review authority
 
+[Practical walkthrough](../component-walkthrough.md#criteria-and-review) · [中文实操](../zh/component-walkthrough.md#criteria-and-review)
+
 [Components](README.md) · [Evidence](evidence-and-reading.md) · [Assessment](assessment-and-qualification.md)
 
 This subsystem converts research evidence into executable decision criteria without losing the proposals, disagreements and reductions that produced them. It implements the criterion-focused proposer–critic protocol (C7), criterion registry (C10), and the current machine/compatibility review paths of C18.

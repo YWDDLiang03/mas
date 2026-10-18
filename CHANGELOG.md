@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 — 2026-10-19
+
+- Add a single agent entry point for verified replay, task planning, new investigations, resume, export and browser launch.
+- Publish an optional 168 MB capsule containing the latest study's recorded assessments and fixed factual inputs. A new workspace can verify every candidate and prepare independent CQA generation without the private source database.
+- Add English and Chinese component walkthroughs with executable inspections and examples for changing the objective, candidate database, observations and providers.
+- Simplify the workbench's overview, completed progress, criterion details and evidence navigation. Keep core criteria separate from context observations and preserve the selected task and evaluation across links.
+- Fix virtual-environment bootstrap on POSIX and make interrupted capsule import retryable without overwriting unrelated work.
+
+See [v1.1.0 release notes](docs/releases/v1.1.0.md) for validation and the distinction between recorded replay and a new model investigation.
+
 ## 1.0.0 — 2026-10-17
 
 - Publish English-default bilingual project navigation, full component references and a complete saved-run tutorial.

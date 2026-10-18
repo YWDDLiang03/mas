@@ -1,5 +1,7 @@
 # Model roles, provider adapters and budgets
 
+[Practical walkthrough](../component-walkthrough.md#model-and-budget) · [中文实操](../zh/component-walkthrough.md#model-and-budget)
+
 [Components](README.md) · [Tasks](tasks-and-configuration.md) · [Tool contracts](tools-and-providers.md)
 
 MAS uses models to propose structured scientific interpretations and uses code to check their executable consequences. A model role identifies a responsibility; a provider adapter identifies the actual model and transport. Budget accounting records the work those calls consume. This implements C6 and supplies the model boundary used by criterion derivation, review, reading and optional scoring.

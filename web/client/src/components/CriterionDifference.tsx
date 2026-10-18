@@ -23,6 +23,51 @@ function comparable(value: unknown): string | undefined {
   return record ? JSON.stringify(Object.keys(record).sort().map(key => [key, comparable(record[key])])) : JSON.stringify(value);
 }
 
+type Translate = (english: string, chinese: string) => string;
+
+export function criterionThresholdText(value: unknown, t: Translate): string {
+  const cutoff = object(value);
+  if (!cutoff) return valueText(value);
+  const unit = typeof cutoff.unit === 'string' && cutoff.unit ? ` ${cutoff.unit}` : '';
+  const comparators: Record<string, string> = { '<=': '≤', '>=': '≥', '<': '<', '>': '>', '==': '=', in: '∈', not_in: '∉' };
+  if (Object.keys(cutoff).every(key => ['comparator', 'value', 'unit'].includes(key)) && typeof cutoff.comparator === 'string' && comparators[cutoff.comparator] && cutoff.value != null) {
+    const content = Array.isArray(cutoff.value) ? `{${cutoff.value.map(valueText).join(', ')}}` : valueText(cutoff.value);
+    return `${comparators[cutoff.comparator]} ${content}${unit}`;
+  }
+  if (Object.keys(cutoff).every(key => ['lower', 'upper', 'unit', 'lower_inclusive', 'upper_inclusive'].includes(key)) && cutoff.lower != null && cutoff.upper != null) {
+    if (typeof cutoff.lower_inclusive === 'boolean' && typeof cutoff.upper_inclusive === 'boolean') {
+      return `${valueText(cutoff.lower)} ${cutoff.lower_inclusive ? '≤' : '<'} x ${cutoff.upper_inclusive ? '≤' : '<'} ${valueText(cutoff.upper)}${unit}`;
+    }
+    return `${t('Lower bound', '下界')}: ${valueText(cutoff.lower)} · ${t('Upper bound', '上界')}: ${valueText(cutoff.upper)}${unit}`;
+  }
+  return valueText(value);
+}
+
+/** Only known templates from the generated display projection receive interface labels. */
+export function criterionExplanationText(text: string, t: Translate): string {
+  const accepted = /^Accepted (evidence|determination): ([a-z_]+(?:,\s*[a-z_]+)*)$/.exec(text);
+  if (accepted) {
+    const sources: Record<string, string> = {
+      database_entry: t('Database record', '数据库记录'), model_prediction: t('Model prediction', '模型预测'),
+      peer_reviewed: t('Peer-reviewed source', '同行评审来源'), curated_measurement: t('Curated measurement', '整理的测量记录'),
+      reference_text: t('Reference text', '参考资料'), user_supplied_document: t('Supplied document', '用户提供的文档'),
+    };
+    const label = accepted[1] === 'evidence' ? t('Accepted evidence', '接受的证据类型') : t('Accepted determination', '接受的依据类型');
+    return `${label}: ${accepted[2].split(/,\s*/).map(code => sources[code] || stateText(code, t)).join(', ')}`;
+  }
+  const missing = /^Missing evidence is handled as (unknown_no_penalty|unknown_blocks_recommendation|route_to_human|exclude)\.$/.exec(text);
+  if (missing) {
+    const policies: Record<string, string> = {
+      unknown_no_penalty: t('Missing evidence stays unknown, with no penalty.', '缺失证据保留为未知，不施加惩罚。'),
+      unknown_blocks_recommendation: t('Missing evidence stays unknown and blocks recommendation.', '缺失证据保留为未知，并阻止推荐。'),
+      route_to_human: t('Missing evidence is referred for human review.', '缺失证据交由人工复核。'),
+      exclude: t('Missing evidence leads to exclusion.', '缺失证据导致淘汰。'),
+    };
+    return policies[missing[1]];
+  }
+  return text;
+}
+
 /** Strip only identified plan digests from the presentation; the caller keeps the original audit record. */
 export function readableChangeReason(reason: unknown): string {
   if (typeof reason !== 'string') return '';
@@ -80,6 +125,7 @@ export function CriterionDifference({ before, after }: { before: unknown; after:
   }
   function display(field: string, value: unknown, other: unknown) {
     if (value === undefined || value === null) return '—';
+    if (field === 'cutoff') return criterionThresholdText(value, t);
     if (field === 'evidence_request' || field === 'evidence_requests') return <div className="criterion-diff-routes">{(Array.isArray(value) ? value : [value]).map(route)}</div>;
     if (field === 'acceptable_value_sources' || field === 'acceptable_determination_bases') {
       const values = Array.isArray(value) ? value : [value];

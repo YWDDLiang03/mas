@@ -1,0 +1,100 @@
+{
+  "release": "1.1.0",
+  "date": "2026-10-19",
+  "recorded_entrypoint": {
+    "command": "python scripts/agent_run.py replay --bundle <verified-release-directory> --workspace <new-workspace>",
+    "fresh_workspace": true,
+    "verification": {
+      "status": "pass",
+      "method": "production qualification -> production preference_scores -> production leaderboard.build_snapshot",
+      "task_id": "task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "run_id": "run_01M52Q4VRB00T5Z3QJW08SSV96",
+      "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2",
+      "candidate_count": 3177,
+      "scoring_rule_count": 31,
+      "assessment_count": 98487,
+      "difference_count": 0,
+      "differences": [],
+      "saved_entries_sha256": "92bd5b0848be6ea95cf7eef9ff886397202c88e21594012cadfc43f06c7e8db5",
+      "replayed_entries_sha256": "92bd5b0848be6ea95cf7eef9ff886397202c88e21594012cadfc43f06c7e8db5",
+      "surufatinib": {
+        "candidate_ref": "cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+        "position": 1,
+        "preference_score": 0.7592592592592593,
+        "qualified": true,
+        "preference_coverage": 0.5882352941176471
+      },
+      "new_model_calls": 0,
+      "new_retrieval_calls": 0,
+      "new_cqa_generation": false,
+      "new_cost_usd": 0,
+      "budget_reporting_basis": "original recorded budget carried through unchanged",
+      "current_implementation": {
+        "package_version": "1.0.0",
+        "source_sha256": "6354669049e7c153af54e0c8a78ad5215dab83c0c410937de884a34b04cd11b6"
+      },
+      "source_digest_matches_recorded": false,
+      "recorded_implementation": {
+        "code_commit": "184cd5bb43a2bfef93ecdfb1e9e51341057da516",
+        "package_version": "0.1.0",
+        "source_sha256": "f758fb09d35840363ae9895210ce41b9630f688ecbbc71f84f06b671ece735ab",
+        "uncommitted_changes": true
+      },
+      "verified_at": "2026-10-18T16:07:44.456Z"
+    },
+    "evidence_source": {
+      "source_task_id": "task_01M57W9R34NTSXSAY5MS836DMW",
+      "pinned_claim_count": 3157,
+      "pinned_source_count": 164,
+      "initial_cqa_count": 0,
+      "historical_tool_fact_count": 68886,
+      "created_at": "2026-10-18T16:07:45.002Z"
+    }
+  },
+  "plan": {
+    "status": "pass",
+    "workload": "mid",
+    "workers": 4,
+    "budget_usd": 10,
+    "initial_cqa_count": 0,
+    "pinned_claim_count": 3157,
+    "pinned_source_count": 164,
+    "tool_facts": 68886
+  },
+  "offline_suite": {
+    "passed": 692,
+    "live_deselected": 15,
+    "duration_seconds": 50.86
+  },
+  "frontend": {
+    "typescript": "pass",
+    "production_build": "pass"
+  },
+  "restored_export": {
+    "workflow_id": "wf_cb4caec3dec348908fb3d34eae5b11d1",
+    "csv_rows": 3177,
+    "snapshot_rows": 3177,
+    "surufatinib_status": "found",
+    "historical_estimated_cost_usd": 4.2101472
+  },
+  "browser": {
+    "platform": "Windows in-app browser",
+    "viewport": [
+      1265,
+      712
+    ],
+    "checks": [
+      "overview and core/context counts",
+      "expanded completed workflow",
+      "new study form and unique prepared evidence collection",
+      "candidate ranking and score arithmetic",
+      "score to criterion to evidence preserves task and snapshot",
+      "criterion change threshold and readable evidence labels",
+      "criterion evidence defaults to its two linked literature sources",
+      "English and Chinese interface switch preserves research content and context"
+    ],
+    "narrow_window_tested": false
+  },
+  "new_live_model_investigation_executed": false,
+  "paid_calls_during_release_validation": 0
+}

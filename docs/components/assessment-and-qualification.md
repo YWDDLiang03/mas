@@ -1,5 +1,7 @@
 # Per-candidate assessment and qualification
 
+[Practical walkthrough](../component-walkthrough.md#assessment-and-qualification) · [中文实操](../zh/component-walkthrough.md#assessment-and-qualification)
+
 [Components](README.md) · [Criteria](criteria-and-review.md) · [Ranking](ranking-and-explanations.md)
 
 The assessor computes what the available evidence means for one candidate and one criterion. Qualification then determines whether that candidate has cleared the task's enabled hard conditions before scoring preferences. This implements C11 and supplies the candidate-level facts consumed by C12.

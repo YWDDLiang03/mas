@@ -33,11 +33,11 @@ Of 17 preferences, 15 have values and equal weight: **11.38888888888889 comparis
 
 The final population is **10 qualified, 3,167 pending, 0 rejected, 0 unassessed**. Surufatinib ranks first within the qualified ten. Its FGFR1 record shows how to audit aggregation: literature IC50 **34 nM** becomes **7.468521 pChEMBL**, which joins **7.280000, 7.82 and 7.82**; the four-record median is **7.64426054148**. The records preserve source/assay context; four records do not imply four independent experiments.
 
-## Inspecting versus rerunning
+## Restore, replay or generate again
 
-A fresh clone contains these exported JSON/CSV records and screenshots. It does **not** include the approximately 5.5 GiB private SQLite store, complete literature collection, prediction environment, credentials or a restored interactive study. Copying exported JSON into an empty store cannot recreate the original input collection.
+A fresh clone contains the exported JSON/CSV records and screenshots. The optional [reproduction capsule](latest/reproduction/README.md) adds the original available event rows, saved assessments, fixed generation facts, candidate library and cached tool observations. It is a separate 168 MB release asset, verified against the committed manifest.
 
-To inspect the published example, read the files above and follow the tutorial's screenshots and read-only commands. To run with the original local inputs, use the existing workspace and its associated library, source records and configuration, then create a new task. A new model run can follow a different trajectory and must keep its own run identity and outcomes.
+Run `python scripts/agent_run.py replay --bootstrap --workspace var/agent-replay --open` to restore and verify the latest study in a new workspace. It recalculates qualification, scores and ranking from all saved assessments, without model calls. The [agent-run guide](../../docs/agent-run.md) also shows how to prepare the same fixed facts with an empty CQA set and start a new model investigation. New research retains its own identity and outcomes. The public capsule shows the final published evaluation; the earlier unranked snapshot is retained as a historical artifact because its original publication event is unavailable.
 
 To conduct your own research, follow [installation](../../docs/installation.md), configure the provider, initialize a new workspace and import your own [candidate](../../config/examples/candidates.csv) and [measurement](../../config/examples/measurements.csv) CSVs through **Use own data**. The supplied templates contain headers only. Preserve identities, units, conditions and measured/derived/predicted basis; report the new investigation's actual counts and result.
 

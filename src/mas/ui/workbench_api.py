@@ -12,6 +12,7 @@ from urllib.parse import unquote, parse_qs, urlsplit
 
 from mas.core.clock import utc_now
 from mas.core.investigation import libraries, investigation_roster
+from mas.core.reproduction import prepared_input
 from mas.ui.read_model import ReadModel
 from mas.ui.read_api import ReadAPI
 from mas.ui.workflows import WorkflowManager
@@ -59,15 +60,24 @@ class WorkbenchAPI:
     def bootstrap(self):
         status = self.model.status()
         try:
-            tasks = self.display.tasks(self.model.tasks()) if status.get('ready') else []
+            records = self.display.tasks(self.model.tasks()) if status.get('ready') else []
+            tasks = [row for row in records if row.get('purpose') != 'evidence_collection']
         except (KeyError, ValueError, RuntimeError):
-            tasks = []
+            tasks, records = [], []
         available = self.display.libraries(libraries(self.operations))
         selected = self.operations.current_task
         current = next((t for t in tasks if t['task_id'] == selected), None)
         if not current and tasks:
             selected = tasks[0]['task_id']
-        sources = self.collections.list([t['task_id'] for t in tasks if t.get('criteria_count', 0) > 0])
+        source_records = sorted(records, key=lambda row: row.get('purpose') != 'evidence_collection')
+        sources, seen_manifests = [], set()
+        for source in self.collections.list([t['task_id'] for t in source_records
+                                            if t.get('criteria_count', 0) > 0 or t.get('has_pinned_evidence')]):
+            identity = source.get('manifest_ref') or source['task_id']
+            if identity not in seen_manifests:
+                seen_manifests.add(identity)
+                sources.append(source)
+        next_input = prepared_input(self.operations.store_root.parent, task_id=selected)
         return {'tasks': tasks, 'drafts': self.display.drafts(self.workflows.drafts()),
                 'libraries': [{k: v for k, v in x.items() if k != 'path'} for x in available],
                 'evidence_sources': sources, 'current_task_id': selected,
@@ -75,7 +85,7 @@ class WorkbenchAPI:
                 'defaults': {'objective': '', 'targets': [], 'constraints': '',
                              'entity_type': 'drug', 'evidence_upload_id': None,
                              'library_id': available[0]['id'] if available else None,
-                             'source_task_id': selected, 'evidence_mode': 'existing_only',
+                             'source_task_id': (next_input or {}).get('source_task_id') or selected, 'evidence_mode': 'existing_only',
                              'evaluation_mode': 'staged', 'workers': self.operations.settings['assess.workers'],
                              'budget_usd': self.operations.settings['budget.usd_max']},
                 'projection': status}
@@ -115,6 +125,9 @@ class WorkbenchAPI:
                     data['task']['input'] = data['input']
                 if data['workflow']:
                     data['workflow'] = self.display.workflow(data['workflow'])
+                setup = prepared_input(self.operations.store_root.parent, task_id=parts[1])
+                if setup:
+                    data['new_study_input'] = public_input(setup)
             if parts[2] == 'snapshots':
                 data['items'] = self.display.snapshots(data['items'])
             return data

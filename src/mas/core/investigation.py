@@ -93,6 +93,7 @@ def workflow_settings(manager, value, replay):
     operations = manager.operations
     overrides = dict(operations.saved_overrides)
     overrides.update({'search.volume': operations.settings['search.volume'],
+        'sources.cache_dir': operations.settings['sources.cache_dir'],
         'textbook.volume': operations.settings['textbook.volume'], 'assess.workers': int(value.get('workers') or 4),
         'budget.usd_max': float(value.get('budget_usd') or 10), 'budget.on_exhaust': 'finalize_partial',
         'interaction.mode': 'autonomous', 'interaction.checkpoints': [],

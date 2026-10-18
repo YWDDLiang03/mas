@@ -1,5 +1,7 @@
 # Domain adapters and source implementations
 
+[Practical walkthrough](../component-walkthrough.md#domain-adapter) · [中文实操](../zh/component-walkthrough.md#domain-adapter)
+
 [Components](README.md) · [Tool contract](tools-and-providers.md) · [Evidence](evidence-and-reading.md)
 
 An adapter supplies domain vocabulary, identity policy, evidence providers and criterion templates while the core keeps record, execution and decision semantics. The release supplies a drug-prioritization adapter, reusable literature sources and an uploaded-data path for drug, carrier and general entities. The uploaded path does not assume receptors or administration routes.

@@ -396,7 +396,9 @@ class ReadModel:
             body = {"task_id": task_id, "title": record.get("title") or objective[:100],
                     "objective": objective, "objective_text": objective, "version": payload.get("version"),
                     "candidate_count": count, "mode": record.get("mode"), "group_id": record.get("group_id"),
-                    "updated_at": at, "derived_from_task_id": record.get("derived_from_task_id")}
+                    "updated_at": at, "derived_from_task_id": record.get("derived_from_task_id"),
+                    "purpose": record.get("purpose"),
+                    "has_pinned_evidence": bool(record.get("evidence_fact_manifest_ref"))}
             body["input"] = self._input(record, task_id)
             db.execute("INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
                        (task_id, body["title"], objective, payload.get("version"), at, count, _json(body)))

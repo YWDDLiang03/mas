@@ -16,6 +16,11 @@ from .journal import actor
 from .models import ModelError
 
 
+def _portable_public(event):
+    return (event.get('visibility', 'default') in ('default', 'public')
+            and not (event.get('ids') or {}).get('case_id'))
+
+
 def evaluation_fact_sources(core, source_task_id: str) -> dict[str, Any]:
     """Pin completed tool facts in the selected public task's evaluation ancestry.
 
@@ -24,6 +29,25 @@ def evaluation_fact_sources(core, source_task_id: str) -> dict[str, Any]:
     boundary; its rules, assessments, rankings and decisions do not. Existing
     completed-source ordering is retained, with interrupted sources appended.
     """
+    explicit = task.get(core, source_task_id).get('evidence_tool_fact_manifest_ref')
+    if explicit:
+        manifest = core.artifacts.payload(explicit)
+        if (manifest.get('policy') != 'portable_pinned_terminal_tool_facts_v1'
+                or manifest.get('sha256') != sha256_hex({k: v for k, v in manifest.items() if k != 'sha256'})
+                or manifest.get('reuses_decisions') is not False):
+            raise ValueError('The portable tool-fact manifest is invalid.')
+        for source in manifest.get('source_runs') or []:
+            row = core.store.db.execute("SELECT body FROM events WHERE stream_id=? AND seq=?",
+                                       (source['run_id'], source['terminal_seq'])).fetchone()
+            terminal = json.loads(row[0]) if row else {}
+            if (terminal.get('event_id') != source['terminal_event_id'] or not _portable_public(terminal)
+                    or terminal.get('event_type') not in ('run.completed', 'run.cancelled', 'run.failed', 'run.unresolved')
+                    or source['pinned_seq'] > core.journal.last_seq(source['run_id'])):
+                raise ValueError('A pinned portable tool-fact source is missing or changed.')
+        result = dict(manifest, source_task_id=source_task_id, source_task_seq=core.journal.last_seq(source_task_id))
+        result.pop('sha256', None)
+        result['sha256'] = sha256_hex(result)
+        return result
     ancestors, current = [], source_task_id
     while current and current not in ancestors:
         if not current.startswith('task_'):
@@ -114,6 +138,16 @@ def source_runs(core, source_task_id: str) -> list[str]:
 
 
 def pin_evidence(core, source_task_id: str, reference_labels=()) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    explicit = task.get(core, source_task_id).get('evidence_fact_manifest_ref')
+    if explicit:
+        # A portable source has the actual pinned claims and source metadata;
+        # replaying its ancestor's old proposal history is unnecessary.
+        _, manifest, claims = _explicit_evidence(core, explicit, reference_labels=reference_labels)
+        for ref, row in (manifest.get('source_records') or {}).items():
+            source = core.artifacts.payload(row['artifact_id'])
+            if source.get('source_id') != ref or sha256_hex(source) != row['sha256']:
+                raise ValueError('The pinned source metadata changed.')
+        return manifest, claims
     streams = source_runs(core, source_task_id)
     if not streams:
         raise ValueError('The selected evidence collection contains no recorded research evidence.')

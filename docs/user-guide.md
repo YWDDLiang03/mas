@@ -4,7 +4,7 @@
 
 ## Prepare a workspace
 
-Start the modern workbench with `-AllowOperations` as described in the installation guide. It runs on loopback and provides task creation, uploads, settings and workflow control. Keep the terminal running while using the browser. A new workspace begins empty; published JSON/CSV results are inspection material, not an imported database.
+Start the modern workbench with `-AllowOperations` as described in the installation guide. It runs on loopback and provides task creation, uploads, settings and workflow control. Keep the terminal running while using the browser. A new workspace begins empty. To restore the published case and its inputs, use [the agent runner](agent-run.md).
 
 Open **Settings** before your first investigation. Select the workload, worker count and budget for subsequent work. Model providers, credentials and optional predictor paths are configured separately in TOML; [configuration](configuration.md) explains both layers. A dollar budget can enforce known prices, but costs may remain unknown when the provider/configuration has no usable price. Check the cost status instead of treating unknown cost as zero.
 

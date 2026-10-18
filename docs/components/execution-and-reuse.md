@@ -1,5 +1,7 @@
 # Execution, checkpoints and evidence reuse
 
+[Practical walkthrough](../component-walkthrough.md#execution-and-reuse) · [中文实操](../zh/component-walkthrough.md#execution-and-reuse)
+
 [Components](README.md) · [Tasks](tasks-and-configuration.md) · [Assessment](assessment-and-qualification.md)
 
 Execution coordinates the scientific components and gives each operation a saved boundary. Reuse avoids repeating paid or slow work when its factual and policy basis is unchanged. This is the implemented fixed-workflow portion of C15 and the concrete reuse mechanisms corresponding to part of C16.

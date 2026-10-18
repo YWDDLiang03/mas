@@ -22,7 +22,8 @@ def digest(path: Path) -> str:
 
 
 def heading_ids(text: str) -> set[str]:
-    ids, counts = set(), {}
+    ids = set(re.findall(r'<a\s+(?:id|name)=["\x27]([^"\x27]+)["\x27]', text))
+    counts = {}
     for title in re.findall(r'^#{1,6}\s+(.+?)\s*#*$', text, re.M):
         slug = re.sub(r'[^\w\-\s]', '', title.lower()).replace(' ', '-')
         number = counts.get(slug, 0)
@@ -36,7 +37,7 @@ def main() -> int:
     documents = [ROOT / p for p in ('README.md', 'README.zh-CN.md', 'CONTRIBUTING.md', 'CHANGELOG.md')]
     documents += list((ROOT / 'docs').rglob('*.md'))
     documents += list((ROOT / 'config').rglob('*.md'))
-    documents += [ROOT / 'examples/oral-multitarget/README.md']
+    documents += list((ROOT / 'examples').rglob('README.md'))
     links = 0
     for document in documents:
         if not document.exists():
@@ -80,6 +81,20 @@ def main() -> int:
         path = case / 'latest' / name
         if path.stat().st_size != entry['bytes'] or digest(path) != entry['sha256']:
             errors.append('Supplementary research input mismatch: ' + name)
+
+    portable = json.loads((case / 'latest/reproduction/manifest.json').read_text(encoding='utf-8'))
+    replay = json.loads((case / 'latest/reproduction/verification.json').read_text(encoding='utf-8'))
+    if portable.get('format') != 'mas-portable-reproduction-v1':
+        errors.append('Unknown portable reproduction format')
+    capsule = portable['capsule']
+    if capsule['bytes'] != 168065291 or capsule['sha256'] != '1a9b068613a32178e4ea0e62ad48d3086f249d4b5e995041a5b671096dcce3fd':
+        errors.append('Published capsule identity changed')
+    verified = replay['recorded_replay']
+    if (replay['capsule_sha256'] != capsule['sha256'] or verified['status'] != 'pass'
+            or verified['candidate_count'] != 3177 or verified['assessment_count'] != 98487
+            or verified['difference_count'] != 0
+            or verified['saved_entries_sha256'] != verified['replayed_entries_sha256']):
+        errors.append('Published capsule replay verification differs')
 
     comparison = json.loads((case / 'cqa-comparison.json').read_text(encoding='utf-8'))
     with (case / 'cqa-comparison.csv').open(encoding='utf-8-sig', newline='') as f:

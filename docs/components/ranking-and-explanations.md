@@ -1,5 +1,7 @@
 # Ranking, symbolic scoring and explanations
 
+[Practical walkthrough](../component-walkthrough.md#ranking-and-explanations) · [中文实操](../zh/component-walkthrough.md#ranking-and-explanations)
+
 [Components](README.md) · [Assessment](assessment-and-qualification.md) · [Evaluation](evaluation-and-recovery.md)
 
 Ranking orders candidates after eligibility has been established and publishes the evidence coverage needed to interpret that order. Explanations help readers inspect the result, with different authority for a score decomposition and a literature-grounded mechanism note. This page covers C12 and the optional scoring/explanation modules.

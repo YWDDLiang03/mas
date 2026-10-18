@@ -4,7 +4,7 @@
 
 MAS 根据证据形成研究标准，判断候选资格，并为合格候选排序。研究者提供目标、候选范围与证据，工作台将这些输入连接成可以持续观察、逐项核对的研究流程。
 
-[安装环境](docs/zh/installation.md) · [使用指南](docs/zh/user-guide.md) · [完整教程](docs/zh/tutorial.md) · [组件详解](docs/components/README.md) · [v1.0.0 发布说明](docs/releases/v1.0.0.md)
+[智能体一键运行](docs/zh/agent-run.md) · [安装环境](docs/zh/installation.md) · [使用指南](docs/zh/user-guide.md) · [完整教程](docs/zh/tutorial.md) · [组件实操](docs/zh/component-walkthrough.md) · [v1.1.0 发布说明](docs/releases/v1.1.0.md)
 
 ## 研究流程
 
@@ -24,7 +24,28 @@ flowchart LR
 
 浏览器支持自然语言任务、候选与测量 CSV 上传、持续进度、标准演化、按文献组织的证据、逐项评分解释和完整导出。界面默认英文，可切换中文；切换仅影响 UI，研究内容和来源保留原文。
 
-![案例的实际运行进度](docs/assets/progress-settings.jpg)
+![研究工作台：当前任务、结果与标准演化](docs/assets/workbench-overview-v1.1.jpg)
+
+## 复现本次案例，或开展另一项研究
+
+把[智能体一键运行文档](docs/zh/agent-run.md)交给编程智能体，也可以自己执行其中的命令。文档包括环境准备、固定输入、模型配置、自定义 CSV、中断后继续和完整导出。需要 Python 3.11+；构建浏览器界面另需 Node.js 和 npm。
+
+```sh
+git clone --depth 1 https://github.com/YWDDLiang03/mas.git
+cd mas
+python scripts/agent_run.py replay --bootstrap --workspace var/agent-replay --open
+```
+
+这条命令下载并校验 168 MB 的研究数据包，将其恢复到独立工作区，使用保存的评估记录重新计算资格与排名，再打开工作台。无需 API key。核对覆盖 3,177 个候选、98,487 个评估单元，Surufatinib 重现为 10 个合格候选中的第 1 名。数据包作为可选 Release 附件，不放入源码仓库；恢复后工作区约需 3 GB，首次索引需要几分钟。
+
+| 你想做什么 | 从哪里开始 |
+|---|---|
+| 查看并核对这次保存的案例 | 上面的 `replay` 命令，再阅读[案例教程](docs/zh/tutorial.md) |
+| 使用相同固定证据，从零生成 CQA | [原任务的 plan / run 操作](docs/zh/agent-run.md)，使用 [task.original.json](config/examples/task.original.json) 和自己的模型配置 |
+| 更换研究目标、候选库或观测数据 | [自定义任务操作](docs/zh/agent-run.md)，配合[组件实操示例](docs/zh/component-walkthrough.md) |
+| 理解或扩展某个组件 | [中文组件实操](docs/zh/component-walkthrough.md)与[组件参考](docs/components/README.md) |
+
+重新调用模型时，CQA 从空集开始，并保存这次研究自己的标准、费用和结果。`replay` 核对已保存结果，不重新生成历史模型回答。
 
 ## Windows 快速开始
 
@@ -40,13 +61,13 @@ npm.cmd --prefix web/client run build
 .\start_workbench.cmd -Store var\workspace\store -InitializeStore -AllowOperations -ActorKind human -ActorName "$env:USERNAME"
 ```
 
-打开[本地工作台](http://127.0.0.1:8769/workbench/)。首次启动创建空工作区，不调用模型。开始研究前按[中文安装说明](docs/zh/installation.md)配置模型与外置密钥，再导入数据或选择来源。发布的结果文件不会自动恢复原研究数据库。
+打开[本地工作台](http://127.0.0.1:8769/workbench/)。这套手动安装步骤创建空工作区，不调用模型。开始研究前按[中文安装说明](docs/zh/installation.md)配置模型与外置密钥，再导入数据或选择来源。恢复已发布案例则使用上方的一键运行入口。
 
 [配置说明](docs/configuration.md)介绍优先级、角色绑定、费用记录和可选预测环境。密钥、本地数据库和缓存不进入 Git。
 
 ## 功能与组件导航
 
-每个组件页均说明职责、设计理由、输入输出、失败处理、实现函数和示例。组件详解采用英文；[架构文档](docs/architecture.md)列出原设计 C1–C20 的全部实现状态。
+每个组件页均说明职责、设计理由、输入输出、失败处理、实现函数和示例。[中文实操教程](docs/zh/component-walkthrough.md)沿保存案例串起全部 12 组组件，提供可执行检查及修改任务、约束、CSV、来源与工具的示例。组件参考采用英文；[架构文档](docs/architecture.md)列出原设计 C1–C20 的全部实现状态。
 
 | 组件 | 设计关注点 | 主要实现 |
 |---|---|---|
@@ -88,7 +109,7 @@ npm.cmd --prefix web/client run build
 | Surufatinib | 第 1 / 10；分数 0.7592592593 |
 | Surufatinib 直接偏好覆盖 | 10/17 |
 
-另保留[全面研究](examples/oral-multitarget/comprehensive/results/)，其中 Surufatinib 排第 4。两次冻结标准不同，分数在各自方案内解释。[完整结果](examples/oral-multitarget/)保留全部候选及未知状态。教程区分查看发布结果、使用原本地输入重跑，以及用自己的 CSV 开展新研究。
+另保留[全面研究](examples/oral-multitarget/comprehensive/results/)，其中 Surufatinib 排第 4。两次冻结标准不同，分数在各自方案内解释。[完整结果](examples/oral-multitarget/)保留全部候选及未知状态。可选数据包恢复最新研究，并提供开展独立研究所需的固定事实输入。
 
 ### 原始 CQA 与系统 CQA 对比
 
@@ -96,7 +117,7 @@ npm.cmd --prefix web/client run build
 
 [比较 CSV](examples/oral-multitarget/cqa-comparison.csv) · [比较 JSON](examples/oral-multitarget/cqa-comparison.json) · [PPT 与讲稿](docs/presentation/README.md)
 
-## v1.0 范围与开发
+## 范围与开发
 
 v1.0 提供有记录的研究流程、药物及来源适配器、上传流程、资格优先排名和本地工作台。原设计中的通用规划智能体、开放问题服务、分域记忆及策略升级归档尚未全部实现，[状态表](docs/architecture.md)说明具体边界。
 
@@ -106,4 +127,4 @@ npm.cmd --prefix web/client run build
 .\.venv\Scripts\python.exe scripts/check_publication.py
 ```
 
-默认测试排除在线服务。[贡献指南](CONTRIBUTING.md)介绍相关检查与科学记录要求；[发布说明](docs/releases/v1.0.0.md)记录验证、保留产物和仓库整理范围。
+默认测试排除在线服务。[贡献指南](CONTRIBUTING.md)介绍相关检查与科学记录要求；[v1.1.0 发布说明](docs/releases/v1.1.0.md)记录可迁移案例、智能体运行入口和界面改动，[v1.0.0](docs/releases/v1.0.0.md)保留首次发布记录。

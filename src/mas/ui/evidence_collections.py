@@ -74,7 +74,7 @@ class EvidenceCollections:
                     for row in db.execute("SELECT c.source_id,c.body,s.body AS metadata FROM claims c LEFT JOIN evidence_sources s ON s.task_id=c.task_id AND s.source_id=c.source_id WHERE c.task_id=? AND c.admission_state='admitted' GROUP BY c.source_id", (task_id,)):
                         kinds[source_kind(json.loads(row['metadata']) if row['metadata'] else {}, json.loads(row['body']))] += 1
                     basis = 'admitted_task_evidence'
-                cutoff = None
+                cutoff = context.get('evidence_cutoff')
                 if latest:
                     created = source.execute("SELECT body FROM events WHERE stream_id=? AND event_type='run.created' AND " + _PUBLIC_BODY + " ORDER BY seq LIMIT 1", (latest['run_id'],)).fetchone()
                     binding_id = (json.loads(created[0]).get('payload') or {}).get('binding_artifact_id') if created else None

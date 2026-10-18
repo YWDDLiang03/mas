@@ -2,15 +2,18 @@
 
 [中文](zh/tutorial.md) · [Install](installation.md) · [Configuration](configuration.md) · [Published example](../examples/oral-multitarget/README.md)
 
+For an executable handoff, start with [one-command agent runs](agent-run.md). For component inputs, code paths and worked modifications, use the [component walkthrough](component-walkthrough.md).
+
 This walkthrough follows the latest completed oral multi-target study: what the researcher enters, what each agent or tool does, and how the result can be inspected. The saved study developed **18 core rules** and ranked Surufatinib **first among 10 qualified candidates**, score **0.7592592592592593**. Its complete export contains **3,177 candidates**; **3,167 remain pending evidence**.
 
 | Your starting point | Route through this tutorial |
 |---|---|
 | Fresh clone; inspect the example | Read frozen exports and screenshots. Step 0 needs only Python and makes no model requests. |
-| Local workspace containing the original inputs | Inspect the saved study, or create a new study using its library and evidence collection. Steps 1–11 explain the recorded workflow and controls. |
+| Fresh clone; restore and verify the case | Run `python scripts/agent_run.py replay --bootstrap --workspace var/agent-replay --open`. The optional release capsule restores the latest study and its fixed factual inputs. |
+| Restored or original workspace | Inspect the saved study, or create a new study using its library and evidence collection. Steps 1–11 explain the recorded workflow and controls. |
 | Fresh clone; conduct your own research | [Install and configure MAS](installation.md), initialize an empty workspace, then follow step 12 with your own CSV data. |
 
-The repository contains frozen exports, not the approximately **5.5 GiB private SQLite research store**, its full literature inputs, credentials, or a restored live study. Copying result JSON into a workspace does not populate the workbench or recreate the inputs. The screenshots document the saved local study. A new model run is a new experiment and can produce different criteria and results.
+The checkout contains frozen exports. The optional [168 MB capsule](../examples/oral-multitarget/latest/reproduction/README.md) supplies the selected records, facts and caches needed to restore the latest study and prepare a new one. The private source database and credentials are not required for replay. Full texts and model traces remain outside the public capsule. The screenshots below document the historical study; a new model investigation records its own criteria and results.
 
 ## 0. Inspect the published result without starting a workflow
 
@@ -93,7 +96,7 @@ The library fixes who can be evaluated; the collection fixes which saved materia
 
 The controller pins admitted facts and copies **no existing criteria**. In this run, generation excluded **136 facts explicitly naming the reference candidate**, leaving **3,021** proposal inputs. That exclusion applies to generation; candidate assessment later follows the common frozen policy. The reference identity remained disclosed.
 
-In a fresh workspace, these selectors are empty until you provide inputs. Frozen exports are not an import bundle for the collection. With the original local workspace, keep its uploads, workflow records and source dependencies beside the store; choose **New study with this setup** to start a fresh task. Without those local inputs, use your own CSVs in step 12.
+After `replay` or `plan`, the restored workbench offers the prepared evidence collection and the recorded candidate library. Choose **Research options → New study with this setup** to start a new task; the prepared collection contains facts and zero CQA. The original source task remains in the saved research record, while the new setup points to the portable collection. An empty workspace has no collection until you supply one. For your own inputs, follow step 12.
 
 ## 4. Start once and interpret progress
 

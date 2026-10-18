@@ -1,5 +1,7 @@
 # Tasks, normalization and configuration
 
+[Practical walkthrough](../component-walkthrough.md#task-and-config) · [中文实操](../zh/component-walkthrough.md#task-and-config)
+
 [Components](README.md) · [Architecture](../architecture.md)
 
 A task defines the research question and candidate population before the system judges any candidate. Configuration defines how MAS spends effort and executes that task. Keeping these records explicit prevents a later settings edit from silently changing the meaning of an earlier result. This page covers C4 and the implemented portion of C5.

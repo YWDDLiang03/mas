@@ -1,6 +1,6 @@
 # Install and start MAS
 
-MAS can start with a new, empty local workspace. A source checkout contains frozen result exports, but no restored interactive studies, private API credentials or operational candidate database. You can inspect the published files or import your own candidates and evidence to start a study.
+MAS can start with an empty local workspace or restore the published example from an optional release capsule. The [agent-run guide](agent-run.md) automates setup, verified restoration and new research from a task JSON. The manual steps below create an empty workspace for your own candidates and evidence. Credentials stay outside the checkout.
 
 ## Windows prerequisites
 

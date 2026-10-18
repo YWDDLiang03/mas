@@ -1,5 +1,7 @@
 # Component reference
 
+[Practical walkthrough](../component-walkthrough.md#read-records) · [中文实操](../zh/component-walkthrough.md#read-records)
+
 [Project home](../../README.md) · [Architecture and C1–C20 status](../architecture.md)
 
 This reference describes the shipped implementation. Every page explains the problem a component solves, why its boundary exists, the concrete Python entry points, its records and failure semantics, and a worked example. Examples marked **illustrative** explain behavior using synthetic data; they are not reported research measurements. Test links identify existing verification of the contract and do not imply a fresh test run or live provider validation.

@@ -3,4 +3,4 @@
 The implemented architecture and component reference are documented in ``docs/``.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"

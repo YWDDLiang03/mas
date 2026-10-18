@@ -1,5 +1,7 @@
 # Tool broker and provider contracts
 
+[Practical walkthrough](../component-walkthrough.md#tools-and-replay) · [中文实操](../zh/component-walkthrough.md#tools-and-replay)
+
 [Components](README.md) · [Domain adapters](domain-adapters.md) · [Evidence](evidence-and-reading.md)
 
 The broker is the boundary between a scientific question and an installed tool. It answers two distinct questions: whether this installation can attempt the operation, and what happened when a provider attempted it. This is C13. Evidence admission remains the responsibility of the evidence layer.

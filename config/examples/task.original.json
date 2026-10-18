@@ -1,0 +1,12 @@
+{
+  "input_mode": "original",
+  "title": "Independent oral multi-target research",
+  "objective": "Identify a single orally administered agent that concurrently engages the tumour-microenvironment targets CSF1R, VEGFR1, VEGFR2, VEGFR3 and FGFR1, with a pharmacological profile suitable for clinical development. Use the saved evidence to develop and refine meaningful research criteria, then screen and rank the recorded compound library.",
+  "targets": ["CSF1R", "VEGFR1", "VEGFR2", "VEGFR3", "FGFR1"],
+  "constraints": "Oral administration is required.",
+  "entity_type": "drug",
+  "reference_candidate": "Surufatinib",
+  "evaluation_mode": "staged",
+  "workers": 4,
+  "budget_usd": 10
+}

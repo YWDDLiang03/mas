@@ -1,5 +1,7 @@
 # Foundation: records, vocabularies and storage
 
+[Practical walkthrough](../component-walkthrough.md#read-records) · [中文实操](../zh/component-walkthrough.md#read-records)
+
 [Components](README.md) · [Architecture](../architecture.md)
 
 The foundation makes a saved research result inspectable after the process that produced it has ended. It supplies a single record identity, serialization rule and write discipline for the rest of MAS. This is the implementation of C1–C3; it also supplies the record identifiers used by the identity service and every later component.

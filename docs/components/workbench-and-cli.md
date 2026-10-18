@@ -1,5 +1,7 @@
 # Workbench, read projections and command line
 
+[Practical walkthrough](../component-walkthrough.md#workbench-and-cli) · [中文实操](../zh/component-walkthrough.md#workbench-and-cli)
+
 [Components](README.md) · [Execution](execution-and-reuse.md) · [Models](models-and-budgets.md)
 
 MAS offers two operator surfaces over the same research records: a local React workbench for investigations and inspection, and the `mas` command line for explicit operations and scripting. The workbench keeps an indexed projection so large candidate/evidence tables do not require replaying every unrelated run on each request. This is C17 plus the local host and composition infrastructure.

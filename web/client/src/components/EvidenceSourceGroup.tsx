@@ -24,8 +24,10 @@ export function EvidenceSourceGroup({ record, task, query, open, onToggle, onOpe
   const recordedTitle = record.title || (identifier ? `${identifier[1].toLowerCase() === 'doi' ? 'DOI' : 'PubMed'}: ${identifier[2]}` : t('Saved source', '已保存来源'));
   const activity = /^tool_drug_chembl_bioactivity record chembl_activity_(\d+)/.exec(recordedTitle);
   const binding = /^tool_drug_gtopdb_affinity record gtopdb_interaction_(\d+)/.exec(recordedTitle);
+  const pubchem = /^tool_drug_pubchem_property record pubchem_cid_(\d+)$/.exec(recordedTitle);
   const title = activity ? `ChEMBL · ${t('activity', '活性记录')} ${activity[1]}`
     : binding ? `Guide to Pharmacology · ${t('binding record', '结合记录')} ${binding[1]}`
+    : pubchem ? `PubChem · ${t('compound', '化合物')} CID ${pubchem[1]}`
     : recordedTitle.startsWith('tool_compute_admet_descriptors record ') ? t('Structure descriptor calculation', '结构性质计算')
     : recordedTitle.startsWith('tool_drug_admet_ai record ') ? t('ADMET-AI prediction record', 'ADMET-AI 预测记录')
     : recordedTitle;

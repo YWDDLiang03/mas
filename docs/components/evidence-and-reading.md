@@ -1,5 +1,7 @@
 # Evidence sources, reading and claim admission
 
+[Practical walkthrough](../component-walkthrough.md#evidence-and-reading) · [中文实操](../zh/component-walkthrough.md#evidence-and-reading)
+
 [Components](README.md) · [Tools](tools-and-providers.md) · [Criteria](criteria-and-review.md)
 
 The evidence layer turns provider outputs and source passages into claims that can be inspected and used by a criterion. Its purpose is to preserve the chain from a candidate's verdict back to the observation, document location and retrieval operation. This is C9, with reusable literature reading and uploaded-data paths.

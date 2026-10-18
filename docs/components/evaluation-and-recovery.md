@@ -1,5 +1,7 @@
 # Prospective measurement and historical CQA recovery
 
+[Practical walkthrough](../component-walkthrough.md#evaluation-and-recovery) · [中文实操](../zh/component-walkthrough.md#evaluation-and-recovery)
+
 [Components](README.md) · [Architecture status](../architecture.md) · [Criteria](criteria-and-review.md)
 
 MAS includes machinery to state a measurement policy before an experiment and compare frozen derived criteria with an evaluator-supplied historical list. These are implemented parts of C19. They support a reproducible case measurement; they do not implement the full proposed strategy-promotion/evolution system.

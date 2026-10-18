@@ -1,0 +1,13 @@
+{
+  "input_mode": "custom",
+  "title": "Compare my measured carriers",
+  "objective": "Compare the supplied carriers using their recorded particle size and cell viability under matching conditions. Prefer smaller particle size and higher cell viability. Develop and review meaningful independent criteria, then qualify and rank the candidates using supplied observations.",
+  "targets": ["particle_size", "cell_viability"],
+  "constraints": "Use only the supplied observations. Keep incompatible experimental conditions separate.",
+  "entity_type": "carrier",
+  "candidates_csv": "candidates.csv",
+  "measurements_csv": "measurements.csv",
+  "evaluation_mode": "staged",
+  "workers": 4,
+  "budget_usd": 10
+}
