@@ -1587,15 +1587,15 @@ def test_the_three_reductions_the_second_live_merge_proposed_are_applied_once_th
     quantity benchmarked twice, and two consolidations compiled to the reduction their declared family
     implies (`worst_member` as `max`, since the groups are `lower_better`)."""
     members = BIOAVAILABILITY_GROUP + HALF_LIFE_GROUP + CO_ADMINISTRATION_GROUP
-    by_name = {"Reported human oral bioavailability against a same-class benchmark":
-               live_decision(LIVE_BIOAVAILABILITY_CHILD, action="merge"),
-               "Terminal half-life upper bound as an accumulation-risk flag":
-               live_decision(LIVE_HALF_LIFE_CHILD, action="consolidate"),
-               "Meal-induced AUC increase": live_decision(LIVE_CO_ADMINISTRATION_CHILD, action="consolidate")}
+    by_members = {frozenset(m["attribute"]["name"] for m in group): live_decision(child, action=action)
+                  for group, child, action in ((BIOAVAILABILITY_GROUP, LIVE_BIOAVAILABILITY_CHILD, "merge"),
+                                              (HALF_LIFE_GROUP, LIVE_HALF_LIFE_CHILD, "consolidate"),
+                                              (CO_ADMINISTRATION_GROUP, LIVE_CO_ADMINISTRATION_CHILD, "consolidate"))}
 
     def script(request):
         groups = json.loads(request.messages[0]["content"].split("Groups:\n", 1)[1].split("\n\nCited claims:")[0])
-        return {"decisions": [by_name[group["members"][0]["attribute"]["name"]](group) for group in groups]}
+        return {"decisions": [by_members[frozenset(m["attribute"]["name"] for m in group["members"])](group)
+                              for group in groups]}
 
     ctx = live_pool(core, script, members, task_id="task_live_merge")
     stats = derivation_stages.merge_stage(ctx, 1)

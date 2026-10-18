@@ -130,7 +130,11 @@ def test_deferred_entries_reenter_without_resetting_the_refinement_budget(core):
 
 
 def test_null_proposal_is_valid_for_withdraw_and_cannot_silently_withdraw_a_revision(core):
+    input_refs = {}
     def script(request):
+        notes = json.loads(request.messages[0]["content"].split("Proposals to revise or withdraw:\n", 1)[1]
+                           .split("\n\nCited claims:", 1)[0])
+        input_refs.update({note["index"]: note["refs"]["pool_ref"] for note in notes})
         return {"revisions": [{"index": 0, "action": "withdraw", "proposal": None, "reason": "explicit withdrawal"},
                               {"index": 1, "action": "revise", "proposal": None, "reason": "incomplete revision"}]}
     ctx = pool_of(core, script, [("claim_first", CHEMBL_POTENCY), ("claim_second", GTOPDB_AFFINITY)],
@@ -140,8 +144,12 @@ def test_null_proposal_is_valid_for_withdraw_and_cannot_silently_withdraw_a_revi
         ctx.pool.set_state(entry, "needs_refine", operation="revise", reason_kind="synthetic_findings")
     result = derivation_stages.refine_stage(ctx, 1)
     assert result["withdrawn"] == 1 and result["refused"] == 1
-    states = [entry["state"] for entry in pool.fold(core, ctx.task_id).values()]
-    assert states == ["withdrawn", "needs_refine"]
+    assert set(input_refs) == {0, 1}
+    folded = pool.fold(core, ctx.task_id)
+    assert len(folded) == 2
+    assert folded[input_refs[0].rsplit("@v", 1)[0]]["state"] == "withdrawn"
+    assert folded[input_refs[1].rsplit("@v", 1)[0]]["state"] == "needs_refine"
+    assert {f"{item['criterion_id']}@v{item['version']}" for item in result["not_revised"]} == {input_refs[1]}
 
 
 @pytest.mark.parametrize("stage", ["filter", "promote"])

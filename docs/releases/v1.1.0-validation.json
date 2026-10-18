@@ -102,5 +102,11 @@
     "status": "pass",
     "unicode_output": "UTF-8 JSON; historical title preserved",
     "affected_runner_tests": 8
+  },
+  "ci_test_correction": {
+    "failure": "Two pre-existing tests assumed order among randomly generated criterion IDs on Linux",
+    "change": "Assert complete group membership and actual input criterion identities; scientific behavior unchanged",
+    "affected_file_tests_passed": 79,
+    "targeted_tests_passed": 2
   }
 }
