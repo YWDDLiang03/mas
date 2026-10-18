@@ -96,5 +96,11 @@
     "narrow_window_tested": false
   },
   "new_live_model_investigation_executed": false,
-  "paid_calls_during_release_validation": 0
+  "paid_calls_during_release_validation": 0,
+  "windows_launcher": {
+    "command": "agent-run.cmd inspect --workspace <restored-workspace>",
+    "status": "pass",
+    "unicode_output": "UTF-8 JSON; historical title preserved",
+    "affected_runner_tests": 8
+  }
 }

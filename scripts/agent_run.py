@@ -574,6 +574,12 @@ def parser():
 
 
 def main(argv=None):
+    # Receipts are UTF-8 JSON even when a Windows launcher inherits a legacy
+    # console code page. The original research text must survive redirection.
+    for stream in (sys.stdout, sys.stderr):
+        configure = getattr(stream, 'reconfigure', None)
+        if configure:
+            configure(encoding='utf-8')
     args = parser().parse_args(argv)
     for name in ('workspace', 'task', 'models', 'config', 'bundle', 'output', 'download_cache'):
         value = getattr(args, name)
