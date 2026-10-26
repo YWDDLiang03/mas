@@ -309,8 +309,8 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
     if qualification_policy == assessor.QUALIFICATION_POLICY:
         skipped = [c for c in all_cells if c.get("not_assessed_reason") == "skipped_after_rejection"]
         missing = [c for c in all_cells if c["verdict"] in ("unknown_missing", "unknown_conflicted")]
-        readiness = "ready" if any(q.get("applicable_hard_count", 0) and q.get("verified_hard_count", 0)
-                                    for q in (qualifications or {}).values()) else "not_ready"
+        readiness = "ready" if any(q.get("state") in ("qualified", "pending", "rejected")
+                                   for q in (qualifications or {}).values()) else "not_ready"
         snapshot.update(qualification_policy=qualification_policy, evaluation_mode=evaluation_mode, readiness=readiness,
                         qualified_count=sum(e.get("qualified", False) for e in entries),
                         all_pass_count=sum(e.get("qualified", False) for e in entries))

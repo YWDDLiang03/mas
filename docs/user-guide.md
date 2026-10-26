@@ -12,7 +12,7 @@ Open **Settings** before your first investigation. Select the workload, worker c
 
 Choose **New research**. Write what a useful candidate should achieve and describe the intended experimental or use context. Set the object type, required targets/properties and constraints. For example, an oral drug study can require a documented oral route and direct observations for named targets. A carrier study needs its own property definitions and experimental conditions.
 
-Keep a hard condition separate from a preference. A hard condition can exclude a candidate when it is clearly failed; a preference orders otherwise eligible candidates. Reference observations provide context without contributing ranking weight. The system preserves the original task text and its normalized scope.
+Define eligibility requirements before preferences. A condition requirement specifies a category, range or threshold that must be met; an evidence requirement specifies the usable direct observations that must be available. Both are compulsory for admission. Prioritization criteria compare eligible candidates, and a required observation can also supply a scoring value. Contextual observations support interpretation. The system preserves the original task text and its normalized scope.
 
 Choose a candidate library and evidence input. Existing-only mode needs a saved collection or uploaded measurements. A fresh workspace has neither until data is supplied. Retrieval is a different mode that contacts configured sources. The [CSV guide](csv-input.md) explains candidate IDs, measurement rows, units, evidence basis and the preview checks. Save a draft to continue later, or start research when the inputs are ready.
 
@@ -28,7 +28,7 @@ The workflow connects task interpretation, evidence preparation, criterion propo
 
 Open **Criteria** to see the stage trajectory and final uses. The working set includes proposed items that may never become executable criteria. This is why the number of working items, registered criteria and enabled decision rules can differ.
 
-Open a stage to inspect additions, revisions, merges, removals and unresolved proposals. Open a criterion to inspect its definition, rule, sources and history. A merge should retain the parent proposals and reasons. Check the final role: required conditions, preferences, contextual observations and withheld items have different effects.
+Open a stage to inspect additions, revisions, merges, removals and unresolved proposals. Open a criterion to inspect its definition, rule, sources and history. A merge should retain the parent proposals and reasons. Check every final use: condition and evidence requirements govern admission, prioritization criteria determine scores, and contextual observations support interpretation. A criterion can serve admission and scoring. Items outside the evaluation retain a specific reason.
 
 Before assessment, the executable rule set fixes the measurement method, unit, aggregation, allowed evidence basis and decision method. Editing a criterion creates a new version. Where the workbench offers reevaluation, inspect the proposed impact and the new saved result; old snapshots retain their original rules.
 
@@ -38,18 +38,18 @@ See [selection decisions and evidence states](reference/decision-language.md) fo
 
 | Group or state | Meaning |
 |---|---|
-| Eligible | Enabled hard conditions and required direct evidence are satisfied. Ranking still requires sufficient applicable direct preference coverage. |
-| Evidence incomplete | Some admission requirements have usable support; the remaining requirements and evidence gaps are listed. |
-| Excluded | A mandatory condition fails, or completed assessments provide no usable admission support. |
+| Eligible | All task-defined eligibility requirements are satisfied. Ranking also requires sufficient applicable direct-evidence coverage for scoring. |
+| Evidence incomplete | Some admission requirements have usable support, others have evidence gaps, and no required condition has failed. |
+| Excluded | A required condition is confirmed to fail, or completed required assessments provide no usable admission support. |
 | Assessment incomplete | A required assessment is unfinished, failed or unavailable. |
-| Criteria not ready | No applicable, verified mandatory requirement is ready for a decision. |
+| Criteria not ready | Eligibility requirements are missing, unbound or awaiting verification. |
 | Skipped after rejection | Staged mode omitted this later cell because of a preceding hard failure. It is not a pass or missing observation. |
 
-No effective hard conditions means screening is not ready. A high rejection fraction can prompt diagnosis, but does not change a hard condition into a preference. Prediction alone does not satisfy this workflow's direct-evidence gates.
+New tasks need at least one defined and verified eligibility requirement. A task can use condition requirements, evidence requirements, or both; an empty requirement set remains not ready. A high exclusion fraction prompts diagnosis while preserving the frozen requirements. Predictions remain separate from the direct evidence required for admission.
 
 Use **Score** to inspect each available preference's adopted value, evidence basis, comparison points, weight and contribution. Continuous preferences compare qualified candidates with values, with ties sharing an average position. Threshold preferences use their frozen decision method. The score denominator and direct coverage denominator can differ; missing values and prediction-assisted values remain visible.
 
-Search and filters apply across the selected group, then paginate. Use the saved-evaluation selector to compare versions. Interpret scores within their declared comparison group and rule set.
+An eligible candidate with insufficient scoring coverage remains in Eligible with a visible Not ranked reason. Admission gaps belong to Evidence incomplete. Search and filters apply across the selected group, then paginate. Use the saved-evaluation selector to compare versions. Interpret scores within their declared comparison group and rule set.
 
 ## Follow a conclusion to its source
 

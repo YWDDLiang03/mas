@@ -18,7 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-from mas.core.criteria import is_task_mandated
+from mas.core.criteria import is_task_mandated, required_scope_rule_refs
+from mas.core.selection import requirement_roles
 from mas.core import assessor
 from mas.ui.evidence_read import EVIDENCE_SCHEMA, EVIDENCE_TABLES, EvidenceRead
 from mas.ui.read_summaries import criterion_display_fields, criterion_explanation
@@ -29,7 +30,7 @@ from mas.ui.decision_reading import (
 
 
 SCHEMA_VERSION = 4
-CRITERION_ROLE_SUMMARY_VERSION = 3
+CRITERION_ROLE_SUMMARY_VERSION = 5
 PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
 PUBLIC_EVENTS = (
@@ -307,8 +308,8 @@ class ReadModel:
                                 task_id = self._project(db, source, row["rowid"], event)
                                 if task_id:
                                     changed.add(task_id)
-                    if meta.get("frozen_versions_version") != 1:
-                        for row in source.execute("SELECT rowid,body FROM events WHERE event_type='criterion.version_approved' ORDER BY rowid"):
+                    if meta.get("frozen_versions_version") != 1 or meta.get("admission_roles_version") != 1:
+                        for row in source.execute("SELECT rowid,body FROM events WHERE event_type IN ('task.version_recorded','criterion.version_approved') ORDER BY rowid"):
                             event = json.loads(row["body"])
                             if event.get("visibility", "default") == "default":
                                 self._project(db, source, row["rowid"], event)
@@ -327,7 +328,8 @@ class ReadModel:
                                         "source_as_of": tail["recorded_at"] if tail else None,
                                         "updated_at": _now(), "ready": True, "task_input_version": 1,
                                         "evidence_links_version": 1,"evidence_intervals_version": 1,
-                                        "criterion_role_summary_version": CRITERION_ROLE_SUMMARY_VERSION, "frozen_versions_version": 1})
+                                        "criterion_role_summary_version": CRITERION_ROLE_SUMMARY_VERSION, "frozen_versions_version": 1,
+                                        "admission_roles_version": 1})
                     db.commit()
             except Exception as exc:
                 with self._state_lock:
@@ -412,6 +414,7 @@ class ReadModel:
                     "candidate_count": count, "mode": record.get("mode"), "group_id": record.get("group_id"),
                     "updated_at": at, "derived_from_task_id": record.get("derived_from_task_id"),
                     "purpose": record.get("purpose"),
+                    "scope_entities": record.get("scope_entities") or [],
                     "has_pinned_evidence": bool(record.get("evidence_fact_manifest_ref"))}
             body["input"] = self._input(record, task_id)
             db.execute("INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
@@ -448,7 +451,8 @@ class ReadModel:
             rules = self._artifact(source, payload.get("artifact_id"), {"rule_set"})
             entries = rules.get("entries") or []
             frozen = {"rule_set_ref": payload.get("rule_set_ref"), "pending": payload.get("pending"),
-                      "entries": entries, "at": at, "deferred": rules.get("deferred") or []}
+                      "entries": entries, "at": at, "deferred": rules.get("deferred") or [],
+                      "scope_entities": self._task(db, task_id).get("scope_entities") or []}
             self._set_meta(db, {f"frozen:{task_id}": frozen,
                                f"frozen_version:{task_id}:{payload.get('rule_set_ref')}": frozen})
         elif kind == "leaderboard.snapshot_published":
@@ -832,6 +836,9 @@ class ReadModel:
                         evidence_incomplete_summary=eligibility_counts([r for r in readings if selection_reading(r)["decision"] == "evidence_incomplete"]),
                         selection_policy=SELECTION_POLICY,
                         selection_counts={**selection_counts, "total": len(readings)})
+            frozen = ReadModel._meta(db).get(f"frozen_version:{snapshot['task_id']}:{info.get('rules@v')}")
+            if frozen:
+                info["eligibility_requirements"] = ReadModel._evaluation_context(db, snapshot["task_id"], frozen)["requirement_summary"]
             db.execute("UPDATE snapshots SET body=? WHERE snapshot_id=?", (_json(info), snapshot["snapshot_id"]))
 
     def _summarise(self, db: sqlite3.Connection, task_id: str) -> None:
@@ -925,6 +932,12 @@ class ReadModel:
                 "claim_count": db.execute("SELECT count(DISTINCT claim_id) FROM claims WHERE task_id=? AND admission_state='admitted'", (task_id,)).fetchone()[0]}
         dispositions = Counter()
         context = self._evaluation_context(db, task_id, frozen or None)
+        body["eligibility_requirements"] = context["requirement_summary"]
+        if frozen:
+            body["enabled_core_count"] = context["requirement_summary"]["unique_decision_rule_count"]
+            body["enabled_context_count"] = sum(
+                role["contextual"] and not (role["condition_requirement"] or role["evidence_requirement"] or role["prioritization"])
+                for role in context["roles"].values())
         for row in db.execute("SELECT body FROM criteria_listing WHERE task_id=? AND json_extract(body,'$.current')=1", (task_id,)):
             item = _record(row)
             evaluation = self._criterion_evaluation(item, context)
@@ -1172,8 +1185,14 @@ class ReadModel:
                 by_attribute.setdefault(entry["attribute_ref"], set()).add(entry["rule_ref"])
         for row in db.execute("SELECT item_id,subject_ref,state FROM reviews WHERE task_id=? ORDER BY item_id", (task_id,)):
             reviews.setdefault(row["subject_ref"], []).append({"item_ref": row["item_id"], "state": row["state"]})
+        loaded = [{"entry": entry, "attribute": _record(db.execute(
+            "SELECT body FROM criterion_versions WHERE task_id=? AND ref=?", (task_id, entry.get("attribute_ref"))).fetchone())}
+            for entry in enabled.values()]
+        required = required_scope_rule_refs({"scope_entities": (frozen or {}).get("scope_entities") or []}, loaded)
+        uses = requirement_roles(list(enabled.values()), required)
         return {"frozen": frozen, "enabled": enabled, "deferred": deferred, "by_attribute": by_attribute,
-                "pending": set((frozen or {}).get("pending") or []), "reviews": reviews}
+                "pending": set((frozen or {}).get("pending") or []), "reviews": reviews,
+                "roles": uses["roles"], "requirement_summary": uses["summary"]}
 
     @staticmethod
     def _criterion_evaluation(body: dict[str, Any], context: dict[str, Any], *,
@@ -1198,7 +1217,7 @@ class ReadModel:
         result = {"scope": "latest_prepared_evaluation", "rule_set_ref": frozen.get("rule_set_ref"),
                   "prepared_at": frozen.get("at"), "reason": None}
         if included is not None:
-            result.update(state="enabled", reason_kind="enabled")
+            result.update(state="enabled", reason_kind="enabled", roles=context["roles"].get(ref))
         elif rule_held:
             record = rule_held[0]
             result.update(state="deferred", reason_kind=record.get("reason_kind") or
@@ -1461,6 +1480,13 @@ class ReadModel:
             rule = _record(db.execute("SELECT body FROM criterion_versions WHERE task_id=? AND ref=?",
                                       (task_id, body.get("rule_ref"))).fetchone()) or raw.get("rule") or (raw if row["kind"] == "registry" and raw.get("rule_id") else {})
             body["explanation"] = criterion_explanation(attribute, rule, raw, sources)
+            uses = (body.get("evaluation") or {}).get("roles") or {}
+            if uses.get("evidence_requirement") and uses.get("prioritization"):
+                body["explanation"]["decision_question"] = (
+                    "Is usable direct evidence available for admission, and how does its value compare among eligible candidates?")
+                body["explanation"]["how_evaluated"] = (
+                    "Admission requires usable direct evidence under this criterion's accepted sources, scope and units. "
+                    + body["explanation"]["how_evaluated"])
             detail_ref = body.get("detail_ref") or body.get("rule_ref") or body.get("attribute_ref") or wanted
             connection_snapshot = selected if selected is not None else self._snapshot_row(db, task_id, None)
             body["evidence_query"] = {"criterion_ref": detail_ref,
@@ -1556,6 +1582,7 @@ class ReadModel:
                     "exclusion_summary": info.get("exclusion_summary"),
                     "evidence_incomplete_summary": info.get("evidence_incomplete_summary"),
                     "selection_policy": info.get("selection_policy"),
+                    "eligibility_requirements": info.get("eligibility_requirements"),
                     "legacy_rank_only": info["legacy_rank_only"], "progress": (info.get("reporting_tuple") or {}).get("sweep_completeness")}
 
     @staticmethod
@@ -1593,6 +1620,9 @@ class ReadModel:
             if not row:
                 raise KeyError(f"no candidate {wanted} in {selected['snapshot_id']}")
             body, raw, info = _record(row), json.loads(row["raw"]), _record(selected)
+            body["eligibility_requirements"] = info.get("eligibility_requirements")
+            frozen = self._meta(db).get(f"frozen_version:{task_id}:{info.get('rules@v')}")
+            uses = self._evaluation_context(db, task_id, frozen)["roles"] if frozen else {}
             assessments, claim_ids = [], set()
             pointers = db.execute("SELECT * FROM assessments WHERE run_id=? AND candidate_ref=? AND source_row IN "
                                   "(SELECT max(source_row) FROM assessments WHERE run_id=? AND candidate_ref=? "
@@ -1607,6 +1637,7 @@ class ReadModel:
                 claim_ids.update(cell.get("conflicting_claim_refs") or [])
                 projected = {"name": attribute.get("name") or pointer["attribute_ref"], "attribute_ref": pointer["attribute_ref"],
                                     "rule_ref": pointer["rule_ref"], "role": cell.get("rule_kind"), "verdict": cell.get("verdict"),
+                                    "decision_roles": uses.get(pointer["rule_ref"]),
                                     "detail_ref": pointer["rule_ref"] or pointer["attribute_ref"],
                                     "value": cell.get("value"), "unit": cell.get("unit"), "basis": cell.get("determination_basis"),
                                     "reason": reason.get("reason_text"), "evidence": evidence,

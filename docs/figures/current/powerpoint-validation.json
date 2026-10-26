@@ -1,0 +1,25 @@
+﻿{
+    "decks":  [
+                  {
+                      "file":  "TRIAGE_workflow_editable.pptx",
+                      "opened":  true,
+                      "slides":  1,
+                      "shapes":  232,
+                      "textBoxes":  78,
+                      "textOverflow":  [
+
+                                       ]
+                  },
+                  {
+                      "file":  "Surufatinib_results_editable.pptx",
+                      "opened":  true,
+                      "slides":  1,
+                      "shapes":  134,
+                      "textBoxes":  68,
+                      "textOverflow":  [
+
+                                       ]
+                  }
+              ],
+    "passed":  true
+}

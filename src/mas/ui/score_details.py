@@ -100,6 +100,8 @@ class ScoreDetails:
         if ordering.get("kind", "weighted_preference") != "weighted_preference":
             raise _Unavailable("unsupported_ordering_method")
         weights, rules = ordering.get("weight_vector") or {}, {}
+        role_context = self.model._evaluation_context(db, task_id,
+            self.model._meta(db).get(f"frozen_version:{task_id}:{ref}"))
         for entry in frozen.get("entries") or []:
             rule = self._version(db, task_id, entry["rule_ref"], "rule", selected["published_row"])
             attr = self._version(db, task_id, entry["attribute_ref"], "attribute", selected["published_row"])
@@ -111,7 +113,8 @@ class ScoreDetails:
             if (rule.get("rule_kind") == "preference" and rule.get("predicate_form", "threshold") == "ordering"
                     and attr.get("direction") not in ("higher_better", "lower_better")):
                 raise _Unavailable("unsupported_ordering_direction")
-            rules[entry["rule_ref"]] = {**rule, "attribute": attr, "quantity_key": quantity_identity(attr), "weight": weight}
+            rules[entry["rule_ref"]] = {**rule, "attribute": attr, "quantity_key": quantity_identity(attr), "weight": weight,
+                                       "decision_roles": role_context["roles"].get(entry["rule_ref"], {})}
         if not rules:
             raise _Unavailable("empty_frozen_rule_set")
         cohort = list(db.execute("SELECT candidate_ref,label FROM candidate_rows WHERE snapshot_id=? "
@@ -226,6 +229,7 @@ class ScoreDetails:
                 "formula": ("(worse + (equal - 1) / 2) / (n - 1); n = 1 gives 1" if distribution is not None
                             else "pass = 1; fail = 0; unresolved values are omitted")}
             rows.append({"rule_ref": ref, "attribute_ref": rule["attribute_ref"], "detail_ref": ref,
+                "required_for_admission": bool(rule["decision_roles"].get("condition_requirement") or rule["decision_roles"].get("evidence_requirement")),
                 "assessment_id": cell.get("assessment_id"), "name": attr.get("name") or rule["attribute_ref"],
                 **criterion_display_fields(attr),
                 "definition": attr.get("definition"),

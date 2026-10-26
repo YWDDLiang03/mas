@@ -1,0 +1,87 @@
+{
+  "original_layouts_preserved": true,
+  "workflow_layout": {
+    "reference": "workflow_layout_reference.pptx",
+    "original_shapes": 224,
+    "original_geometries_retained": 220,
+    "local_outcome_geometries_updated": 4,
+    "unplanned_geometry_changes": [],
+    "page_inches": [
+      16,
+      10.666666666666666
+    ],
+    "panel_layout": "a upper left; b upper right; c below",
+    "updates": "Original outcome area split locally; panel geometry, six proposal cards, criterion and observation paths retained."
+  },
+  "files": {
+    "TRIAGE_workflow_editable.pptx": {
+      "sha256": "87c6c1b1648942a30345083f46fafaed4706ffdd4cf44798f9868e9c3b7045c2",
+      "embedded_images": 0,
+      "gradient_fills": 0,
+      "shadows": 0
+    },
+    "Surufatinib_results_editable.pptx": {
+      "sha256": "cea87f79adc22503cf84b192c63767f66257c34d1b4813f3a6e5228d10b6e6c5",
+      "embedded_images": 0,
+      "gradient_fills": 0,
+      "shadows": 0
+    }
+  },
+  "png_dimensions": {
+    "figure_1_workflow": [
+      4252,
+      2835
+    ],
+    "figure_2_surufatinib_results": [
+      4251,
+      3212
+    ]
+  },
+  "powerpoint": {
+    "decks": [
+      {
+        "file": "TRIAGE_workflow_editable.pptx",
+        "opened": true,
+        "slides": 1,
+        "shapes": 232,
+        "textBoxes": 78,
+        "textOverflow": []
+      },
+      {
+        "file": "Surufatinib_results_editable.pptx",
+        "opened": true,
+        "slides": 1,
+        "shapes": 134,
+        "textBoxes": 68,
+        "textOverflow": []
+      }
+    ],
+    "passed": true
+  },
+  "selection_counts": {
+    "eligible": 10,
+    "excluded": 1862,
+    "evidence_incomplete": 1305,
+    "incomplete": 0,
+    "not_ready": 0
+  },
+  "eligibility_requirement_semantics": {
+    "condition_requirements": 1,
+    "evidence_requirements": 5,
+    "scoring_criteria": 17,
+    "shared_admission_scoring": 5,
+    "unique_decision_rules": 18
+  },
+  "latest_wording_pass_layout": {
+    "TRIAGE_workflow_editable.pptx": {
+      "shapes_before": 232,
+      "shapes_after": 232,
+      "diagram_geometry_changes": []
+    },
+    "Surufatinib_results_editable.pptx": {
+      "shapes_before": 134,
+      "shapes_after": 134,
+      "diagram_geometry_changes": []
+    }
+  }
+}

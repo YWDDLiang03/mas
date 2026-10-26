@@ -695,6 +695,44 @@ def test_frozen_role_summary_separates_core_context_and_pending(setup):
     assert model.task_summary('task_a')['enabled_core_count'] == 2
 
 
+def test_required_evidence_scoring_roles_follow_each_frozen_task_scope(setup):
+    journal, model = setup
+    entries = []
+    for name, role in (("size", "hard_exclusion"), ("release", "preference"), ("stability", "preference")):
+        attr = journal.artifact("attribute", {"attribute_id": "attr_"+name, "version": 1, "name": name,
+            "proposed_by": {"role": "adapter_template"}, "derived_from": {"field": "scope_entities[0]"},
+            "evidence_request": {"capability": "uploaded_measurement", "parameters": {"property": name}}})
+        rule = journal.artifact("rule", {"rule_id": "rule_"+name, "version": 1,
+            "attribute_ref": "attr_"+name+"@v1", "rule_kind": role})
+        journal.event("task_a", "criterion.version_proposed", {"kind": "attribute", "id": "attr_"+name, "version": 1, "artifact_id": attr})
+        journal.event("task_a", "criterion.version_proposed", {"kind": "rule", "id": "rule_"+name, "version": 1, "artifact_id": rule})
+        entries.append({"rule_ref": "rule_"+name+"@v1", "attribute_ref": "attr_"+name+"@v1", "rule_kind": role})
+    for version, required in ((2, "release"), (3, "stability")):
+        task = journal.artifact("task_context", {"title": "Carrier research", "scope_entities": [
+            {"entity_kind": "property", "identifier": required, "role": "required"}]})
+        journal.event("task_a", "task.version_recorded", {"artifact_id": task, "version": version})
+        frozen = journal.artifact("rule_set", {"entries": entries})
+        journal.event("task_a", "criterion.version_approved", {"rule_set_ref": f"rules@v{version}", "artifact_id": frozen})
+        journal.snapshot(identity=f"snapshot_{version}", entries=[], **{"rules@v": f"rules@v{version}"})
+    model.sync()
+    summary = model.task_summary("task_a")["eligibility_requirements"]
+    assert (summary["total"], summary["condition_count"], summary["evidence_count"], summary["scoring_overlap_count"], summary["unique_decision_rule_count"]) == (2, 1, 1, 1, 3)
+    before = model.criterion("task_a", "rule_release@v1", snapshot="snapshot_2")["evaluation"]
+    after = model.criterion("task_a", "rule_release@v1", snapshot="snapshot_3")["evaluation"]
+    assert before["roles"]["evidence_requirement"] and before["roles"]["prioritization"]
+    assert before["explanation"]["code"] == "required_evidence_scoring"
+    guide = model.criterion("task_a", "rule_release@v1", snapshot="snapshot_2")["explanation"]
+    assert "available for admission" in guide["decision_question"]
+    assert not after["roles"]["evidence_requirement"] and after["roles"]["prioritization"]
+    with model._cache() as cache:
+        model._set_meta(cache, {"admission_roles_version": 0})
+        cache.commit()
+    cursor = model.status()["source_cursor"]
+    model.sync()
+    assert model.status()["source_cursor"] == cursor
+    assert model.criterion("task_a", "rule_release@v1", snapshot="snapshot_2")["evaluation"]["roles"] == before["roles"]
+
+
 def test_selection_v3_profiles_filters_csv_and_cache_backfill(setup):
     journal, model = setup
     for name, role in (("size", "hard_exclusion"), ("release", "preference")):
@@ -758,16 +796,16 @@ def test_selection_v3_profiles_filters_csv_and_cache_backfill(setup):
     assert all(row["raw"] == entry for row, entry in zip(
         [model.candidate("task_a", entry["candidate_ref"]) for entry in entries], entries))
     with model._cache() as cache:
-        cache.execute("UPDATE snapshots SET body=json_set(body,'$.decision_reading_version',5)")
+        cache.execute("UPDATE snapshots SET body=json_set(body,'$.decision_reading_version',6)")
         cache.execute("UPDATE candidate_rows SET body=json_remove(body,'$.eligibility','$.selection')")
         cache.commit()
     cursor = model.status()["source_cursor"]
     restarted = ReadModel(journal.root)
     assert restarted.status()["ready"] and restarted.status()["source_cursor"] == cursor
     assert restarted.candidates("task_a", status="all")["total"] == 6
-    restarted.sync()  # reading v5 -> v6 backfill; retain the schema-v4 cache and event cursor
+    restarted.sync()  # reading v6 -> v7 backfill; retain the schema-v4 cache and event cursor
     assert model.candidates("task_a", selection="all")["selection_counts"] == result["selection_counts"]
-    assert model.snapshots("task_a")["items"][0]["decision_reading_version"] == 6
+    assert model.snapshots("task_a")["items"][0]["decision_reading_version"] == 7
     assert journal.db.execute("SELECT count(*) FROM events").fetchone()[0] == source_events
 
 

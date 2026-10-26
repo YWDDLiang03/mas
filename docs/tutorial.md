@@ -28,7 +28,7 @@ python -c "import json; from pathlib import Path; r=json.loads((Path('examples/o
 
 The saved output is **3,177 rows**, `qualified: 10`, `pending: 3167`, rank `1`, score `0.7592592592592593`, and coverage `0.5882352941176471`. These commands inspect existing results; they do not screen candidates or restore the database.
 
-The source export retains the historical label `pending`. The current decision policy separates these records into **1,305 Evidence incomplete** and **1,862 Excluded**. Exclusion reasons identify either a failed mandatory condition or no usable admission support. [Decision terminology](reference/decision-language.md) explains these task-defined outcome groups and their evidence requirements.
+The source export retains the historical label `pending`. The current decision policy separates these records into **1,305 Evidence incomplete** and **1,862 Excluded**. Exclusion reasons identify either a confirmed required-condition failure or no usable admission support after required assessments are complete. [Decision terminology](reference/decision-language.md) explains these task-defined outcome groups and their evidence requirements.
 
 ## 1. Open Settings and record the run envelope
 
@@ -146,21 +146,22 @@ The final rule is a **threshold preference, molecular weight ≤ 500 Da**. Meeti
 
 This connects six proposals, a merge, a criticism, a revision and an executable rule. The final criterion name alone would conceal the reasoning.
 
-## 7. Freeze rules and separate core, context and unresolved items
+## 7. Freeze rules and inspect admission, scoring and contextual uses
 
 Before screening, **Save evaluation rules** fixes versions, accepted routes, evidence scope and comparison policy. The final saved evaluation uses **`rules@v2`**.
 
 | Final working population | Count | Use |
 |---|---:|---|
-| Enabled hard condition | 1 | Documented oral administration |
-| Enabled preferences | 17 | Ranking, including five target potencies |
-| Enabled exploratory context | 13 | Interpretation without ranking weight |
+| Condition requirement | 1 | Documented oral administration is required for admission |
+| Required target evidence + scoring | 5 | Each target needs a usable direct observation; potency values also contribute to ranking |
+| Other prioritization criteria | 12 | Contribute to ranking |
+| Contextual observations | 13 | Support interpretation |
 | Registered but deferred | 14 | Unresolved/non-executable rules withheld from evaluation |
 | Unregistered pending proposals | 8 | Working items outside the registered evaluation set |
 
 Therefore **53 = 18 enabled decision rules + 13 contextual observations + 22 items not used in this evaluation**, while **31 = 18 + 13** enter assessment. The five unresolved reviews are a subset of deferred items, not five additional criteria. An unresolved logP range proposal is distinct from the enabled continuous RDKit logP preference.
 
-Eligibility requires direct observations for all five required targets. This task did not add a common potency cutoff that every target must exceed. Predictions retain their basis and do not independently hard-exclude candidates or increase direct-evidence coverage.
+All **six eligibility requirements** are compulsory: the oral condition and direct observations for each of the five targets. The target criteria also supply five of the **17 scoring contributions**, so **6 + 17 − 5 = 18 unique decision rules**. Target potency values are compared during ranking; the saved admission test requires their direct evidence rather than a shared potency cutoff. Predictions retain their basis and remain outside direct-evidence coverage.
 
 ## 8. Assess candidates and retain the first outcome
 
@@ -176,7 +177,7 @@ Snapshot `_1` (`rules@v1`) is the first outcome; `_2` (`rules@v2`) is the correc
 
 ## 9. Read the leaderboard and unpack the score
 
-The qualified group contains **10 candidates**. Surufatinib ranks **1**, followed by Pazopanib and Axitinib. The remaining candidates comprise **1,305 Evidence incomplete** and **1,862 Excluded**, with no admission support as the exclusion reason. There are **0 confirmed mandatory failures** and **0 incomplete candidate assessments**. The frozen export retains its historical `pending` label.
+The qualified group contains **10 candidates**. Surufatinib ranks **1**, followed by Pazopanib and Axitinib. The remaining candidates comprise **1,305 Evidence incomplete** and **1,862 Excluded**, with no admission support as the exclusion reason. There are **0 confirmed condition-requirement failures** and **0 incomplete candidate assessments**. The frozen export retains its historical `pending` label.
 
 ![Qualified leaderboard](assets/leaderboard.jpg)
 

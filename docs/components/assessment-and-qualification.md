@@ -4,13 +4,17 @@
 
 [Components](README.md) · [Criteria](criteria-and-review.md) · [Ranking](ranking-and-explanations.md)
 
-The assessor computes what the available evidence means for one candidate and one criterion. Qualification then determines whether that candidate has cleared the task's enabled hard conditions before scoring preferences. This implements C11 and supplies the candidate-level facts consumed by C12.
+The assessor computes what the available evidence means for one candidate and one criterion. Qualification determines whether the candidate satisfies all task-defined eligibility requirements: applicable condition checks and required direct observations. Eligible candidates then enter prioritization. This implements C11 and supplies the candidate-level facts consumed by C12.
 
 ## Contract
 
 `assess_cell()` in [`assessor.py`](../../src/mas/core/assessor.py) consumes candidate identity, attribute and rule versions, frozen rule-set reference, claims, authority/review information, execution limits and the selected qualification policy. It returns an assessment and a separate reason record. A cell retains values/intervals, unit and value kind, determination basis, supporting/conflicting/set-aside claim references, verdict, missing/skip/error reasons and provenance.
 
-`qualification()` consumes the candidate's cells plus registered hard-rule refs, required-rule refs, verified hard-rule refs and pending hard rules. It returns a structured state, failed/blocking refs, direct-coverage denominators and `qualified`. Those registered denominators remain even when cells are absent.
+`qualification()` consumes the candidate's cells plus registered hard-rule refs, required-rule refs, verified hard-rule refs and pending hard rules. It returns a structured state, failed/blocking refs, direct-coverage denominators and `qualified`. Those registered denominators remain even when cells are absent. New profiles bind `declared_eligibility_requirements_v1`: evidence-only tasks can be evaluated when their required observations are bound. An empty requirement set or an unbound evidence-only requirement remains not ready. Historical profiles retain their original readiness policy during replay and resume.
+
+## Admission requirements and scoring uses
+
+`qualification()` requires both the specified condition results and all required direct observations. `core.selection.requirement_roles()` describes these uses independently of the scoring role. Five target criteria in the recorded study therefore require direct evidence for admission and also contribute their values to scoring. Read-model role metadata follows the task scope captured at the selected freeze.
 
 ## Why observation, availability and eligibility differ
 
@@ -21,11 +25,11 @@ The immutable `qualification_first_v1` records retain four evidence-qualificatio
 | State | Meaning |
 |---|---|
 | `rejected` | A verified hard condition has a direct-evidence failure |
-| `not_ready` | There is no applicable/verified hard-condition basis for qualification |
+| `not_ready` | Eligibility definitions are not ready under the run's bound policy; new profiles accept bound condition requirements, evidence requirements, or both |
 | `pending` | Recorded evidence qualification is incomplete; partial support yields Evidence incomplete, and completed zero-support assessments yield Excluded |
-| `qualified` | Applicable verified hard conditions pass and required direct evidence is present |
+| `qualified` | All applicable condition requirements pass and all required direct evidence is present |
 
-Candidate display states such as provisional/recommended are a separate authority/result dimension. A qualified candidate can remain provisional because its rules have machine authority rather than human scientific confirmation.
+Candidate display states such as provisional/recommended are a separate authority/result dimension. A qualified candidate can remain provisional because its rules have machine authority rather than human scientific confirmation. Insufficient ranking coverage keeps an eligible candidate unranked; it does not move the candidate into Evidence incomplete.
 
 ## Measurement mechanism
 

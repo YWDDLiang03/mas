@@ -10,9 +10,24 @@ import pytest
 from mas.ui.decision_reading import criterion_disposition, eligibility_counts, eligibility_reading, selection_reading
 from mas.core.assessor import qualification
 from mas.ui.decision_reading import evidence_profile
+from mas.core.selection import requirement_roles
 
 
 RESULTS = Path(__file__).resolve().parents[1] / "examples/oral-multitarget/latest/results"
+
+
+def test_admission_and_scoring_roles_overlap_without_double_counting():
+    entries = [{"rule_ref": "size", "rule_kind": "hard_exclusion"},
+               {"rule_ref": "release", "rule_kind": "preference"},
+               {"rule_ref": "stability", "rule_kind": "preference"}]
+    uses = requirement_roles(entries, ["size", "release", "release"])
+    assert uses["summary"] == {"total": 2, "condition_count": 1, "evidence_count": 2,
+        "condition_evidence_overlap": 1, "scoring_overlap_count": 1, "scoring_count": 2,
+        "unique_decision_rule_count": 3, "unbound_evidence_count": 0}
+    assert uses["roles"]["release"]["evidence_requirement"] and uses["roles"]["release"]["prioritization"]
+    assert not uses["roles"]["stability"]["evidence_requirement"]
+    unbound = requirement_roles([], ["unbound_required_scope:sample_type"])["summary"]
+    assert unbound["total"] == 1 and unbound["unique_decision_rule_count"] == 0
 
 
 def test_profile_counts_applicable_mandatory_conditions_separately():

@@ -561,7 +561,8 @@ def verify_replay(store_root, *, task_id=DEFAULT_TASK, snapshot_id=DEFAULT_SNAPS
         verified = [r["entry"]["rule_ref"] for r in loaded if r["rule"]["rule_kind"] == "hard_exclusion"
                     and not r["entry"].get("disputed") and r["entry"].get("authority") in ("machine_adjudication", "human_scientific_approval")]
         qualifications = {c: assessor.qualification(by_candidate[c], hard_rule_refs=hard, required_rule_refs=required,
-                           verified_hard_rule_refs=verified, pending_hard_rules=pending) for c in candidates}
+                           verified_hard_rule_refs=verified, pending_hard_rules=pending,
+                           admission_policy=binding.get("admission_requirement_policy", assessor.LEGACY_ADMISSION_POLICY)) for c in candidates}
         diagnostic = {c: [dict(cell, verdict="pass" if cell["verdict"] == "available" and assessor.direct_evidence(cell)
                            else "unknown_missing" if not assessor.direct_evidence(cell) and cell["verdict"] in ("pass", "fail", "available")
                            else cell["verdict"]) for cell in mine] for c, mine in by_candidate.items()}

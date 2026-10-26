@@ -1,11 +1,13 @@
-import type { CriterionEvaluation } from '../api/types';
-import { useI18n } from '../i18n';
+import type { CriterionEvaluation, Criterion, DecisionRoles } from '../api/types';
+import { useI18n, stateText } from '../i18n';
 import { Audit, Badge } from './UI';
 
 type Translate = (en: string, zh: string) => string;
 export function dispositionLabel(code: string, t: Translate) {
   const labels: Record<string, [string, string]> = {
-    mandatory_requirement: ['Mandatory requirement', '强制要求'],
+    mandatory_requirement: ['Condition requirement', '条件要求'],
+    required_evidence_scoring: ['Required evidence + scoring', '必需证据＋计分'],
+    required_evidence: ['Evidence requirement', '证据要求'],
     weighted_criterion: ['Weighted prioritization criterion', '加权排序标准'],
     context_only: ['Contextual observation', '参考观察项'],
     comparison_incomplete: ['Scoring definition incomplete', '计分定义不完整'],
@@ -22,12 +24,23 @@ export function dispositionLabel(code: string, t: Translate) {
   return labels[code] ? t(...labels[code]) : code;
 }
 
+export function decisionRoleText(role: string, roles: DecisionRoles | undefined, t: Translate) {
+  if (roles?.evidence_requirement && roles.prioritization) return t('Required evidence + scoring', '必需证据＋计分');
+  if (roles?.evidence_requirement && !roles.condition_requirement) return t('Evidence requirement', '证据要求');
+  return stateText(role, t);
+}
+export function criterionRoleText(criterion: Pick<Criterion, 'role' | 'evaluation'>, t: Translate) {
+  return decisionRoleText(criterion.role, criterion.evaluation?.roles, t);
+}
+
 export function CriteriaEvaluation({ value, compact = false }: { value?: CriterionEvaluation; compact?: boolean }) {
   const { t } = useI18n();
   if (!value) return null;
   const code = value.explanation?.code || ({ enabled: 'weighted_criterion', non_executable_preference: 'comparison_incomplete', unresolved_review: 'review_unresolved', review_pending: 'review_unresolved', unregistered_proposal: 'proposal_not_finalized', capability_deferred: 'evidence_route_unavailable', not_prepared: 'evaluation_not_prepared', historical_view: 'historical_version', evaluation_record_unavailable: 'evaluation_record_unavailable' } as Record<string, string>)[value.reason_kind] || 'reason_not_recorded';
   const descriptions: Record<string, string> = {
-    mandatory_requirement: t('Determines eligibility from direct evidence.', '依据直接证据判断资格。'),
+    mandatory_requirement: t('Direct evidence must satisfy the specified condition for admission.', '准入时，直接证据必须满足规定条件。'),
+    required_evidence_scoring: t('Direct evidence is required for admission; its value also contributes to the score.', '准入时必须具备直接证据；该数值同时参与评分。'),
+    required_evidence: t('Usable direct evidence is required for admission.', '准入时必须具备可用的直接证据。'),
     weighted_criterion: t('Contributes to eligible candidates’ prioritization scores.', '用于合格候选的优先级评分。'),
     context_only: t('Assessed for interpretation; no eligibility or ranking weight.', '用于解释结果，不影响资格与排名。'),
     comparison_incomplete: t('The threshold, range or accepted category is undefined; no score is assigned.', '缺少明确的阈值、范围或接受类别，本次不计分。'),

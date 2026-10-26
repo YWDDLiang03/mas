@@ -43,7 +43,7 @@ export function stateText(state: string | undefined, t: Translate): string {
     active: ['Current record', '当前保留'], candidate: ['Proposed', '提议中'], proposed: ['Proposed', '已提出'], retained: ['Retained', '已保留'], merged: ['Merged', '已合并'], retired: ['Retired', '已撤回'], withdrawn: ['Withdrawn', '已撤回'], superseded: ['Earlier version', '早期版本'],
     registered: ['Registered', '已注册'], promoted: ['Registered', '已注册'], filtered_out: ['Filtered out', '已筛除'], merged_away: ['Merged', '已合并'],
     needs_refine: ['Needs refinement', '待完善'], deferred_next_round: ['Unfinalized proposal', '未定稿提议'], capability_deferred: ['Evidence route unavailable', '证据获取方式不可用'], needs_human_review: ['Review needed', '需要复核'],
-    hard_exclusion: ['Mandatory requirement', '强制要求'], hard: ['Mandatory requirement', '强制要求'], preference: ['Prioritization criterion', '排序标准'], screening: ['Screening', '筛选'],
+    hard_exclusion: ['Condition requirement', '条件要求'], hard: ['Condition requirement', '条件要求'], preference: ['Prioritization criterion', '排序标准'], screening: ['Screening', '筛选'],
     exploratory_consideration: ['Contextual observation', '参考观察项'],
     higher_better: ['Higher is better', '越高越好'], lower_better: ['Lower is better', '越低越好'], within_range: ['Within a range', '在范围内'],
     target_value: ['Near a target value', '接近目标值'], non_directional: ['No ordering preference', '无排序偏好'], undetermined: ['Not determined', '尚未确定'], unassigned: ['Not assigned', '尚未分配'],

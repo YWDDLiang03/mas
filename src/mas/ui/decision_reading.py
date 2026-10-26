@@ -13,12 +13,18 @@ def criterion_disposition(body: dict[str, Any], evaluation: dict[str, Any]) -> d
     state, reason = evaluation.get("state"), evaluation.get("reason_kind")
     if state == "enabled":
         role = body.get("role")
+        if (evaluation.get("roles") or {}).get("evidence_requirement") and role != "hard_exclusion":
+            if role == "preference":
+                return {"code": "required_evidence_scoring", "label": "Required evidence + scoring",
+                        "description": "Usable direct evidence is required for admission; its value also contributes to the prioritization score."}
+            return {"code": "required_evidence", "label": "Evidence requirement",
+                    "description": "Usable direct evidence is required for admission."}
         if role == "exploratory_consideration":
             return {"code": "context_only", "label": "Contextual observation",
                     "description": "Assessed for interpretation; carries no eligibility or ranking weight."}
         if role == "hard_exclusion":
-            return {"code": "mandatory_requirement", "label": "Mandatory requirement",
-                    "description": "Direct evidence determines whether this requirement is met, failed or unresolved."}
+            return {"code": "mandatory_requirement", "label": "Condition requirement",
+                    "description": "Direct evidence must satisfy the specified value, range or category for admission."}
         return {"code": "weighted_criterion", "label": "Weighted prioritization criterion",
                 "description": "Contributes to the score of eligible candidates under the fixed comparison policy."}
     reason_text = str(evaluation.get("reason") or body.get("reason") or "")

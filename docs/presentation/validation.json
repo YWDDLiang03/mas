@@ -43,8 +43,8 @@
   "powerpoint_desktop_opened_and_rendered": 34,
   "visual_review": "Root inspected every generated diagram and every native page; revised crops and Chinese chart fonts were rechecked.",
   "writing_review": "Two passes: narrative/causal transitions, then exact wording/counts/conditions. Spoken text and presenter cues separated.",
-  "pptx_bytes": 23373708,
-  "pptx_sha256": "48bbba0cc6a3fb7e9f4bf32dcfe66e55151e78cc4fdddbe53830cf263b3bb5bd",
+  "pptx_bytes": 23374054,
+  "pptx_sha256": "6be48840ebb9636ab00582e0ee2ee2dbf37a857f9d9a23ac70d4add65c86239e",
   "maintenance": {
     "date": "2026-10-26",
     "change": "Removed one archived-study speaker-note paragraph",
@@ -53,5 +53,14 @@
     ],
     "slide_xml_and_media_unchanged": true,
     "prior_pptx_sha256": "46f2e471be8d0df4e90580c19c6ada4a109f6c360bc88a5cad749b58c377bd15"
+  },
+  "terminology_update_2026_10_26": {
+    "notes_slides": [
+      24,
+      28
+    ],
+    "other_package_entries_unchanged": true,
+    "notes_exact_match": 34,
+    "historical_visuals": "Preserved and identified in README and slide 28 notes."
   }
 }

@@ -9,7 +9,7 @@ TRIAGE is a multi-agent workbench for evidence-driven candidate evaluation and p
 In the oral multi-target study, TRIAGE stands for Therapeutic Repurposing via Integrated Appraisal of Evidence. Objectives, candidate types and evidence policies remain configurable. [Terminology](docs/reference/terminology.md) and [eligibility, evidence and ranking](docs/reference/decision-language.md) define the shared language.
 
 
-[Study correspondence and current selection policy](docs/reference/system-alignment.md) · [26 October update](docs/releases/2026-10-26-alignment.md)
+[Study correspondence and current selection policy](docs/reference/system-alignment.md) · [26 October update](docs/releases/2026-10-26-alignment.md) · [Current figures and editable PowerPoint](docs/figures/current/README.md)
 
 ## The research process
 
@@ -25,7 +25,7 @@ flowchart LR
     G --> H[Inspect sources and export]
 ```
 
-Criteria expand before they converge. Each retained criterion specifies what is measured, how observations are combined, and whether it acts as a mandatory requirement, a prioritization criterion or a contextual observation. Eligibility and preference scores are separate. Missing evidence is not a pass or an automatic failure.
+Criteria expand before they converge. Each retained criterion specifies what is measured, how observations are combined, and its admission, scoring or contextual uses. Eligibility requirements include condition requirements and evidence requirements; all must be satisfied for admission. A criterion can require evidence for admission and also contribute to ranking. [Candidate decisions](docs/reference/decision-language.md#candidate-decisions) distinguish complete support, partial support and exclusion.
 
 The browser provides natural-language tasks, candidate and measurement CSV import, persistent progress, criterion history, evidence grouped by source, score breakdowns and complete exports. English is the default UI language; switching to Chinese preserves research content and original sources.
 
@@ -108,7 +108,9 @@ The [complete tutorial](docs/tutorial.md) follows the saved research from Settin
 | Candidate population | 3,177 |
 | Fixed derivation input | 3,157 facts / 164 sources |
 | Criterion trajectory | 0 → 6 requirements → 1,917 working items → 53 |
-| Enabled decision rules | 18: 1 hard condition + 17 preferences |
+| Eligibility requirements | 6: 1 oral condition + 5 required target observations |
+| Prioritization criteria | 17, including the 5 required target criteria |
+| Unique enabled decision rules | 18 = 6 admission + 17 scoring − 5 shared |
 | Other working items | 13 contextual observations + 22 items not used in this evaluation |
 | Candidate groups | 10 eligible; 1,305 evidence incomplete; 1,862 excluded for no admission support |
 | Surufatinib | Rank 1 of 10; score 0.7592592593 |
@@ -118,7 +120,7 @@ The [complete tutorial](docs/tutorial.md) follows the saved research from Settin
 
 ### Original screening criteria versus generated criteria
 
-The original manuscript has **11 human-selected predicted-property conditions**, distinct from the older 59-item system registry. The [item-by-item comparison](docs/reference/cqa-comparison.md) finds 2 same-named endpoints with changed decisions, 3 related but unresolved rows, and 6 absent endpoints. One same-named original endpoint is in the latest 18-rule core. No full original pass/fail gate is reproduced unchanged. This descriptive comparison is separate from ranking performance and is not a new blind recovery measurement.
+The original manuscript has **11 human-selected predicted-property conditions**, distinct from the older 59-item system registry. The [item-by-item comparison](docs/reference/cqa-comparison.md) finds 2 same-named endpoints with changed decisions, 3 related but unresolved rows, and 6 absent endpoints. One same-named original endpoint is in the latest set of 18 enabled decision rules. No full original pass/fail gate is reproduced unchanged. This descriptive comparison is separate from ranking performance and is not a new blind recovery measurement.
 
 [Comparison CSV](examples/oral-multitarget/cqa-comparison.csv) · [Comparison JSON](examples/oral-multitarget/cqa-comparison.json) · [Presentation and speaker notes](docs/presentation/README.md)
 

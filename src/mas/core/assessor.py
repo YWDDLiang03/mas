@@ -18,6 +18,8 @@ from .clock import utc_now
 
 ASSESSOR_VERSION = "assessor-1"
 QUALIFICATION_POLICY = "qualification_first_v1"
+LEGACY_ADMISSION_POLICY = "verified_condition_required_v1"
+ADMISSION_POLICY = "declared_eligibility_requirements_v1"
 DIRECT_BASES = frozenset(("measured", "derived", "curated", "asserted"))
 
 # What an attribute accepts when it declares nothing: a measurement or a derivation, never a
@@ -986,7 +988,8 @@ def direct_evidence(cell: dict[str, Any]) -> bool:
 
 
 def qualification(cells: list[dict[str, Any]], *, hard_rule_refs: list[str], required_rule_refs: list[str],
-                  verified_hard_rule_refs: list[str], pending_hard_rules: list[str] = ()) -> dict[str, Any]:
+                  verified_hard_rule_refs: list[str], pending_hard_rules: list[str] = (),
+                  admission_policy: str = LEGACY_ADMISSION_POLICY) -> dict[str, Any]:
     """Qualification before scoring. Missing cells stay in the registered denominators."""
     by_ref = {c["rule_ref"]: c for c in cells}
     hard, verified = set(hard_rule_refs), set(verified_hard_rule_refs)
@@ -997,9 +1000,15 @@ def qualification(cells: list[dict[str, Any]], *, hard_rule_refs: list[str], req
               and direct_evidence(by_ref[ref])}
     blocked = sorted((applicable - passed - set(failed)) | set(pending_hard_rules))
     required_missing = sorted(ref for ref in set(required_rule_refs) if not direct_evidence(by_ref.get(ref, {})))
-    state = ("rejected" if failed else "not_ready" if not applicable or not (applicable & verified)
+    if admission_policy not in (LEGACY_ADMISSION_POLICY, ADMISSION_POLICY):
+        raise ValueError("unknown admission requirement policy")
+    ready = bool(applicable & verified)
+    if (admission_policy == ADMISSION_POLICY and not hard and required_rule_refs and not pending_hard_rules
+            and all(not ref.startswith("unbound_required_scope:") for ref in required_rule_refs)):
+        ready = True
+    state = ("rejected" if failed else "not_ready" if not ready
              else "pending" if blocked or required_missing else "qualified")
-    return {"state": state, "qualified": state == "qualified", "failed_hard_rule_refs": failed,
+    result = {"state": state, "qualified": state == "qualified", "failed_hard_rule_refs": failed,
             "blocking_hard_rule_refs": blocked, "missing_direct_required_rule_refs": required_missing,
             "applicable_hard_count": len(applicable), "verified_hard_count": len(applicable & verified),
             "hard_total": len(hard), "hard_passed": len(passed), "hard_failed": len(failed),
@@ -1008,6 +1017,9 @@ def qualification(cells: list[dict[str, Any]], *, hard_rule_refs: list[str], req
             "hard_direct_coverage": len(passed | set(failed)) / len(applicable) if applicable else None,
             "required_direct_coverage": (len(set(required_rule_refs)) - len(required_missing)) / len(set(required_rule_refs))
                                          if required_rule_refs else None}
+    if admission_policy != LEGACY_ADMISSION_POLICY:
+        result["admission_requirement_policy"] = admission_policy
+    return result
 
 
 def feature_values(cells: list[dict[str, Any]], rules: dict[str, dict[str, Any]]) -> dict[str, float]:

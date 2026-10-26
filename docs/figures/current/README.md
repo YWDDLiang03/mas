@@ -1,0 +1,31 @@
+# Updated figures in the accepted original layouts
+
+[Workflow: editable PPT](TRIAGE_workflow_editable.pptx) · [Results: editable PPT](Surufatinib_results_editable.pptx) · [Reconciled changes](../revision-plan.md)
+
+The workflow retains the original three-panel arrangement: a at upper left, b at upper right, and c below. The result figure retains its horizontal selection chain above the ranking on the left and evidence on the right. Typography, proportions and the six molecular-weight proposal cards follow the accepted figures.
+
+| Figure | PNG | Vector formats |
+|---|---|---|
+| Workflow | [600 dpi](figure_1_workflow.png) | [PDF](figure_1_workflow.pdf) · [SVG](figure_1_workflow.svg) |
+| Surufatinib results | [600 dpi](figure_2_surufatinib_results.png) | [PDF](figure_2_surufatinib_results.pdf) · [SVG](figure_2_surufatinib_results.svg) |
+
+The local changes update the terminology, split the original non-eligible outcome area into Evidence incomplete (1,305) and Excluded (1,862), clarify the unused-item label, and show the recorded refinement counts. The library, eligible group, ranking, evidence values and molecular-weight calculation retain their recorded quantities. Both the figure and the workbench now label six eligibility requirements, split into one condition and five evidence requirements. Five target criteria also contribute to scoring; a local connector shows that shared use without moving the original boxes.
+
+## Figure 1 caption
+
+Figure 1. TRIAGE criterion generation, eligibility assessment and prioritization, illustrated by the recorded oral multi-target study. a, The task objective and source findings guide proposal, critique and adjudication. Review findings return to the proposer. Source and rule checks establish the final evaluation criteria. Items not used retain a separate branch with their reasons. The recorded trajectory begins with zero generated criteria, binds six task requirements and expands to 1,917 working items. Three refinement rounds retain 147, 68 and 53 items. The final working set contains 18 enabled decision rules, 13 contextual observations and 22 items not used. The 18 unique decision rules comprise one condition rule for oral administration and 17 prioritization criteria. Five of those criteria have a second role: direct target evidence is required for admission. Together they implement six eligibility requirements, one condition requirement and five evidence requirements. Including the 13 contextual observations gives 31 assessed items. The 22 unused items comprise nine incomplete scoring definitions, five unresolved reviews and eight unfinished proposals. b, All six eligibility requirements must be satisfied: the oral condition must be met and direct evidence for each of the five targets must be available. The green branch connects the dual-purpose target criteria to both admission and scoring. The library contains 3,177 compounds, with 10 Eligible, 1,305 Evidence incomplete and 1,862 Excluded under the current selection policy. Evidence incomplete means partial support with no confirmed condition failure. Excluded covers a confirmed condition failure or a completed assessment with no admission support; all 1,862 exclusions in this study have the latter reason. Eligible candidates enter weighted prioritization. The saved 50% direct scoring-evidence coverage floor determines whether a rank is assigned; an eligible candidate below that floor remains eligible and unranked. c, Six overlapping molecular-weight proposals are consolidated into one criterion. Its 500 Da scoring bound and Surufatinib's structure-derived value of 480.6 Da jointly yield one criterion point. The task supplies the illustrated targets, route and evaluation requirements.
+
+## Figure 2 caption
+
+Figure 2. Surufatinib ranks first in the recorded oral multi-target evaluation. a, The library contains 3,177 compounds. The task has six eligibility requirements: one condition requirement for oral administration and five direct-evidence requirements for CSF1R, VEGFR1, VEGFR2, VEGFR3 and FGFR1. All six are required. The five target criteria also contribute their observed values to the prioritization score, so the framework contains 18 unique decision rules and 17 scored criteria. The current selection policy assigns 10 candidates to Eligible, 1,305 to Evidence incomplete and 1,862 to Excluded. Evidence incomplete contains candidates with partial support and no confirmed condition failure. All 1,862 exclusions reflect completed assessments with no admission support; confirmed condition failures number zero. b, Scores of all ten eligible candidates under the frozen framework. Surufatinib ranks first with a score of 0.7592592593. Fifteen available, equally weighted contributions enter its score. c, Oral administration is supported, and observations for all five targets are available. The target values are recorded potency aggregates in pChEMBL and contribute to ranking through their specified comparison rules. Five measured or curated values and five permitted deterministic calculations provide direct coverage of 10/17 (58.8%). Five additional criteria use predictions; two have no usable value. The saved ranking floor is 50%. An initial evaluation had 6/17 (35.3%) coverage and no rank. Correcting existing-evidence reuse and the evidence bases of four calculated descriptors raised coverage to 10/17 and permitted rank 1 under the same floor. Surufatinib was specified as a reference candidate. The outcome boxes in a are schematic; their printed numbers give the group sizes.
+
+## Reproduction
+
+The workflow starts from workflow_layout_reference.pptx, the accepted layout reference. The script changes selected text and the local non-eligible outcome area. The result figure starts from the original plotting coordinates; its editable PowerPoint is generated from the same vector artists.
+
+```powershell
+python -m pip install matplotlib python-pptx pymupdf
+python docs/figures/current/build_figures.py
+```
+
+PowerPoint on Windows is used for native rendering and text-fit validation. Both editable files opened successfully with zero overflowing text boxes, embedded raster images, gradients or shadows. The workflow retains a 3:2 aspect ratio; the result figure retains its 180:136 aspect ratio. [Validation](validation.json)

@@ -395,5 +395,8 @@ details > summary { cursor: pointer; font-size: 11px; color: var(--muted); font-
 .evidence-profile-groups strong { font-size: 26px; font-variant-numeric: tabular-nums; color: #2b526e; }
 .evidence-profile-groups span { font-size: 13px; line-height: 1.45; }
 .evidence-profile-label { color: #805f29; font-size: 13px; }
+.evidence-profile-label.complete { color: var(--good); }
+.evidence-profile-label.none, .evidence-profile-label.failed { color: var(--bad); }
+.evidence-profile-label.unknown { color: var(--muted); }
 .partition-dot.evidence_incomplete { background: #b78b40; }
 @media (max-width: 760px) { .evidence-profile-groups { grid-template-columns: 1fr; } }

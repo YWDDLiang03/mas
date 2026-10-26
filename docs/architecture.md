@@ -18,7 +18,7 @@ flowchart TD
     Review[Deterministic checks and machine adjudication]
     Rules[Frozen executable rule set]
     Identity[Candidate identity resolution]
-    Assess[Hard-condition qualification and per-criterion assessment]
+    Assess[Eligibility requirements and per-criterion assessment]
     Rank[Preference ranking of qualified candidates]
     Snapshot[Immutable leaderboard snapshot]
     Journal[(Journal and artifact store)]
@@ -56,7 +56,7 @@ The core accepts registered tools and adapter metadata rather than importing the
 2. Derivation reads permitted evidence or a pinned fact bank. Candidate criteria retain their evidence, pool lineage, and stage decisions.
 3. An **attribute** defines what is measured and how evidence is reduced. A **rule** defines how that measurement affects a decision. Confirmation freezes an executable set and its authority records.
 4. A tool response becomes a located claim only through the evidence layer. Admission, value basis, and independent document support are separate properties.
-5. An assessment connects candidate, attribute, rule version, claims, verdict, and reason. Qualification requires direct evidence for enabled hard conditions; predictions remain auxiliary under the current qualification policy.
+5. An assessment connects candidate, attribute, rule version, claims, verdict, and reason. Qualification checks every task-defined condition requirement and required direct observation. The same observation can also contribute to prioritization. Predictions retain a separate evidence basis.
 6. The leaderboard records qualification, coverage, scores, positions, missingness, and changes. A score or first place alone does not establish scientific confirmation.
 
 The durable store is SQLite with append-only event and artifact tables, canonical hashes, and one writer per store root. Read caches, workflow control files, display annotations, and upload files have their own storage paths. Thus “replayable” refers to reconstructing recorded scientific state; it does not imply that an external database or model will return the same answer if called again.

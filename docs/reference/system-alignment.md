@@ -9,11 +9,11 @@ TRIAGE is an evidence-driven medical research workbench. Each task supplies its 
 | Study concept | System implementation and presentation |
 |---|---|
 | Criterion generation | Proposal, critique, revision and adjudication, followed by evidence and definition checks. |
-| Mandatory requirement | A task-defined condition evaluated before eligible-candidate scoring. |
+| Eligibility requirements | Task-defined condition and evidence requirements that must all be satisfied before eligible-candidate scoring. |
 | Required direct evidence | A task-defined observation obligation with explicit scope, evidence bases and requirement references. |
 | Weighted prioritization | A fixed comparison method and weights applied to eligible candidates, with individual contributions available in Score. |
 | Contextual observation | Assessed for interpretation, outside admission and scoring weights. |
-| Enabled rules | Mandatory requirements plus prioritization criteria. |
+| Enabled rules | Unique criteria used in admission or scoring; their uses may overlap. |
 | Not enabled | Displayed as Not used in this evaluation, accompanied by the specific definition, review or evidence-route issue. |
 | Surufatinib example | An eligible candidate with oral-administration support and observations for all five required targets. |
 
@@ -23,13 +23,17 @@ TRIAGE is an evidence-driven medical research workbench. Each task supplies its 
 |---|---|
 | Criterion trajectory | Empty generated set, six task requirements, expansion to 1,917 working items, then refinement to 147, 68 and 53. |
 | Final working set | 18 enabled decision rules, 13 contextual observations and 22 items outside the evaluation. |
-| Enabled decision rules | One mandatory requirement and 17 prioritization criteria. |
+| Enabled decision rules | 18 unique rules = 6 eligibility requirements + 17 prioritization criteria − 5 shared target criteria. |
 | Candidate population | 3,177. |
 | Eligible population | 10. |
 | Latest Surufatinib rank | 1 of 10; score 0.7592592592592593. |
 | Direct preference coverage | 10/17 (58.8%), with a saved ranking floor of 50%. |
 | Score contributions | 15 available equally weighted contributions: five measured/curated values, five deterministic calculations and five predictions. |
 | Missing preference values | Two; retained in the coverage denominator of 17. |
+
+## Admission and scoring uses
+
+All six task requirements are mandatory for admission: one condition check for oral administration and five direct-evidence requirements for the targets. The same five target criteria also supply scoring values. Therefore the 18 unique decision rules implement six eligibility requirements and 17 scoring criteria, with five shared criteria. The workbench exposes these overlapping uses rather than treating them as exclusive categories.
 
 ## Classification version
 
@@ -40,10 +44,10 @@ The current candidate-selection policy, `selection_reporting_v3`, reports:
 | Display | Candidates | Decision basis |
 |---|---:|---|
 | Eligible | 10 | All admission requirements supported. |
-| Evidence incomplete | 1,305 | Some admission requirements supported; remaining requirements have evidence gaps. |
+| Evidence incomplete | 1,305 | Some admission requirements supported; remaining requirements have evidence gaps; no confirmed condition failure. |
 | Excluded | 1,862 | Completed required assessments provide no admission support. |
 
-The general policy also excludes a candidate when a mandatory condition fails. In this saved example, the exclusion count is entirely attributable to absent admission support. The source qualification fields, observed values, thresholds, scores and ranks retain their saved values. The export includes the current selection decision, reason code and policy version alongside the historical fields.
+The general policy also excludes a candidate when a required condition fails. In this saved example, the exclusion count is entirely attributable to absent admission support. The source qualification fields, observed values, thresholds, scores and ranks retain their saved values. The export includes the current selection decision, reason code and policy version alongside the historical fields.
 
 The shared implementation is [core/selection.py](../../src/mas/core/selection.py). New snapshots and workbench readers use the same task-defined decisions. Requirement-specific explanations use the exact rule assessment from the selected evaluation.
 
@@ -53,7 +57,7 @@ The workbench defaults to English and offers Chinese interface labels. Main cand
 
 A deterministic descriptor receives a calculated display title when its recorded title still says Predicted and its current evidence definition accepts only derived values. The source title remains available in details.
 
-The figure revision plan uses the same definitions. Its method panels describe configurable task requirements; its example panels carry the recorded quantities. Existing local artwork is a preparation source for the next figure revision.
+The [current figures](../figures/current/README.md) use the same definitions. Their method panels describe configurable task requirements; their example panels carry the recorded quantities. Both figures are supplied as native editable PowerPoint objects, vector PDF/SVG and 600 dpi PNG.
 
 ## Verification
 

@@ -6,10 +6,27 @@ from collections import Counter
 from typing import Any
 
 
-DECISION_READING_VERSION = 6
+DECISION_READING_VERSION = 7
 SELECTION_POLICY = "selection_reporting_v3"
 SELECTION_DECISIONS = ("eligible", "evidence_incomplete", "excluded", "incomplete", "not_ready")
 EVIDENCE_PROFILES = ("complete", "partial", "none", "unknown", "failed")
+
+
+def requirement_roles(entries: list[dict[str, Any]], required_evidence_refs: list[str]) -> dict[str, Any]:
+    """Describe admission and scoring as independent uses of frozen criteria."""
+    conditions = {row["rule_ref"] for row in entries if row.get("rule_kind") == "hard_exclusion"}
+    evidence = set(required_evidence_refs)
+    scoring = {row["rule_ref"] for row in entries if row.get("rule_kind") == "preference"}
+    context = {row["rule_ref"] for row in entries if row.get("rule_kind") == "exploratory_consideration"}
+    refs = {row["rule_ref"] for row in entries}
+    roles = {ref: {"condition_requirement": ref in conditions, "evidence_requirement": ref in evidence,
+                   "prioritization": ref in scoring, "contextual": ref in context} for ref in refs}
+    return {"roles": roles, "summary": {
+        "total": len(conditions | evidence), "condition_count": len(conditions),
+        "evidence_count": len(evidence), "condition_evidence_overlap": len(conditions & evidence),
+        "scoring_overlap_count": len((conditions | evidence) & scoring),
+        "scoring_count": len(scoring), "unique_decision_rule_count": len(conditions | (evidence & refs) | scoring),
+        "unbound_evidence_count": len(evidence - refs)}}
 
 
 def evidence_profile(qualification: dict[str, Any]) -> dict[str, Any]:
@@ -56,17 +73,17 @@ def eligibility_reading(entry: dict[str, Any], rules: dict[str, dict[str, Any]],
         description = ("Eligibility was not established under the current policy in this saved evaluation."
                        if legacy else "A detailed eligibility reason was not recorded.")
     elif state == "rejected":
-        code, description = "mandatory_failure", "Direct evidence confirms failure of a mandatory requirement."
+        code, description = "mandatory_failure", "Direct evidence confirms that a required condition is not met."
     elif state == "not_ready":
-        code, description = "criteria_not_ready", "Eligibility cannot be decided: no applicable, verified mandatory requirement is ready."
+        code, description = "criteria_not_ready", "Define and verify the task's eligibility requirements before assessment."
     elif state == "qualified":
-        code, description = "requirements_met", "Mandatory requirements are met and all required direct observations are available."
+        code, description = "requirements_met", "All eligibility requirements are satisfied: required conditions are met and required direct evidence is available."
     elif blocked and missing:
-        code, description = "mandatory_and_required_unresolved", "Required evidence is incomplete for mandatory requirements and required observations."
+        code, description = "mandatory_and_required_unresolved", "Eligibility requirements have gaps in both condition checks and required direct evidence."
     elif blocked:
-        code, description = "mandatory_unresolved", "Evidence required to establish a mandatory requirement is incomplete."
+        code, description = "mandatory_unresolved", "A required condition needs supporting evidence."
     elif missing:
-        code, description = "required_observations_unresolved", "Mandatory requirements are met; required direct observations are incomplete."
+        code, description = "required_observations_unresolved", "Required conditions are met; the required direct evidence is incomplete."
     elif state == "unassessed":
         code, description = "not_assessed", "Eligibility has not been assessed."
     else:
@@ -160,7 +177,7 @@ def selection_reading(reading: dict[str, Any]) -> dict[str, Any]:
     description = {
         "eligible": "All task admission requirements are supported.",
         "evidence_incomplete": "Some task admission requirements are supported; the remaining requirements need evidence.",
-        "excluded": ("A mandatory requirement is not met." if code == "mandatory_failure"
+        "excluded": ("A required condition is not met." if code == "mandatory_failure"
                      else "No task admission requirement has usable support."),
         "incomplete": "A required assessment is incomplete or its record is unavailable.",
         "not_ready": "The task admission framework is not ready.",

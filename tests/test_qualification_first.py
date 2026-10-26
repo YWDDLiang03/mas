@@ -19,11 +19,27 @@ TEMPLATE = actor("system", "synthetic-task-template", "adapter_template")
 MEMBERS = ["alpha", "beta", "rejected", "unknown"]
 
 
-def _fixture(core):
+def test_every_required_target_observation_is_an_admission_requirement():
+    required = [f"target_{i}" for i in range(5)]
+    cells = [{"rule_ref": ref, "verdict": "pass" if ref == "route" else "available",
+              "determination_basis": "measured", "value_kind": "measured",
+              "value_source_claim_refs": ["claim_"+ref]} for ref in ["route", *required]]
+    def admit(rows):
+        return assessor.qualification(rows, hard_rule_refs=["route"], verified_hard_rule_refs=["route"], required_rule_refs=required)
+    assert admit(cells)["qualified"]
+    for missing in required:
+        result = admit([cell for cell in cells if cell["rule_ref"] != missing])
+        assert not result["qualified"] and result["state"] == "pending"
+        assert result["hard_passed"] == 1 and result["required_direct_answered"] == 4
+        assert result["missing_direct_required_rule_refs"] == [missing]
+
+
+def _fixture(core, *, include_condition=True):
     context = dict(SPEC, candidate_universe={"kind": "enumerated_set", "members": MEMBERS}, seed_candidates=[],
                    scope_entities=[{"entity_kind": "target", "identifier": "SYNTH_TARGET", "role": "required"}])
     task_id, _ = task.record_version(core, context, by=OPERATOR)
-    criteria.propose(core, task_id, MW, MW_RULE, by=OPERATOR)
+    if include_condition:
+        criteria.propose(core, task_id, MW, MW_RULE, by=OPERATOR)
     attr = dict(CHEMBL_POTENCY, derived_from={"task_context": f"{task_id}@v1", "field": "scope_entities[0]"},
                 evidence_request=dict(CHEMBL_POTENCY["evidence_request"], parameters={"target_chembl_id": "SYNTH_TARGET"}))
     criteria.propose(core, task_id, attr, ORDERING, by=TEMPLATE)
@@ -88,6 +104,32 @@ def test_full_and_staged_have_identical_qualified_population_and_qualified_only_
         decisions = {row["candidate_ref"]: row["selection"] for row in board["candidate_entries"]}
         assert decisions["rejected"]["reason_code"] == "mandatory_failure"
         assert decisions["unknown"]["requirement_refs"]
+
+
+def test_task_can_require_evidence_without_an_extra_condition(core):
+    task_id, identities, hook, _ = _fixture(core, include_condition=False)
+    ref = measurement.register(core, task_id, by=OPERATOR, primary_board="Evidence-only requirements",
+                               rationale="Task requires observations", expected_effect="Evidence determines admission")
+    controller = RunController(core, Broker(core),
+        adapter={"adapter_id": "synthetic", "adapter_version": "1", "primary_scheme": "ik"},
+        identity_hook=identities, evidence_hook=hook)
+    run_id = controller.start(task_id, by=OPERATOR, measurement_profile_ref=ref)
+    board = leaderboard.snapshots(core, task_id)[-1]
+    assert board["readiness"] == "ready" and board["qualified_count"] == len(MEMBERS)
+    assert all(e["qualification"]["hard_total"] == 0 and e["qualification"]["required_total"] == 1 for e in board["candidate_entries"])
+    assert all(e["qualification"]["admission_requirement_policy"] == assessor.ADMISSION_POLICY for e in board["candidate_entries"])
+
+
+def test_versioned_admission_readiness_preserves_empty_and_historical_states():
+    cell = {"rule_ref": "sample_evidence", "verdict": "available", "determination_basis": "measured",
+            "value_kind": "measured", "value_source_claim_refs": ["sample_claim"]}
+    params = {"hard_rule_refs": [], "required_rule_refs": ["sample_evidence"], "verified_hard_rule_refs": []}
+    legacy = assessor.qualification([cell], **params)
+    assert legacy["state"] == "not_ready" and "admission_requirement_policy" not in legacy
+    assert assessor.qualification([cell], **params, admission_policy=assessor.ADMISSION_POLICY)["qualified"]
+    assert assessor.qualification([], **params, admission_policy=assessor.ADMISSION_POLICY)["state"] == "pending"
+    assert assessor.qualification([], **dict(params, required_rule_refs=[]), admission_policy=assessor.ADMISSION_POLICY)["state"] == "not_ready"
+    assert assessor.qualification([], **dict(params, required_rule_refs=["unbound_required_scope:sample"]), admission_policy=assessor.ADMISSION_POLICY)["state"] == "not_ready"
 
 
 def test_prediction_cannot_fail_a_hard_gate_or_raise_direct_coverage_and_ordering_is_available():

@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from . import criteria, freeze, supplements, task as task_mod
+from . import assessor, criteria, freeze, supplements, task as task_mod
 from .canonical import sha256_hex
 from .clock import utc_now
 from .runtime import Core
@@ -171,6 +171,8 @@ def register(core: Core, task_id: str, *, by: dict[str, Any], primary_board: str
         "required_binding_check": required_binding_check,
         "withhold_unresolved_reviews": qualification_policy == "qualification_first_v1",
         "evaluation_mode": evaluation_mode, "qualification_policy": qualification_policy, "evidence_mode": evidence_mode,
+        "admission_requirement_policy": (assessor.ADMISSION_POLICY if qualification_policy == assessor.QUALIFICATION_POLICY
+                                          else assessor.LEGACY_ADMISSION_POLICY),
         "scoring_method": "weighted_preference_qualified_v1" if qualification_policy == "qualification_first_v1" else "legacy",
     }
     policy = {

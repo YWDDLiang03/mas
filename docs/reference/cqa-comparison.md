@@ -2,7 +2,7 @@
 
 [中文](../zh/cqa-comparison.md) · [JSON](../../examples/oral-multitarget/cqa-comparison.json) · [CSV](../../examples/oral-multitarget/cqa-comparison.csv)
 
-The latest system names **two of the original eleven endpoints**: human intestinal absorption probability and CYP2C9 inhibition probability. CYP2C9 inhibition is an enabled ranking preference; intestinal absorption is deferred. Thus **one original endpoint appears in the 18-rule enabled core**. No complete original pass/fail criterion is reproduced: thresholds, decision roles, or endpoint definitions differ. Three original rows have related quantities whose event identity remains unresolved, and six have no matching current endpoint.
+The latest system names **two of the original eleven endpoints**: human intestinal absorption probability and CYP2C9 inhibition probability. CYP2C9 inhibition is an enabled ranking preference; intestinal absorption is deferred. Thus **one original endpoint appears in the 18 enabled decision rules**. No complete original pass/fail criterion is reproduced: thresholds, decision roles, or endpoint definitions differ. Three original rows have related quantities whose event identity remains unresolved, and six have no matching current endpoint.
 
 This is a **descriptive post-hoc comparison**, completed on 17 October 2026 against fixed outputs. It does not remeasure acceptance endpoint B, establish blind recovery, or change the system criteria. No new model or derivation run was performed for the comparison.
 
@@ -13,9 +13,9 @@ This is a **descriptive post-hoc comparison**, completed on 17 October 2026 agai
 | Original human-selected baseline | The manuscript authors' **11 CQAs** in Figure 1A(d). They are predicted probabilities or a prediction, applied as eleven required pass conditions. “Human-selected” describes who chose the criteria; it does not turn their predicted values into measured clinical outcomes. |
 | Earlier system registry | The previously discussed **59 registered criteria** are an older system output. They are not the original authors' eleven-item baseline and are excluded from this comparison's denominator. |
 | Latest working set | **53 current items**: 45 registered criteria and 8 unregistered pending proposals. Historical retired or merged proposals are excluded. |
-| Latest enabled core | **18 rules**: 1 hard exclusion and 17 ranking preferences. The five task-required receptor potency preferences are included in these 17. Qualification also requires the declared direct target evidence. |
-| Latest reference context | **13 enabled exploratory observations**. They retain context without adding ranking weight. Together with the core, 31 items enter assessment. |
-| Latest not enabled | **22 items**: 14 registered but deferred and 8 unregistered proposals. “Present in the working set” does not mean “used in ranking.” |
+| Latest enabled decision rules | **18 unique rules**: six eligibility requirements and 17 scoring criteria share five target criteria. Admission requires the oral condition and all five direct target observations; target values also contribute to ranking. |
+| Latest reference context | **13 contextual observations**. They support interpretation. Together with the decision rules, 31 items enter assessment. |
+| Not used in this evaluation | **22 items**: 14 registered but deferred and 8 unregistered proposals. “Present in the working set” does not mean “used in ranking.” |
 
 The latest pin is task `task_01M52CBE5GYPK9F0MCZYBMPH84`, snapshot `lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2`, `rules@v2`, published `2026-10-16T16:24:51.438Z`. Its source records are [cqa.json](../../examples/oral-multitarget/latest/results/cqa.json), [snapshot.json](../../examples/oral-multitarget/latest/results/snapshot.json), and [source-cqa-history.json](../../examples/oral-multitarget/latest/results/source-cqa-history.json). The comparison JSON pins the first two files by SHA-256.
 

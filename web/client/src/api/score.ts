@@ -1,4 +1,5 @@
 export interface ScoreRow {
+  required_for_admission?: boolean;
   display_name?: string | null;
   rule_ref: string; attribute_ref: string; name: string; definition?: string;
   value: number | string | boolean | null; unit?: string | null; basis: string;

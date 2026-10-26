@@ -1,0 +1,93 @@
+{
+  "general_logic": "Task-defined eligibility and scoring uses are independent; rule identities are deduplicated and interpreted against their frozen task scope.",
+  "case_requirement_summary": {
+    "total": 6,
+    "condition_count": 1,
+    "evidence_count": 5,
+    "condition_evidence_overlap": 0,
+    "scoring_overlap_count": 5,
+    "scoring_count": 17,
+    "unique_decision_rule_count": 18,
+    "unbound_evidence_count": 0
+  },
+  "dual_role_criteria": [
+    "CSF1R curated potency",
+    "FGFR1 curated potency",
+    "VEGFR1 curated potency",
+    "VEGFR2 curated potency",
+    "VEGFR3 curated potency"
+  ],
+  "surufatinib_rank": 1,
+  "surufatinib_score": 0.7592592592592593,
+  "selection_counts": {
+    "eligible": 10,
+    "evidence_incomplete": 1305,
+    "excluded": 1862,
+    "incomplete": 0,
+    "not_ready": 0,
+    "total": 3177
+  },
+  "export_rows": 3177,
+  "verification": {
+    "existing_related_checks_passed": 76,
+    "new_semantic_regressions_passed": 3,
+    "read_and_score_regressions_passed": 36,
+    "counts_overlap": true,
+    "frontend_build": "passed",
+    "powerpoint_text_fit": "passed",
+    "figure_layout": "preserved"
+  },
+  "frozen_source_hashes": {
+    "snapshot.json": "15641161ca363e33c64707eb86233a2837570bf72e5bbc089bb29db0b4d15036",
+    "cqa.json": "4d4673d6762d3ba08d4720e9dba06d4a53f12caf482c0c36bc8bd7e053e0ff92",
+    "surufatinib.json": "ebde8b6d2167a195f1418c7cbeb49b9227fabcf6246720fd2fcd772173f394dc"
+  },
+  "general_execution": {
+    "new_profile_policy": "declared_eligibility_requirements_v1",
+    "evidence_only_task": "controller execution passed",
+    "empty_requirements": "not_ready",
+    "unbound_evidence_only_requirements": "not_ready",
+    "historical_profiles": "original policy preserved for resume and replay",
+    "admission_reproduction_binding_checks_passed": 45,
+    "workflow_run_checks_passed": 12,
+    "measurement_profile_checks_passed": 8
+  },
+  "browser_screenshot": "admission-roles-ui.png",
+  "publication_check": {
+    "date": "2026-10-26",
+    "related_tests_passed": 75,
+    "frontend_build": "passed",
+    "live_api_counts": {
+      "eligible": 10,
+      "evidence_incomplete": 1305,
+      "excluded": 1862,
+      "incomplete": 0,
+      "not_ready": 0,
+      "total": 3177
+    },
+    "live_api_requirement_roles": {
+      "total": 6,
+      "condition_count": 1,
+      "evidence_count": 5,
+      "condition_evidence_overlap": 0,
+      "scoring_overlap_count": 5,
+      "scoring_count": 17,
+      "unique_decision_rule_count": 18,
+      "unbound_evidence_count": 0
+    },
+    "live_export_rows": 3177,
+    "surufatinib_rank": 1,
+    "surufatinib_score": 0.7592592592592593,
+    "browser_checked": [
+      "eligible table",
+      "partial-support example Erlotinib: 1/1 condition; 3/5 evidence",
+      "excluded reasons",
+      "candidate requirement roles",
+      "evidence-count scope"
+    ],
+    "figure_counts": "match current selection audit",
+    "figure_text_fit": "passed",
+    "figure_layout": "unchanged in final wording pass",
+    "screenshot": "admission-roles-candidate-ui.png"
+  }
+}

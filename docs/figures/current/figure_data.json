@@ -1,0 +1,117 @@
+{
+  "study_task_id": "task_01M52CBE5GYPK9F0MCZYBMPH84",
+  "run_id": "run_01M52Q4VRB00T5Z3QJW08SSV96",
+  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2",
+  "rule_set": "rules@v2",
+  "candidate_count": 3177,
+  "recorded_qualification": {
+    "qualified": 10,
+    "pending": 3167
+  },
+  "selection_reporting_v3": {
+    "eligible": 10,
+    "excluded": 1862,
+    "evidence_incomplete": 1305,
+    "incomplete": 0,
+    "not_ready": 0
+  },
+  "ranked_candidates": [
+    {
+      "name": "Surufatinib",
+      "rank": 1,
+      "score": 0.7592592592592593
+    },
+    {
+      "name": "Pazopanib",
+      "rank": 2,
+      "score": 0.6185185185185185
+    },
+    {
+      "name": "Axitinib",
+      "rank": 3,
+      "score": 0.5666666666666667
+    },
+    {
+      "name": "Vandetanib",
+      "rank": 4,
+      "score": 0.5
+    },
+    {
+      "name": "Nintedanib",
+      "rank": 5,
+      "score": 0.49629629629629635
+    },
+    {
+      "name": "Sorafenib",
+      "rank": 6,
+      "score": 0.4925925925925926
+    },
+    {
+      "name": "Sunitinib",
+      "rank": 7,
+      "score": 0.4814814814814815
+    },
+    {
+      "name": "Entrectinib",
+      "rank": 8,
+      "score": 0.4481481481481481
+    },
+    {
+      "name": "Fedratinib",
+      "rank": 9,
+      "score": 0.36666666666666664
+    },
+    {
+      "name": "Midostaurin",
+      "rank": 10,
+      "score": 0.33703703703703697
+    }
+  ],
+  "surufatinib": {
+    "qualification": {
+      "applicable_hard_count": 1,
+      "blocking_hard_rule_refs": [],
+      "failed_hard_rule_refs": [],
+      "hard_blocked": 0,
+      "hard_direct_coverage": 1.0,
+      "hard_failed": 0,
+      "hard_passed": 1,
+      "hard_total": 1,
+      "missing_direct_required_rule_refs": [],
+      "qualified": true,
+      "required_direct_answered": 5,
+      "required_direct_coverage": 1.0,
+      "required_total": 5,
+      "state": "qualified",
+      "verified_hard_count": 1
+    },
+    "target_potency_pchembl": {
+      "CSF1R": 8.301029995663981,
+      "VEGFR1": 8.85,
+      "VEGFR2": 7.679999828338623,
+      "VEGFR3": 9.0,
+      "FGFR1": 7.6442605414788725
+    },
+    "score": 0.7592592592592593,
+    "scored_preference_count": 15,
+    "direct_coverage_numerator": 10,
+    "direct_coverage_denominator": 17,
+    "preference_basis_counts": {
+      "measured": 5,
+      "structure_derived": 5,
+      "predicted": 5,
+      "missing": 2
+    }
+  },
+  "source_files": {
+    "examples/oral-multitarget/latest/results/candidates.csv": "1a3b2ce25726121464c2e26ba3335bf1c2ce9ba760dfa225450ad7dc47891bbf",
+    "examples/oral-multitarget/latest/results/surufatinib.json": "ebde8b6d2167a195f1418c7cbeb49b9227fabcf6246720fd2fcd772173f394dc",
+    "examples/oral-multitarget/latest/score-details.csv": "721aa3c0f417fc1b166eba52161f9f9a61a36f763681f9b5d7cbe253058a2123",
+    "examples/oral-multitarget/latest/score-details.json": "936d9008359edb882e5104d02e0b60a00799f059597fcfcd7c4a72fbfbb77438"
+  },
+  "figure_1_is_schematic": true,
+  "new_model_calls": 0,
+  "new_research_run": false,
+  "font": "Arial",
+  "png_dpi": 600
+}

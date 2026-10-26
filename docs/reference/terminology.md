@@ -53,8 +53,9 @@ English is the display default. Chinese translates interface labels; research ob
 | 标准池 | Criterion pool | 标准池 | 包含待议、修改、合并与未启用项 |
 | 属性 | Attribute | 评估属性 | 定义测什么、单位、适用条件、证据及聚合 |
 | 规则 | Decision rule | 决策规则 | 定义该属性怎样影响准入或排序 |
-| 必须满足的条件 | Mandatory requirement | 强制要求 | 可在详情中写“强制要求”；避免临床患者入组条件的歧义 |
-| 必需观测 | Required direct observation | 必需直接观测 | 本例五个靶点的资料要求；不自动构成效力阈值 |
+| 准入要求 | Eligibility requirement | 准入要求 | 包含条件要求与证据要求，全部必须满足；与计分用途独立。 |
+| 条件要求 | Condition requirement | 条件要求 | 必须满足的数值、范围或类别。 |
+| 证据要求 | Evidence requirement | 证据要求 | 准入时必须具备的可用直接观测；同一标准可同时用于评分。 |
 | 加权排序标准 | Weighted prioritization criterion | 加权排序标准 | 合格候选之间的比较项 |
 | 上下文观察 | Contextual observation | 参考观察项 | 辅助理解，不加准入或排序权重 |
 | 未启用项 | Not used in this evaluation | 未纳入本次评估 | 必须给具体未启用理由；不等于已证伪 |
@@ -81,11 +82,11 @@ English is the display default. Chinese translates interface labels; research ob
 | 无名次 | Not ranked | 未排名 | 可能有分数但覆盖不足；原因必须可见 |
 | 无可用推荐 | No rankable candidate / no recommendation | 无可排名候选／未形成推荐 | 保留失败原因 |
 | 平台品牌 | TRIAGE | TRIAGE | MAS保留为代码库与包名；界面展示医学研究工作台。 |
-| 候选准入 | Eligible | 具备资格 | 适用强制条件满足，必需直接观测齐全。 |
-| 中间态 | Evidence incomplete | 准入证据不完整 | 部分任务要求有可用依据，其余尚有缺口，且没有强制条件失败。 |
+| 候选准入 | Eligible | 具备资格 | 适用条件要求满足，必需直接观测齐全。 |
+| 中间态 | Evidence incomplete | 准入证据不完整 | 部分任务要求有可用依据，其余尚有缺口，且没有条件要求失败。 |
 | 部分支持 | Evidence incomplete | 准入证据不完整 | 一部分准入依据已建立，其余未建立；不称部分合格。 |
 | 零项支持 | No admission support | 无准入依据 | 必需评估完成后，所有准入要求均无可用支持；候选被排除。 |
-| 候选排除 | Excluded | 已排除 | 强制条件失败，或必需评估完成后无准入依据。 |
+| 候选排除 | Excluded | 已排除 | 条件要求失败，或必需评估完成后无准入依据。 |
 | 执行状态 | Assessment incomplete | 评估未完成 | 必需评估未完成、工具失败或记录不可用；不作为性质失败。 |
 | 框架状态 | Criteria not ready | 条件未就绪 | 缺少有效规则、绑定或准备证明；与候选性质无关。 |
 | 偏好谓词结果 | Scoring threshold met / not met | 满足／未满足计分阈值 | 只说明该排序项的比较结果，不直接排除候选。 |
@@ -101,10 +102,12 @@ English is the display default. Chinese translates interface labels; research ob
 
 ## Stable counting names
 
-Use **working items** for the expanding and refining pool; **enabled decision rules** for mandatory requirements plus prioritization criteria; **assessed items** when contextual observations are also included. A condition-met count, required-observation count, available-score denominator and direct-evidence coverage denominator each name their own scope.
+Use **working items** for the expanding and refining pool; **enabled decision rules** for the unique criteria used in admission or prioritization; **assessed items** when contextual observations are also included. A condition-met count, required-observation count, available-score denominator and direct-evidence coverage denominator each name their own scope.
 
 The oral example has 53 retained working items, 18 enabled decision rules, 31 assessed items, 17 prioritization criteria and 15 available score contributions. These are different denominators. Their definitions, rather than the example's numerical values, are shared across studies.
 
 ## Historical titles with updated evidence bases
 
 A criterion whose recorded title begins with Predicted can have a later version that accepts only derived values. For such a version, the interface provides a calculated display title while retaining the original name in the record. The rule is based on declared evidence bases, not on a hard-coded list of descriptors. Standards permitting predicted or mixed bases retain their original title.
+
+Eligibility and scoring are overlapping uses. In the recorded case, five target criteria are both required evidence and scored criteria: 6 eligibility requirements + 17 scoring criteria − 5 shared criteria = 18 unique decision rules.

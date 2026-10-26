@@ -223,6 +223,11 @@ class RunController:
             if explicit is not None and profile and explicit != value:
                 raise RunError("rejected_invalid", f"{key} differs from the registered profile")
             modes[key] = value
+        modes["admission_requirement_policy"] = (scoring.get("admission_requirement_policy", assessor.LEGACY_ADMISSION_POLICY)
+            if profile else assessor.ADMISSION_POLICY if modes["qualification_policy"] == assessor.QUALIFICATION_POLICY
+            else assessor.LEGACY_ADMISSION_POLICY)
+        if modes["admission_requirement_policy"] not in (assessor.LEGACY_ADMISSION_POLICY, assessor.ADMISSION_POLICY):
+            raise RunError("rejected_invalid", "invalid admission requirement policy")
         if modes["evaluation_mode"] not in ("staged", "full") or modes["qualification_policy"] not in ("legacy", assessor.QUALIFICATION_POLICY) \
                 or modes["evidence_mode"] not in ("existing_only", "retrieve"):
             raise RunError("rejected_invalid", "invalid evaluation, qualification or evidence mode")
@@ -926,7 +931,8 @@ class RunController:
             hard = [r["entry"]["rule_ref"] for r in st.rules if r["rule"]["rule_kind"] == "hard_exclusion"]
             verified = [r["entry"]["rule_ref"] for r in st.rules if self._verified_hard(r)]
             qualifications = {c: assessor.qualification(by_candidate[c], hard_rule_refs=hard, required_rule_refs=required,
-                verified_hard_rule_refs=verified, pending_hard_rules=pending_hard) for c in candidates}
+                verified_hard_rule_refs=verified, pending_hard_rules=pending_hard,
+                admission_policy=st.binding.get("admission_requirement_policy", assessor.LEGACY_ADMISSION_POLICY)) for c in candidates}
         by_candidate, rules_info, guard = self._calibration_guard(st, by_candidate, rules_info, mandated, ids)
         roll_ups = {c: assessor.roll_up(c, by_candidate[c], coverage_floor=st.rule_set.get("coverage_floor", 1.0),
                                         recommended_requires_hd=requires_hd, pending_hard_rules=pending_hard,

@@ -15,7 +15,7 @@
 
 可直接执行的恢复、回放和新运行命令见 [Agent 运行指南](../agent-run.md)。共同实现位于 [`reproduction.py`](../../src/mas/core/reproduction.py)：`import_bundle()` 恢复选定记录，`verify_replay()` 调用实际生产引擎，`prepare_live()` 准备用于独立生成的纯证据来源。可移植包保存的是声明了排除项的公开记录选择。[清单](../../examples/oral-multitarget/latest/reproduction/manifest.json)记录哈希、依赖、排除的全文/模型轨迹和不可用历史引用；较大的包文件未在本地时，按其中分发说明获取。
 
-固定回放目标是任务 `task_01M52CBE5GYPK9F0MCZYBMPH84`、运行 `run_01M52Q4VRB00T5Z3QJW08SSV96`、快照 `lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2`、`rules@v2`。保存结果包含 3,177 个候选、18 条启用核心规则（一条硬条件、17 条偏好）及 13 条启用背景观测；10 个候选合格，3,167 个等待证据。Surufatinib 排名第一，分数 `0.7592592592592593`，直接偏好覆盖率 `10/17`。这些数值用于比较历史结果；新模型实验需如实记录自己的输出。
+固定回放目标是任务 `task_01M52CBE5GYPK9F0MCZYBMPH84`、运行 `run_01M52Q4VRB00T5Z3QJW08SSV96`、快照 `lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2`、`rules@v2`。本次研究包含 3,177 个候选、18 条独立启用决策规则和 13 条参考观察项。六项准入要求由一项口服条件和五项必需靶点观测组成；五项靶点标准同时属于 17 项计分标准，因此 `6＋17−5＝18`。当前分组为 **10 个符合准入要求、1,305 个准入证据不完整、1,862 个已排除**。Surufatinib 排名第一，分数 `0.7592592592592593`，直接偏好覆盖率 `10/17`。冻结来源保留 `qualified: 10`、`pending: 3167`、`rejected: 0`，当前显示见[分类映射](../reference/system-alignment.md#classification-version)。新模型实验记录自己的实际输出。
 
 <a id="read-records"></a>
 ## 1. 基础记录：先确定正在阅读哪个版本
@@ -93,7 +93,7 @@ print("Pinned tool facts:", bindings["run_01M52Q4VRB00T5Z3QJW08SSV96"]
 
 打开 [stages.json](../../examples/oral-multitarget/latest/results/stages.json)、[cqa.json](../../examples/oral-multitarget/latest/results/cqa.json) 与 [source-cqa-history.json](../../examples/oral-multitarget/latest/results/source-cqa-history.json)。初始标准池和注册表均为零，先记录六条任务要求标准；四个提议维度把活动数量依次展开至 `293 → 504 → 1192 → 1917`。随后三轮 filter/distill/refine/merge 在每轮 merge 结束时收敛至 `147 → 68 → 53`。
 
-最终集合各有不同含义：53 个活动条目、45 个注册条目、18 条启用核心规则和 13 条启用背景观测。待审条目与注册标准有重叠，不能把这些数字相加成互斥总体，也不能把全部历史条目当作当前规则。
+最终集合各有不同含义：53 个活动条目、45 个注册条目、18 条独立启用决策规则和 13 条参考观察项。18 条规则承担 6 项准入要求和 17 项计分用途，其中 5 项靶点标准共有。待审条目与注册标准有重叠，不能把这些数字相加成互斥总体，也不能把全部历史条目当作当前规则。
 
 [`derivation.py`](../../src/mas/core/derivation.py)组织生成，[`derivation_stages.py`](../../src/mas/core/derivation_stages.py)实现各阶段，[`pool.py`](../../src/mas/core/pool.py)保存变化和父项，[`criteria.py`](../../src/mas/core/criteria.py)与 [`adjudication.py`](../../src/mas/core/adjudication.py)检查可执行含义和批准依据。分子量示例保留合并父项，以及有来源支持的 `500 Da` 偏好界限；该次准备中的 HIA 预测仍处于 deferred 状态。
 
@@ -102,7 +102,7 @@ print("Pinned tool facts:", bindings["run_01M52Q4VRB00T5Z3QJW08SSV96"]
 <a id="assessment-and-qualification"></a>
 ## 7. 评估与资格：把证据转成候选判断
 
-保存的 [Surufatinib 详情](../../examples/oral-multitarget/latest/results/surufatinib.json)记录一条硬条件通过、五个必需靶点均有直接回答。口服单元为 `pass`、`value = true`、依据 `derived`，它来自有来源的临床布尔投影。靶点偏好按可用观测排序，没有增添缺乏支持的效力硬阈值。
+保存的 [Surufatinib 详情](../../examples/oral-multitarget/latest/results/surufatinib.json)记录六项准入要求全部满足：一项口服条件通过、五个必需靶点均有直接观测。口服单元为 `pass`、`value = true`、依据 `derived`，它来自有来源的临床布尔投影。靶点偏好按可用观测排序，没有增添缺乏支持的效力硬阈值。
 
 FGFR1 的最终单元为 `available`、`7.6442605414788725 pChEMBL`、measured 依据，共四条来源 claim。精简 source-facts 文件只列部分支持记录。以下只读示例用生产函数转换其中一条：
 
@@ -125,14 +125,14 @@ print(converted["unit_conversion"]["value_as_reported"])
 
 预期输出为 `34 nM`、`7.468521082957745 pChEMBL` 和保留的原始值 `34`。单条换算与四条聚合的最终结果不同。`converted_claim()` 返回副本，不修改文件或原 claim。
 
-[`assess_cell()`、`direct_evidence()` 和 `qualification()`](../../src/mas/core/assessor.py)先应用证据策略，再判定资格。直接硬条件失败导致拒绝；缺失/冲突保持阻塞或 pending；单独预测不能硬淘汰，也不增加直接覆盖率。人体口服 F% 单元保留 `unknown_missing`。**核对：**数值、verdict、直接依据与资格相互支持，并区分缺证、冲突、错误和跳过。见[评估参考](../components/assessment-and-qualification.md)。
+[`assess_cell()`、`direct_evidence()` 和 `qualification()`](../../src/mas/core/assessor.py)先应用证据策略，再判定资格。条件要求明确失败时进入已排除。必需评估完成后，部分准入要求有依据进入准入证据不完整，所有要求均无依据则进入已排除。执行未完成和工具错误单独显示评估未完成。预测保留其依据类型，不计入准入所需的直接证据。人体口服 F% 单元保留 `unknown_missing`。**核对：**数值、verdict、直接依据与资格相互支持，并区分缺证、冲突、错误和跳过。见[评估参考](../components/assessment-and-qualification.md)。
 
 <a id="ranking-and-explanations"></a>
 ## 8. 排序与解释：通过资格后再理解分数
 
 [`assessor.preference_scores()`](../../src/mas/core/assessor.py)对合格总体评分，[`leaderboard.build_snapshot()`](../../src/mas/core/leaderboard.py)保存位置、资格、覆盖率及报告计数。配合候选详情读取 [score-details.csv](../../examples/oral-multitarget/latest/score-details.csv) 和 [score-details.json](../../examples/oral-multitarget/latest/score-details.json)，将每个贡献项追溯到评估和 claim。
 
-保存的第一名位于十个合格候选中，直接偏好覆盖为 `10/17`；另外 3,167 个候选等待证据。完整遍历描述已记录的评估工作，证据完整程度需另看覆盖指标。可选叙述/符号模型各有来源和验证记录，解释仍须落到原评估。
+保存的第一名位于十个合格候选中，直接偏好覆盖为 `10/17`；其余为 **1,305 个准入证据不完整、1,862 个因无准入依据被排除**。这些记录的冻结资格字段保留 `pending`，当前筛选字段给出具体分类与原因。完整遍历描述已记录的评估工作，证据完整程度需另看覆盖指标。可选叙述/符号模型各有来源和验证记录，解释仍须落到原评估。
 
 **核对：**比较分数时使用相同冻结规则集、合格总体、归一化、覆盖下限和并列策略。修改候选库可改变归一化排序，即使某些观测没变。见[排序参考](../components/ranking-and-explanations.md)。
 
