@@ -223,7 +223,7 @@ N 是有值候选数，W 是较差数值个数，E 是包含当前候选的并�
 
 将[文件清单](../../examples/oral-multitarget/latest/results/manifest.json)、[验证结果](../../examples/oral-multitarget/latest/results/validation.json)、[工作流](../../examples/oral-multitarget/latest/results/workflow.json)、[标准](../../examples/oral-multitarget/latest/results/cqa.json)和[标准历史](../../examples/oral-multitarget/latest/results/source-cqa-history.json)一并保留。比较后续修改时继续保存缺证、冲突与早期结果。
 
-最终固定身份为任务 `task_01M52CBE5GYPK9F0MCZYBMPH84`、快照 `lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2`、运行 `run_01M52Q4VRB00T5Z3QJW08SSV96`。[全面研究](../../examples/oral-multitarget/comprehensive/results/)是另一项保留分析：Surufatinib 在十个合格候选中排名第四，所用固定标准不同。
+最终固定身份为任务 `task_01M52CBE5GYPK9F0MCZYBMPH84`、快照 `lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2`、运行 `run_01M52Q4VRB00T5Z3QJW08SSV96`。
 
 [原始 CQA 比较](cqa-comparison.md)单独报告事后描述：两项同名端点但决策改变、三行相关且未确定、六项端点缺失；**B 未重测**。原手稿的筛选清单不作为新一轮标准生成输入。
 

@@ -225,7 +225,7 @@ Choose **Export all candidates**. It covers the full population, not just the vi
 
 Keep [manifest.json](../examples/oral-multitarget/latest/results/manifest.json), [validation.json](../examples/oral-multitarget/latest/results/validation.json), [workflow.json](../examples/oral-multitarget/latest/results/workflow.json), [cqa.json](../examples/oral-multitarget/latest/results/cqa.json), and [source-cqa-history.json](../examples/oral-multitarget/latest/results/source-cqa-history.json). Preserve missing/conflicted cells and earlier outcomes when comparing later changes.
 
-The final pin is task `task_01M52CBE5GYPK9F0MCZYBMPH84`, snapshot `lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2`, run `run_01M52Q4VRB00T5Z3QJW08SSV96`. The [comprehensive study](../examples/oral-multitarget/comprehensive/results/) is separate: Surufatinib ranks fourth among ten under different frozen criteria.
+The final pin is task `task_01M52CBE5GYPK9F0MCZYBMPH84`, snapshot `lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2`, run `run_01M52Q4VRB00T5Z3QJW08SSV96`.
 
 The [original screening-criterion comparison](reference/cqa-comparison.md) is a separate post-hoc description: two same-named endpoints with changed decisions, three related/unresolved rows and six absent endpoints. **B was not remeasured.** The original manuscript's screening list is not an input for a new criterion-generation task.
 

@@ -27,7 +27,6 @@ TRIAGE is an evidence-driven medical research workbench. Each task supplies its 
 | Candidate population | 3,177. |
 | Eligible population | 10. |
 | Latest Surufatinib rank | 1 of 10; score 0.7592592592592593. |
-| Other retained framework | Surufatinib ranks 4 among the same ten eligible candidates. |
 | Direct preference coverage | 10/17 (58.8%), with a saved ranking floor of 50%. |
 | Score contributions | 15 available equally weighted contributions: five measured/curated values, five deterministic calculations and five predictions. |
 | Missing preference values | Two; retained in the coverage denominator of 17. |

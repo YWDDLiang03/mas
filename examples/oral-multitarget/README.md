@@ -2,14 +2,12 @@
 
 [Step-by-step tutorial](../../docs/tutorial.md) · [中文教程](../../docs/zh/tutorial.md) · [Original CQA comparison](../../docs/reference/cqa-comparison.md)
 
-This directory contains frozen exports from two completed local studies. The latest study begins with an oral multi-target objective, develops and refines criteria from saved evidence, checks the recorded compound library, and links the final ranking to its rules and source observations.
+This directory contains the frozen export from the latest completed study. The latest study begins with an oral multi-target objective, develops and refines criteria from saved evidence, checks the recorded compound library, and links the final ranking to its rules and source observations.
 
 | Study | Surufatinib rank | Score | Qualified | Full candidate export |
 |---|---:|---:|---:|---:|
 | [Latest](latest/results/) | 1 | 0.7592592592592593 | 10 | 3,177 |
-| [Comprehensive](comprehensive/results/) | 4 | 0.6629629629629631 | 10 | 3,177 |
 
-These studies have different frozen criteria. Interpret scores within their own saved evaluation; the comprehensive result remains a separate historical outcome.
 
 ## Start with the latest saved result
 

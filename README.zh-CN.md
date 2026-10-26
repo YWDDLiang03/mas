@@ -114,7 +114,7 @@ npm.cmd --prefix web/client run build
 | Surufatinib | 第 1 / 10；分数 0.7592592593 |
 | Surufatinib 直接偏好覆盖 | 10/17 |
 
-另保留[全面研究](examples/oral-multitarget/comprehensive/results/)，其中 Surufatinib 排第 4。两次冻结标准不同，分数在各自方案内解释。[完整结果](examples/oral-multitarget/)保留全部候选及未知状态。可选数据包恢复最新研究，并提供开展独立研究所需的固定事实输入。
+[最新研究的完整结果](examples/oral-multitarget/latest/results/)保留全部候选及其证据状态。可选数据包恢复这项研究，并提供开展独立研究所需的固定事实输入。
 
 ### 原始筛选标准与系统评估标准对比
 

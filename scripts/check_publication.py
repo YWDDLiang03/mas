@@ -74,8 +74,8 @@ def main() -> int:
             if not path.is_file() or path.stat().st_size != entry['bytes'] or digest(path) != entry['sha256']:
                 errors.append(f'Frozen result mismatch: {path.relative_to(ROOT)}')
             verified_files += 1
-    if verified_files != 28:
-        errors.append(f'Expected 28 manifest-bound result files, found {verified_files}')
+    if verified_files != 14:
+        errors.append(f'Expected 14 manifest-bound result files, found {verified_files}')
     supplementary = json.loads((case / 'latest/supplementary-manifest.json').read_text(encoding='utf-8'))
     for name, entry in supplementary['files'].items():
         path = case / 'latest' / name

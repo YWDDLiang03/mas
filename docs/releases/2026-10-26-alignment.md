@@ -30,7 +30,7 @@ The current selection policy refines the historical 3,167 pending records into 1
 | Running workbench API | Overview, criterion history/sources, candidate details, evidence list, search, snapshots and complete 3,177-row CSV passed. |
 | Latest-study selection and CSV | 10 Eligible, 1,305 Evidence incomplete, 1,862 Excluded; selection reasons and totals agree. |
 | Browser | Group names, red Excluded indicator, criterion-use reasons and Surufatinib score details verified. The page shows 11.388889 / 15 = 0.759259 and direct coverage 10/17. |
-| Frozen result integrity | All 28 result files checked against the published manifests. |
+| Frozen result integrity | All 14 currently published result files checked against the latest-study manifest. |
 
 This update uses the retained study for numerical checks and synthetic tasks for general decision behavior. It performs no new literature retrieval or paid model investigation.
 

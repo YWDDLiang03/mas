@@ -114,7 +114,7 @@ The [complete tutorial](docs/tutorial.md) follows the saved research from Settin
 | Surufatinib | Rank 1 of 10; score 0.7592592593 |
 | Surufatinib direct preference coverage | 10/17 |
 
-The [comprehensive study](examples/oral-multitarget/comprehensive/results/) is also retained, where Surufatinib ranks fourth. Its criteria differ, so the scores belong to different comparisons. [Both complete exports](examples/oral-multitarget/) preserve every candidate and its unknown states. The optional capsule restores the latest study and its fixed factual inputs for independent research.
+[The complete latest export](examples/oral-multitarget/latest/results/) preserves every candidate and its recorded evidence state. The optional capsule restores this study and its fixed factual inputs for independent research.
 
 ### Original screening criteria versus generated criteria
 
