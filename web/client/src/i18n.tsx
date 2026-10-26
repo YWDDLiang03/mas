@@ -29,7 +29,7 @@ export function operationText(operation: string, t: Translate): string {
   const labels: Record<string, [string, string]> = {
     register: ['Registered', '已注册'], add: ['Added', '已新增'], revise: ['Revised', '已修改'],
     merge: ['Merged', '已合并'], consolidate: ['Consolidated', '已整合'], remove: ['Removed', '已撤回'],
-    reinstate: ['Restored', '已恢复'], promote: ['Registered', '已注册'], defer: ['Deferred', '已延后'],
+    reinstate: ['Restored', '已恢复'], promote: ['Registered', '已注册'], defer: ['Set aside', '暂不采用'],
   };
   const pair = labels[operation];
   return pair ? t(...pair) : operation;
@@ -38,13 +38,13 @@ export function stateText(state: string | undefined, t: Translate): string {
   const labels: Record<string, [string, string]> = {
     draft: ['Draft', '草稿'], queued: ['Queued', '排队中'], running: ['Running', '运行中'], waiting_input: ['Your input needed', '需要补充信息'],
     paused: ['Paused', '已暂停'], completed: ['Completed', '已完成'], unresolved: ['Needs attention', '需要处理'], failed: ['Failed', '失败'], cancelled: ['Stopped', '已停止'], interrupted: ['Interrupted', '已中断'],
-    qualified: ['Qualified', '符合要求'], pending: ['Pending evidence', '证据待完善'], rejected: ['Rejected', '已淘汰'], unassessed: ['Not assessed', '尚未评估'],
+    qualified: ['Eligible', '具备资格'], pending: ['Unresolved', '未确定'], rejected: ['Excluded', '已排除'], unassessed: ['Not assessed', '尚未评估'],
     in_evaluation: ['In evaluation', '参与评估'],
-    active: ['Active', '当前使用'], candidate: ['Proposed', '提议中'], proposed: ['Proposed', '已提出'], retained: ['Retained', '已保留'], merged: ['Merged', '已合并'], retired: ['Retired', '已撤回'], withdrawn: ['Withdrawn', '已撤回'], superseded: ['Earlier version', '早期版本'],
+    active: ['Current record', '当前保留'], candidate: ['Proposed', '提议中'], proposed: ['Proposed', '已提出'], retained: ['Retained', '已保留'], merged: ['Merged', '已合并'], retired: ['Retired', '已撤回'], withdrawn: ['Withdrawn', '已撤回'], superseded: ['Earlier version', '早期版本'],
     registered: ['Registered', '已注册'], promoted: ['Registered', '已注册'], filtered_out: ['Filtered out', '已筛除'], merged_away: ['Merged', '已合并'],
-    needs_refine: ['Needs refinement', '待完善'], deferred_next_round: ['Deferred', '延后处理'], capability_deferred: ['Evidence deferred', '证据延后处理'], needs_human_review: ['Review needed', '需要复核'],
-    hard_exclusion: ['Required', '必需'], hard: ['Required', '必需'], preference: ['Preference', '偏好'], screening: ['Screening', '筛选'],
-    exploratory_consideration: ['Context', '参考考量'],
+    needs_refine: ['Needs refinement', '待完善'], deferred_next_round: ['Unfinalized proposal', '未定稿提议'], capability_deferred: ['Evidence route unavailable', '证据获取方式不可用'], needs_human_review: ['Review needed', '需要复核'],
+    hard_exclusion: ['Mandatory requirement', '强制要求'], hard: ['Mandatory requirement', '强制要求'], preference: ['Prioritization criterion', '排序标准'], screening: ['Screening', '筛选'],
+    exploratory_consideration: ['Contextual observation', '参考观察项'],
     higher_better: ['Higher is better', '越高越好'], lower_better: ['Lower is better', '越低越好'], within_range: ['Within a range', '在范围内'],
     target_value: ['Near a target value', '接近目标值'], non_directional: ['No ordering preference', '无排序偏好'], undetermined: ['Not determined', '尚未确定'], unassigned: ['Not assigned', '尚未分配'],
     available: ['Value available', '已有数值'], unknown_missing: ['Missing evidence', '缺少证据'], unknown_conflicted: ['Conflicting evidence', '证据冲突'], not_assessed: ['Not assessed', '尚未评估'], inapplicable: ['Not applicable', '不适用'], simulated: ['Simulated', '模拟'],

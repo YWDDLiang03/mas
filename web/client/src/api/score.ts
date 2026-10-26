@@ -1,4 +1,5 @@
 export interface ScoreRow {
+  display_name?: string | null;
   rule_ref: string; attribute_ref: string; name: string; definition?: string;
   value: number | string | boolean | null; unit?: string | null; basis: string;
   direction?: string; predicate_form: string; cutoff?: { comparator: string; value: unknown; unit?: string } | null;

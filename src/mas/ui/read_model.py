@@ -9,6 +9,7 @@ Large assessments and claims are indexed by reference and loaded on demand.
 from __future__ import annotations
 
 import difflib
+from collections import Counter
 import json
 import sqlite3
 import threading
@@ -20,10 +21,15 @@ from typing import Any, Iterator
 from mas.core.criteria import is_task_mandated
 from mas.core import assessor
 from mas.ui.evidence_read import EVIDENCE_SCHEMA, EVIDENCE_TABLES, EvidenceRead
-from mas.ui.read_summaries import criterion_explanation
+from mas.ui.read_summaries import criterion_display_fields, criterion_explanation
+from mas.ui.decision_reading import (
+    DECISION_READING_VERSION, EVIDENCE_PROFILES, SELECTION_DECISIONS, SELECTION_POLICY,
+    criterion_disposition, eligibility_counts, eligibility_reading, selection_reading,
+)
 
 
 SCHEMA_VERSION = 4
+CRITERION_ROLE_SUMMARY_VERSION = 3
 PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
 PUBLIC_EVENTS = (
@@ -103,6 +109,8 @@ CREATE TABLE IF NOT EXISTS candidate_rows(
  label TEXT,body TEXT NOT NULL,raw TEXT NOT NULL,PRIMARY KEY(snapshot_id,candidate_ref));
 CREATE INDEX IF NOT EXISTS candidate_page ON candidate_rows(snapshot_id,qualification,ordinal);
 CREATE INDEX IF NOT EXISTS candidate_all_page ON candidate_rows(snapshot_id,ordinal);
+CREATE INDEX IF NOT EXISTS candidate_selection_page ON candidate_rows(snapshot_id,json_extract(body,'$.selection.decision'),ordinal);
+CREATE INDEX IF NOT EXISTS candidate_evidence_profile_page ON candidate_rows(snapshot_id,json_extract(body,'$.eligibility.evidence_profile.state'),ordinal);
 CREATE TABLE IF NOT EXISTS assessments(
  run_id TEXT,candidate_ref TEXT,attribute_ref TEXT,rule_ref TEXT,source_row INTEGER,
  source_seq INTEGER,artifact_id TEXT,reason_artifact_id TEXT,verdict TEXT,
@@ -299,10 +307,16 @@ class ReadModel:
                                 task_id = self._project(db, source, row["rowid"], event)
                                 if task_id:
                                     changed.add(task_id)
-                    if meta.get("criterion_role_summary_version") != 1:
+                    if meta.get("frozen_versions_version") != 1:
+                        for row in source.execute("SELECT rowid,body FROM events WHERE event_type='criterion.version_approved' ORDER BY rowid"):
+                            event = json.loads(row["body"])
+                            if event.get("visibility", "default") == "default":
+                                self._project(db, source, row["rowid"], event)
+                    if meta.get("criterion_role_summary_version") != CRITERION_ROLE_SUMMARY_VERSION:
                         changed.update(row[0] for row in db.execute("SELECT task_id FROM tasks"))
                     for task_id in changed:
                         self._summarise(db, task_id)
+                    self._project_decision_readings(db, source)
                     EvidenceRead(self).hydrate_sources(db, source)
                     if meta.get("evidence_intervals_version") != 1 or reset:
                         EvidenceRead.backfill_intervals(db)
@@ -313,7 +327,7 @@ class ReadModel:
                                         "source_as_of": tail["recorded_at"] if tail else None,
                                         "updated_at": _now(), "ready": True, "task_input_version": 1,
                                         "evidence_links_version": 1,"evidence_intervals_version": 1,
-                                        "criterion_role_summary_version": 1})
+                                        "criterion_role_summary_version": CRITERION_ROLE_SUMMARY_VERSION, "frozen_versions_version": 1})
                     db.commit()
             except Exception as exc:
                 with self._state_lock:
@@ -433,9 +447,10 @@ class ReadModel:
         elif kind == "criterion.version_approved":
             rules = self._artifact(source, payload.get("artifact_id"), {"rule_set"})
             entries = rules.get("entries") or []
-            self._set_meta(db, {f"frozen:{task_id}": {"rule_set_ref": payload.get("rule_set_ref"),
-                              "pending": payload.get("pending"), "entries": entries, "at": at,
-                              "deferred": rules.get("deferred") or []}})
+            frozen = {"rule_set_ref": payload.get("rule_set_ref"), "pending": payload.get("pending"),
+                      "entries": entries, "at": at, "deferred": rules.get("deferred") or []}
+            self._set_meta(db, {f"frozen:{task_id}": frozen,
+                               f"frozen_version:{task_id}:{payload.get('rule_set_ref')}": frozen})
         elif kind == "leaderboard.snapshot_published":
             self._snapshot(db, source, rowid, task_id, event)
         elif kind == "candidate.assessed" and payload.get("candidate_ref"):
@@ -540,7 +555,8 @@ class ReadModel:
         return {"criterion_id": criterion_id, "version": version, "name": attribute.get("name") or criterion_id,
                 "definition": attribute.get("definition"), "state": state, "role": rule.get("rule_kind") or "unassigned",
                 "unit": attribute.get("unit"), "direction": attribute.get("direction"), "cutoff": rule.get("cutoff"),
-                "evidence_count": len(claims), "parents": [], "children": [], **extra}
+                "evidence_count": len(claims), "parents": [], "children": [],
+                **criterion_display_fields(attribute), **extra}
 
     @staticmethod
     def _put_criterion(db: sqlite3.Connection, task_id: str, body: dict[str, Any], kind: str, rowid: int,
@@ -761,6 +777,63 @@ class ReadModel:
         db.execute("INSERT OR REPLACE INTO snapshots VALUES (?,?,?,?,?,?,?)",
                    (snapshot_id, task_id, body["run_id"], rowid, body["published_at"], payload.get("artifact_id"), _json(body)))
 
+    @staticmethod
+    def _project_decision_readings(db: sqlite3.Connection, source: sqlite3.Connection) -> None:
+        """Backfill only small result projections; never replay or alter scientific records."""
+        for snapshot in list(db.execute("SELECT snapshot_id,task_id,body FROM snapshots")):
+            info = _record(snapshot)
+            if info.get("decision_reading_version") == DECISION_READING_VERSION:
+                continue
+            rows = list(db.execute("SELECT candidate_ref,body,raw FROM candidate_rows WHERE snapshot_id=? ORDER BY ordinal",
+                                   (snapshot["snapshot_id"],)))
+            entries = [json.loads(row["raw"]) for row in rows]
+            refs = set()
+            for entry in entries:
+                q = entry.get("qualification")
+                if isinstance(q, dict):
+                    for key in ("failed_hard_rule_refs", "blocking_hard_rule_refs", "missing_direct_required_rule_refs"):
+                        refs.update(q.get(key) or [])
+            rules = {}
+            for ref in sorted(refs):
+                rule = _record(db.execute("SELECT body FROM criterion_versions WHERE task_id=? AND ref=?",
+                                          (snapshot["task_id"], ref)).fetchone())
+                attr = rule.get("attribute_ref")
+                attribute = _record(db.execute("SELECT body FROM criterion_versions WHERE task_id=? AND ref=?",
+                                               (snapshot["task_id"], attr)).fetchone()) if attr else {}
+                rules[ref] = {"attribute_ref": attr, "name": attribute.get("name") or rule.get("name") or ref}
+            readings, updates = [], []
+            selection_counts = dict.fromkeys(SELECTION_DECISIONS, 0)
+            for row, entry in zip(rows, entries):
+                q = entry.get("qualification")
+                entry_refs = sorted({ref for key in ("failed_hard_rule_refs", "blocking_hard_rule_refs",
+                                                    "missing_direct_required_rule_refs")
+                                     for ref in ((q.get(key) or []) if isinstance(q, dict) else [])})
+                rule_assessments = {}
+                if entry_refs:
+                    placeholders = ",".join("?" for _ in entry_refs)
+                    pointers = db.execute("SELECT rule_ref,artifact_id FROM assessments WHERE run_id=? AND candidate_ref=? "
+                                          f"AND rule_ref IN ({placeholders}) AND source_row<=? ORDER BY source_row DESC",
+                                          (info["run_id"], row["candidate_ref"], *entry_refs, info["published_row"]))
+                    for pointer in pointers:
+                        if pointer["rule_ref"] not in rule_assessments:
+                            rule_assessments[pointer["rule_ref"]] = ReadModel._artifact(source, pointer["artifact_id"], {"assessment"})
+                reading = eligibility_reading(entry, rules, legacy=bool(info.get("legacy_rank_only")),
+                                              rule_assessments=rule_assessments)
+                body = _record(row)
+                selection = selection_reading(reading)
+                body.update(eligibility=reading, selection=selection,
+                            recorded_reason=body.get("recorded_reason", body.get("reason")), reason=selection["reason"])
+                selection_counts[selection["decision"]] += 1
+                readings.append(reading)
+                updates.append((_json(body), snapshot["snapshot_id"], row["candidate_ref"]))
+            db.executemany("UPDATE candidate_rows SET body=? WHERE snapshot_id=? AND candidate_ref=?", updates)
+            info.update(eligibility_summary=eligibility_counts(readings), decision_reading_version=DECISION_READING_VERSION,
+                        exclusion_summary=eligibility_counts([r for r in readings if selection_reading(r)["decision"] == "excluded"]),
+                        evidence_incomplete_summary=eligibility_counts([r for r in readings if selection_reading(r)["decision"] == "evidence_incomplete"]),
+                        selection_policy=SELECTION_POLICY,
+                        selection_counts={**selection_counts, "total": len(readings)})
+            db.execute("UPDATE snapshots SET body=? WHERE snapshot_id=?", (_json(info), snapshot["snapshot_id"]))
+
     def _summarise(self, db: sqlite3.Connection, task_id: str) -> None:
         registry = list(db.execute("SELECT * FROM registry_rules WHERE task_id=?", (task_id,)))
         transitions = dict(db.execute("SELECT ref,state FROM registry_transitions WHERE task_id=?", (task_id,)))
@@ -850,6 +923,13 @@ class ReadModel:
                 "historical_criteria_count": db.execute("SELECT count(*) FROM criteria_listing WHERE task_id=?", (task_id,)).fetchone()[0],
                 "run_count": db.execute("SELECT count(*) FROM runs WHERE task_id=?", (task_id,)).fetchone()[0],
                 "claim_count": db.execute("SELECT count(DISTINCT claim_id) FROM claims WHERE task_id=? AND admission_state='admitted'", (task_id,)).fetchone()[0]}
+        dispositions = Counter()
+        context = self._evaluation_context(db, task_id, frozen or None)
+        for row in db.execute("SELECT body FROM criteria_listing WHERE task_id=? AND json_extract(body,'$.current')=1", (task_id,)):
+            item = _record(row)
+            evaluation = self._criterion_evaluation(item, context)
+            dispositions[criterion_disposition(item, evaluation)["code"]] += 1
+        body["criterion_disposition_counts"] = dict(dispositions)
         db.execute("INSERT OR REPLACE INTO task_summaries VALUES (?,?)", (task_id, _json(body)))
 
     def _ready(self, db: sqlite3.Connection) -> dict[str, Any]:
@@ -1141,6 +1221,7 @@ class ReadModel:
             basis["frozen_records"] = records
             basis["listed_pending_at_preparation"] = ref in context["pending"]
         result["basis"] = basis
+        result["explanation"] = criterion_disposition(body, result)
         return result
 
     def criteria(self, task_id: str, *, page: int = 1, page_size: int = PAGE_SIZE, q: str = "",
@@ -1198,8 +1279,8 @@ class ReadModel:
                     clauses.append("c.state=?")
                     values.append(state)
             if q:
-                clauses.append("(c.name LIKE ? ESCAPE '\\' OR c.criterion_id LIKE ? ESCAPE '\\' OR json_extract(c.body,'$.definition') LIKE ? ESCAPE '\\')")
-                values.extend([_like(q)] * 3)
+                clauses.append("(c.name LIKE ? ESCAPE '\\' OR c.criterion_id LIKE ? ESCAPE '\\' OR json_extract(c.body,'$.definition') LIKE ? ESCAPE '\\' OR json_extract(c.body,'$.display_name') LIKE ? ESCAPE '\\')")
+                values.extend([_like(q)] * 4)
             if filters.get("role"):
                 clauses.append("c.role=?")
                 values.append(filters["role"])
@@ -1324,9 +1405,23 @@ class ReadModel:
                                           (task_id, body.get("attribute_ref"))).fetchone())
             if not attribute:
                 attribute = raw.get("attribute") if isinstance(raw.get("attribute"), dict) else raw
+            body.pop("display_name", None)
+            body.update(criterion_display_fields(attribute))
             body["editable"] = not is_task_mandated(attribute)
             frozen = self._meta(db).get(f"frozen:{task_id}")
             body["evaluation"] = self._criterion_evaluation(body, self._evaluation_context(db, task_id, frozen), detail=True)
+            if snapshot:
+                selected_evaluation = self._snapshot_row(db, task_id, snapshot)
+                frozen_ref = _record(selected_evaluation).get("rules@v")
+                selected_frozen = self._meta(db).get(f"frozen_version:{task_id}:{frozen_ref}")
+                if selected_frozen is not None:
+                    body["evaluation"] = self._criterion_evaluation(
+                        body, self._evaluation_context(db, task_id, selected_frozen), detail=True)
+                    body["evaluation"].update(scope="selected_evaluation", snapshot_id=snapshot)
+                else:
+                    body["evaluation"] = {"state": "historical", "scope": "selected_evaluation",
+                                          "reason_kind": "evaluation_record_unavailable", "rule_set_ref": frozen_ref,
+                                          "reason": "The selected evaluation's criterion-use record is unavailable."}
             history_ids = {row["criterion_id"]}
             for ref in (wanted, body.get("attribute_ref"), body.get("rule_ref")):
                 if ref:
@@ -1415,9 +1510,14 @@ class ReadModel:
         return db.execute("SELECT * FROM snapshots WHERE task_id=? ORDER BY published_row DESC LIMIT 1", (task_id,)).fetchone()
 
     def candidates(self, task_id: str, *, snapshot: str | None = None, status: str = "qualified", q: str = "",
-                   page: int = 1, page_size: int = PAGE_SIZE, snapshot_id: str | None = None) -> dict[str, Any]:
+                   page: int = 1, page_size: int = PAGE_SIZE, snapshot_id: str | None = None,
+                   selection: str = "", evidence_profile: str = "") -> dict[str, Any]:
         if status not in ("all", "qualified", "pending", "rejected", "unassessed", ""):
             raise ValueError("unknown qualification filter")
+        if selection not in ("all", "", *SELECTION_DECISIONS):
+            raise ValueError("unknown selection filter")
+        if evidence_profile not in ("", *EVIDENCE_PROFILES):
+            raise ValueError("unknown evidence profile filter")
         page, page_size, offset = _page(page, page_size)
         with self._cache() as db:
             meta = self._ready(db)
@@ -1426,12 +1526,23 @@ class ReadModel:
             if not selected:
                 return {**self._paged([], 0, page, page_size, meta), "snapshot_id": None,
                         "counts": {"qualified": 0, "pending": 0, "rejected": 0, "unassessed": 0, "total": 0},
+                        "selection_counts": {**dict.fromkeys(SELECTION_DECISIONS, 0), "total": 0},
+                        "eligibility_summary": eligibility_counts([]),
+                        "exclusion_summary": eligibility_counts([]),
+                        "evidence_incomplete_summary": eligibility_counts([]), "selection_policy": SELECTION_POLICY,
                         "evaluation_mode": None, "legacy_rank_only": False}
             info = _record(selected)
             clauses, values = ["snapshot_id=?"], [selected["snapshot_id"]]
-            if status and status != "all":
+            if selection and selection != "all":
+                clauses.append("json_extract(body,'$.selection.decision')=?")
+                values.append(selection)
+            elif not selection and not evidence_profile and status and status != "all":
+                # New decision/profile filters supersede the legacy default.
                 clauses.append("qualification=?")
                 values.append(status)
+            if evidence_profile:
+                clauses.append("json_extract(body,'$.eligibility.evidence_profile.state')=?")
+                values.append(evidence_profile)
             if q:
                 clauses.append("(label LIKE ? ESCAPE '\\' OR candidate_ref LIKE ? ESCAPE '\\')")
                 values.extend([_like(q)] * 2)
@@ -1440,6 +1551,11 @@ class ReadModel:
             items = [_record(row) for row in db.execute(f"SELECT body FROM candidate_rows WHERE {where} ORDER BY ordinal LIMIT ? OFFSET ?", (*values, page_size, offset))]
             return {**self._paged(items, total, page, page_size, meta), "snapshot_id": selected["snapshot_id"],
                     "counts": info["counts"], "evaluation_mode": info["evaluation_mode"],
+                    "eligibility_summary": info.get("eligibility_summary"),
+                    "selection_counts": info.get("selection_counts"),
+                    "exclusion_summary": info.get("exclusion_summary"),
+                    "evidence_incomplete_summary": info.get("evidence_incomplete_summary"),
+                    "selection_policy": info.get("selection_policy"),
                     "legacy_rank_only": info["legacy_rank_only"], "progress": (info.get("reporting_tuple") or {}).get("sweep_completeness")}
 
     @staticmethod
@@ -1494,7 +1610,13 @@ class ReadModel:
                                     "detail_ref": pointer["rule_ref"] or pointer["attribute_ref"],
                                     "value": cell.get("value"), "unit": cell.get("unit"), "basis": cell.get("determination_basis"),
                                     "reason": reason.get("reason_text"), "evidence": evidence,
-                                    "counter_evidence": cell.get("conflicting_claim_refs") or []}
+                                    "counter_evidence": cell.get("conflicting_claim_refs") or [],
+                                    **criterion_display_fields(attribute)}
+                for issue in (body.get("eligibility") or {}).get("issues") or []:
+                    if issue["rule_ref"] == pointer["rule_ref"]:
+                        issue["recorded_reason"] = reason.get("reason_text")
+                        if cell.get("not_assessed_reason"):
+                            issue["not_assessed_reason"] = cell["not_assessed_reason"]
                 interpretation = self._context_interpretation(db, source, task_id, pointer, selected, attribute, cell, reason)
                 if interpretation is not None:
                     projected.update(interpretation=interpretation, raw={"assessment": cell, "reason": reason})
@@ -1654,6 +1776,15 @@ class ReadModel:
             info = _record(selected)
             for row in db.execute("SELECT body,raw FROM candidate_rows WHERE snapshot_id=? ORDER BY ordinal", (selected["snapshot_id"],)):
                 body, raw = _record(row), json.loads(row["raw"])
+                reading = body.get("eligibility") or {}
                 yield {**body, "snapshot_id": selected["snapshot_id"], "evaluation_mode": info.get("evaluation_mode"),
                        "legacy_rank_only": info.get("legacy_rank_only"), "missing": raw.get("missing"),
+                       "eligibility_state": reading.get("state"), "eligibility_reason_code": reading.get("reason_code"),
+                       "selection_decision": (body.get("selection") or {}).get("decision"),
+                       "selection_policy": (body.get("selection") or {}).get("policy"),
+                       "selection_reason_code": (body.get("selection") or {}).get("reason_code"),
+                       "evidence_profile": (reading.get("evidence_profile") or {}).get("state", "unknown"),
+                       "confirmed_mandatory_failure": (body.get("selection") or {}).get("confirmed_mandatory_failure"),
+                       "required_supported": reading.get("required_supported"), "required_total": reading.get("required_total"),
+                       "unresolved_requirements": _json(reading.get("issues") or []),
                        "skip_reason": raw.get("skip_reason") or raw.get("not_assessed_reason")}

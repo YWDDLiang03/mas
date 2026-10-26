@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from . import assessor, vocab
+from . import assessor, selection, vocab
 from .canonical import sha256_hex
 from .clock import utc_now
 from .ids import new_id
@@ -324,4 +324,14 @@ def build_snapshot(*, task_context: dict[str, Any], leaderboard_id: str, run_id:
         if readiness == "not_ready":
             snapshot["result_kind"] = "no_recommendation"
             snapshot["abstention_reason"] = "qualification_not_ready"
+        selection_counts = dict.fromkeys(selection.SELECTION_DECISIONS, 0)
+        for entry in entries:
+            assessments = {c["rule_ref"]: c for c in cells.get(entry["candidate_ref"], [])}
+            rules = {ref: {"attribute_ref": cell.get("attribute_ref"),
+                           "name": cell.get("criterion_name") or ref} for ref, cell in assessments.items()}
+            reading = selection.eligibility_reading(entry, rules, rule_assessments=assessments)
+            entry["selection"] = selection.selection_reading(reading)
+            selection_counts[entry["selection"]["decision"]] += 1
+        snapshot.update(selection_policy=selection.SELECTION_POLICY,
+                        selection_counts={**selection_counts, "total": len(entries)})
     return snapshot

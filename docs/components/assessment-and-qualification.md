@@ -16,13 +16,13 @@ The assessor computes what the available evidence means for one candidate and on
 
 An observation can be available without having a justified threshold. A hard criterion can be unanswered while a preference is measurable. A prediction can suggest a promising candidate without clearing a measured-data requirement. MAS preserves these dimensions instead of collapsing them into one pass/fail flag.
 
-The current `qualification_first_v1` policy recognizes four candidate qualification states:
+The immutable `qualification_first_v1` records retain four evidence-qualification states. The shared [candidate selection policy](../reference/decision-language.md), implemented in `core/selection.py`, derives Eligible, Evidence incomplete or Excluded from task requirements and assessments. New snapshots and result readers use this same function. The underlying qualification fields are:
 
 | State | Meaning |
 |---|---|
 | `rejected` | A verified hard condition has a direct-evidence failure |
 | `not_ready` | There is no applicable/verified hard-condition basis for qualification |
-| `pending` | Hard conditions or direct evidence for required criteria remain incomplete |
+| `pending` | Recorded evidence qualification is incomplete; partial support yields Evidence incomplete, and completed zero-support assessments yield Excluded |
 | `qualified` | Applicable verified hard conditions pass and required direct evidence is present |
 
 Candidate display states such as provisional/recommended are a separate authority/result dimension. A qualified candidate can remain provisional because its rules have machine authority rather than human scientific confirmation.
@@ -59,7 +59,7 @@ Skipped cells name `skipped_after_rejection` and the causal assessment/rule/reas
 
 ## Worked example: a missing hard observation
 
-**Illustrative:** a task requires an observed particle size ≤150 nm and observed viability ≥80% under specified conditions. Candidate A has 120 nm and 92%, so its hard cells pass. Candidate B has 170 nm and no viability measurement. In staged evaluation, B's verified size failure rejects it and records the later viability cell as skipped with the size assessment as cause. Candidate C has 130 nm and only predicted viability 95%; C stays pending on direct viability evidence. Its prediction cannot convert that pending requirement into a pass.
+**Illustrative:** a task requires an observed particle size ≤150 nm and observed viability ≥80% under specified conditions. Candidate A has 120 nm and 92%, so its hard cells pass. Candidate B has 170 nm and no viability measurement. In staged evaluation, B's verified size failure rejects it and records the later viability cell as skipped with the size assessment as cause. Candidate C has 130 nm and only predicted viability 95%; C is Evidence incomplete, with size supported and direct viability evidence missing.
 
 With identical fixed facts, full and staged evaluation should yield the same qualified population and qualified-candidate scores. Full mode can supply additional diagnostic cells for the rejected population; staged mode deliberately does less work.
 

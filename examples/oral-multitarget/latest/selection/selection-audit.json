@@ -1,0 +1,368 @@
+{
+  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2",
+  "rule_set": "rules@v2",
+  "source_hashes": {
+    "snapshot.json": "15641161ca363e33c64707eb86233a2837570bf72e5bbc089bb29db0b4d15036",
+    "cqa.json": "4d4673d6762d3ba08d4720e9dba06d4a53f12caf482c0c36bc8bd7e053e0ff92"
+  },
+  "reading_scope": "Saved qualification records and verdicts; no new source retrieval or assessment.",
+  "total": 3177,
+  "selection_counts": {
+    "eligible": 10,
+    "excluded": 1862,
+    "evidence_incomplete": 1305,
+    "incomplete": 0,
+    "not_ready": 0
+  },
+  "selection_policy": "selection_reporting_v3",
+  "confirmed_mandatory_failures": 0,
+  "evidence_reason_summary": {
+    "total": 3177,
+    "groups": {
+      "requirements_met": 10,
+      "mandatory_and_required_unresolved": 1899,
+      "required_observations_unresolved": 1261,
+      "mandatory_unresolved": 7
+    },
+    "requirements": [
+      {
+        "rule_ref": "rule_documented-oral-administration@v1",
+        "name": "Documented oral administration",
+        "role": "mandatory",
+        "count": 1906
+      },
+      {
+        "rule_ref": "rule_csf1r-curated-potency@v1",
+        "name": "CSF1R curated potency",
+        "role": "required_observation",
+        "count": 3139
+      },
+      {
+        "rule_ref": "rule_fgfr1-curated-potency@v1",
+        "name": "FGFR1 curated potency",
+        "role": "required_observation",
+        "count": 3137
+      },
+      {
+        "rule_ref": "rule_vegfr1-curated-potency@v1",
+        "name": "VEGFR1 curated potency",
+        "role": "required_observation",
+        "count": 3135
+      },
+      {
+        "rule_ref": "rule_vegfr2-curated-potency@v1",
+        "name": "VEGFR2 curated potency",
+        "role": "required_observation",
+        "count": 3093
+      },
+      {
+        "rule_ref": "rule_vegfr3-curated-potency@v1",
+        "name": "VEGFR3 curated potency",
+        "role": "required_observation",
+        "count": 3143
+      }
+    ],
+    "profile_counts": {
+      "complete": 10,
+      "partial": 1305,
+      "none": 1862,
+      "unknown": 0,
+      "failed": 0
+    },
+    "group_counting": "mutually_exclusive",
+    "requirement_counting": "overlapping"
+  },
+  "evidence_incomplete_summary": {
+    "total": 1305,
+    "groups": {
+      "required_observations_unresolved": 1261,
+      "mandatory_and_required_unresolved": 37,
+      "mandatory_unresolved": 7
+    },
+    "requirements": [
+      {
+        "rule_ref": "rule_csf1r-curated-potency@v1",
+        "name": "CSF1R curated potency",
+        "role": "required_observation",
+        "count": 1277
+      },
+      {
+        "rule_ref": "rule_fgfr1-curated-potency@v1",
+        "name": "FGFR1 curated potency",
+        "role": "required_observation",
+        "count": 1275
+      },
+      {
+        "rule_ref": "rule_vegfr1-curated-potency@v1",
+        "name": "VEGFR1 curated potency",
+        "role": "required_observation",
+        "count": 1273
+      },
+      {
+        "rule_ref": "rule_vegfr2-curated-potency@v1",
+        "name": "VEGFR2 curated potency",
+        "role": "required_observation",
+        "count": 1231
+      },
+      {
+        "rule_ref": "rule_vegfr3-curated-potency@v1",
+        "name": "VEGFR3 curated potency",
+        "role": "required_observation",
+        "count": 1281
+      },
+      {
+        "rule_ref": "rule_documented-oral-administration@v1",
+        "name": "Documented oral administration",
+        "role": "mandatory",
+        "count": 44
+      }
+    ],
+    "profile_counts": {
+      "complete": 0,
+      "partial": 1305,
+      "none": 0,
+      "unknown": 0,
+      "failed": 0
+    },
+    "group_counting": "mutually_exclusive",
+    "requirement_counting": "overlapping"
+  },
+  "exclusion_summary": {
+    "total": 1862,
+    "groups": {
+      "mandatory_and_required_unresolved": 1862
+    },
+    "requirements": [
+      {
+        "rule_ref": "rule_documented-oral-administration@v1",
+        "name": "Documented oral administration",
+        "role": "mandatory",
+        "count": 1862
+      },
+      {
+        "rule_ref": "rule_csf1r-curated-potency@v1",
+        "name": "CSF1R curated potency",
+        "role": "required_observation",
+        "count": 1862
+      },
+      {
+        "rule_ref": "rule_fgfr1-curated-potency@v1",
+        "name": "FGFR1 curated potency",
+        "role": "required_observation",
+        "count": 1862
+      },
+      {
+        "rule_ref": "rule_vegfr1-curated-potency@v1",
+        "name": "VEGFR1 curated potency",
+        "role": "required_observation",
+        "count": 1862
+      },
+      {
+        "rule_ref": "rule_vegfr2-curated-potency@v1",
+        "name": "VEGFR2 curated potency",
+        "role": "required_observation",
+        "count": 1862
+      },
+      {
+        "rule_ref": "rule_vegfr3-curated-potency@v1",
+        "name": "VEGFR3 curated potency",
+        "role": "required_observation",
+        "count": 1862
+      }
+    ],
+    "profile_counts": {
+      "complete": 0,
+      "partial": 0,
+      "none": 1862,
+      "unknown": 0,
+      "failed": 0
+    },
+    "group_counting": "mutually_exclusive",
+    "requirement_counting": "overlapping"
+  },
+  "withheld_counts": {
+    "comparison_incomplete": 9,
+    "review_unresolved": 5,
+    "unit_mapping_unresolved": 1,
+    "proposal_not_finalized": 2,
+    "alternative_policy_unresolved": 5
+  },
+  "withheld_items": [
+    {
+      "name": "CSF1R mechanism engagement",
+      "criterion_ref": "rule_csf1r-mechanism-engagement@v1",
+      "code": "comparison_incomplete",
+      "label": "Scoring definition incomplete",
+      "description": "The comparison threshold, range or accepted category is not defined. This criterion contributes no score.",
+      "recorded_reason": "preference has no executable predicate: 'threshold' needs a declared comparison cutoff; no cutoff or pass value is inferred"
+    },
+    {
+      "name": "FGFR1 mechanism engagement",
+      "criterion_ref": "rule_fgfr1-mechanism-engagement@v1",
+      "code": "comparison_incomplete",
+      "label": "Scoring definition incomplete",
+      "description": "The comparison threshold, range or accepted category is not defined. This criterion contributes no score.",
+      "recorded_reason": "preference has no executable predicate: 'threshold' needs a declared comparison cutoff; no cutoff or pass value is inferred"
+    },
+    {
+      "name": "Lipinski rule of 5 violation count",
+      "criterion_ref": "rule_lipinski-rule-of-5-violation-count@v1",
+      "code": "comparison_incomplete",
+      "label": "Scoring definition incomplete",
+      "description": "The comparison threshold, range or accepted category is not defined. This criterion contributes no score.",
+      "recorded_reason": "preference has no executable predicate: 'threshold' needs a declared comparison cutoff; no cutoff or pass value is inferred"
+    },
+    {
+      "name": "Lipophilicity (logP) within optimal kinase-inhibitor range",
+      "criterion_ref": "rule_lipophilicity-logp-within-optimal-kinase-inhibitor-range@v1",
+      "code": "comparison_incomplete",
+      "label": "Scoring definition incomplete",
+      "description": "The comparison threshold, range or accepted category is not defined. This criterion contributes no score.",
+      "recorded_reason": "preference has no executable predicate: 'range_membership' needs a declared comparison cutoff; no cutoff or pass value is inferred"
+    },
+    {
+      "name": "Oral administration route (recorded)",
+      "criterion_ref": "rule_oral-administration-route-recorded@v1",
+      "code": "comparison_incomplete",
+      "label": "Scoring definition incomplete",
+      "description": "The comparison threshold, range or accepted category is not defined. This criterion contributes no score.",
+      "recorded_reason": "preference has no executable predicate: 'categorical_membership' needs a declared comparison cutoff; no cutoff or pass value is inferred"
+    },
+    {
+      "name": "Predicted human intestinal absorption probability (HIA_Hou)",
+      "criterion_ref": "rule_predicted-human-intestinal-absorption-probability-hia-hou@v1",
+      "code": "review_unresolved",
+      "label": "Review unresolved",
+      "description": "A review objection remains unresolved. This criterion is withheld from the evaluation.",
+      "recorded_reason": "withheld from scoring while review is unresolved: q_01M52M1WHRFZ5YYHYRDKQTCJH2: criterion remains pending under qualification_first_v1: cutoff_basis model_decision_boundary claims the line the model that produced the values defines, and the predictor's own record does not establish it here: none of the 14 claim(s) this criterion cites carries a provenance stating a decision boundary on a basis the attribute accepts (['predicted']); the boundary a rule gates on has to be one the tool that produced the values documents"
+    },
+    {
+      "name": "Predicted lipophilicity",
+      "criterion_ref": "rule_predicted-lipophilicity@v1",
+      "code": "review_unresolved",
+      "label": "Review unresolved",
+      "description": "A review objection remains unresolved. This criterion is withheld from the evaluation.",
+      "recorded_reason": "withheld from scoring while review is unresolved: q_01M52M1TDJAC9M0V3JFRY126RB: criterion remains pending under qualification_first_v1: the critic's finding stands, so the criterion does not score as proposed"
+    },
+    {
+      "name": "Predicted oral bioavailability probability (Bioavailability_Ma)",
+      "criterion_ref": "rule_predicted-oral-bioavailability-probability-bioavailability-m@v1",
+      "code": "review_unresolved",
+      "label": "Review unresolved",
+      "description": "A review objection remains unresolved. This criterion is withheld from the evaluation.",
+      "recorded_reason": "withheld from scoring while review is unresolved: q_01M52M1WS2131R5C0YG0QMTWP1: criterion remains pending under qualification_first_v1: the critic's finding stands, so the criterion does not score as proposed"
+    },
+    {
+      "name": "Predicted P-glycoprotein inhibition probability",
+      "criterion_ref": "rule_predicted-p-glycoprotein-inhibition-probability@v1",
+      "code": "review_unresolved",
+      "label": "Review unresolved",
+      "description": "A review objection remains unresolved. This criterion is withheld from the evaluation.",
+      "recorded_reason": "withheld from scoring while review is unresolved: q_01M52M1W5CQYCKZAZVQVNVMWDK: criterion remains pending under qualification_first_v1: cutoff_basis model_decision_boundary claims the line the model that produced the values defines, and the predictor's own record does not establish it here: none of the 18 claim(s) this criterion cites carries a provenance stating a decision boundary on a basis the attribute accepts (['predicted']); the boundary a rule gates on has to be one the tool that produced the values documents"
+    },
+    {
+      "name": "Rotatable bond count",
+      "criterion_ref": "rule_rotatable-bond-count@v1",
+      "code": "comparison_incomplete",
+      "label": "Scoring definition incomplete",
+      "description": "The comparison threshold, range or accepted category is not defined. This criterion contributes no score.",
+      "recorded_reason": "preference has no executable predicate: 'threshold' needs a declared comparison cutoff; no cutoff or pass value is inferred"
+    },
+    {
+      "name": "Topological polar surface area (TPSA)",
+      "criterion_ref": "rule_topological-polar-surface-area-tpsa@v1",
+      "code": "review_unresolved",
+      "label": "Review unresolved",
+      "description": "A review objection remains unresolved. This criterion is withheld from the evaluation.",
+      "recorded_reason": "withheld from scoring while review is unresolved: q_01M52M1ZEKHZBNFEMZ24BS2T45: criterion remains pending under qualification_first_v1: a revision may not set bound_support; those fields are not this rule's to change"
+    },
+    {
+      "name": "VEGFR1 mechanism engagement",
+      "criterion_ref": "rule_vegfr1-mechanism-engagement@v1",
+      "code": "comparison_incomplete",
+      "label": "Scoring definition incomplete",
+      "description": "The comparison threshold, range or accepted category is not defined. This criterion contributes no score.",
+      "recorded_reason": "preference has no executable predicate: 'threshold' needs a declared comparison cutoff; no cutoff or pass value is inferred"
+    },
+    {
+      "name": "VEGFR2 mechanism engagement",
+      "criterion_ref": "rule_vegfr2-mechanism-engagement@v1",
+      "code": "comparison_incomplete",
+      "label": "Scoring definition incomplete",
+      "description": "The comparison threshold, range or accepted category is not defined. This criterion contributes no score.",
+      "recorded_reason": "preference has no executable predicate: 'threshold' needs a declared comparison cutoff; no cutoff or pass value is inferred"
+    },
+    {
+      "name": "VEGFR3 mechanism engagement (curated record)",
+      "criterion_ref": "rule_vegfr3-mechanism-engagement-curated-record@v1",
+      "code": "comparison_incomplete",
+      "label": "Scoring definition incomplete",
+      "description": "The comparison threshold, range or accepted category is not defined. This criterion contributes no score.",
+      "recorded_reason": "preference has no executable predicate: 'categorical_membership' needs a declared comparison cutoff; no cutoff or pass value is inferred"
+    },
+    {
+      "name": "FGFR1 curated potency (nM)",
+      "criterion_ref": "cri_01M52CGPS9VX1F1DV8CJ478QTX@v4",
+      "code": "unit_mapping_unresolved",
+      "label": "Unit conversion unresolved",
+      "description": "The proposed unit is incompatible with the available measurement route. This proposal is not used in the evaluation.",
+      "recorded_reason": "units: route interaction_evidence_lookup/pchembl_values returns 'pChEMBL', but the attribute declares 'nM'; the assessor has no registered conversion in that direction"
+    },
+    {
+      "name": "Lipophilicity (logP)",
+      "criterion_ref": "cri_01M52D2YJZJDHHVAWJDA3HSB0R@v5",
+      "code": "proposal_not_finalized",
+      "label": "Proposal not finalized",
+      "description": "The proposal has no validated evaluation definition and is not used in this evaluation.",
+      "recorded_reason": "schema: schema: comparator must be one of ('>=', '<=', '>', '<', '==', 'in', 'not_in'), got 'within_range'; schema: a support record names parameter 'rule.cutoff.high', which this criterion does not hold; a record supporting nothing would read as support for everything; schema: a support record names parameter 'rule.cutoff.low', which this criterion does not hold; a record supporting nothing would read as support for everything"
+    },
+    {
+      "name": "VEGFR1 curated potency (pChEMBL, pooled ChEMBL + IUPHAR)",
+      "criterion_ref": "cri_01M52JY81P3VKQ6RBN9GJQDHW7@v1",
+      "code": "alternative_policy_unresolved",
+      "label": "Alternative policy unresolved",
+      "description": "This quantity already has a registered criterion. The alternative decision or evidence policy is unresolved and is not counted again.",
+      "recorded_reason": "decision_semantics_unresolved: the registered measurement already exists but its decision or evidence policy differs; retain this proposal for registry reduction rather than registering another scoring quantity"
+    },
+    {
+      "name": "VEGFR2 curated potency (pChEMBL, pooled ChEMBL + IUPHAR)",
+      "criterion_ref": "cri_01M52JY81ZPDG257RJ1TPR66KS@v1",
+      "code": "alternative_policy_unresolved",
+      "label": "Alternative policy unresolved",
+      "description": "This quantity already has a registered criterion. The alternative decision or evidence policy is unresolved and is not counted again.",
+      "recorded_reason": "decision_semantics_unresolved: the registered measurement already exists but its decision or evidence policy differs; retain this proposal for registry reduction rather than registering another scoring quantity"
+    },
+    {
+      "name": "VEGFR3 curated potency (pChEMBL, pooled ChEMBL + IUPHAR)",
+      "criterion_ref": "cri_01M52JY829H4QRBGYCCVMYH6BN@v1",
+      "code": "alternative_policy_unresolved",
+      "label": "Alternative policy unresolved",
+      "description": "This quantity already has a registered criterion. The alternative decision or evidence policy is unresolved and is not counted again.",
+      "recorded_reason": "decision_semantics_unresolved: the registered measurement already exists but its decision or evidence policy differs; retain this proposal for registry reduction rather than registering another scoring quantity"
+    },
+    {
+      "name": "Predicted lipophilicity (Lipophilicity_AstraZeneca)",
+      "criterion_ref": "cri_01M52K86EZR13KKS2HN16030W8@v3",
+      "code": "proposal_not_finalized",
+      "label": "Proposal not finalized",
+      "description": "The proposal has no validated evaluation definition and is not used in this evaluation.",
+      "recorded_reason": "schema: schema: value_transform basis must be one of ('measured_distribution', 'regulatory_or_standard_reference', 'source_stated_value', 'expert_set', 'task_constraint', 'model_decision_boundary'), got 'Moderate lipophilicity (logP approximately 2-4) is considered optimal for kinase inhibitors.'"
+    },
+    {
+      "name": "CSF1R curated potency (pChEMBL)",
+      "criterion_ref": "cri_01M52KSFPWK1P60JDBR1G8G4SD@v3",
+      "code": "alternative_policy_unresolved",
+      "label": "Alternative policy unresolved",
+      "description": "This quantity already has a registered criterion. The alternative decision or evidence policy is unresolved and is not counted again.",
+      "recorded_reason": "decision_semantics_unresolved: the registered measurement already exists but its decision or evidence policy differs; retain this proposal for registry reduction rather than registering another scoring quantity"
+    },
+    {
+      "name": "FGFR1 curated potency (pChEMBL)",
+      "criterion_ref": "cri_01M52KSFQ1A6H6BM7VXGFYG3WX@v3",
+      "code": "alternative_policy_unresolved",
+      "label": "Alternative policy unresolved",
+      "description": "This quantity already has a registered criterion. The alternative decision or evidence policy is unresolved and is not counted again.",
+      "recorded_reason": "decision_semantics_unresolved: the registered measurement already exists but its decision or evidence policy differs; retain this proposal for registry reduction rather than registering another scoring quantity"
+    }
+  ]
+}

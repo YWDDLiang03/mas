@@ -1,5 +1,14 @@
 # Changelog
 
+## Workbench update, 2026-10-26
+
+- Align TRIAGE titles, criterion roles, evidence bases and candidate outcomes with the study terminology.
+- Share task-defined selection decisions between new result snapshots and the workbench.
+- Explain incomplete evidence, exclusion causes and criteria outside the active evaluation; preserve historical scientific records.
+- Publish updated bilingual definitions, selection exports and a general figure revision plan.
+
+See [validation and study correspondence](docs/releases/2026-10-26-alignment.md).
+
 ## 1.1.0 — 2026-10-19
 
 - Add a single agent entry point for verified replay, task planning, new investigations, resume, export and browser launch.

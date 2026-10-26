@@ -6,6 +6,15 @@ import re
 from typing import Any
 
 
+def criterion_display_fields(attribute: dict[str, Any]) -> dict[str, str]:
+    """Alias a misleading prediction prefix only for explicitly derived-only quantities."""
+    name = attribute.get("name")
+    if not isinstance(name, str) or attribute.get("acceptable_determination_bases") != ["derived"]:
+        return {}
+    match = re.fullmatch(r"Predicted\s+(.+?)\s*", name)
+    return {"display_name": f"{match[1]} (calculated)"} if match else {}
+
+
 def text(value: Any) -> str | None:
     if value is None or value == "" or value == [] or value == {}:
         return None
@@ -78,7 +87,7 @@ def original_context(document: dict[str, Any], location: dict[str, Any]) -> dict
 
 def criterion_explanation(attribute: dict[str, Any], rule: dict[str, Any], raw: dict[str, Any],
                           sources: list[dict[str, Any]]) -> dict[str, Any]:
-    name = attribute.get("name") or "this criterion"
+    name = criterion_display_fields(attribute).get("display_name") or attribute.get("name") or "this criterion"
     transform = attribute.get("value_transform") or {}
     if transform.get("kind") == "distance_outside_band":
         calculation = f"For each usable value x, calculate max({transform.get('low')}-x, 0, x-{transform.get('high')}). "

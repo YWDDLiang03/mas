@@ -1,6 +1,8 @@
 """Projection boundaries, append/restart safety and historical snapshot fidelity."""
 
 import hashlib
+import csv
+import io
 import json
 import sqlite3
 
@@ -8,6 +10,7 @@ import pytest
 
 from mas.ui.read_api import ReadAPI
 from mas.ui.read_model import ProjectionNotReady, ReadModel
+from mas.core.assessor import qualification
 
 
 class Journal:
@@ -636,6 +639,7 @@ def test_latest_evaluation_status_preserves_registry_history_and_frozen_reasons(
     assert model.criterion("task_a", "rule_mw@v1")["evaluation"]["state"] == "not_prepared"
     first = journal.artifact("rule_set", {"entries": [{"rule_ref": "rule_mw@v1", "attribute_ref": "attr_mw@v1"}]})
     journal.event("task_a", "criterion.version_approved", {"rule_set_ref": "rules@v1", "artifact_id": first})
+    journal.snapshot(identity="before_revision", entries=[], **{"rules@v": "rules@v1"})
     register("mw", 2)
     record = {"rule_ref": "rule_mw@v2", "attribute_ref": "attr_mw@v2", "scope": "rule", "reason_kind": "unresolved_review",
         "reason": "Review is unresolved for the recorded cutoff", "review_item_refs": ["q_mw"],
@@ -657,6 +661,9 @@ def test_latest_evaluation_status_preserves_registry_history_and_frozen_reasons(
     assert model.criterion("task_a", "rule_anchor@v1")["evaluation"]["state"] == "enabled"
     historical = model.criterion("task_a", "rule_mw@v1")["evaluation"]
     assert historical == {"state": "historical", "scope": "saved_version", "reason_kind": "historical_view"}
+    pinned = model.criterion("task_a", "rule_mw@v1", snapshot="before_revision")["evaluation"]
+    assert pinned["state"] == "enabled" and pinned["rule_set_ref"] == "rules@v1"
+    assert pinned["scope"] == "selected_evaluation"
     stage = model.criterion("task_a", "change:" + change["event_id"])["evaluation"]
     assert stage["state"] == "historical" and stage["scope"] == "stage_snapshot"
     assert model.criteria("task_a", state="working")["total"] == 1
@@ -686,3 +693,110 @@ def test_frozen_role_summary_separates_core_context_and_pending(setup):
         cache.commit()
     model.sync()  # refresh these summaries even without a new scientific event
     assert model.task_summary('task_a')['enabled_core_count'] == 2
+
+
+def test_selection_v3_profiles_filters_csv_and_cache_backfill(setup):
+    journal, model = setup
+    for name, role in (("size", "hard_exclusion"), ("release", "preference")):
+        attr = journal.artifact("attribute", {"attribute_id": "attr_" + name, "version": 1, "name": name})
+        rule = journal.artifact("rule", {"rule_id": "rule_" + name, "version": 1,
+                                          "attribute_ref": f"attr_{name}@v1", "rule_kind": role})
+        journal.event("task_a", "criterion.version_proposed", {"kind": "attribute", "id": "attr_" + name, "version": 1, "artifact_id": attr})
+        journal.event("task_a", "criterion.version_proposed", {"kind": "rule", "id": "rule_" + name, "version": 1, "artifact_id": rule})
+    entries = []
+    cases = (("partial", "pass", "unknown_missing"), ("none", "unknown_missing", "unknown_missing"),
+             ("failed", "fail", "not_assessed"), ("tool", "pass", "unknown_missing"),
+             ("complete", "pass", "available"))
+    for name, size_verdict, release_verdict in cases:
+        cells = []
+        for field, verdict in (("size", size_verdict), ("release", release_verdict)):
+            cell = {"candidate_ref": "cand_" + name, "attribute_ref": f"attr_{field}@v1",
+                    "rule_ref": f"rule_{field}@v1", "verdict": verdict,
+                    "determination_basis": "measured", "value_kind": "measured",
+                    "value_source_claim_refs": ["claim_" + name + field] if verdict in ("pass", "fail", "available") else []}
+            if name == "tool" and field == "release":
+                cell["tool_error_ref"] = "error_release"
+            if verdict == "not_assessed":
+                cell["not_assessed_reason"] = "skipped_after_rejection"
+            artifact = journal.artifact("assessment", cell)
+            journal.event("run_a", "candidate.assessed", {**cell, "artifact_id": artifact})
+            cells.append(cell)
+        q = qualification(cells, hard_rule_refs=["rule_size@v1"], verified_hard_rule_refs=["rule_size@v1"],
+                          required_rule_refs=["rule_release@v1"])
+        entries.append({"candidate_ref": "cand_" + name, "identity_labels": [name], "qualification": q,
+                        "verdicts": {**{cell["attribute_ref"]: cell["verdict"] for cell in cells},
+                                     "attr_optional_preference@v1": "fail"}, "state": "provisional"})
+    entries.append({"candidate_ref": "cand_unknown", "qualification": {"state": "pending"}, "state": "provisional"})
+    journal.snapshot(entries=entries, qualification_policy="qualification_first_v1")
+    source_events = journal.db.execute("SELECT count(*) FROM events").fetchone()[0]
+    model.sync()
+    api = ReadAPI(model)
+    result = api.get("task_a", "candidates", {"selection": "all"})
+    assert result["selection_counts"] == {"eligible": 1, "evidence_incomplete": 1, "excluded": 2,
+                                           "incomplete": 2, "not_ready": 0, "total": 6}
+    assert result["evidence_incomplete_summary"]["profile_counts"] == {
+        "complete": 0, "partial": 1, "none": 0, "unknown": 0, "failed": 0}
+    assert result["exclusion_summary"]["total"] == 2
+    partial = api.get("task_a", "candidates", {"selection": "evidence_incomplete", "evidence_profile": ["partial"]})
+    assert [row["candidate_ref"] for row in partial["items"]] == ["cand_partial"]
+    assert api.get("task_a", "candidates", {"selection": "all", "evidence_profile": "partial"})["total"] == 2
+    assert api.get("task_a", "candidates", {"evidence_profile": "partial"})["total"] == 2
+    assert api.get("task_a", "candidates", {"selection": "all", "evidence_profile": "none"})["total"] == 1
+    assert api.get("task_a", "candidates", {"selection": "all", "evidence_profile": "failed"})["total"] == 1
+    with pytest.raises(ValueError, match="evidence profile"):
+        api.get("task_a", "candidates", {"evidence_profile": "invented"})
+    exported = {row["candidate_ref"]: row for row in csv.DictReader(io.StringIO(api.export_csv("task_a")))}
+    assert exported["cand_partial"]["selection_decision"] == "evidence_incomplete"
+    assert exported["cand_partial"]["evidence_profile"] == "partial"
+    assert exported["cand_partial"]["selection_policy"] == "selection_reporting_v3"
+    assert exported["cand_none"]["selection_decision"] == "excluded"
+    assert exported["cand_none"]["selection_reason_code"] == "no_required_evidence"
+    assert exported["cand_none"]["confirmed_mandatory_failure"] == "False"
+    assert exported["cand_complete"]["selection_decision"] == "eligible"  # optional preference failure does not exclude
+    assert exported["cand_tool"]["selection_decision"] == "incomplete"
+    assert exported["cand_unknown"]["evidence_profile"] == "unknown"
+    assert all(row["raw"] == entry for row, entry in zip(
+        [model.candidate("task_a", entry["candidate_ref"]) for entry in entries], entries))
+    with model._cache() as cache:
+        cache.execute("UPDATE snapshots SET body=json_set(body,'$.decision_reading_version',5)")
+        cache.execute("UPDATE candidate_rows SET body=json_remove(body,'$.eligibility','$.selection')")
+        cache.commit()
+    cursor = model.status()["source_cursor"]
+    restarted = ReadModel(journal.root)
+    assert restarted.status()["ready"] and restarted.status()["source_cursor"] == cursor
+    assert restarted.candidates("task_a", status="all")["total"] == 6
+    restarted.sync()  # reading v5 -> v6 backfill; retain the schema-v4 cache and event cursor
+    assert model.candidates("task_a", selection="all")["selection_counts"] == result["selection_counts"]
+    assert model.snapshots("task_a")["items"][0]["decision_reading_version"] == 6
+    assert journal.db.execute("SELECT count(*) FROM events").fetchone()[0] == source_events
+
+
+def test_eligibility_reason_uses_exact_rule_assessment_before_attribute_summary(setup):
+    journal, model = setup
+    attr = journal.artifact("attribute", {"attribute_id": "attr_size", "version": 1, "name": "Particle size"})
+    journal.event("task_a", "criterion.version_proposed", {"kind": "attribute", "id": "attr_size", "version": 1, "artifact_id": attr})
+    for name, role in (("hard_size", "hard_exclusion"), ("preferred_size", "preference")):
+        rule = journal.artifact("rule", {"rule_id": "rule_" + name, "version": 1,
+                                          "attribute_ref": "attr_size@v1", "rule_kind": role})
+        journal.event("task_a", "criterion.version_proposed", {"kind": "rule", "id": "rule_" + name, "version": 1, "artifact_id": rule})
+    def assess(name, verdict):
+        cell = {"candidate_ref": "cand_a", "attribute_ref": "attr_size@v1", "rule_ref": f"rule_{name}@v1", "verdict": verdict}
+        artifact = journal.artifact("assessment", cell)
+        reason = journal.artifact("reason", {"reason_text": "Exact " + name + " " + verdict})
+        journal.event("run_a", "candidate.assessed", {**cell, "artifact_id": artifact, "reason_artifact_id": reason})
+    assess("hard_size", "unknown_conflicted")
+    assess("preferred_size", "pass")
+    entry = {"candidate_ref": "cand_a", "state": "provisional", "verdicts": {"attr_size@v1": "pass"},
+             "qualification": {"state": "pending", "hard_total": 1, "hard_passed": 0,
+                               "required_total": 0, "required_direct_answered": 0,
+                               "blocking_hard_rule_refs": ["rule_hard_size@v1"]}}
+    journal.snapshot(entries=[entry], qualification_policy="qualification_first_v1")
+    assess("hard_size", "pass")  # a later assessment must not change this saved reading
+    model.sync()
+    reading = model.candidates("task_a", selection="excluded")["items"][0]["eligibility"]
+    assert reading["reason_code"] == "required_evidence_conflicted"
+    assert reading["issues"][0]["verdict"] == "unknown_conflicted"
+    detail = model.candidate("task_a", "cand_a")
+    assert detail["eligibility"]["issues"][0]["recorded_reason"] == "Exact hard_size unknown_conflicted"
+    assert detail["selection"]["decision"] == "excluded"
+    assert detail["raw"] == entry

@@ -81,6 +81,13 @@ def test_full_and_staged_have_identical_qualified_population_and_qualified_only_
     assert boards[1]["reporting_tuple"]["skipped_after_rejection_n"] == 1
     assert boards[1]["reporting_tuple"]["recorded_cell_n"] == 8
     assert boards[1]["reporting_tuple"]["assessed_cell_n"] == 7
+    for board in boards:
+        assert board["selection_counts"] == {"eligible": 2, "evidence_incomplete": 1,
+            "excluded": 1, "incomplete": 0, "not_ready": 0, "total": 4}
+        assert board["selection_policy"] == "selection_reporting_v3"
+        decisions = {row["candidate_ref"]: row["selection"] for row in board["candidate_entries"]}
+        assert decisions["rejected"]["reason_code"] == "mandatory_failure"
+        assert decisions["unknown"]["requirement_refs"]
 
 
 def test_prediction_cannot_fail_a_hard_gate_or_raise_direct_coverage_and_ordering_is_available():

@@ -6,7 +6,7 @@ from mas.ui.read_model import ReadModel
 from mas.ui.score_details import ScoreDetails, _normalization
 
 
-def fixture(tmp_path, *, weighted=False, wrong_score=False):
+def fixture(tmp_path, *, weighted=False, wrong_score=False, attribute_overrides=None):
     journal = Journal(tmp_path / 'source')
     journal.task()
     definitions = [
@@ -25,6 +25,7 @@ def fixture(tmp_path, *, weighted=False, wrong_score=False):
                 'direction': direction, 'acceptable_value_sources': ['database_entry'],
                 'evidence_request': {'capability': 'property_estimate', 'question_kind': 'computed_property',
                                      'parameters': {'property': name}}, **({'quantity_id': quantity} if quantity else {})}
+        attr.update((attribute_overrides or {}).get(name, {}))
         artifact = journal.artifact('attribute', attr)
         journal.event('task_a', 'criterion.version_proposed', {'kind': 'attribute', 'id': attr['attribute_id'], 'version': 1, 'artifact_id': artifact})
         rule = {'rule_id': 'rule_' + name, 'attribute_ref': attr['attribute_id'] + '@v1', 'version': 1,
@@ -42,7 +43,8 @@ def fixture(tmp_path, *, weighted=False, wrong_score=False):
         for name, kind, predicate, direction, quantity in definitions:
             value = quantities.get(name, 10 if name == 'duplicate_prediction' else 1 if name == 'hard' else None)
             predicted = name in ('prediction', 'duplicate_prediction')
-            cell(journal, candidate, name, value, kind=kind, predicted=predicted)
+            derived = (attribute_overrides or {}).get(name, {}).get('acceptable_determination_bases') == ['derived']
+            cell(journal, candidate, name, value, kind=kind, predicted=predicted, derived=derived)
     scores = {'A': .5 if weighted else 2 / 3, 'B': .375 if weighted else .25,
               'C': 2.5 / 3 if weighted else .875}
     snapshot(journal, 'snap_1', scores, coverage=.6 if weighted else .5, wrong_score=wrong_score)
@@ -51,13 +53,13 @@ def fixture(tmp_path, *, weighted=False, wrong_score=False):
     return journal, model, ScoreDetails(model)
 
 
-def cell(journal, candidate, name, value, *, kind='preference', predicted=False):
+def cell(journal, candidate, name, value, *, kind='preference', predicted=False, derived=False):
     verdict = 'unknown_missing' if value is None else 'fail' if name == 'mass' and value > 500 else 'pass' if name in ('mass', 'hard') else 'available'
     body = {'assessment_id': f'asm_{candidate}_{name}_{value}', 'candidate_ref': candidate,
             'attribute_ref': 'attr_' + name + '@v1', 'rule_ref': 'rule_' + name + '@v1', 'rule_kind': kind,
             'verdict': verdict, 'value': value, 'unit': 'units',
-            'determination_basis': 'absent' if value is None else 'predicted' if predicted else 'measured',
-            'value_kind': 'missing' if value is None else 'predicted' if predicted else 'measured',
+            'determination_basis': 'absent' if value is None else 'predicted' if predicted else 'derived' if derived else 'measured',
+            'value_kind': 'missing' if value is None else 'predicted' if predicted else 'derived' if derived else 'measured',
             'direct_evidence': value is not None and not predicted,
             'value_source_claim_refs': [] if value is None else [f'claim_{candidate}_{name}']}
     artifact = journal.artifact('assessment', body)
@@ -149,3 +151,45 @@ def test_normalization_single_value_all_tied_and_exact_float_values():
     assert all(row['score'] == .5 for row in tied['scores'].values())
     distinct = _normalization({'A': 1.0, 'B': 1.0 + 1e-15}, 'lower_better')
     assert distinct['scores']['A']['score'] == 1 and distinct['scores']['B']['score'] == 0
+
+
+def test_calculated_display_alias_is_consistent_and_preserves_source_and_score(tmp_path):
+    definitions = {
+        'mass': {'name': 'Predicted structural descriptor', 'acceptable_determination_bases': ['derived']},
+        'prediction': {'name': 'Predicted model output', 'acceptable_determination_bases': ['predicted']},
+        'duplicate_prediction': {'name': 'Predicted mixed-basis value', 'acceptable_determination_bases': ['derived', 'predicted']},
+    }
+    journal, model, service = fixture(tmp_path, attribute_overrides=definitions)
+    try:
+        score = service.get('task_a', 'A')
+        assert score['available'] and score['validation']['matches'] and score['score'] == 2 / 3
+        rows = {row['rule_ref']: row for row in score['rows']}
+        summaries = {row['rule_ref']: row for row in model.criteria('task_a', state='working')['items']}
+        assessments = {row['rule_ref']: row for row in model.candidate('task_a', 'A')['assessments']}
+        for name, attribute in definitions.items():
+            ref = 'rule_' + name + '@v1'
+            detail = model.criterion('task_a', ref, include_brief=False)
+            for projected in (rows[ref], summaries[ref], assessments[ref], detail):
+                assert projected['name'] == attribute['name']
+                if name == 'mass':
+                    assert projected['display_name'] == 'structural descriptor (calculated)'
+                else:
+                    assert 'display_name' not in projected
+            assert detail['attribute_record']['name'] == attribute['name']
+            assert detail['attribute_record']['acceptable_determination_bases'] == attribute['acceptable_determination_bases']
+        assert 'structural descriptor (calculated)' in model.criterion('task_a', 'rule_mass@v1', include_brief=False)['explanation']['decision_question']
+        assert [row['rule_ref'] for row in model.criteria('task_a', q='structural descriptor (calculated)')['items']] == ['rule_mass@v1']
+        with model._cache() as cache:
+            cache.execute("UPDATE criteria_listing SET body=json_remove(body,'$.display_name')")
+            model._set_meta(cache, {'criterion_role_summary_version': 2})
+            cache.commit()
+        cursor = model.status()['source_cursor']
+        restarted = ReadModel(journal.root)
+        assert restarted.status()['ready'] and restarted.status()['source_cursor'] == cursor
+        restarted.sync()  # refresh only criterion summaries, without replaying scientific events
+        refreshed = {row['rule_ref']: row for row in restarted.criteria('task_a')['items']}
+        assert refreshed['rule_mass@v1']['display_name'] == 'structural descriptor (calculated)'
+        assert restarted.status()['source_cursor'] == cursor
+        assert service.get('task_a', 'A')['score'] == score['score']
+    finally:
+        journal.db.close()

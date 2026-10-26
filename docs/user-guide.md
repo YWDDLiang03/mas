@@ -26,20 +26,23 @@ The workflow connects task interpretation, evidence preparation, criterion propo
 
 ## Read criterion evolution
 
-Open **Criteria** to see the stage trajectory and final uses. The working set includes proposed items that may never become executable criteria. This is why the number of working items, registered criteria and enabled core criteria can differ.
+Open **Criteria** to see the stage trajectory and final uses. The working set includes proposed items that may never become executable criteria. This is why the number of working items, registered criteria and enabled decision rules can differ.
 
-Open a stage to inspect additions, revisions, merges, removals and unresolved proposals. Open a criterion to inspect its definition, rule, sources and history. A merge should retain the parent proposals and reasons. Check the final role: required conditions, preferences, context and not-enabled work have different effects.
+Open a stage to inspect additions, revisions, merges, removals and unresolved proposals. Open a criterion to inspect its definition, rule, sources and history. A merge should retain the parent proposals and reasons. Check the final role: required conditions, preferences, contextual observations and withheld items have different effects.
 
 Before assessment, the executable rule set fixes the measurement method, unit, aggregation, allowed evidence basis and decision method. Editing a criterion creates a new version. Where the workbench offers reevaluation, inspect the proposed impact and the new saved result; old snapshots retain their original rules.
 
-## Interpret candidate groups and scores
+## Interpret eligibility, evidence profiles and scores
+
+See [selection decisions and evidence states](reference/decision-language.md) for the general definitions, historical field mapping and the retained case breakdown.
 
 | Group or state | Meaning |
 |---|---|
-| Qualified | Enabled hard conditions and required direct evidence are satisfied. Ranking still requires sufficient applicable direct preference coverage. |
-| Pending evidence | A required determination is missing, conflicting or otherwise unresolved. |
-| Rejected | An enabled hard condition has a verified failure. |
-| Not assessed | Evaluation has not produced the required assessment state. |
+| Eligible | Enabled hard conditions and required direct evidence are satisfied. Ranking still requires sufficient applicable direct preference coverage. |
+| Evidence incomplete | Some admission requirements have usable support; the remaining requirements and evidence gaps are listed. |
+| Excluded | A mandatory condition fails, or completed assessments provide no usable admission support. |
+| Assessment incomplete | A required assessment is unfinished, failed or unavailable. |
+| Criteria not ready | No applicable, verified mandatory requirement is ready for a decision. |
 | Skipped after rejection | Staged mode omitted this later cell because of a preceding hard failure. It is not a pass or missing observation. |
 
 No effective hard conditions means screening is not ready. A high rejection fraction can prompt diagnosis, but does not change a hard condition into a preference. Prediction alone does not satisfy this workflow's direct-evidence gates.

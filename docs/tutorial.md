@@ -4,7 +4,7 @@
 
 For an executable handoff, start with [one-command agent runs](agent-run.md). For component inputs, code paths and worked modifications, use the [component walkthrough](component-walkthrough.md).
 
-This walkthrough follows the latest completed oral multi-target study: what the researcher enters, what each agent or tool does, and how the result can be inspected. The saved study developed **18 core rules** and ranked Surufatinib **first among 10 qualified candidates**, score **0.7592592592592593**. Its complete export contains **3,177 candidates**; **3,167 remain pending evidence**.
+This walkthrough follows the latest completed oral multi-target study: what the researcher enters, what each agent or tool does, and how the result can be inspected. The saved study developed **18 enabled decision rules** and ranked Surufatinib **first among 10 eligible candidates**, score **0.7592592592592593**. Its complete export contains **3,177 candidates**; **1,305 have incomplete admission evidence and 1,862 are excluded for no admission support**.
 
 | Your starting point | Route through this tutorial |
 |---|---|
@@ -27,6 +27,8 @@ python -c "import json; from pathlib import Path; r=json.loads((Path('examples/o
 ```
 
 The saved output is **3,177 rows**, `qualified: 10`, `pending: 3167`, rank `1`, score `0.7592592592592593`, and coverage `0.5882352941176471`. These commands inspect existing results; they do not screen candidates or restore the database.
+
+The source export retains the historical label `pending`. The current decision policy separates these records into **1,305 Evidence incomplete** and **1,862 Excluded**. Exclusion reasons identify either a failed mandatory condition or no usable admission support. [Decision terminology](reference/decision-language.md) explains these task-defined outcome groups and their evidence requirements.
 
 ## 1. Open Settings and record the run envelope
 
@@ -80,7 +82,7 @@ Oral administration is required.
 
 The saved title is `Oral TME — full browser verification`. Under **Evaluation options**, choose **Use saved or uploaded evidence**, **Staged screening**, and reference candidate `Surufatinib`. The reference is disclosed for outcome comparison and adds no ranking weight. The task records exposure; this study is not described as blind discovery.
 
-The researcher defines the objective and requirements. The task-normalization role converts them into a versioned English task with explicit target identities and a route constraint. It does not require the researcher to supply the final CQA list. If an essential requirement cannot be bound to a property, unit or conditions, answer the focused clarification presented by the workflow.
+The researcher defines the objective and requirements. The task-normalization role converts them into a versioned English task with explicit target identities and a route constraint. It does not require the researcher to supply the final evaluation criteria. If an essential requirement cannot be bound to a property, unit or conditions, answer the focused clarification presented by the workflow.
 
 ![Research objective, targets and oral constraint](assets/task-setup.jpg)
 
@@ -96,7 +98,7 @@ The library fixes who can be evaluated; the collection fixes which saved materia
 
 The controller pins admitted facts and copies **no existing criteria**. In this run, generation excluded **136 facts explicitly naming the reference candidate**, leaving **3,021** proposal inputs. That exclusion applies to generation; candidate assessment later follows the common frozen policy. The reference identity remained disclosed.
 
-After `replay` or `plan`, the restored workbench offers the prepared evidence collection and the recorded candidate library. Choose **Research options → New study with this setup** to start a new task; the prepared collection contains facts and zero CQA. The original source task remains in the saved research record, while the new setup points to the portable collection. An empty workspace has no collection until you supply one. For your own inputs, follow step 12.
+After `replay` or `plan`, the restored workbench offers the prepared evidence collection and the recorded candidate library. Choose **Research options → New study with this setup** to start a new task; the prepared collection contains facts and an empty criterion set. The original source task remains in the saved research record, while the new setup points to the portable collection. An empty workspace has no collection until you supply one. For your own inputs, follow step 12.
 
 ## 4. Start once and interpret progress
 
@@ -156,7 +158,7 @@ Before screening, **Save evaluation rules** fixes versions, accepted routes, evi
 | Registered but deferred | 14 | Unresolved/non-executable rules withheld from evaluation |
 | Unregistered pending proposals | 8 | Working items outside the registered evaluation set |
 
-Therefore **53 = 18 core + 13 context + 22 not enabled**, while **31 = 18 + 13** enter assessment. The five unresolved reviews are a subset of deferred items, not five additional criteria. An unresolved logP range proposal is distinct from the enabled continuous RDKit logP preference.
+Therefore **53 = 18 enabled decision rules + 13 contextual observations + 22 items not used in this evaluation**, while **31 = 18 + 13** enter assessment. The five unresolved reviews are a subset of deferred items, not five additional criteria. An unresolved logP range proposal is distinct from the enabled continuous RDKit logP preference.
 
 Eligibility requires direct observations for all five required targets. This task did not add a common potency cutoff that every target must exceed. Predictions retain their basis and do not independently hard-exclude candidates or increase direct-evidence coverage.
 
@@ -174,7 +176,7 @@ Snapshot `_1` (`rules@v1`) is the first outcome; `_2` (`rules@v2`) is the correc
 
 ## 9. Read the leaderboard and unpack the score
 
-The qualified group contains **10 candidates**. Surufatinib ranks **1**, followed by Pazopanib and Axitinib. The remaining **3,167 are pending**, with **0 rejected** and **0 unassessed**. Missing from this leaderboard does not establish a hard-condition failure.
+The qualified group contains **10 candidates**. Surufatinib ranks **1**, followed by Pazopanib and Axitinib. The remaining candidates comprise **1,305 Evidence incomplete** and **1,862 Excluded**, with no admission support as the exclusion reason. There are **0 confirmed mandatory failures** and **0 incomplete candidate assessments**. The frozen export retains its historical `pending` label.
 
 ![Qualified leaderboard](assets/leaderboard.jpg)
 
@@ -188,7 +190,7 @@ Click Surufatinib's **Score**. The drawer shows each value, basis, comparison po
 
 Five target preferences, five structural calculations and five predictions supply the 15 values. Human measured oral F% and Tmax remain missing. Missing preferences are excluded from the score average but remain in the applicable coverage denominator: **15 for the score, 17 for coverage**. Predictions may contribute to score while contributing zero to the direct-coverage numerator.
 
-Continuous preferences compare available values among qualified candidates, with better values receiving higher points and ties sharing the average position:
+Continuous preferences compare available values among eligible candidates, with better values receiving higher points and ties sharing the average position:
 
 ```text
 d = [W + (E - 1)/2] / (N - 1)
@@ -225,7 +227,7 @@ Keep [manifest.json](../examples/oral-multitarget/latest/results/manifest.json),
 
 The final pin is task `task_01M52CBE5GYPK9F0MCZYBMPH84`, snapshot `lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2`, run `run_01M52Q4VRB00T5Z3QJW08SSV96`. The [comprehensive study](../examples/oral-multitarget/comprehensive/results/) is separate: Surufatinib ranks fourth among ten under different frozen criteria.
 
-The [original CQA comparison](reference/cqa-comparison.md) is a separate post-hoc description: two same-named endpoints with changed decisions, three related/unresolved rows and six absent endpoints. **B was not remeasured.** The original manuscript's screening list is not an input for a new criterion-generation task.
+The [original screening-criterion comparison](reference/cqa-comparison.md) is a separate post-hoc description: two same-named endpoints with changed decisions, three related/unresolved rows and six absent endpoints. **B was not remeasured.** The original manuscript's screening list is not an input for a new criterion-generation task.
 
 ## 12. Start your own study with CSV inputs
 

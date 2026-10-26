@@ -13,6 +13,7 @@ import threading
 from typing import Any
 
 from mas.core.criteria import quantity_identity
+from mas.ui.read_summaries import criterion_display_fields
 
 METHOD = "weighted_preference_qualified_v1"
 EXPLANATION_VERSION = "score_details_v1"
@@ -226,6 +227,7 @@ class ScoreDetails:
                             else "pass = 1; fail = 0; unresolved values are omitted")}
             rows.append({"rule_ref": ref, "attribute_ref": rule["attribute_ref"], "detail_ref": ref,
                 "assessment_id": cell.get("assessment_id"), "name": attr.get("name") or rule["attribute_ref"],
+                **criterion_display_fields(attr),
                 "definition": attr.get("definition"),
                 "value": cell.get("value"), "unit": cell.get("unit"), "basis": cell.get("determination_basis"),
                 "value_kind": cell.get("value_kind"), "verdict": cell.get("verdict"),

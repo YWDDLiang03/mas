@@ -1,10 +1,15 @@
-# MAS Research Workbench
+# TRIAGE Medical Research Workbench
 
 **English** | [简体中文](README.zh-CN.md)
 
-MAS develops evidence-based research criteria, checks candidate eligibility, and ranks qualified candidates with traceable reasons. Researchers supply an objective, a candidate population and evidence. The workbench connects these inputs into one observable investigation.
+TRIAGE is a multi-agent workbench for evidence-driven candidate evaluation and prioritization in medical research. Researchers supply an objective, a candidate population and evidence. The system develops evaluation criteria, checks eligibility and explains the ranking of eligible candidates. MAS remains the repository and Python package name.
 
 [Agent quick start](docs/agent-run.md) · [Install](docs/installation.md) · [Usage guide](docs/user-guide.md) · [Complete example](docs/tutorial.md) · [Component walkthrough](docs/component-walkthrough.md) · [v1.1.0 release](docs/releases/v1.1.0.md)
+
+In the oral multi-target study, TRIAGE stands for Therapeutic Repurposing via Integrated Appraisal of Evidence. Objectives, candidate types and evidence policies remain configurable. [Terminology](docs/reference/terminology.md) and [eligibility, evidence and ranking](docs/reference/decision-language.md) define the shared language.
+
+
+[Study correspondence and current selection policy](docs/reference/system-alignment.md) · [26 October update](docs/releases/2026-10-26-alignment.md)
 
 ## The research process
 
@@ -16,11 +21,11 @@ flowchart LR
     D -->|Revise| C
     D --> E[Freeze evaluation rules]
     E --> F[Check eligibility]
-    F --> G[Rank qualified candidates]
+    F --> G[Rank eligible candidates]
     G --> H[Inspect sources and export]
 ```
 
-Criteria expand before they converge. Each retained criterion specifies what is measured, how observations are combined, and whether it acts as a hard condition, a preference or reference context. Eligibility and preference scores are separate. Missing evidence is not a pass or an automatic failure.
+Criteria expand before they converge. Each retained criterion specifies what is measured, how observations are combined, and whether it acts as a mandatory requirement, a prioritization criterion or a contextual observation. Eligibility and preference scores are separate. Missing evidence is not a pass or an automatic failure.
 
 The browser provides natural-language tasks, candidate and measurement CSV import, persistent progress, criterion history, evidence grouped by source, score breakdowns and complete exports. English is the default UI language; switching to Chinese preserves research content and original sources.
 
@@ -36,16 +41,16 @@ cd mas
 python scripts/agent_run.py replay --bootstrap --workspace var/agent-replay --open
 ```
 
-This command downloads a checksum-verified 168 MB research capsule, restores it into an independent workspace, recalculates qualification and ranking from the saved assessments, and opens the workbench. It needs no API key. Verification covers all 3,177 candidates and 98,487 assessment cells; Surufatinib reproduces rank 1 among 10 qualified candidates. The capsule is an optional release download, separate from the source checkout. Allow about 3 GB for the restored workspace and several minutes for its first index.
+This command downloads a checksum-verified 168 MB research capsule, restores it into an independent workspace, recalculates qualification and ranking from the saved assessments, and opens the workbench. It needs no API key. Verification covers all 3,177 candidates and 98,487 assessment cells; Surufatinib reproduces rank 1 among 10 eligible candidates. The capsule is an optional release download, separate from the source checkout. Allow about 3 GB for the restored workspace and several minutes for its first index.
 
 | What you want to do | Entry point |
 |---|---|
 | Inspect and verify this saved case | The `replay` command above, then [read the case](docs/tutorial.md) |
-| Generate new CQA from the same fixed evidence | [Original-task plan and run](docs/agent-run.md), using [task.original.json](config/examples/task.original.json) and your model credentials |
+| Generate new evaluation criteria from the same fixed evidence | [Original-task plan and run](docs/agent-run.md), using [task.original.json](config/examples/task.original.json) and your model credentials |
 | Change the question, candidate library or observations | [Custom task and CSVs](docs/agent-run.md#your-own-objective-candidates-and-observations), then [worked modifications](docs/component-walkthrough.md#change-objective) |
 | Understand or extend a component | [Practical component walkthrough](docs/component-walkthrough.md) and [component reference](docs/components/README.md) |
 
-A new model investigation starts with zero CQA and records its own criteria, cost and outcome. Recorded replay checks the existing result; it does not regenerate the original model responses.
+A new model investigation starts with an empty criterion set and records its own criteria, cost and outcome. Recorded replay checks the existing result; it does not regenerate the original model responses.
 
 ## Start on Windows
 
@@ -80,7 +85,7 @@ Every linked component page describes its purpose, design rationale, inputs/outp
 | [Assessment and qualification](docs/components/assessment-and-qualification.md) | How are hard failures, missingness and eligibility distinguished? | [Assessor](src/mas/core/assessor.py), [measurement](src/mas/core/measurement.py) |
 | [Ranking and explanations](docs/components/ranking-and-explanations.md) | What contributes to a score, and which candidates are comparable? | [Leaderboard](src/mas/core/leaderboard.py), [score details](src/mas/ui/score_details.py), [mechanism](src/mas/core/mechanism.py) |
 | [Execution and reuse](docs/components/execution-and-reuse.md) | How does work continue and reuse valid observations? | [Controller](src/mas/core/controller.py), [workflows](src/mas/ui/workflows.py), [existing evidence](src/mas/core/existing_research.py) |
-| [Evaluation and CQA comparison](docs/components/evaluation-and-recovery.md) | How are reference exposure and criterion recovery measured? | [Freeze](src/mas/core/freeze.py), [recovery](src/mas/core/recovery.py) |
+| [Evaluation and criterion comparison](docs/components/evaluation-and-recovery.md) | How are reference exposure and original screening criteria compared? | [Freeze](src/mas/core/freeze.py), [recovery](src/mas/core/recovery.py) |
 | [Domain adapters](docs/components/domain-adapters.md) | What changes with the research object or source? | [Drug](src/mas/adapters/drug/), [literature](src/mas/adapters/literature/), [prediction](src/mas/adapters/predict/) |
 | [Workbench and CLI](docs/components/workbench-and-cli.md) | How do users operate and inspect the same records? | [Browser](web/client/src/), [read model](src/mas/ui/read_model.py), [CLI](src/mas/cli/main.py) |
 
@@ -90,28 +95,28 @@ Every linked component page describes its purpose, design rationale, inputs/outp
 2. Select **New research** or **Use own data**. Describe the objective, required observations and constraints.
 3. Choose or import candidates, then select saved evidence or import measurements. Review IDs, units, conditions and evidence basis in the preview.
 4. Start the investigation. Follow stage progress and criterion evolution; unresolved work keeps its reasons.
-5. Inspect the qualified, pending, rejected and unassessed groups. Open **Score** for contributions and **Evidence** for sources. Export the complete population.
+5. Inspect Eligible, Evidence incomplete and Excluded candidates. Each decision links to the task requirements and evidence that produced it. Open **Score** for contributions and **Evidence** for sources. Export the complete population.
 
 [Usage](docs/user-guide.md) explains the actions and outcomes. [CSV formats](docs/csv-input.md) provide clearly synthetic examples and actual validation rules. Drug providers are supplied; carrier and other studies use uploaded data and appropriately registered tools. The supplied end-to-end scientific example is a drug study.
 
 ## Latest example: oral multi-target drug prioritization
 
-The [complete tutorial](docs/tutorial.md) follows the saved research from Settings to export. It includes the actual objective, screenshots, CQA changes, a six-proposal merge, eligibility evidence, the first unranked outcome and its correction, score arithmetic and source inspection.
+The [complete tutorial](docs/tutorial.md) follows the saved research from Settings to export. It includes the actual objective, screenshots, criterion changes, a six-proposal merge, eligibility evidence, the first unranked outcome and its correction, score arithmetic and source inspection.
 
 | Recorded result | Latest study |
 |---|---:|
 | Candidate population | 3,177 |
 | Fixed derivation input | 3,157 facts / 164 sources |
 | Criterion trajectory | 0 → 6 requirements → 1,917 working items → 53 |
-| Enabled core | 18: 1 hard condition + 17 preferences |
-| Other working items | 13 reference observations + 22 not enabled |
-| Candidate groups | 10 qualified; 3,167 pending evidence |
+| Enabled decision rules | 18: 1 hard condition + 17 preferences |
+| Other working items | 13 contextual observations + 22 items not used in this evaluation |
+| Candidate groups | 10 eligible; 1,305 evidence incomplete; 1,862 excluded for no admission support |
 | Surufatinib | Rank 1 of 10; score 0.7592592593 |
 | Surufatinib direct preference coverage | 10/17 |
 
 The [comprehensive study](examples/oral-multitarget/comprehensive/results/) is also retained, where Surufatinib ranks fourth. Its criteria differ, so the scores belong to different comparisons. [Both complete exports](examples/oral-multitarget/) preserve every candidate and its unknown states. The optional capsule restores the latest study and its fixed factual inputs for independent research.
 
-### Original versus generated CQAs
+### Original screening criteria versus generated criteria
 
 The original manuscript has **11 human-selected predicted-property conditions**, distinct from the older 59-item system registry. The [item-by-item comparison](docs/reference/cqa-comparison.md) finds 2 same-named endpoints with changed decisions, 3 related but unresolved rows, and 6 absent endpoints. One same-named original endpoint is in the latest 18-rule core. No full original pass/fail gate is reproduced unchanged. This descriptive comparison is separate from ranking performance and is not a new blind recovery measurement.
 

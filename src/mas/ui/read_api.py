@@ -63,7 +63,9 @@ class ReadAPI:
             if wanted:
                 return self.model.candidate(task_id, wanted, snapshot=snapshot)
             return self.model.candidates(task_id, **page_parameters(query), snapshot=snapshot,
-                                         status=str(_value(query, "status", "qualified")))
+                                         status=str(_value(query, "status", "qualified")),
+                                         selection=str(_value(query, "selection", "")),
+                                         evidence_profile=str(_value(query, "evidence_profile", "")))
         if resource == "evidence":
             if wanted:
                 try:
@@ -81,7 +83,9 @@ class ReadAPI:
         stream = io.StringIO(newline="")
         fields = ("candidate_ref", "label", "qualification", "evaluation_mode", "position", "score",
                   "hard_passed", "hard_total", "preference_coverage", "evidence_coverage", "reason",
-                  "missing", "skip_reason", "rank_note", "snapshot_id", "legacy_rank_only")
+                  "missing", "skip_reason", "rank_note", "snapshot_id", "legacy_rank_only",
+                  "selection_decision", "confirmed_mandatory_failure", "eligibility_state", "eligibility_reason_code", "required_supported", "required_total",
+                  "unresolved_requirements", "recorded_reason", "evidence_profile", "selection_policy", "selection_reason_code")
         writer = csv.DictWriter(stream, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(self.model.export_rows(task_id, snapshot))

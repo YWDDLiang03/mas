@@ -6,6 +6,9 @@
 
 This subsystem converts research evidence into executable decision criteria without losing the proposals, disagreements and reductions that produced them. It implements the criterion-focused proposer–critic protocol (C7), criterion registry (C10), and the current machine/compatibility review paths of C18.
 
+
+[Criterion-use terminology](../reference/decision-language.md#criterion-use) distinguishes decision rules, contextual observations and withheld work. The interface shows why each withheld item is absent from an evaluation; record retention and evaluation use are separate.
+
 ## Purpose and contract
 
 MAS separates an **attribute**, which defines a measurement, from a **rule**, which gives that measurement decision semantics. One attribute might ask for median curated potency against a declared target in pChEMBL units. A rule can rank that value, compare it with a supported bound, or retain it as an exploratory consideration. A meaningful property does not automatically justify a hard exclusion threshold.

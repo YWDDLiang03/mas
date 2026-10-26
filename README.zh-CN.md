@@ -1,10 +1,15 @@
-# MAS 研究工作台
+# TRIAGE 医学研究工作台
 
 [English](README.md) | **简体中文**
 
-MAS 根据证据形成研究标准，判断候选资格，并为合格候选排序。研究者提供目标、候选范围与证据，工作台将这些输入连接成可以持续观察、逐项核对的研究流程。
+TRIAGE是面向医学研究的多智能体工作台。研究者提供目标、候选范围与证据，系统形成评估标准，判断候选资格，并解释合格候选的优先排序。
 
 [智能体一键运行](docs/zh/agent-run.md) · [安装环境](docs/zh/installation.md) · [使用指南](docs/zh/user-guide.md) · [完整教程](docs/zh/tutorial.md) · [组件实操](docs/zh/component-walkthrough.md) · [v1.1.0 发布说明](docs/releases/v1.1.0.md)
+
+口服多靶点案例将这条证据驱动的优先级排序流程称为 **TRIAGE**。系统仍支持其他任务、载体和候选类型。[统一术语表](docs/reference/terminology.md)与[资格、证据和排名说明](docs/zh/decision-language.md)定义界面的研究含义。MAS保留为仓库和Python包名。
+
+
+[系统与研究结果对应说明](docs/reference/system-alignment.md) · [10月26日更新记录](docs/releases/2026-10-26-alignment.md)
 
 ## 研究流程
 
@@ -41,11 +46,11 @@ python scripts/agent_run.py replay --bootstrap --workspace var/agent-replay --op
 | 你想做什么 | 从哪里开始 |
 |---|---|
 | 查看并核对这次保存的案例 | 上面的 `replay` 命令，再阅读[案例教程](docs/zh/tutorial.md) |
-| 使用相同固定证据，从零生成 CQA | [原任务的 plan / run 操作](docs/zh/agent-run.md)，使用 [task.original.json](config/examples/task.original.json) 和自己的模型配置 |
+| 使用相同固定证据，从零生成评估标准 | [原任务的 plan / run 操作](docs/zh/agent-run.md)，使用 [task.original.json](config/examples/task.original.json) 和自己的模型配置 |
 | 更换研究目标、候选库或观测数据 | [自定义任务操作](docs/zh/agent-run.md)，配合[组件实操示例](docs/zh/component-walkthrough.md) |
 | 理解或扩展某个组件 | [中文组件实操](docs/zh/component-walkthrough.md)与[组件参考](docs/components/README.md) |
 
-重新调用模型时，CQA 从空集开始，并保存这次研究自己的标准、费用和结果。`replay` 核对已保存结果，不重新生成历史模型回答。
+重新调用模型时，评估标准从空集开始，并保存这次研究自己的标准、费用和结果。`replay` 核对已保存结果，不重新生成历史模型回答。
 
 ## Windows 快速开始
 
@@ -80,7 +85,7 @@ npm.cmd --prefix web/client run build
 | [评估与资格](docs/components/assessment-and-qualification.md) | 区分硬失败、缺失与合格 | [Assessor](src/mas/core/assessor.py)、[Measurement](src/mas/core/measurement.py) |
 | [排名与解释](docs/components/ranking-and-explanations.md) | 解释贡献与比较范围 | [Leaderboard](src/mas/core/leaderboard.py)、[Score details](src/mas/ui/score_details.py) |
 | [运行与复用](docs/components/execution-and-reuse.md) | 中断后继续并复用有效观测 | [Controller](src/mas/core/controller.py)、[Workflows](src/mas/ui/workflows.py) |
-| [科研评价与 CQA 对比](docs/components/evaluation-and-recovery.md) | 记录参考暴露与恢复口径 | [Freeze](src/mas/core/freeze.py)、[Recovery](src/mas/core/recovery.py) |
+| [科研评价与标准对比](docs/components/evaluation-and-recovery.md) | 记录参考暴露与恢复口径 | [Freeze](src/mas/core/freeze.py)、[Recovery](src/mas/core/recovery.py) |
 | [领域适配器](docs/components/domain-adapters.md) | 更换对象或来源需要改什么 | [Drug](src/mas/adapters/drug/)、[Literature](src/mas/adapters/literature/)、[Prediction](src/mas/adapters/predict/) |
 | [工作台与 CLI](docs/components/workbench-and-cli.md) | 操作和查看同一套记录 | [前端](web/client/src/)、[Read model](src/mas/ui/read_model.py)、[CLI](src/mas/cli/main.py) |
 
@@ -96,22 +101,22 @@ npm.cmd --prefix web/client run build
 
 ## 最新示例：口服多靶点药物优先级
 
-[完整教程](docs/zh/tutorial.md)从 Settings 开始，展示任务、证据选择、CQA 生成和提炼、六条分子量提议合并、资格核验、首次未排名的原因与修正、得分计算、来源回查和导出。
+[完整教程](docs/zh/tutorial.md)从 Settings 开始，展示任务、证据选择、评估标准生成和提炼、六条分子量提议合并、资格核验、首次未排名的原因与修正、得分计算、来源回查和导出。
 
 | 保存结果 | 最新研究 |
 |---|---:|
 | 候选范围 | 3,177 |
 | 固定生成输入 | 3,157 条事实 / 164 个来源 |
 | 标准演化 | 0 → 6 项要求 → 1,917 个工作项 → 53 |
-| 启用核心 | 18：1 条硬条件 + 17 条偏好 |
-| 其他工作项 | 13 条参考 + 22 条未启用 |
-| 候选分区 | 10 合格；3,167 待补证据 |
+| 启用决策规则 | 18：1 条强制要求 + 17 条加权排序标准 |
+| 其他工作项 | 13 条参考观察项 + 22 条未纳入本次评估 |
+| 候选分区 | 10 符合准入要求；1,305 准入证据不完整；1,862 因无准入依据被排除 |
 | Surufatinib | 第 1 / 10；分数 0.7592592593 |
 | Surufatinib 直接偏好覆盖 | 10/17 |
 
 另保留[全面研究](examples/oral-multitarget/comprehensive/results/)，其中 Surufatinib 排第 4。两次冻结标准不同，分数在各自方案内解释。[完整结果](examples/oral-multitarget/)保留全部候选及未知状态。可选数据包恢复最新研究，并提供开展独立研究所需的固定事实输入。
 
-### 原始 CQA 与系统 CQA 对比
+### 原始筛选标准与系统评估标准对比
 
 原手稿的 **11 项人工选择的预测性质条件**不同于早期 59 条系统注册标准。[逐项对比](docs/zh/cqa-comparison.md)得到：2 个同名端点但决策改变，3 行相关而定义仍未确定，6 个端点缺少对应项。最新 18 条核心中有 1 个原始同名端点，没有完整复现原始 Pass/Fail 条件。这是事后描述性比较，与排名结果分开，不是新的盲测恢复率。
 
