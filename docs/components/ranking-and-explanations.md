@@ -56,3 +56,7 @@ No usable preference contribution yields no score. Insufficient direct coverage 
 ## Existing verification
 
 [`test_symbolic.py`](../../tests/test_symbolic.py) covers grammar, fit refusal, priors, split exclusion, blind prompts, held-out adoption and member-set comparability. [`test_score_details.py`](../../tests/test_score_details.py) checks score inspection. [`test_mechanism.py`](../../tests/test_mechanism.py) checks citations, idempotence and separation from scores/snapshots; [`test_qualification_first.py`](../../tests/test_qualification_first.py) checks qualified-only ranking and direct coverage.
+
+## Reading the denominators
+
+The score averages available contributions using the selected weights. Coverage uses all applicable scoring weight, including missing values. Predictions can contribute to scores when allowed by a criterion; measurements, curated observations and permitted calculations supply direct-evidence coverage. Eligibility requirements have their own denominator. [Decision definitions](../reference/decision-language.md) keep these quantities separate, including criteria with both eligibility and scoring uses.

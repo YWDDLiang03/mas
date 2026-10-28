@@ -1,6 +1,8 @@
 # One-command handoff to another agent
 
-The checkout, Python 3.11+, and the public optional capsule are sufficient. No original private store, manuscript PDF, private account, or operator log is needed. Work in a **new independent workspace**. The commands below work in PowerShell and Linux/macOS shells from the repository root.
+[Workflow design](design.md) · [Documentation index](README.md)
+
+Start with the checkout, Python 3.11+ and the optional public capsule. Work in a **new independent workspace**. The commands below work in PowerShell and Linux/macOS shells from the repository root.
 
 ```sh
 # Verify the saved result with the real qualification/scoring/ranking engine.
@@ -22,9 +24,9 @@ On Windows, `agent-run.cmd` is an equivalent launcher: `agent-run.cmd replay --w
 
 The retained example displays **10 Eligible, 1,305 Evidence incomplete and 1,862 Excluded**. Replay verifies the frozen qualification fields (`qualified: 10`, `pending: 3167`, `rejected: 0`); the workbench derives the current selection groups and specific reasons from the same assessments. See [the version mapping](reference/system-alignment.md#classification-version).
 
-`replay` downloads the approximately 168 MB release asset, checks its exact byte count and SHA-256 against the repository manifest, imports public immutable records, and calls production qualification, preference scoring, and snapshot construction. It compares every candidate entry and the relevant aggregate fields against the saved snapshot. It makes **zero new model calls, zero retrieval calls, and no new CQA**. The saved failed history, original run identities, costs, and budget reports remain historical records. Matching the old leaderboard validates deterministic engine replay from saved assessments; it does not rerun the old models or regenerate old criteria.
+`replay` downloads the approximately 168 MB release asset, checks its exact byte count and SHA-256 against the repository manifest, imports the selected public records and declared metadata projection, and calls production qualification, preference scoring, and snapshot construction. It compares every candidate entry and the relevant aggregate fields against the saved snapshot. It makes **zero new model calls, zero retrieval calls, and no new CQA**. The saved failed history, original run identities, costs, and budget reports remain historical records. Matching the old leaderboard validates deterministic engine replay from saved assessments; it does not rerun the old models or regenerate old criteria.
 
-`plan` prepares complete executable input without a model call. For the original task, it creates a new evidence-only source from the pinned 3,157 claims, 164 sources and 68,886 historical tool facts. Its starting CQA count is zero. `run` creates an independent research task, normalizes the objective, proposes/reviews/refines new criteria, resolves decisions, freezes rules, screens candidates, and publishes actual results. It uses current configured models over the saved factual inputs. This is a counterfactual new trajectory: its criteria, outcome, cost, and winner can differ from the historical result. There is no promise that Surufatinib will pass or rank first.
+`plan` prepares complete executable input without a model call. For the original task, it creates a new evidence-only source from the pinned 3,157 claims, 164 sources and 68,886 historical tool facts. Its starting CQA count is zero. `run` creates an independent research task, normalizes the objective, proposes/reviews/refines new criteria, resolves decisions, freezes rules, screens candidates, and publishes actual results. It uses current configured models over the saved factual inputs. Each investigation reports its own criteria, outcome, cost and prioritized candidates.
 
 The defaults for new work are **mid literature/textbook workload, 4 workers, USD 10, staged screening, saved evidence only**. These defaults apply to the new workflow and do not rewrite the original recorded budget. `--workers`, `--budget-usd`, and `--evaluation-mode full` override the new workflow's values. Every resolved workflow uses `<workspace>/cache` as its source cache.
 

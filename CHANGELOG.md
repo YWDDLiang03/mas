@@ -1,5 +1,14 @@
 # Changelog
 
+## Documentation and public-data update, 2026-10-28
+
+- Refresh English/Chinese navigation, general workflow design, component explanations and task customization guides.
+- Align criterion generation, eligibility, scoring, evidence types and candidate groups.
+- Replace private-source comparisons with synthetic examples and keep publication figure working copies local.
+- Declare excluded-source metadata substitutions in the public task export and portable capsule while preserving scientific values.
+
+See [the update notes](docs/releases/2026-10-28-documentation.md).
+
 ## Workbench update, 2026-10-26
 
 - Align TRIAGE titles, criterion roles, evidence bases and candidate outcomes with the study terminology.
@@ -22,7 +31,7 @@ See [v1.1.0 release notes](docs/releases/v1.1.0.md) for validation and the disti
 ## 1.0.0 — 2026-10-17
 
 - Publish English-default bilingual project navigation, full component references and a complete saved-run tutorial.
-- Add the original-eleven versus latest-generated CQA comparison with explicit endpoint, threshold and decision-role differences.
+- Add criterion-comparison documentation covering endpoint, threshold and decision-use differences. The current public guide uses synthetic inputs.
 - Support first-use Windows workspaces and portable configuration; preserve existing workspace state.
 - Package the recorded study and current presentation in stable public locations, preserving frozen export hashes.
 - Remove superseded development notes, one-off scripts and presentation intermediates from the current tree.

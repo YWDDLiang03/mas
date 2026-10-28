@@ -1,6 +1,6 @@
 # System terminology and recorded study alignment
 
-[Decision rules](decision-language.md) · [Terminology catalog](terminology.md) · [Figure revision plan](../figures/revision-plan.md)
+[Decision rules](decision-language.md) · [Terminology catalog](terminology.md) · [Workflow design](../design.md)
 
 TRIAGE is an evidence-driven medical research workbench. Each task supplies its objective, candidate population, admission requirements, accepted evidence and scoring rules. The oral multi-target example supplies the drug-specific inputs used below.
 
@@ -37,7 +37,7 @@ All six task requirements are mandatory for admission: one condition check for o
 
 ## Classification version
 
-The saved scientific export records `qualified: 10`, `pending: 3167` and `rejected: 0`. The earlier manuscript terminology maps these to qualified, pending/undetermined and confirmed-failure exclusion.
+The saved scientific export records `qualified: 10`, `pending: 3167` and `rejected: 0`. These historical fields describe the earlier evidence-qualification summary.
 
 The current candidate-selection policy, `selection_reporting_v3`, reports:
 
@@ -57,7 +57,7 @@ The workbench defaults to English and offers Chinese interface labels. Main cand
 
 A deterministic descriptor receives a calculated display title when its recorded title still says Predicted and its current evidence definition accepts only derived values. The source title remains available in details.
 
-The [current figures](../figures/current/README.md) use the same definitions. Their method panels describe configurable task requirements; their example panels carry the recorded quantities. Both figures are supplied as native editable PowerPoint objects, vector PDF/SVG and 600 dpi PNG.
+The [public workflow diagram](../design.md) describes configurable task requirements. Screenshots and the recorded-case tables use the same candidate groups and criterion-use definitions. Private publication figures are managed outside the public file set.
 
 ## Verification
 

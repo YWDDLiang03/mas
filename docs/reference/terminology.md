@@ -1,8 +1,8 @@
 # TRIAGE terminology
 
-[Decision definitions / 判定定义](decision-language.md) · [中文说明](../zh/decision-language.md) · [CSV catalog](terminology.csv) · [Alignment plan](system-alignment.md)
+[Decision definitions / 判定定义](decision-language.md) · [中文说明](../zh/decision-language.md) · [CSV catalog](terminology.csv) · [System correspondence](system-alignment.md)
 
-TRIAGE is a multi-agent workbench for evidence-driven candidate evaluation and prioritization in medical research. It supports configurable objectives, candidate types, source evidence and comparison rules. The complete retained example concerns therapeutic drug prioritization; general data handling does not establish validation for every medical task. MAS remains the repository and Python package name.
+TRIAGE is a multi-agent workbench for evidence-driven candidate evaluation and prioritization in medical research. It supports configurable objectives, candidate types, source evidence and comparison rules. The supplied end-to-end example concerns drug prioritization; other tasks provide their own data and suitable domain tools. MAS remains the repository and Python package name.
 
 ## Page titles
 
@@ -23,16 +23,16 @@ English is the display default. Chinese translates interface labels; research ob
 | Concept | Preferred English | 中文界面 | Meaning / usage |
 |---|---|---|---|
 | 系统 | Medical research workbench | 医学研究工作台 | 工作流与记录工具的总称 |
-| 架构 | Multi-agent system / multi-agent workbench | 多智能体系统／多智能体工作台 | 描述角色组织；独立性另报 |
-| 论文工作流 | Therapeutic prioritization workflow | 治疗候选优先排序流程 | 本例针对治疗药物候选 |
+| 架构 | Multi-agent system / multi-agent workbench | 多智能体系统／多智能体工作台 | 描述提议、审查、裁决等角色及其协作 |
+| 治疗候选流程 | Therapeutic prioritization workflow | 治疗候选优先排序流程 | 本例针对治疗药物候选 |
 | 研究目标 | Research objective | 研究目标 | 研究者提出的问题与成功条件 |
 | 研究任务 | Research task | 研究任务 | 含目标、范围、对象和约束的版本记录 |
 | 一次执行 | Investigation / research run | 研究流程／本次运行 | Investigation 指整条研究流程；run 指一次绑定输入与设置的执行 |
-| 任务约束 | Task constraint | 任务约束 | 来自任务授权的条件，不包装为文献独立发现 |
+| 任务约束 | Task constraint | 任务约束 | 来自研究目标和任务输入的明确要求 |
 | 候选 | Candidate | 候选 | 通用对象；与 criterion proposal 区分 |
-| 候选药物 | Drug candidate / candidate agent | 候选药物 | 这里可含已有批准药物的新用途，不暗示新分子实体 |
+| 候选药物 | Drug candidate | 候选药物 | 参与比较的药物，可包括已获批药物 |
 | 候选总体 | Candidate population | 候选总体 | 本次实际比较的完整集合 |
-| 候选库 | Candidate library | 候选库 | 数据来源与版本；不自动代表完整药物空间 |
+| 候选库 | Candidate library | 候选库 | 本次候选的数据来源、成员及版本 |
 | 参考候选 | Disclosed reference candidate | 已披露参考候选 | 已知身份和既有结果的程度需交代 |
 | 来源 | Source | 来源 | 文献、数据库、上传数据等来源实体 |
 | 文献 | Literature / source document | 文献／来源文档 | 数据库记录不能统称文献；摘要与全文应区别 |
@@ -41,9 +41,9 @@ English is the display default. Chinese translates interface labels; research ob
 | 证据集合 | Evidence collection | 证据集合 | 固定来源与版本，避免暗示全面系统综述 |
 | 证据快照 | Evidence snapshot | 证据快照 | 不可变的本次证据绑定 |
 | 直接证据 | Direct evidence | 直接证据 | 按本次政策接受的观测、整理测量或允许的确定性计算；界面提供定义 |
-| 整理测量 | Curated measurement | 数据库整理的测量值 | 标明实验条件与原始来源，不把数据库整理当作新实验 |
+| 整理测量 | Curated measurement | 数据库整理的测量值 | 保留实验条件及原始来源的整理数据 |
 | 确定性计算 | Deterministic calculation / structure-derived descriptor | 确定性计算／结构计算描述符 | 分子量、RDKit logP 和结构警报计数等；与训练模型预测分开 |
-| 模型预测 | Model prediction | 模型预测 | 必须标明预测端点，不能泛称实验结果 |
+| 模型预测 | Model prediction | 模型预测 | 标明预测端点、模型与适用条件的估计值 |
 | 证据依据 | Evidence basis | 取值依据 | 回答值从测量、整理、计算还是预测得到 |
 | 缺少直接证据 | Missing required direct evidence | 缺少必需直接证据 | 证据状态；不改写为性质测量失败 |
 | 证据冲突 | Conflicting evidence | 证据冲突 | 与无数据、解释未决分开 |
@@ -59,14 +59,14 @@ English is the display default. Chinese translates interface labels; research ob
 | 加权排序标准 | Weighted prioritization criterion | 加权排序标准 | 合格候选之间的比较项 |
 | 上下文观察 | Contextual observation | 参考观察项 | 辅助理解，不加准入或排序权重 |
 | 未启用项 | Not used in this evaluation | 未纳入本次评估 | 必须给具体未启用理由；不等于已证伪 |
-| 规则集 | Frozen evaluation framework | 已固定评估框架 | 冻结可执行版本，不暗示专家共识或临床验证 |
-| 提出角色 | Criterion proposer | 标准提出智能体 | 提出可执行标准 |
-| 批评角色 | Criterion critic | 标准审查智能体 | 指出缺陷和争议；不同于人类医学审稿人 |
-| 裁决角色 | Adjudicator agent | 裁决智能体 | 记录机器裁决权限；不用 expert panel 或 clinical approval |
+| 规则集 | Frozen evaluation framework | 已固定评估框架 | 固定采用的标准、权重及证据版本 |
+| 提出角色 | Proposer | 标准提出智能体 | 提出并修订评价标准 |
+| 批评角色 | Critic | 标准审查智能体 | 检查来源支持、相关性与适用条件 |
+| 裁决角色 | Adjudicator | 裁决智能体 | 处理解释分歧，判断合并或保留区别 |
 | 检索角色 | Literature retriever | 文献检索智能体 | 查询与来源覆盖 |
 | 阅读角色 | Evidence reader / extractor | 证据阅读／提取智能体 | 提取可定位的条目 |
 | 归纳角色 | Evidence summarizer | 证据归纳智能体 | 来源支持的归纳 |
-| 评分 | Prioritization score | 优先排序得分 | 本框架内的比较量，不是临床疗效概率 |
+| 评分 | Prioritization score | 优先排序得分 | 按本次评价框架计算的候选比较得分 |
 | 得分明细 | Score contribution | 得分贡献 | 值、方向、权重与归一化贡献 |
 | 排序 | Candidate ranking | 候选排序 | 依赖同一总体、框架、权重与政策 |
 | 排名 | Rank | 名次 | 条件性相对位置 |
@@ -94,7 +94,7 @@ English is the display default. Chinese translates interface labels; research ob
 ## Terms that require an explicit scope
 
 - **CQA** is a legacy project label, not the general name for every evaluation criterion. In ICH Q8(R2), Critical Quality Attributes concern properties controlled to ensure pharmaceutical product quality. We use **evaluation criteria** for the general workflow. This is an editorial choice to avoid a domain collision, not a claim that the abbreviation is prohibited. [ICH Q8(R2), section 2.2](https://database.ich.org/sites/default/files/Q8_R2_Guideline.pdf)
-- **Direct-evidence coverage** retains the paper's wording. Accepted bases and the measured/curated/derived/predicted breakdown must accompany it. It is not synonymous with experimental or clinical measurement coverage.
+- **Direct-evidence coverage** counts the applicable scoring weight supported by the task's accepted measurements, curated observations and deterministic calculations. Display the measured/curated/calculated/predicted breakdown alongside it.
 - **Available target observation** concerns evidence availability. **Target engagement**, **effective inhibition** and **clinical response** require their own evidence and must not be inferred from an eligibility label.
 - **Frozen** means a fixed evaluation version. **Agent reviewed** and **human reviewed** describe different sources of judgment. Neither freezing nor a machine decision implies clinical validation.
 - **Prioritized candidate** means a research ranking result under the saved framework. The historical internal value `recommended` is not a clinical recommendation.
@@ -102,7 +102,7 @@ English is the display default. Chinese translates interface labels; research ob
 
 ## Stable counting names
 
-Use **working items** for the expanding and refining pool; **enabled decision rules** for the unique criteria used in admission or prioritization; **assessed items** when contextual observations are also included. A condition-met count, required-observation count, available-score denominator and direct-evidence coverage denominator each name their own scope.
+Use **criterion proposals / working items** for the expanding and refining pool; **evaluation criteria** for adopted measurement and decision definitions; **enabled decision rules** for their executable internal versions; **assessed items** when contextual observations are also included. A condition-met count, required-observation count, available-score denominator and direct-evidence coverage denominator each name their own scope.
 
 The oral example has 53 retained working items, 18 enabled decision rules, 31 assessed items, 17 prioritization criteria and 15 available score contributions. These are different denominators. Their definitions, rather than the example's numerical values, are shared across studies.
 

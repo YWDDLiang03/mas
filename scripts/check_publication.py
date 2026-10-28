@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import sys
 import tomllib
+import subprocess
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,10 +35,12 @@ def heading_ids(text: str) -> set[str]:
 
 def main() -> int:
     errors = []
-    documents = [ROOT / p for p in ('README.md', 'README.zh-CN.md', 'CONTRIBUTING.md', 'CHANGELOG.md')]
-    documents += list((ROOT / 'docs').rglob('*.md'))
-    documents += list((ROOT / 'config').rglob('*.md'))
-    documents += list((ROOT / 'examples').rglob('README.md'))
+    public_paths = [ROOT / p for p in subprocess.check_output(
+        ['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], cwd=ROOT
+    ).decode('utf-8').split('\0') if p and (ROOT / p).is_file()]
+    documents = [p for p in public_paths if p.suffix == '.md' and
+        (p.parent == ROOT or p.relative_to(ROOT).parts[0] in ('docs', 'config', 'examples'))]
+    public_set = {p.resolve() for p in public_paths}
     links = 0
     for document in documents:
         if not document.exists():
@@ -54,6 +57,8 @@ def main() -> int:
             links += 1
             if not path.exists():
                 errors.append(f'{document.relative_to(ROOT)}: missing {target}')
+            elif path.is_relative_to(ROOT) and path.is_file() and path not in public_set:
+                errors.append(f'{document.relative_to(ROOT)}: link points to local-only file {target}')
             elif parts.fragment and path.suffix.lower() == '.md':
                 if unquote(parts.fragment) not in heading_ids(path.read_text(encoding='utf-8-sig')):
                     errors.append(f'{document.relative_to(ROOT)}: missing anchor {target}')
@@ -87,32 +92,45 @@ def main() -> int:
     if portable.get('format') != 'mas-portable-reproduction-v1':
         errors.append('Unknown portable reproduction format')
     capsule = portable['capsule']
-    if capsule['bytes'] != 168065291 or capsule['sha256'] != '1a9b068613a32178e4ea0e62ad48d3086f249d4b5e995041a5b671096dcce3fd':
-        errors.append('Published capsule identity changed')
+    projection = portable.get('public_metadata_projection')
+    if not isinstance(capsule.get('bytes'), int) or capsule['bytes'] <= 0 or not re.fullmatch(r'[0-9a-f]{64}', capsule.get('sha256', '')):
+        errors.append('Invalid published capsule identity')
+    verified_capsule = (projection or {}).get('source_capsule_sha256', capsule['sha256'])
+    if projection and projection.get('source_capsule_sha256'):
+        receipt = json.loads((case / 'latest/reproduction/public-metadata-verification.json').read_text(encoding='utf-8'))
+        if (receipt.get('status') != 'pass' or receipt.get('public_capsule_sha256') != capsule['sha256']
+                or receipt.get('source_capsule_sha256') != verified_capsule
+                or receipt.get('unexpected_changed_records') != 0):
+            errors.append('Public metadata projection verification differs')
     verified = replay['recorded_replay']
-    if (replay['capsule_sha256'] != capsule['sha256'] or verified['status'] != 'pass'
+    if (replay['capsule_sha256'] != verified_capsule or verified['status'] != 'pass'
             or verified['candidate_count'] != 3177 or verified['assessment_count'] != 98487
             or verified['difference_count'] != 0
             or verified['saved_entries_sha256'] != verified['replayed_entries_sha256']):
         errors.append('Published capsule replay verification differs')
 
-    comparison = json.loads((case / 'cqa-comparison.json').read_text(encoding='utf-8'))
-    with (case / 'cqa-comparison.csv').open(encoding='utf-8-sig', newline='') as f:
-        rows = list(csv.DictReader(f))
-    if len(comparison['rows']) != 11 or len(rows) != 11:
-        errors.append('CQA comparison must contain 11 original rows')
-    for entry in comparison['latest']['files']:
-        if digest(case / entry['path']) != entry['sha256']:
-            errors.append('Comparison input hash mismatch: ' + entry['path'])
-    if len(comparison['latest_enabled_core']) != 18 or len(comparison['latest_enabled_context']) != 13:
-        errors.append('CQA enabled-set counts differ')
+    comparison = json.loads((ROOT / 'config/examples/criterion-comparison.synthetic.json').read_text(encoding='utf-8'))
+    if comparison.get('fixture_type') != 'synthetic' or len(comparison.get('rows', [])) != 3:
+        errors.append('Public criterion comparison must be the declared synthetic fixture')
+    task_export = json.loads((case / 'latest/results/task.json').read_text(encoding='utf-8'))
+    if any(s.get('title') != 'Private source document' for s in task_export.get('case_source_documents') or []):
+        errors.append('Excluded private source descriptions remain in the public task export')
+    for path in public_paths:
+        relative = path.relative_to(ROOT).as_posix()
+        if ('manuscript' in path.name.lower() or relative.startswith(('docs/figures/original-layout/', 'docs/figures/current/'))
+                or relative in ('examples/oral-multitarget/cqa-comparison.csv', 'examples/oral-multitarget/cqa-comparison.json')):
+            errors.append('Private working material in public file set: ' + relative)
+        if path.suffix.lower() in ('.md', '.toml', '.json', '.py', '.yml', '.yaml', '.csv'):
+            content = path.read_text(encoding='utf-8-sig', errors='replace')
+            if re.search(r'\bsk-[A-Za-z0-9]{24,}\b', content):
+                errors.append('Credential-shaped value in public file: ' + relative)
 
     presentation = ROOT / 'docs/presentation'
     validation = json.loads((presentation / 'validation.json').read_text(encoding='utf-8'))
     if digest(presentation / 'MAS-system-and-case.pptx') != validation['pptx_sha256']:
         errors.append('Presentation changed after its visual/data verification')
     print(json.dumps({'version': package, 'documents': len(documents), 'local_links_checked': links,
-                      'frozen_result_files_checked': verified_files, 'comparison_rows': len(rows),
+                      'frozen_result_files_checked': verified_files, 'synthetic_comparison_rows': len(comparison['rows']),
                       'errors': errors}, ensure_ascii=False, indent=2))
     return 1 if errors else 0
 

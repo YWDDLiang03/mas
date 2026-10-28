@@ -1,5 +1,7 @@
 # 使用研究工作台
 
+[流程设计](design.md) · [文档导航](README.md)
+
 [English](../user-guide.md) · [安装](installation.md) · [完整案例](tutorial.md)
 
 ## 准备工作区

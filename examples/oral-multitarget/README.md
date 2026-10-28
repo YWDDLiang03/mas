@@ -1,6 +1,6 @@
 # Oral multi-target research example
 
-[Step-by-step tutorial](../../docs/tutorial.md) · [中文教程](../../docs/zh/tutorial.md) · [Original CQA comparison](../../docs/reference/cqa-comparison.md)
+[Step-by-step tutorial](../../docs/tutorial.md) · [中文教程](../../docs/zh/tutorial.md) · [Criterion comparison guide](../../docs/reference/cqa-comparison.md)
 
 This directory contains the frozen export from the latest completed study. The latest study begins with an oral multi-target objective, develops and refines criteria from saved evidence, checks the recorded compound library, and links the final ranking to its rules and source observations.
 
@@ -21,15 +21,15 @@ The [tutorial's inspection commands](../../docs/tutorial.md#0-inspect-the-publis
 
 ## What happened in the latest run
 
-The researcher supplied a single-agent oral objective covering **CSF1R, VEGFR1, VEGFR2, VEGFR3 and FGFR1**. The run used **mid workload, four workers**, a saved **USD 5.50 cap**, and a fixed collection of **3,157 facts / 164 sources**, cutoff **15 October 2026**, over **3,177 candidates**. The current new-task default is USD 10; it does not replace the saved cap. Recorded model cost was **USD 4.2101472 estimated**.
+The researcher supplied a single-drug oral objective covering **CSF1R, VEGFR1, VEGFR2, VEGFR3 and FGFR1**. The run used **mid workload and a configured worker limit of four**, a saved **USD 5.50 cap**, and a fixed collection of **3,157 facts / 164 sources**, cutoff **15 October 2026**, over **3,177 candidates**. Criterion generation selected 3,021 of those records. The current new-task default is USD 10; it does not replace the saved cap. Recorded model cost was **USD 4.2101472 estimated**.
 
-Criteria started empty. Six task requirements expanded to **1,917 working items**, then three refinement rounds reduced them to **147 → 68 → 53**. The final 53 comprise **18 core rules** (1 hard condition + 17 preferences), **13 reference observations**, and **22 not enabled** (14 registered/deferred + 8 unregistered). The five target preferences are included in the 17, not counted again.
+Criteria started empty. Six task requirements expanded to **1,917 working items**, then three refinement rounds reduced them to **147 → 68 → 53**. The final 53 comprise **18 evaluation criteria** serving six eligibility requirements and 17 scoring criteria, with five shared target criteria; **13 contextual observations**; and **22 entries outside this evaluation** (14 registered/deferred + 8 unregistered).
 
 Surufatinib passes the oral hard condition **1/1** and has direct observations for all required targets **5/5**. The first saved result had no rank because direct preference coverage was **6/17**, below the 50% ranking floor. Correcting existing-fact reuse and four deterministic descriptor basis classifications produced a new saved snapshot with **10/17** direct coverage. Scientific thresholds, weights and coverage floors were retained; the first outcome remains in the snapshot history.
 
 Of 17 preferences, 15 have values and equal weight: **11.38888888888889 comparison points ÷ 15 = 0.7592592592592593**. Human oral F% and Tmax remain missing. The score denominator is 15; direct coverage uses all 17 applicable preferences. Predictions can contribute to the allowed preference score but do not increase direct coverage.
 
-The final population is **10 qualified, 3,167 pending, 0 rejected, 0 unassessed**. Surufatinib ranks first within the qualified ten. Its FGFR1 record shows how to audit aggregation: literature IC50 **34 nM** becomes **7.468521 pChEMBL**, which joins **7.280000, 7.82 and 7.82**; the four-record median is **7.64426054148**. The records preserve source/assay context; four records do not imply four independent experiments.
+The current display reports **10 Eligible, 1,305 Evidence incomplete and 1,862 Excluded**. The immutable evidence-qualification fields retain the earlier 10 qualified / 3,167 pending summary; [the mapping](../../docs/reference/system-alignment.md#classification-version) explains the relationship. Surufatinib ranks first within the qualified ten. Its FGFR1 record shows how to audit aggregation: literature IC50 **34 nM** becomes **7.468521 pChEMBL**, which joins **7.280000, 7.82 and 7.82**; the four-record median is **7.64426054148**. The records preserve source/assay context; four records do not imply four independent experiments.
 
 ## Restore, replay or generate again
 
@@ -39,21 +39,6 @@ Run `python scripts/agent_run.py replay --bootstrap --workspace var/agent-replay
 
 To conduct your own research, follow [installation](../../docs/installation.md), configure the provider, initialize a new workspace and import your own [candidate](../../config/examples/candidates.csv) and [measurement](../../config/examples/measurements.csv) CSVs through **Use own data**. The supplied templates contain headers only. Preserve identities, units, conditions and measured/derived/predicted basis; report the new investigation's actual counts and result.
 
-## Original reference and CQA comparison
+## Comparing criterion sets
 
-The reference candidate was disclosed. The original manuscript's eleven CQAs are a human-selected predicted-property screen, distinct from the older 59-item system registry and the latest 53-item working set. The [English](../../docs/reference/cqa-comparison.md) and [Chinese](../../docs/zh/cqa-comparison.md) comparison documents report **2 same-named endpoints with changed decisions + 3 related/unresolved rows + 6 absent endpoints**, with **0 full original gate equivalences** established. Only one same-named original endpoint appears in the 18-rule enabled core.
-
-[cqa-comparison.json](cqa-comparison.json) and [cqa-comparison.csv](cqa-comparison.csv) hold the curated eleven-row description and provenance. This is a post-hoc descriptive comparison; **B was not remeasured**. The original manuscript PDF, figure image and raw evaluator-only payloads are not redistributed here.
-
-## Fixed identifiers
-
-| Item | Recorded identity |
-|---|---|
-| Latest task | `task_01M52CBE5GYPK9F0MCZYBMPH84` |
-| Latest workflow | `wf_cb4caec3dec348908fb3d34eae5b11d1` |
-| Latest snapshot | `lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2` |
-| Latest rules | `rules@v2` |
-| Latest run | `run_01M52Q4VRB00T5Z3QJW08SSV96` |
-| Comprehensive task / source collection | `task_01M51AQ0JK0MYN47806ZD5XS1B` |
-
-The source run export may contain historical local path references as provenance. Those references identify its original environment; they are not installation paths or resources supplied by this directory.
+Criterion-set comparison uses a separately supplied authorized baseline. The [English](../../docs/reference/cqa-comparison.md) and [Chinese](../../docs/zh/cqa-comparison.md) guides demonstrate the method with synthetic entries.

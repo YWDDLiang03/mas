@@ -6,9 +6,9 @@
   "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2",
   "rules_ref": "rules@v2",
   "capsule": {
-    "path": "oral-multitarget-latest-v1.jsonl.gz",
-    "sha256": "1a9b068613a32178e4ea0e62ad48d3086f249d4b5e995041a5b671096dcce3fd",
-    "bytes": 168065291
+    "path": "oral-multitarget-latest-public-20261028.jsonl.gz",
+    "sha256": "2fd556757f4090b8d0e8d436a330bc25f545619cd54fb275a615a4ded6453d58",
+    "bytes": 168065048
   },
   "counts": {
     "events": 240135,
@@ -18725,7 +18725,71 @@
   ],
   "distribution": {
     "kind": "optional_release_asset",
-    "asset_name": "oral-multitarget-latest-v1.jsonl.gz",
+    "asset_name": "oral-multitarget-latest-public-20261028.jsonl.gz",
     "bundled_in_git": false
+  },
+  "public_metadata_projection": {
+    "policy": "excluded_source_labels_v1",
+    "date": "2026-10-28",
+    "records": [
+      {
+        "artifact_id": "art_01408c27c12f",
+        "fields": [
+          "payload.case_source_documents[0].title",
+          "payload.case_source_documents[0].note"
+        ],
+        "source_sha256": "01408c27c12ffa03f9f5a3a2f6395221ee109155b1f402f81200481f057a87fa",
+        "public_sha256": "11c7d1630a81453702561d5cba0249b0e00224bba48ad96dde6357488e08fe29"
+      },
+      {
+        "artifact_id": "art_c30e97948cd6",
+        "fields": [
+          "payload.case_source_documents[0].title",
+          "payload.case_source_documents[0].note"
+        ],
+        "source_sha256": "c30e97948cd6cb8a513dd5e1ef7ae400038de1ed41faeb335ebe227cdba1d1b1",
+        "public_sha256": "ce68ab16ba33ac826a8fcdbdded301ff1be04c07095212ec094f783681971ac5"
+      },
+      {
+        "artifact_id": "art_602cf3a67df5",
+        "fields": [
+          "payload.case_source_documents[0].title",
+          "payload.case_source_documents[0].note"
+        ],
+        "source_sha256": "602cf3a67df5dfaac0284b4691312c2921dc147f56065ba266b34febef4ca702",
+        "public_sha256": "15a29c42614e28a6ea065048c509ac94b23ac472036f19038a4c8c79e405f0bb"
+      },
+      {
+        "artifact_id": "art_8a99347786c8",
+        "fields": [
+          "payload.case_source_documents[0].title",
+          "payload.case_source_documents[0].note"
+        ],
+        "source_sha256": "8a99347786c8c6d7e68f3597449c9ba6f97481bbe6bcfd7777fb538a872b7bec",
+        "public_sha256": "10869f76c932ed1fc3868bf1154280e9c754afbfaeeee19f6d982d6973aa391b"
+      },
+      {
+        "artifact_id": "art_2dddde0f18e6",
+        "fields": [
+          "payload.case_source_documents[0].title",
+          "payload.case_source_documents[0].note"
+        ],
+        "source_sha256": "2dddde0f18e6dfa8367c065810888a651f208e8c2637c099499efcee796f2a51",
+        "public_sha256": "64551e4725e422471b1bd68719bf00912e55c7aa9ee846d81a606d8ef67daaff"
+      },
+      {
+        "artifact_id": "art_d5393f1e0731",
+        "fields": [
+          "payload.case_source_documents[0].title",
+          "payload.case_source_documents[0].note"
+        ],
+        "source_sha256": "d5393f1e07312a05b3b078e4a954b14171a0b5a245c59401b15500cab1a3425f",
+        "public_sha256": "75be1a98cb4a2ff9fe2076e9bd2670eb0d6761996e2451e33f5549cfde5c669b"
+      }
+    ],
+    "source_capsule_sha256": "1a9b068613a32178e4ea0e62ad48d3086f249d4b5e995041a5b671096dcce3fd",
+    "unchanged_records_sha256": "5be02e35f3e4efc776d76633d1ed4a854d93fe55378101da0e998e6465be9f89",
+    "total_records": 640090,
+    "scope": "Descriptive labels of excluded private source documents only; all scientific observations, criteria, numeric results and event rows are unchanged."
   }
 }

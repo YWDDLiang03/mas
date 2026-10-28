@@ -1,5 +1,7 @@
 # Component reference
 
+[Workflow design](../design.md) · [Documentation index](../README.md)
+
 [Practical walkthrough](../component-walkthrough.md#read-records) · [中文实操](../zh/component-walkthrough.md#read-records)
 
 [Project home](../../README.md) · [Architecture and C1–C20 status](../architecture.md)

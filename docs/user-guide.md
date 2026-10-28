@@ -1,5 +1,7 @@
 # Use the research workbench
 
+[Workflow design](design.md) · [Documentation index](README.md)
+
 [中文](zh/user-guide.md) · [Install](installation.md) · [Complete saved example](tutorial.md)
 
 ## Prepare a workspace

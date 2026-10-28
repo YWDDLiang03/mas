@@ -65,3 +65,9 @@ An invariant failure raises `InvariantViolation` with a finding class. A pool it
 ## Existing verification
 
 [`test_criteria_pool.py`](../../tests/test_criteria_pool.py) covers stage order, bounded repair, duplicate detection, family aggregation, merge provenance and resumable proposals. [`test_registered_reduction.py`](../../tests/test_registered_reduction.py) checks reduction over registered criteria. [`test_adjudication.py`](../../tests/test_adjudication.py), [`test_bound_support.py`](../../tests/test_bound_support.py) and [`test_unresolved_review_freeze.py`](../../tests/test_unresolved_review_freeze.py) cover authority, supported bounds and pending reviews. [`test_criteria_export.py`](../../tests/test_criteria_export.py) checks reviewer-facing exports.
+
+## Three-role feedback in a new study
+
+The Proposer develops criteria and revises them after Critic findings. The Critic reads the proposal and supporting sources and reports specific relevance, evidence and definition issues. The Adjudicator handles disputed interpretations and compatibility of proposed combinations. Revised and combined proposals return to review. [Workflow design](../design.md) describes the scientific purpose of expansion and refinement; the stage functions above implement those transitions.
+
+For existing-evidence generation, the selected facts are inputs to a new empty pool. Explicit task requirements are preserved separately from evidence-guided proposals. The round limit and unchanged-round stopping rule are recorded with their actual termination reason.

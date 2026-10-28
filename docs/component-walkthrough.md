@@ -1,5 +1,7 @@
 # Component walkthrough: inspect, change, and verify a research run
 
+[Workflow design](design.md) · [Documentation index](README.md)
+
 [中文](zh/component-walkthrough.md) · [One-command agent runs](agent-run.md) · [Component reference](components/README.md) · [Browser tutorial](tutorial.md)
 
 This tutorial follows one saved research task through the actual components, then shows where to change the next experiment. Start with the read-only examples: they need Python's standard library, make no model or network requests, and do not open a research store. The component reference explains the full contracts; this page shows how those contracts meet in a concrete run.
@@ -148,7 +150,7 @@ Resume continues a nonterminal run's committed work. Continuation creates a new 
 <a id="evaluation-and-recovery"></a>
 ## 10. Evaluation and recovery: compare the right scientific question
 
-[`measurement.py`](../src/mas/core/measurement.py) records prospective comparison policy; [`recovery.py`](../src/mas/core/recovery.py) compares frozen criterion sets under declared exposure/equivalence judgments. The [original-CQA comparison](reference/cqa-comparison.md) concerns recovery of manuscript endpoints. The saved leaderboard concerns candidate qualification and ordering. They use different units and conclusions.
+[`measurement.py`](../src/mas/core/measurement.py) records prospective comparison policy; [`recovery.py`](../src/mas/core/recovery.py) compares frozen criterion sets under declared exposure/equivalence judgments. The [criterion comparison guide](reference/cqa-comparison.md) illustrates comparison of quantities, conditions and decision uses with synthetic inputs. The saved leaderboard concerns candidate qualification and ordering. They use different units and conclusions.
 
 For the published run, [validation.json](../examples/oral-multitarget/latest/results/validation.json) checks export/workflow/snapshot consistency. Portable [verification.json](../examples/oral-multitarget/latest/reproduction/verification.json) records the production-engine replay result; inspect its actual status/differences and source digest. A code digest mismatch tells you the current implementation differs from the historical one even when fixed-result replay agrees.
 

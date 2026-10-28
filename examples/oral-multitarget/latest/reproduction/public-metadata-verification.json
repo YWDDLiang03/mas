@@ -1,0 +1,20 @@
+{
+  "status": "pass",
+  "verification": "Byte comparison of the full source and public capsules; only declared excluded-source title/note substitutions differ.",
+  "source_capsule_sha256": "1a9b068613a32178e4ea0e62ad48d3086f249d4b5e995041a5b671096dcce3fd",
+  "public_capsule_sha256": "2fd556757f4090b8d0e8d436a330bc25f545619cd54fb275a615a4ded6453d58",
+  "total_records": 640090,
+  "metadata_records_changed": 6,
+  "unchanged_records": 640084,
+  "unexpected_changed_records": 0,
+  "all_scientific_values_criteria_and_event_rows_unchanged": true,
+  "numerical_replay_basis": "The existing production replay result applies to the unchanged scientific records. This check verifies the public metadata projection; it is not a new model run.",
+  "metadata_artifact_ids": [
+    "art_01408c27c12f",
+    "art_c30e97948cd6",
+    "art_602cf3a67df5",
+    "art_8a99347786c8",
+    "art_2dddde0f18e6",
+    "art_d5393f1e0731"
+  ]
+}

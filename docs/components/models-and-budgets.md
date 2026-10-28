@@ -74,3 +74,7 @@ with TemporaryDirectory() as root, Core.open(root) as core:
 ## Existing verification
 
 [`test_models_and_reading.py`](../../tests/test_models_and_reading.py) covers role validation, schema repair, trace records and exchange round trips. [`test_config_and_providers.py`](../../tests/test_config_and_providers.py) covers key sources, thinking options, truncation recovery, spend thresholds and redaction. [`test_model_accounting.py`](../../tests/test_model_accounting.py) checks paid-attempt accounting. These are contract tests; use a separately recorded live run when validating a specific provider installation.
+
+## Model names in saved and new investigations
+
+Provider configuration declares the requested API model. Completed call records also capture the provider's returned identifier. Preserve both when the provider uses a changing alias. New runs use the current configured model and retain their actual response and cost information. [Configuration](../configuration.md#deepseek-and-other-model-adapters) links the current example and provider documentation.

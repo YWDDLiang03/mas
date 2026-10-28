@@ -58,6 +58,28 @@ def _public(record):
             and not payload.get("evaluator_only") and not (record.get("ids") or {}).get("case_id"))
 
 
+def public_metadata_copy(envelope):
+    """Replace descriptive labels of excluded private sources in shared tasks.
+
+    Keep source fingerprints, task meaning and the local envelope intact. The
+    capsule declares the original and public digests for every projected record.
+    """
+    if envelope.get('kind') != 'task_context':
+        return envelope, []
+    sources = (envelope.get('payload') or {}).get('case_source_documents') or []
+    if not sources:
+        return envelope, []
+    result = copy.deepcopy(envelope)
+    changed = []
+    for index, source in enumerate(result['payload']['case_source_documents']):
+        for key, value in (('title', 'Private source document'),
+                           ('note', 'Excluded source; content fingerprint retained in the public copy.')):
+            if key in source and source[key] != value:
+                source[key] = value
+                changed.append(f'payload.case_source_documents[{index}].{key}')
+    return (result, changed) if changed else (envelope, [])
+
+
 def _file_hash(path):
     digest = hashlib.sha256()
     with Path(path).open("rb") as handle:
@@ -75,8 +97,9 @@ def build_bundle(store_root, output, *, task_id=DEFAULT_TASK, run_id=DEFAULT_RUN
     """Export selected public records from a read-only source into a new directory.
 
     The allowlist excludes full texts, model traces, private cases, recovery
-    artifacts, operator logs and provider configuration. Source/path strings in
-    immutable scientific records remain historical provenance.
+    artifacts, operator logs and provider configuration. Excluded private-source
+    labels are projected with declared original/public digests. Scientific
+    values and source identities retain their historical meaning.
     """
     root, output = Path(store_root).resolve(), Path(output).resolve()
     if output == root or output.is_relative_to(root) or (output.exists() and any(output.iterdir())):
@@ -90,6 +113,7 @@ def build_bundle(store_root, output, *, task_id=DEFAULT_TASK, run_id=DEFAULT_RUN
         binding = core.artifacts.payload(created.payload["binding_artifact_id"])
         tool_sources = binding.get("tool_replay") or {}
         selected, pending, excluded, event_keys = set(), set(), {}, set()
+        public_metadata_changes = []
         event_counts, artifact_counts, file_counts = Counter(), Counter(), Counter()
         closure_index = {}
         report("Indexing source identities")
@@ -264,9 +288,16 @@ def build_bundle(store_root, output, *, task_id=DEFAULT_TASK, run_id=DEFAULT_RUN
                 if sha256_hex(envelope) != digest:
                     raise ValueError(f"Source artifact hash differs: {aid}")
                 selected.add(aid)
-                refs(envelope)
-                write({"record_type": "artifact", "artifact_id": aid, "body": envelope,
-                       "sha256": digest, "created_at": created})
+                published, changed_fields = public_metadata_copy(envelope)
+                refs(published)
+                published_digest = sha256_hex(published) if changed_fields else digest
+                record = {"record_type": "artifact", "artifact_id": aid, "body": published,
+                          "sha256": published_digest, "created_at": created}
+                if changed_fields:
+                    record['source_sha256'] = digest
+                    public_metadata_changes.append({'artifact_id': aid, 'fields': changed_fields,
+                        'source_sha256': digest, 'public_sha256': published_digest})
+                write(record)
                 artifact_counts[kind] += 1
 
             report("Packing library and pinned cached prediction rows")
@@ -308,6 +339,7 @@ def build_bundle(store_root, output, *, task_id=DEFAULT_TASK, run_id=DEFAULT_RUN
         manifest = {"format": FORMAT, "created_at": utc_now(), "task_id": task_id, "run_id": run_id,
                     "snapshot_id": snapshot_id, "rules_ref": binding["rules@v"],
                     "capsule": {"path": capsule.name, "sha256": _file_hash(capsule), "bytes": capsule.stat().st_size},
+                    "public_metadata_projection": {"policy": "excluded_source_labels_v1", "records": public_metadata_changes},
                     "counts": {"events": sum(event_counts.values()), "artifacts": len(selected),
                                "event_types": dict(event_counts), "artifact_kinds": dict(artifact_counts),
                                "pinned_claims": len(fact_manifest["claims"]), "pinned_sources": len(fact_manifest["source_records"]),

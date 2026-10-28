@@ -1,5 +1,7 @@
 # 组件实操教程：读懂、修改和验证一次研究
 
+[流程设计](design.md) · [文档导航](README.md)
+
 [English](../component-walkthrough.md) · [Agent 一键运行](../agent-run.md) · [组件参考](../components/README.md) · [浏览器教程](tutorial.md)
 
 这份教程沿着一条已保存研究，说明各组件怎样接收输入、产生输出和留下来源记录，再介绍下一次实验的修改位置。建议先运行只读示例：它们使用 Python 标准库读取已发布文件，不请求模型、网络，也不打开研究数据库。组件参考解释完整契约，本页展示这些契约在实际研究中怎样衔接。
@@ -148,7 +150,7 @@ Resume 继续未终止运行的已提交工作；continuation 在终止结果之
 <a id="evaluation-and-recovery"></a>
 ## 10. 评测与恢复率：区分要回答的科学问题
 
-[`measurement.py`](../../src/mas/core/measurement.py)记录前瞻比较策略，[`recovery.py`](../../src/mas/core/recovery.py)按曝光及等价判定比较冻结标准集。[原始 CQA 对照](cqa-comparison.md)研究论文终点恢复情况，榜单研究候选资格与顺序，两者统计单位和结论不同。
+[`measurement.py`](../../src/mas/core/measurement.py)记录前瞻比较策略，[`recovery.py`](../../src/mas/core/recovery.py)按曝光及等价判定比较冻结标准集。[标准比较指南](cqa-comparison.md)用合成示例说明量、条件和决策用途的对应，榜单研究候选资格与顺序，两者统计单位和结论不同。
 
 [validation.json](../../examples/oral-multitarget/latest/results/validation.json)检查已发布导出、工作流与快照的一致性。可移植 [verification.json](../../examples/oral-multitarget/latest/reproduction/verification.json)记录生产引擎回放，应阅读实际状态、差异和源码摘要。即使固定结果回放一致，源码摘要不同仍说明当前实现与历史实现不同。
 

@@ -56,8 +56,8 @@
       "sha256": "ebde8b6d2167a195f1418c7cbeb49b9227fabcf6246720fd2fcd772173f394dc"
     },
     "task.json": {
-      "bytes": 125901,
-      "sha256": "c8a628f232d7e76f93806af16fcb7bdcee022330cc18fe9910f339a5f5821411"
+      "bytes": 125782,
+      "sha256": "e3ea419d473e5e419f2bacbde0f2801d0b9754914595566292f618f7f409e881"
     },
     "validation.json": {
       "bytes": 568,
@@ -68,5 +68,14 @@
       "sha256": "de55cf73009a124a4db8f7bf18fbaf3c5d04c4acacb842c1cffc5872beed3785"
     }
   },
-  "previous_stopped_workflows_cost_included": false
+  "previous_stopped_workflows_cost_included": false,
+  "public_metadata_projection": {
+    "date": "2026-10-28",
+    "file": "task.json",
+    "fields": [
+      "case_source_documents[].title",
+      "case_source_documents[].note"
+    ],
+    "purpose": "Replace descriptive labels for excluded private sources; task objective, criteria and result values are unchanged."
+  }
 }

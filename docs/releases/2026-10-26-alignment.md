@@ -14,7 +14,7 @@ The workbench uses TRIAGE as its product name and aligns the main workflow with 
 - Use the selected evaluation's exact rule assessment for evidence explanations and its frozen framework for criterion-use details.
 - Display deterministic descriptors as calculated where their current evidence definitions specify derived values. Preserve recorded names in details.
 - Publish bilingual decision definitions, a terminology catalog, a general figure specification and a complete current selection table.
-- Update both publication figures in their accepted layouts. Eligibility, scoring overlap, candidate counts and ranking coverage now match the workbench. Provide native editable PowerPoint, vector PDF/SVG and 600 dpi PNG.
+- Align eligibility, scoring overlap, candidate counts and ranking coverage with the workbench. The current public explanation is maintained in the workflow-design guide.
 - Label candidate evidence totals as all assessed criteria, including contextual observations. Score details and the result figure report the scoring subset. Complete, partial and failed evidence labels use the corresponding green, amber and red colors.
 
 ## Correspondence with the recorded study
@@ -34,13 +34,13 @@ The current selection policy refines the historical 3,167 pending records into 1
 | Latest-study selection and CSV | 10 Eligible, 1,305 Evidence incomplete, 1,862 Excluded; selection reasons and totals agree. |
 | Browser | Group names, red Excluded indicator, criterion-use reasons and Surufatinib score details verified. The page shows 11.388889 / 15 = 0.759259 and direct coverage 10/17. |
 | Frozen result integrity | All 14 currently published result files checked against the latest-study manifest. |
-| Figure layout and editing | Both native PowerPoint files opened with zero text overflow, raster objects or gradients. The wording pass preserves workflow shape geometry and result diagram geometry. [Figure validation](../figures/current/validation.json). |
+| Public design explanation | See the current [workflow-design guide](../design.md) for the general process and the candidate-decision definitions. |
 | Presentation notes | Slides 24 and 28 use the current requirements and classification. Historical screenshots are identified; slide and media bytes are unchanged. |
 
 This update uses the retained study for numerical checks and synthetic tasks for general decision behavior. It performs no new literature retrieval or paid model investigation.
 
 ![Recorded Surufatinib score details](2026-10-26-workbench.png)
 
-[Current workflow and result figures](../figures/current/README.md) · [Reconciled revision brief](../figures/revision-plan.md)
+[Workflow design](../design.md) · [Public-content policy](../reference/public-content.md)
 
 ![Six task-defined admission requirements and their shared scoring use](../reference/admission-roles-candidate-ui.png)

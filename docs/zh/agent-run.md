@@ -1,5 +1,7 @@
 # 一条命令交给其他 agent 运行
 
+[流程设计](design.md) · [文档导航](README.md)
+
 准备本仓库、Python 3.11+ 和公开的可选复现包即可。无需原始私有数据库、论文 PDF、私有账户或操作日志。使用**新的独立工作目录**。下面的命令从仓库根目录运行，适用于 PowerShell 和 Linux/macOS shell。
 
 ```sh

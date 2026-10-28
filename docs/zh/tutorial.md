@@ -228,7 +228,7 @@ N 是有值候选数，W 是较差数值个数，E 是包含当前候选的并�
 
 最终固定身份为任务 `task_01M52CBE5GYPK9F0MCZYBMPH84`、快照 `lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2`、运行 `run_01M52Q4VRB00T5Z3QJW08SSV96`。
 
-[原始 CQA 比较](cqa-comparison.md)单独报告事后描述：两项同名端点但决策改变、三行相关且未确定、六项端点缺失；**B 未重测**。原手稿的筛选清单不作为新一轮标准生成输入。
+[标准比较指南](cqa-comparison.md)使用独立的合成基线，说明怎样比较量、条件和决策用途。
 
 ## 第 12 步：使用自己的 CSV 开始研究
 

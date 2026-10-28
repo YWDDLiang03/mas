@@ -256,8 +256,8 @@ def test_summaries_drop_points_without_valid_citations(core):
 
 def test_case_source_matching_catches_identifiers_and_near_identical_titles():
     sources = [{"identifiers": [{"scheme": "doi", "value": "10.1/MS"}],
-                "title": "Multi-target TME Reprogramming Awakens TLS-driven Immunity in Ovarian Cancer"}]
+                "title": "Evidence Guided Candidate Evaluation Improves Selection Across Diverse Research Tasks"}]
     assert reading.is_case_source({"doi": "10.1/ms", "title": "anything"}, sources)
-    assert reading.is_case_source({"title": "Multi-target TME reprogramming awakens TLS-driven immunity in ovarian cancer."},
+    assert reading.is_case_source({"title": "Evidence guided candidate evaluation improves selection across diverse research tasks."},
                                   sources)
-    assert not reading.is_case_source({"title": "TLS biology in ovarian cancer: a review"}, sources)
+    assert not reading.is_case_source({"title": "General evidence quality: a review"}, sources)

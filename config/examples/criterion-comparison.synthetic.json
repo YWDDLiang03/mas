@@ -1,0 +1,43 @@
+{
+  "fixture_type": "synthetic",
+  "purpose": "Illustrate criterion comparison; not observed research results.",
+  "rows": [
+    {
+      "quantity": "particle size",
+      "unit": "nm",
+      "before": {
+        "use": "eligibility",
+        "maximum": 150
+      },
+      "after": {
+        "use": "eligibility",
+        "maximum": 150
+      },
+      "relation": "same_definition"
+    },
+    {
+      "quantity": "cell viability",
+      "unit": "%",
+      "before": {
+        "use": "eligibility",
+        "minimum": 80
+      },
+      "after": {
+        "use": "scoring",
+        "direction": "higher_better"
+      },
+      "relation": "different_decision_use"
+    },
+    {
+      "before": {
+        "quantity": "delivery efficiency",
+        "conditions": "assay A"
+      },
+      "after": {
+        "quantity": "uptake",
+        "conditions": "assay B"
+      },
+      "relation": "unresolved"
+    }
+  ]
+}

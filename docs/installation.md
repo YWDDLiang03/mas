@@ -1,5 +1,7 @@
 # Install and start MAS
 
+[Workflow design](design.md) · [Documentation index](README.md)
+
 MAS can start with an empty local workspace or restore the published example from an optional release capsule. The [agent-run guide](agent-run.md) automates setup, verified restoration and new research from a task JSON. The manual steps below create an empty workspace for your own candidates and evidence. Credentials stay outside the checkout.
 
 ## Windows prerequisites

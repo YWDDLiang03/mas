@@ -21,3 +21,17 @@ store.lock
 
 # Temporary native chart workbooks created during presentation export.
 .chart-data-*/
+
+# Private writing and figure working copies stay local.
+manuscript*/
+NM_manuscript*
+CELL.pdf
+cell.pdf
+CELL*.pdf
+docs/figures/original-layout/
+docs/figures/original-layout-revision-plan.zh-CN.md
+private-publication-archive/
+
+# Local publication figure sources are not public documentation assets.
+docs/figures/current/
+docs/figures/revision-plan.md

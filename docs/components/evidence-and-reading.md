@@ -55,3 +55,7 @@ Fetch failures, absent source configuration, unlicensed ingestion, metadata-only
 ## Existing verification
 
 [`test_models_and_reading.py`](../../tests/test_models_and_reading.py) checks source deduplication, real quoted spans, cited summaries and case-source matching. [`test_evidence.py`](../../tests/test_evidence.py), [`test_uploaded_evidence.py`](../../tests/test_uploaded_evidence.py) and [`test_supplements.py`](../../tests/test_supplements.py) cover the concrete gathering/intake/reuse paths. [`test_evidence_groups.py`](../../tests/test_evidence_groups.py) and [`test_workbench_evidence.py`](../../tests/test_workbench_evidence.py) cover evidence relationships exposed in the workbench.
+
+## Public sharing
+
+Evidence can be suitable for local analysis while its source document remains private. Keep source permissions with the material. Publication includes only the authorized records and necessary public provenance. Descriptive labels of excluded private source documents are replaced in shared task metadata, with the substitution declared in the export manifest. See [public-content policy](../reference/public-content.md).

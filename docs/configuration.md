@@ -13,7 +13,7 @@ Run settings and model bindings are ordinary TOML files. Start with [the portabl
 5. `MAS__SECTION__KEY` environment variables.
 6. Repeated `--set section.key=value` arguments.
 
-For example, both forms change candidate concurrency:
+For example, both forms change the configured worker limit:
 
 ```powershell
 $env:MAS__ASSESS__WORKERS = '2'
@@ -23,13 +23,13 @@ Remove-Item Env:MAS__ASSESS__WORKERS
 
 Use `config validate` for types/ranges and `config show --explain` for the effective value and source layer. `config estimate` estimates effort from supplied dimensions/candidates without calling a model. Unknown scalar keys are refused; [the settings registry](../src/mas/core/config.py) defines available keys and defaults.
 
-The example uses mid literature/textbook workload, four candidate workers, staged evaluation, existing-only evidence and a USD 10 envelope. Browser Settings changes are saved in `STORE/../workbench-state.json` and affect subsequent work. The workbench's research controller records a resolved workflow configuration, including the submitted workers, evidence/evaluation mode and budget; it runs its workflow autonomously and finalizes a partial result on budget exhaustion. Standalone CLI checkpoint settings therefore do not describe every browser workflow setting. Existing run bindings retain their recorded settings.
+The example uses mid literature/textbook workload, a worker limit of four, staged evaluation, existing-only evidence and a USD 10 envelope. Browser Settings changes are saved in `STORE/../workbench-state.json` and affect subsequent work. The workbench's research controller records a resolved workflow configuration, including the submitted workers, evidence/evaluation mode and budget; it runs its workflow autonomously and finalizes a partial result on budget exhaustion. Standalone CLI checkpoint settings therefore do not describe every browser workflow setting. Existing run bindings retain their recorded settings.
 
 ## DeepSeek and other model adapters
 
 `--models FILE` selects model providers and role bindings. Without that option, providers/roles in `--config` take precedence when present, otherwise `STORE/models.toml` is used. [models.deepseek.toml](../config/examples/models.deepseek.toml) binds retriever, reader, summarizer, proposer, critic and adjudicator to an OpenAI-compatible DeepSeek adapter. The API model name and base URL follow [DeepSeek's API guide](https://api-docs.deepseek.com/); verify available models and prices for your account before a paid run.
 
-This example is for new research. The latest retained study records the historical model ID `deepseek-v4-flash` in its run metadata. Keep that stored identity when interpreting or exporting its results; selecting a current API model for a new task does not update a saved run or establish a rerun result.
+The example is for new research and uses the API identifier `deepseek-flash`. Saved run bindings retain their requested identifiers, and completed calls record the model identifier returned by the provider. These fields support version checks when an API alias changes. Consult [DeepSeek's model notice](https://api-docs.deepseek.com/news/news260910/) for the documented legacy-name mapping. Keep the original identifiers when exporting an existing study.
 
 Credentials are read at call time:
 
