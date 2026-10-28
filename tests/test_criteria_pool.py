@@ -659,8 +659,8 @@ def test_a_merge_may_pool_its_parents_routes_into_one_attribute(core):
                                                      "kept_separate": 0, "refused": 0, "not_reduced": []}
     folded = pool.fold(core, "task_merge")
     child = next(e for e in folded.values() if e["parents"])
-    assert [r["question_kind"] for r in criteria.evidence_routes(child["item"]["attribute"])] == \
-           ["pchembl_values", "gtopdb_affinity"]
+    assert sorted(r["question_kind"] for r in criteria.evidence_routes(child["item"]["attribute"])) == \
+           ["gtopdb_affinity", "pchembl_values"]
     assert sorted(e["state"] for e in folded.values() if not e["parents"]) == ["merged_away", "merged_away"]
     criteria.check_attribute(child["item"]["attribute"])          # and the pooled child is registrable
 
