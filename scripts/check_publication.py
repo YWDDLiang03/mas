@@ -147,9 +147,22 @@ def main() -> int:
         errors.append('Current browser export selection counts differ')
     if counts != validation['current_ui_refresh']['candidate_groups']:
         errors.append('Presentation and current browser export groups differ')
+
+    from build_case_source_data import verify as verify_case_source_data
+    source_data = case / 'latest/source-data'
+    data_manifest = json.loads((source_data / 'manifest.json').read_text(encoding='utf-8'))
+    for name, entry in data_manifest['files'].items():
+        path = source_data / name
+        if not path.is_file() or path.stat().st_size != entry['bytes'] or digest(path) != entry['sha256']:
+            errors.append('Case source-data file differs: ' + name)
+    data_report = verify_case_source_data(source_data)
+    if data_report != data_manifest['verification']:
+        errors.append('Case source-data recalculation differs from its manifest')
     print(json.dumps({'version': package, 'documents': len(documents), 'local_links_checked': links,
                       'frozen_result_files_checked': verified_files, 'synthetic_comparison_rows': len(comparison['rows']),
                       'current_screenshots_checked': len(captures['images']), 'current_candidate_rows_checked': len(rows),
+                      'source_data_tables_checked': len(data_report['row_counts']),
+                      'source_data_assessments_checked': data_report['assessment_links_checked'],
                       'errors': errors}, ensure_ascii=False, indent=2))
     return 1 if errors else 0
 

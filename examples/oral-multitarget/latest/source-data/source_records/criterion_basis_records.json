@@ -1,0 +1,1763 @@
+[
+  {
+    "rule_ref": "rule_csf1r-curated-potency@v1",
+    "attribute": {
+      "acceptable_value_sources": [
+        "curated_measurement",
+        "peer_reviewed"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_csf1r-curated-potency",
+      "definition": "Median pChEMBL value (-log10 of the molar IC50, Ki, Kd or EC50) over point measurements against CSF1R (CHEMBL1844), pooled across every available expert curation and every reported measurement in the peer-reviewed literature",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "field": "scope_entities[0]",
+        "task_context": "task_01M52CBE5GYPK9F0MCZYBMPH84@v3"
+      },
+      "direction": "higher_better",
+      "evidence_requests": [
+        {
+          "capability": "interaction_evidence_lookup",
+          "identifier_scheme": "inchikey",
+          "parameters": {
+            "target_chembl_id": "CHEMBL1844"
+          },
+          "question_kind": "pchembl_values"
+        },
+        {
+          "capability": "interaction_evidence_lookup",
+          "identifier_scheme": "inchikey",
+          "parameters": {
+            "target_chembl_id": "CHEMBL1844"
+          },
+          "question_kind": "gtopdb_affinity"
+        },
+        {
+          "capability": "literature_retrieval",
+          "identifier_scheme": null,
+          "parameters": {
+            "query_template": "({names}) AND \"CSF1R\" AND (IC50 OR Ki OR Kd OR EC50 OR potency OR selectivity OR \"kinase selectivity\")",
+            "relevance_terms": [
+              "CSF1R",
+              "IC50",
+              "Ki",
+              "Kd",
+              "EC50",
+              "nM",
+              "selectivity",
+              "potency",
+              "inhibition"
+            ],
+            "search_limit": 10
+          },
+          "question_kind": "search"
+        }
+      ],
+      "measurement_kind": "quantitative",
+      "name": "CSF1R curated potency",
+      "proposed_by": {
+        "id": "objective-criteria",
+        "kind": "system",
+        "role": "adapter_template"
+      },
+      "rationale": "CSF1R is a required target of the task",
+      "status": "proposed",
+      "unit": "pChEMBL",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_csf1r-curated-potency@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "on_conflict": "unknown_blocks_recommendation",
+      "on_inapplicable": "unknown_blocks_recommendation",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "objective-criteria",
+        "kind": "system",
+        "role": "adapter_template"
+      },
+      "rule_id": "rule_csf1r-curated-potency",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": []
+  },
+  {
+    "rule_ref": "rule_fgfr1-curated-potency@v1",
+    "attribute": {
+      "acceptable_value_sources": [
+        "curated_measurement",
+        "peer_reviewed"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_fgfr1-curated-potency",
+      "definition": "Median pChEMBL value (-log10 of the molar IC50, Ki, Kd or EC50) over point measurements against FGFR1 (CHEMBL3650), pooled across every available expert curation and every reported measurement in the peer-reviewed literature",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "field": "scope_entities[4]",
+        "task_context": "task_01M52CBE5GYPK9F0MCZYBMPH84@v3"
+      },
+      "direction": "higher_better",
+      "evidence_requests": [
+        {
+          "capability": "interaction_evidence_lookup",
+          "identifier_scheme": "inchikey",
+          "parameters": {
+            "target_chembl_id": "CHEMBL3650"
+          },
+          "question_kind": "pchembl_values"
+        },
+        {
+          "capability": "interaction_evidence_lookup",
+          "identifier_scheme": "inchikey",
+          "parameters": {
+            "target_chembl_id": "CHEMBL3650"
+          },
+          "question_kind": "gtopdb_affinity"
+        },
+        {
+          "capability": "literature_retrieval",
+          "identifier_scheme": null,
+          "parameters": {
+            "query_template": "({names}) AND \"FGFR1\" AND (IC50 OR Ki OR Kd OR EC50 OR potency OR selectivity OR \"kinase selectivity\")",
+            "relevance_terms": [
+              "FGFR1",
+              "IC50",
+              "Ki",
+              "Kd",
+              "EC50",
+              "nM",
+              "selectivity",
+              "potency",
+              "inhibition"
+            ],
+            "search_limit": 10
+          },
+          "question_kind": "search"
+        }
+      ],
+      "measurement_kind": "quantitative",
+      "name": "FGFR1 curated potency",
+      "proposed_by": {
+        "id": "objective-criteria",
+        "kind": "system",
+        "role": "adapter_template"
+      },
+      "rationale": "FGFR1 is a required target of the task",
+      "status": "proposed",
+      "unit": "pChEMBL",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_fgfr1-curated-potency@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "on_conflict": "unknown_blocks_recommendation",
+      "on_inapplicable": "unknown_blocks_recommendation",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "objective-criteria",
+        "kind": "system",
+        "role": "adapter_template"
+      },
+      "rule_id": "rule_fgfr1-curated-potency",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": []
+  },
+  {
+    "rule_ref": "rule_molecular-weight-da@v1",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "derived"
+      ],
+      "acceptable_value_sources": [
+        "database_entry"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_molecular-weight-da",
+      "definition": "Molecular weight of the compound in Daltons (g/mol), computed from structure by the curated descriptor route rather than a trained prediction; lower values are preferred because size above roughly 500 Da approaches the upper limit compatible with efficient passive intestinal diffusion and increases efflux-transporter recognition.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52KSFQBB9B84Y16HNPGBCM2@v3"
+      },
+      "direction": "lower_better",
+      "evidence_requests": [
+        {
+          "capability": "property_estimate",
+          "identifier_scheme": "inchikey",
+          "parameters": {
+            "property": "MolecularWeight"
+          },
+          "question_kind": "computed_property"
+        }
+      ],
+      "measurement_kind": "quantitative",
+      "name": "Molecular weight (Da)",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rationale": "",
+      "status": "proposed",
+      "supporting_claim_refs": [
+        "claim_01M4YGKFS9V8MZAS1VB9ACXDYD",
+        "claim_01M4X8V6J2D7TCJPRM3AE7996Q",
+        "claim_01M4X8V6KPJMC5W3WGAZC48FHM"
+      ],
+      "unit": "Da",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_molecular-weight-da@v1",
+      "bound_support": [
+        {
+          "applicability_rationale": "The passage reports that clinically relevant kinase inhibitors typically fall within approximately 380-500 Da and calls 500 Da close to the upper limit compatible with efficient passive diffusion; the candidate library consists of kinase inhibitors being screened for oral suitability, so the same upper edge applies.",
+          "claim_id": "claim_01M4YGKFS9V8MZAS1VB9ACXDYD",
+          "conversion": {
+            "kind": "identity"
+          },
+          "interpretation": {
+            "inference": "the_heuristic_is_the_line",
+            "measurement": "A reported typical range of approximately 380-500 Da for clinically relevant kinase inhibitors, with 500 Da described as close to the upper limit compatible with efficient passive diffusion.",
+            "population_rationale": "The candidates are kinase inhibitors intended for oral administration, the same population the reported range describes, so treating the 500 Da edge as the preference line is a defensible transfer of the heuristic."
+          },
+          "parameter_path": "rule.cutoff.value",
+          "source_number": 500,
+          "source_unit": "Da",
+          "statement_kind": "provides_heuristic"
+        }
+      ],
+      "cutoff": {
+        "comparator": "<=",
+        "unit": "Da",
+        "value": 500
+      },
+      "cutoff_basis": "source_stated_value",
+      "dissent": [],
+      "expected_change": "Ranks compounds with lower computed molecular weight higher, placing compounds above the 500 g/mol heuristic below those at or under it, so that candidates whose size is compatible with efficient passive oral absorption come first.",
+      "falsification_test": "If molecular weight above 500 g/mol does not associate with reduced passive absorption or poorer oral exposure among kinase inhibitors in a reference set, the 500 g/mol bound and the ranking preference are falsified.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "threshold",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rule_id": "rule_molecular-weight-da",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4YGKFS9V8MZAS1VB9ACXDYD",
+        "source_ref": "src_doi_10.3390/ijms27156590",
+        "title": "Targeting Kinase Signaling in Glioblastoma: Structural Optimization, Blood–Brain Barrier Dynamics and Combinatorial Translational Strategies",
+        "statement": "Most clinically relevant kinase inhibitors have molecular weights of approximately 380-500 Da, close to the upper limit compatible with efficient passive diffusion.",
+        "quote": "Most clinically relevant kinase inhibitors typically fall within the range of approximately 380–500 Da, which is considered close to the upper limit compatible with efficient passive diffusion",
+        "url": "https://doi.org/10.3390/ijms27156590",
+        "locator": "sec5.2.p2"
+      },
+      {
+        "claim_id": "claim_01M4X8V6J2D7TCJPRM3AE7996Q",
+        "source_ref": "src_doi_10.1016/j.ajps.2024.100980",
+        "title": "Biopharmaceutical and pharmacokinetic attributes to drive nanoformulations of small molecule tyrosine kinase inhibitors",
+        "statement": "According to Lipinski's Rule, drugs with molecular weight less than 500 daltons, lipophilicity not greater than 5, and no more than 10 hydrogen bond acceptors or 5 donors have acceptable oral bioavailability.",
+        "quote": "As per the Lipinski Rule, drugs with a molecular weight (MW)< 500 daltons (D), lipophilicity not >5, and no >10 hydrogen bond acceptors or 5 donors have acceptable oral bioavailability.",
+        "url": "https://doi.org/10.1016/j.ajps.2024.100980",
+        "locator": "sec3.1.p1"
+      },
+      {
+        "claim_id": "claim_01M4X8V6KPJMC5W3WGAZC48FHM",
+        "source_ref": "src_doi_10.1016/j.ajps.2024.100980",
+        "title": "Biopharmaceutical and pharmacokinetic attributes to drive nanoformulations of small molecule tyrosine kinase inhibitors",
+        "statement": "Out of 54 smTKIs, 32 violated Lipinski's rule with molecular weight over 500 D, indicating the need for formulation intervention.",
+        "quote": "Thus, out of the 54 smTKIs 32 violated Lipinski's rule with MW over 500 D, indicating the need for formulation intervention.",
+        "url": "https://doi.org/10.1016/j.ajps.2024.100980",
+        "locator": "sec3.1.p1"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_oral-bioavailability-human-measured-f@v1",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "measured"
+      ],
+      "acceptable_value_sources": [
+        "curated_measurement",
+        "peer_reviewed"
+      ],
+      "aggregation": "max",
+      "attribute_id": "attr_oral-bioavailability-human-measured-f",
+      "definition": "Reported absolute or relative oral bioavailability (F%) in humans, as a measured pharmacokinetic parameter. Higher values indicate greater fraction of an orally administered dose reaching systemic circulation intact. This is a preference ordering, not a requirement: low F% compounds may still be clinically effective if the dose can be escalated.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52D2YJTGC2HQA6BMSQ1VJAD@v7"
+      },
+      "direction": "higher_better",
+      "evidence_request": {
+        "capability": "literature_retrieval",
+        "identifier_scheme": null,
+        "parameters": {
+          "query_template": "({names}) AND \"oral bioavailability\"",
+          "relevance_terms": [
+            "oral bioavailability",
+            "F%",
+            "bioavailability"
+          ],
+          "search_limit": 10
+        },
+        "question_kind": "search"
+      },
+      "measurement_kind": "quantitative",
+      "name": "Oral bioavailability (human, measured F%)",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rationale": "Directly measures the fraction of an oral dose reaching systemic circulation in humans. The objective requires oral administration; a measured human F% is a decision-relevant absorption parameter. Multiple claims report human F% values (e.g., 58%, 38-49%, 85-90%, 21.4%, 4.7%, 69-83%, 25%). No claim states a required minimum F%, so the rule ranks by value without a cutoff. The ordering is a preference, not a requirement: low F% compounds may still be clinically effective if the dose can be escalated.",
+      "status": "proposed",
+      "supporting_claim_refs": [
+        "claim_01M4X8J2CCHT4E4HT5XF4VT9DP",
+        "claim_01M4X8QBJ7W704KK1VQ0H80116",
+        "claim_01M4X8QBRY8E9ZRQTAX5CGZHJ1",
+        "claim_01M4X8QBXF8HR4R504EMG5TF24",
+        "claim_01M4X8QC2QB0ZYK1AGJS0XP9SK",
+        "claim_01M4X8QCEEFDCZ45FEEPMJBFPB",
+        "claim_01M4X8QCHSZPDF2CP9AZM88XTE",
+        "claim_01M4X8V6HC3HMBS2JHE8FEYWQB",
+        "claim_01M4XP3ND1D4GHC3MMX8Q4CMWK",
+        "claim_01M4XP3XKPBHKEY1DM2J6M8QN7"
+      ],
+      "unit": "%",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_oral-bioavailability-human-measured-f@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "dissent": [],
+      "expected_change": "Ranks candidates with higher measured human oral bioavailability above those with lower values.",
+      "falsification_test": "If a candidate with low measured F% is approved and clinically effective as an oral agent for the required targets, the preference ordering is challenged.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rule_id": "rule_oral-bioavailability-human-measured-f",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4X8J2CCHT4E4HT5XF4VT9DP",
+        "source_ref": "src_doi_10.1007/s40123-026-01419-9",
+        "title": "Tyrosine Kinase Receptors, Inhibition, and Potential Role in the Pharmacotherapy of Retinal Disorders",
+        "statement": "The oral bioavailability of axitinib is 58%.",
+        "quote": "The oral bioavailability is reasonable at 58%.",
+        "url": "https://doi.org/10.1007/s40123-026-01419-9",
+        "locator": "sec10.1.p1"
+      },
+      {
+        "claim_id": "claim_01M4X8QBJ7W704KK1VQ0H80116",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Axitinib has a 58% oral bioavailability.",
+        "quote": "It has a 58% oral bioavailability.",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.1.p2"
+      },
+      {
+        "claim_id": "claim_01M4X8QBRY8E9ZRQTAX5CGZHJ1",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Orally administered sorafenib has a bioavailability of 38–49%.",
+        "quote": "Taken orally, the drug exhibits a bioavailability of 38–49%.",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.2.p2"
+      },
+      {
+        "claim_id": "claim_01M4X8QBXF8HR4R504EMG5TF24",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Lenvatinib has a bioavailability of 85–90%.",
+        "quote": "The bioavailability is 85–90%.",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.3.p2"
+      },
+      {
+        "claim_id": "claim_01M4X8QC2QB0ZYK1AGJS0XP9SK",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Pazopanib has a bioavailability of 21.4%.",
+        "quote": "The bioavailability is 21.4%.",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.4.p2"
+      },
+      {
+        "claim_id": "claim_01M4X8QCEEFDCZ45FEEPMJBFPB",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Nintedanib has a bioavailability of 4.7%.",
+        "quote": "The bioavailability is 4.7%.",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.7.p1"
+      },
+      {
+        "claim_id": "claim_01M4X8QCHSZPDF2CP9AZM88XTE",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Regorafenib is available as 40 mg oral tablets with a bioavailability of 69–83%.",
+        "quote": "The presentation is 40 mg tablets for oral use with a bioavailability of 69–83%.",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.8.p1"
+      },
+      {
+        "claim_id": "claim_01M4X8V6HC3HMBS2JHE8FEYWQB",
+        "source_ref": "src_doi_10.1016/j.ajps.2024.100980",
+        "title": "Biopharmaceutical and pharmacokinetic attributes to drive nanoformulations of small molecule tyrosine kinase inhibitors",
+        "statement": "Acalabrutinib has an oral bioavailability of 25%.",
+        "quote": "Acalabrutinib CALQUENCE® | MCL, CLL and SLL;2017 | Capsules; 100 mg b.i.d; BTK Inhibitor | IC50: 5.10 nM;AUC 24 h:1,843 ng·h/mlCmax: 563 ng/ml, oral bioavailability 25%",
+        "url": "https://doi.org/10.1016/j.ajps.2024.100980",
+        "locator": "table2"
+      },
+      {
+        "claim_id": "claim_01M4XP3ND1D4GHC3MMX8Q4CMWK",
+        "source_ref": "src_doi_10.1007/s40123-026-01419-9",
+        "title": "Tyrosine Kinase Receptors, Inhibition, and Potential Role in the Pharmacotherapy of Retinal Disorders",
+        "statement": "The oral bioavailability of axitinib is reasonable at 58%.",
+        "quote": "The oral bioavailability is reasonable at 58%.",
+        "url": "https://doi.org/10.1007/s40123-026-01419-9",
+        "locator": "sec10.1.p1"
+      },
+      {
+        "claim_id": "claim_01M4XP3XKPBHKEY1DM2J6M8QN7",
+        "source_ref": "src_nbk_NBK585049",
+        "title": "Nintedanib",
+        "statement": "The absolute bioavailability of nintedanib is 4.7% in healthy individuals.",
+        "quote": "The absolute bioavailability is 4.7% in healthy individuals.",
+        "url": null,
+        "locator": "article-143222.s3.p3"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "predicted"
+      ],
+      "acceptable_value_sources": [
+        "model_prediction"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_predicted-blood-brain-barrier-penetration-probability-bbb-ma",
+      "definition": "Model-predicted probability of blood-brain barrier penetration; lower probability is generally preferred for peripheral targets to minimise CNS side effects.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52DYV8JCPM8BRAPM27QM2E2@v1"
+      },
+      "direction": "lower_better",
+      "evidence_request": {
+        "capability": "predicted_property_lookup",
+        "identifier_scheme": "inchikey",
+        "parameters": {
+          "endpoint": "BBB_Martins"
+        },
+        "question_kind": "admet_prediction"
+      },
+      "measurement_kind": "quantitative",
+      "name": "Predicted blood-brain barrier penetration probability (BBB_Martins)",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rationale": "BBB penetration can lead to CNS side effects; for oncology targets outside the CNS, lower penetration is often preferred. The model's held-out AUROC is 0.9004, supporting its use as a preference.",
+      "status": "proposed",
+      "supporting_claim_refs": [
+        "claim_01M4YJSFSJVXWB8MSVFTAQ8YFW"
+      ],
+      "unit": "probability",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "dissent": [],
+      "expected_change": "Ranks candidates with lower predicted BBB penetration higher.",
+      "falsification_test": "If predicted BBB penetration does not correlate with measured brain penetration, the ranking value is reduced.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rule_id": "rule_predicted-blood-brain-barrier-penetration-probability-bbb-ma",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4YJSFSJVXWB8MSVFTAQ8YFW",
+        "source_ref": "src_doi_10.1007/s40123-026-01419-9",
+        "title": "Tyrosine Kinase Receptors, Inhibition, and Potential Role in the Pharmacotherapy of Retinal Disorders",
+        "statement": "Favourable drug-like properties comprise aqueous solubility, chemical stability, metabolic stability, sufficient membrane permeability, receptor specificity and favourable absorption, distribution, metabolism, excretion and toxicity properties.",
+        "quote": "A compound is considered to possess favourable drug-like properties if it has the following properties: aqueous solubility, chemical stability, metabolic stability, sufficient membrane permeability, receptor specificity, favourable ADME/Tox (absorption, distribution, metabolism, excretion, toxicity) properties [107].",
+        "url": "https://doi.org/10.1007/s40123-026-01419-9",
+        "locator": "sec9.p1"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_predicted-brenk-alert-count@v2",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "derived"
+      ],
+      "acceptable_value_sources": [
+        "database_entry"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_predicted-brenk-alert-count",
+      "definition": "Number of BRENK alerts from RDKit; higher counts indicate greater likelihood of problematic substructures.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52E6NE5K1GZMFD8RRHH7N1X@v1"
+      },
+      "direction": "lower_better",
+      "evidence_request": {
+        "capability": "property_estimate",
+        "identifier_scheme": "inchikey",
+        "parameters": {
+          "endpoint": "BRENK_alert"
+        },
+        "question_kind": "admet_computed_property"
+      },
+      "measurement_kind": "quantitative",
+      "name": "Predicted BRENK alert count",
+      "proposed_by": {
+        "id": "descriptor-basis-correction",
+        "kind": "system",
+        "role": "operator"
+      },
+      "rationale": "BRENK alerts flag substructures associated with toxicity or poor pharmacokinetics. The ADMET-AI BRENK_alert endpoint provides a count for every compound with a structure. This is a deterministic RDKit calculation.",
+      "status": "proposed",
+      "supersedes": "attr_predicted-brenk-alert-count@v1",
+      "supporting_claim_refs": [
+        "claim_01M4YT2WE3T610NCGNXPPW03AZ"
+      ],
+      "unit": "count",
+      "version": 2,
+      "workbench_revision": {
+        "changes": {
+          "attribute": {
+            "acceptable_determination_bases": [
+              "derived"
+            ],
+            "acceptable_value_sources": [
+              "database_entry"
+            ],
+            "evidence_request": {
+              "capability": "property_estimate",
+              "identifier_scheme": "inchikey",
+              "parameters": {
+                "endpoint": "BRENK_alert"
+              },
+              "question_kind": "admet_computed_property"
+            }
+          }
+        },
+        "reason": "Verified deterministic descriptor provenance correction; plan d6f12aa13cf0296885a6a37df3c85c9d56c3aea1f02b98030d5aa4e122850ce0",
+        "source_attribute_ref": "attr_predicted-brenk-alert-count@v1",
+        "source_rule_ref": "rule_predicted-brenk-alert-count@v1"
+      }
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_predicted-brenk-alert-count@v2",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "dissent": [],
+      "expected_change": "Ranks compounds with fewer BRENK alerts higher.",
+      "falsification_test": "If BRENK alert counts do not correlate with toxicity or poor pharmacokinetics for a reference set, the attribute should be discarded.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "descriptor-basis-correction",
+        "kind": "system",
+        "role": "operator"
+      },
+      "rule_id": "rule_predicted-brenk-alert-count",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "supersedes": "rule_predicted-brenk-alert-count@v1",
+      "version": 2,
+      "workbench_revision": {
+        "changes": {
+          "attribute": {
+            "acceptable_determination_bases": [
+              "derived"
+            ],
+            "acceptable_value_sources": [
+              "database_entry"
+            ],
+            "evidence_request": {
+              "capability": "property_estimate",
+              "identifier_scheme": "inchikey",
+              "parameters": {
+                "endpoint": "BRENK_alert"
+              },
+              "question_kind": "admet_computed_property"
+            }
+          }
+        },
+        "reason": "Verified deterministic descriptor provenance correction; plan d6f12aa13cf0296885a6a37df3c85c9d56c3aea1f02b98030d5aa4e122850ce0",
+        "source_attribute_ref": "attr_predicted-brenk-alert-count@v1",
+        "source_rule_ref": "rule_predicted-brenk-alert-count@v1"
+      }
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4YT2WE3T610NCGNXPPW03AZ",
+        "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+        "title": "Structural basis and selectivity of sulfatinib binding to FGFR and CSF-1R",
+        "statement": "Combination therapy used to overcome off-target resistance increases the risk of drug-drug interaction.",
+        "quote": "On the other hand, combination therapy is employed to overcome the off-target resistance but increases the risk of drug-drug interaction8,9",
+        "url": "https://doi.org/10.1038/s42004-023-01084-0",
+        "locator": "sec1.p2"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_predicted-cyp1a2-inhibition-probability@v1",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "predicted"
+      ],
+      "acceptable_value_sources": [
+        "model_prediction"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_predicted-cyp1a2-inhibition-probability",
+      "definition": "Model-predicted probability that the compound inhibits CYP1A2, in [0,1]; higher values indicate greater drug-drug interaction liability.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52E6ND4JY72ACMNMMVK6X24@v1"
+      },
+      "direction": "lower_better",
+      "evidence_request": {
+        "capability": "predicted_property_lookup",
+        "identifier_scheme": "inchikey",
+        "parameters": {
+          "endpoint": "CYP1A2_Veith"
+        },
+        "question_kind": "admet_prediction"
+      },
+      "measurement_kind": "quantitative",
+      "name": "Predicted CYP1A2 inhibition probability",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rationale": "CYP1A2 inhibition can alter the metabolism of co-administered drugs. The ADMET-AI CYP1A2_Veith endpoint provides a predicted probability for every compound with a structure. The model's held-out AUROC is 0.9411, supporting a preference rule.",
+      "status": "proposed",
+      "supporting_claim_refs": [
+        "claim_01M4YT2WE3T610NCGNXPPW03AZ"
+      ],
+      "unit": "probability",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_predicted-cyp1a2-inhibition-probability@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "dissent": [],
+      "expected_change": "Ranks compounds with lower predicted CYP1A2 inhibition probability higher.",
+      "falsification_test": "If predicted CYP1A2 inhibition probabilities do not correlate with measured CYP1A2 inhibition for a reference set, the attribute should be discarded.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rule_id": "rule_predicted-cyp1a2-inhibition-probability",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4YT2WE3T610NCGNXPPW03AZ",
+        "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+        "title": "Structural basis and selectivity of sulfatinib binding to FGFR and CSF-1R",
+        "statement": "Combination therapy used to overcome off-target resistance increases the risk of drug-drug interaction.",
+        "quote": "On the other hand, combination therapy is employed to overcome the off-target resistance but increases the risk of drug-drug interaction8,9",
+        "url": "https://doi.org/10.1038/s42004-023-01084-0",
+        "locator": "sec1.p2"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_predicted-cyp2c19-inhibition-probability@v1",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "predicted"
+      ],
+      "acceptable_value_sources": [
+        "model_prediction"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_predicted-cyp2c19-inhibition-probability",
+      "definition": "Model-predicted probability that the compound inhibits CYP2C19, in [0,1]; higher values indicate greater drug-drug interaction liability.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52E6ND6M530DC1SKBD7SJ7Q@v1"
+      },
+      "direction": "lower_better",
+      "evidence_request": {
+        "capability": "predicted_property_lookup",
+        "identifier_scheme": "inchikey",
+        "parameters": {
+          "endpoint": "CYP2C19_Veith"
+        },
+        "question_kind": "admet_prediction"
+      },
+      "measurement_kind": "quantitative",
+      "name": "Predicted CYP2C19 inhibition probability",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rationale": "CYP2C19 inhibition can alter the metabolism of co-administered drugs. The ADMET-AI CYP2C19_Veith endpoint provides a predicted probability for every compound with a structure. The model's held-out AUROC is 0.9062, supporting a preference rule.",
+      "status": "proposed",
+      "supporting_claim_refs": [
+        "claim_01M4YT2WE3T610NCGNXPPW03AZ"
+      ],
+      "unit": "probability",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_predicted-cyp2c19-inhibition-probability@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "dissent": [],
+      "expected_change": "Ranks compounds with lower predicted CYP2C19 inhibition probability higher.",
+      "falsification_test": "If predicted CYP2C19 inhibition probabilities do not correlate with measured CYP2C19 inhibition for a reference set, the attribute should be discarded.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rule_id": "rule_predicted-cyp2c19-inhibition-probability",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4YT2WE3T610NCGNXPPW03AZ",
+        "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+        "title": "Structural basis and selectivity of sulfatinib binding to FGFR and CSF-1R",
+        "statement": "Combination therapy used to overcome off-target resistance increases the risk of drug-drug interaction.",
+        "quote": "On the other hand, combination therapy is employed to overcome the off-target resistance but increases the risk of drug-drug interaction8,9",
+        "url": "https://doi.org/10.1038/s42004-023-01084-0",
+        "locator": "sec1.p2"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_predicted-cyp2c9-inhibition-probability@v1",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "predicted"
+      ],
+      "acceptable_value_sources": [
+        "model_prediction"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_predicted-cyp2c9-inhibition-probability",
+      "definition": "Model-predicted probability that the compound inhibits CYP2C9, in [0,1]; higher values indicate greater drug-drug interaction liability.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52E6ND2KG1N3MZTA5V8CZMV@v1"
+      },
+      "direction": "lower_better",
+      "evidence_request": {
+        "capability": "predicted_property_lookup",
+        "identifier_scheme": "inchikey",
+        "parameters": {
+          "endpoint": "CYP2C9_Veith"
+        },
+        "question_kind": "admet_prediction"
+      },
+      "measurement_kind": "quantitative",
+      "name": "Predicted CYP2C9 inhibition probability",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rationale": "CYP2C9 inhibition is a common source of drug-drug interactions. The ADMET-AI CYP2C9_Veith endpoint provides a predicted probability for every compound with a structure. The model's held-out AUROC is 0.9077, supporting a preference rule.",
+      "status": "proposed",
+      "supporting_claim_refs": [
+        "claim_01M4YT2WE3T610NCGNXPPW03AZ"
+      ],
+      "unit": "probability",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_predicted-cyp2c9-inhibition-probability@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "dissent": [],
+      "expected_change": "Ranks compounds with lower predicted CYP2C9 inhibition probability higher.",
+      "falsification_test": "If predicted CYP2C9 inhibition probabilities do not correlate with measured CYP2C9 inhibition for a reference set, the attribute should be discarded.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rule_id": "rule_predicted-cyp2c9-inhibition-probability",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4YT2WE3T610NCGNXPPW03AZ",
+        "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+        "title": "Structural basis and selectivity of sulfatinib binding to FGFR and CSF-1R",
+        "statement": "Combination therapy used to overcome off-target resistance increases the risk of drug-drug interaction.",
+        "quote": "On the other hand, combination therapy is employed to overcome the off-target resistance but increases the risk of drug-drug interaction8,9",
+        "url": "https://doi.org/10.1038/s42004-023-01084-0",
+        "locator": "sec1.p2"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_predicted-cyp2c9-substrate-probability@v1",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "predicted"
+      ],
+      "acceptable_value_sources": [
+        "model_prediction"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_predicted-cyp2c9-substrate-probability",
+      "definition": "Model-predicted probability that the compound is a CYP2C9 substrate, in [0,1]; higher values indicate greater susceptibility to CYP2C9-mediated metabolism and potential drug-drug interactions.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52E6NDD1SZZ31B2KP5AWC1R@v1"
+      },
+      "direction": "lower_better",
+      "evidence_request": {
+        "capability": "predicted_property_lookup",
+        "identifier_scheme": "inchikey",
+        "parameters": {
+          "endpoint": "CYP2C9_Substrate_CarbonMangels"
+        },
+        "question_kind": "admet_prediction"
+      },
+      "measurement_kind": "quantitative",
+      "name": "Predicted CYP2C9 substrate probability",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rationale": "Being a CYP2C9 substrate increases the risk of metabolic drug-drug interactions. The ADMET-AI CYP2C9_Substrate_CarbonMangels endpoint provides a predicted probability for every compound with a structure. The model's held-out AUROC is 0.6279, so this is an auxiliary preference.",
+      "status": "proposed",
+      "supporting_claim_refs": [
+        "claim_01M4YT2WE3T610NCGNXPPW03AZ"
+      ],
+      "unit": "probability",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_predicted-cyp2c9-substrate-probability@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "dissent": [],
+      "expected_change": "Ranks compounds with lower predicted CYP2C9 substrate probability higher.",
+      "falsification_test": "If predicted CYP2C9 substrate probabilities do not correlate with measured substrate status for a reference set, the attribute should be discarded.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rule_id": "rule_predicted-cyp2c9-substrate-probability",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4YT2WE3T610NCGNXPPW03AZ",
+        "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+        "title": "Structural basis and selectivity of sulfatinib binding to FGFR and CSF-1R",
+        "statement": "Combination therapy used to overcome off-target resistance increases the risk of drug-drug interaction.",
+        "quote": "On the other hand, combination therapy is employed to overcome the off-target resistance but increases the risk of drug-drug interaction8,9",
+        "url": "https://doi.org/10.1038/s42004-023-01084-0",
+        "locator": "sec1.p2"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_predicted-logp-rdkit@v2",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "derived"
+      ],
+      "acceptable_value_sources": [
+        "database_entry"
+      ],
+      "aggregation": "max",
+      "attribute_id": "attr_predicted-logp-rdkit",
+      "definition": "Model-predicted logP (RDKit); lower values are preferred because lipophilic, poorly soluble agents show food-dependent and variable oral absorption.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52FNV617M5BFJBB70TV4Y64@v3"
+      },
+      "direction": "lower_better",
+      "evidence_request": {
+        "capability": "property_estimate",
+        "identifier_scheme": "inchikey",
+        "parameters": {
+          "endpoint": "logP"
+        },
+        "question_kind": "admet_computed_property"
+      },
+      "measurement_kind": "quantitative",
+      "name": "Predicted logP (RDKit)",
+      "proposed_by": {
+        "id": "descriptor-basis-correction",
+        "kind": "system",
+        "role": "operator"
+      },
+      "rationale": "The cited claim reports that lipophilic, poorly soluble agents have food-dependent absorption, supporting lower lipophilicity as a preference for consistent oral exposure. No cutoff is asserted because the claim states no logP number.",
+      "status": "proposed",
+      "supersedes": "attr_predicted-logp-rdkit@v1",
+      "supporting_claim_refs": [
+        "claim_01M4YVW3GTENG97ZF5TZC6PGH6"
+      ],
+      "unit": "log units",
+      "version": 2,
+      "workbench_revision": {
+        "changes": {
+          "attribute": {
+            "acceptable_determination_bases": [
+              "derived"
+            ],
+            "acceptable_value_sources": [
+              "database_entry"
+            ],
+            "evidence_request": {
+              "capability": "property_estimate",
+              "identifier_scheme": "inchikey",
+              "parameters": {
+                "endpoint": "logP"
+              },
+              "question_kind": "admet_computed_property"
+            }
+          }
+        },
+        "reason": "Verified deterministic descriptor provenance correction; plan d6f12aa13cf0296885a6a37df3c85c9d56c3aea1f02b98030d5aa4e122850ce0",
+        "source_attribute_ref": "attr_predicted-logp-rdkit@v1",
+        "source_rule_ref": "rule_predicted-logp-rdkit@v1"
+      }
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_predicted-logp-rdkit@v2",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "dissent": [],
+      "expected_change": "Ranks compounds with lower predicted logP higher, favoring more consistent oral absorption.",
+      "falsification_test": "If compounds with low predicted logP still show food-dependent or variable absorption, the rule's utility is falsified.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "descriptor-basis-correction",
+        "kind": "system",
+        "role": "operator"
+      },
+      "rule_id": "rule_predicted-logp-rdkit",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "supersedes": "rule_predicted-logp-rdkit@v1",
+      "version": 2,
+      "workbench_revision": {
+        "changes": {
+          "attribute": {
+            "acceptable_determination_bases": [
+              "derived"
+            ],
+            "acceptable_value_sources": [
+              "database_entry"
+            ],
+            "evidence_request": {
+              "capability": "property_estimate",
+              "identifier_scheme": "inchikey",
+              "parameters": {
+                "endpoint": "logP"
+              },
+              "question_kind": "admet_computed_property"
+            }
+          }
+        },
+        "reason": "Verified deterministic descriptor provenance correction; plan d6f12aa13cf0296885a6a37df3c85c9d56c3aea1f02b98030d5aa4e122850ce0",
+        "source_attribute_ref": "attr_predicted-logp-rdkit@v1",
+        "source_rule_ref": "rule_predicted-logp-rdkit@v1"
+      }
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4YVW3GTENG97ZF5TZC6PGH6",
+        "source_ref": "src_doi_10.3390/pharmaceutics18091082",
+        "title": "Food Effects, Pharmacokinetic Drug–Drug Interactions, and Clinical Optimization of Oral Anticancer Agents",
+        "statement": "For lipophilic, poorly soluble agents the solubilising effect of dietary fat frequently increases the fraction absorbed, sometimes markedly.",
+        "quote": "For lipophilic, poorly soluble agents, the solubilizing effect of dietary fat frequently increases the fraction absorbed, sometimes markedly",
+        "url": "https://doi.org/10.3390/pharmaceutics18091082",
+        "locator": "sec5.p2"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_predicted-nih-alert-count@v2",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "derived"
+      ],
+      "acceptable_value_sources": [
+        "database_entry"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_predicted-nih-alert-count",
+      "definition": "Number of NIH alerts from RDKit; higher counts indicate greater likelihood of problematic substructures.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52E6NE78X0DS8A6R8MHW44W@v1"
+      },
+      "direction": "lower_better",
+      "evidence_request": {
+        "capability": "property_estimate",
+        "identifier_scheme": "inchikey",
+        "parameters": {
+          "endpoint": "NIH_alert"
+        },
+        "question_kind": "admet_computed_property"
+      },
+      "measurement_kind": "quantitative",
+      "name": "Predicted NIH alert count",
+      "proposed_by": {
+        "id": "descriptor-basis-correction",
+        "kind": "system",
+        "role": "operator"
+      },
+      "rationale": "NIH alerts flag substructures associated with toxicity or poor pharmacokinetics. The ADMET-AI NIH_alert endpoint provides a count for every compound with a structure. This is a deterministic RDKit calculation.",
+      "status": "proposed",
+      "supersedes": "attr_predicted-nih-alert-count@v1",
+      "supporting_claim_refs": [
+        "claim_01M4YT2WE3T610NCGNXPPW03AZ"
+      ],
+      "unit": "count",
+      "version": 2,
+      "workbench_revision": {
+        "changes": {
+          "attribute": {
+            "acceptable_determination_bases": [
+              "derived"
+            ],
+            "acceptable_value_sources": [
+              "database_entry"
+            ],
+            "evidence_request": {
+              "capability": "property_estimate",
+              "identifier_scheme": "inchikey",
+              "parameters": {
+                "endpoint": "NIH_alert"
+              },
+              "question_kind": "admet_computed_property"
+            }
+          }
+        },
+        "reason": "Verified deterministic descriptor provenance correction; plan d6f12aa13cf0296885a6a37df3c85c9d56c3aea1f02b98030d5aa4e122850ce0",
+        "source_attribute_ref": "attr_predicted-nih-alert-count@v1",
+        "source_rule_ref": "rule_predicted-nih-alert-count@v1"
+      }
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_predicted-nih-alert-count@v2",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "dissent": [],
+      "expected_change": "Ranks compounds with fewer NIH alerts higher.",
+      "falsification_test": "If NIH alert counts do not correlate with toxicity or poor pharmacokinetics for a reference set, the attribute should be discarded.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "descriptor-basis-correction",
+        "kind": "system",
+        "role": "operator"
+      },
+      "rule_id": "rule_predicted-nih-alert-count",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "supersedes": "rule_predicted-nih-alert-count@v1",
+      "version": 2,
+      "workbench_revision": {
+        "changes": {
+          "attribute": {
+            "acceptable_determination_bases": [
+              "derived"
+            ],
+            "acceptable_value_sources": [
+              "database_entry"
+            ],
+            "evidence_request": {
+              "capability": "property_estimate",
+              "identifier_scheme": "inchikey",
+              "parameters": {
+                "endpoint": "NIH_alert"
+              },
+              "question_kind": "admet_computed_property"
+            }
+          }
+        },
+        "reason": "Verified deterministic descriptor provenance correction; plan d6f12aa13cf0296885a6a37df3c85c9d56c3aea1f02b98030d5aa4e122850ce0",
+        "source_attribute_ref": "attr_predicted-nih-alert-count@v1",
+        "source_rule_ref": "rule_predicted-nih-alert-count@v1"
+      }
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4YT2WE3T610NCGNXPPW03AZ",
+        "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+        "title": "Structural basis and selectivity of sulfatinib binding to FGFR and CSF-1R",
+        "statement": "Combination therapy used to overcome off-target resistance increases the risk of drug-drug interaction.",
+        "quote": "On the other hand, combination therapy is employed to overcome the off-target resistance but increases the risk of drug-drug interaction8,9",
+        "url": "https://doi.org/10.1038/s42004-023-01084-0",
+        "locator": "sec1.p2"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_predicted-pains-alert-count@v2",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "derived"
+      ],
+      "acceptable_value_sources": [
+        "database_entry"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_predicted-pains-alert-count",
+      "definition": "Number of PAINS alerts from RDKit; higher counts indicate greater likelihood of assay interference and poor drug-likeness.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52E6NE34SKAV8G70J3J2EG7@v1"
+      },
+      "direction": "lower_better",
+      "evidence_request": {
+        "capability": "property_estimate",
+        "identifier_scheme": "inchikey",
+        "parameters": {
+          "endpoint": "PAINS_alert"
+        },
+        "question_kind": "admet_computed_property"
+      },
+      "measurement_kind": "quantitative",
+      "name": "Predicted PAINS alert count",
+      "proposed_by": {
+        "id": "descriptor-basis-correction",
+        "kind": "system",
+        "role": "operator"
+      },
+      "rationale": "PAINS alerts flag compounds prone to assay interference, which can undermine development. The ADMET-AI PAINS_alert endpoint provides a count for every compound with a structure. This is a deterministic RDKit calculation, so it is reliable.",
+      "status": "proposed",
+      "supersedes": "attr_predicted-pains-alert-count@v1",
+      "supporting_claim_refs": [
+        "claim_01M4YT2WE3T610NCGNXPPW03AZ"
+      ],
+      "unit": "count",
+      "version": 2,
+      "workbench_revision": {
+        "changes": {
+          "attribute": {
+            "acceptable_determination_bases": [
+              "derived"
+            ],
+            "acceptable_value_sources": [
+              "database_entry"
+            ],
+            "evidence_request": {
+              "capability": "property_estimate",
+              "identifier_scheme": "inchikey",
+              "parameters": {
+                "endpoint": "PAINS_alert"
+              },
+              "question_kind": "admet_computed_property"
+            }
+          }
+        },
+        "reason": "Verified deterministic descriptor provenance correction; plan d6f12aa13cf0296885a6a37df3c85c9d56c3aea1f02b98030d5aa4e122850ce0",
+        "source_attribute_ref": "attr_predicted-pains-alert-count@v1",
+        "source_rule_ref": "rule_predicted-pains-alert-count@v1"
+      }
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_predicted-pains-alert-count@v2",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "dissent": [],
+      "expected_change": "Ranks compounds with fewer PAINS alerts higher.",
+      "falsification_test": "If PAINS alert counts do not correlate with assay interference for a reference set, the attribute should be discarded.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "descriptor-basis-correction",
+        "kind": "system",
+        "role": "operator"
+      },
+      "rule_id": "rule_predicted-pains-alert-count",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "supersedes": "rule_predicted-pains-alert-count@v1",
+      "version": 2,
+      "workbench_revision": {
+        "changes": {
+          "attribute": {
+            "acceptable_determination_bases": [
+              "derived"
+            ],
+            "acceptable_value_sources": [
+              "database_entry"
+            ],
+            "evidence_request": {
+              "capability": "property_estimate",
+              "identifier_scheme": "inchikey",
+              "parameters": {
+                "endpoint": "PAINS_alert"
+              },
+              "question_kind": "admet_computed_property"
+            }
+          }
+        },
+        "reason": "Verified deterministic descriptor provenance correction; plan d6f12aa13cf0296885a6a37df3c85c9d56c3aea1f02b98030d5aa4e122850ce0",
+        "source_attribute_ref": "attr_predicted-pains-alert-count@v1",
+        "source_rule_ref": "rule_predicted-pains-alert-count@v1"
+      }
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4YT2WE3T610NCGNXPPW03AZ",
+        "source_ref": "src_doi_10.1038/s42004-023-01084-0",
+        "title": "Structural basis and selectivity of sulfatinib binding to FGFR and CSF-1R",
+        "statement": "Combination therapy used to overcome off-target resistance increases the risk of drug-drug interaction.",
+        "quote": "On the other hand, combination therapy is employed to overcome the off-target resistance but increases the risk of drug-drug interaction8,9",
+        "url": "https://doi.org/10.1038/s42004-023-01084-0",
+        "locator": "sec1.p2"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1",
+    "attribute": {
+      "acceptable_determination_bases": [
+        "measured"
+      ],
+      "acceptable_value_sources": [
+        "curated_measurement",
+        "peer_reviewed"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_time-to-maximum-plasma-concentration-tmax-median-of-reported",
+      "definition": "Median of reported times to maximum plasma concentration after oral administration, in hours; when a source reports only a range, the range midpoint is used. Lower values indicate faster absorption. This is a preference ordering, not a requirement: longer Tmax may still be compatible with oral bioavailability and efficacy.",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "derivation_run": "run_01M52FZVHVFZP1DQESXNKJA098",
+        "pool_criterion": "cri_01M52D2YKJY3D6M4XR9EEMF8WK@v6"
+      },
+      "direction": "lower_better",
+      "evidence_request": {
+        "capability": "literature_retrieval",
+        "identifier_scheme": null,
+        "parameters": {
+          "query_template": "({names}) AND \"Tmax\"",
+          "relevance_terms": [
+            "Tmax",
+            "time to maximum plasma concentration",
+            "absorption"
+          ],
+          "search_limit": 10
+        },
+        "question_kind": "search"
+      },
+      "measurement_kind": "quantitative",
+      "name": "Time to maximum plasma concentration (Tmax, median of reported values)",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rationale": "Tmax is a direct measure of oral absorption rate. Cited claims report measured Tmax values of 4 h and 3 h and ranges of 1-4 h, 2-4 h, 3-4 h and 6-12 h for orally administered agents, establishing the quantity as measurable and decision-relevant, but no claim states a required Tmax, so the rule ranks by value without a cutoff. The ordering is a preference, not a requirement: longer Tmax may still be compatible with oral bioavailability and efficacy.",
+      "status": "proposed",
+      "supporting_claim_refs": [
+        "claim_01M4X8QBK614EN189K2KMTNB1T",
+        "claim_01M4X8QBT3XKD8N223GBZZ7CY4",
+        "claim_01M4X8QBYJZPW4EMABWWM3VZEC",
+        "claim_01M4X8QC3F26MN3T35XK2060NX",
+        "claim_01M4X8QC7RBMYFTDNKGQEWBBA1",
+        "claim_01M4X8QCARRD50GPQNJ942MWAS",
+        "claim_01M4X8QCFDQ0VK3M54YQE87S27",
+        "claim_01M4X8QCJRM90K9DSPFQSVEF94"
+      ],
+      "unit": "h",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "dissent": [],
+      "expected_change": "Ranks candidates with shorter Tmax above those with longer Tmax, without a numeric cutoff.",
+      "falsification_test": "If a candidate with longer Tmax is orally bioavailable and clinically effective, the ordering is not informative.",
+      "on_conflict": "unknown_no_penalty",
+      "on_inapplicable": "unknown_no_penalty",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "proposer:deepseek-v4-flash",
+        "kind": "agent",
+        "model_family": "deepseek",
+        "role": "proposer"
+      },
+      "rule_id": "rule_time-to-maximum-plasma-concentration-tmax-median-of-reported",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": [
+      {
+        "claim_id": "claim_01M4X8QBK614EN189K2KMTNB1T",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "After oral intake, axitinib reaches maximum plasma concentration in about 4 hours, indicating rapid absorption.",
+        "quote": "After oral intake, the maximum plasma concentration occurs in about 4 h; therefore, the absorption process is rapid.",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.1.p2"
+      },
+      {
+        "claim_id": "claim_01M4X8QBT3XKD8N223GBZZ7CY4",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Sorafenib reaches maximum plasma concentration in about 3 hours.",
+        "quote": "The maximum plasma concentration is achieved in about 3 h.",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.2.p2"
+      },
+      {
+        "claim_id": "claim_01M4X8QBYJZPW4EMABWWM3VZEC",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Lenvatinib is absorbed rapidly and reaches maximum concentration 1 to 4 hours after ingestion.",
+        "quote": "It is absorbed rapidly and reaches maximum concentration in 1 to 4 h after ingestion.",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.3.p2"
+      },
+      {
+        "claim_id": "claim_01M4X8QC3F26MN3T35XK2060NX",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "At the recommended 800 mg dose, pazopanib reaches maximum plasma concentration after 2–4 hours.",
+        "quote": "At this dosage, the maximum plasma concentration is reached after 2–4 h",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.4.p2"
+      },
+      {
+        "claim_id": "claim_01M4X8QC7RBMYFTDNKGQEWBBA1",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Sunitinib time to maximum plasma concentration is 6 to 12 hours.",
+        "quote": "The time to maximum plasma concentration is 6 to 12 h",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.5.p1"
+      },
+      {
+        "claim_id": "claim_01M4X8QCARRD50GPQNJ942MWAS",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Cabozantinib reaches maximum plasma concentration in 3 to 4 hours at a 60 mg dose.",
+        "quote": "The maximum plasma concentration is reached in 3 to 4 h, with a mean plasma concentration at a 60 mg dose",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.6.p1"
+      },
+      {
+        "claim_id": "claim_01M4X8QCFDQ0VK3M54YQE87S27",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Nintedanib reaches peak plasma concentration in 2 to 4 hours and is inactivated by esterases.",
+        "quote": "The peak plasma concentration is reached in 2 to 4 h, while the inactivation is due to esterases.",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.7.p1"
+      },
+      {
+        "claim_id": "claim_01M4X8QCJRM90K9DSPFQSVEF94",
+        "source_ref": "src_doi_10.3390/ijms26052192",
+        "title": "A Review of FDA-Approved Multi-Target Angiogenesis Drugs for Brain Tumor Therapy",
+        "statement": "Regorafenib reaches peak plasma concentration about 4 hours after ingestion.",
+        "quote": "The peak plasma concentration is reached in about 4 h after ingestion.",
+        "url": "https://doi.org/10.3390/ijms26052192",
+        "locator": "sec3.8.p1"
+      }
+    ]
+  },
+  {
+    "rule_ref": "rule_vegfr1-curated-potency@v1",
+    "attribute": {
+      "acceptable_value_sources": [
+        "curated_measurement",
+        "peer_reviewed"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_vegfr1-curated-potency",
+      "definition": "Median pChEMBL value (-log10 of the molar IC50, Ki, Kd or EC50) over point measurements against VEGFR1 (CHEMBL1868), pooled across every available expert curation and every reported measurement in the peer-reviewed literature",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "field": "scope_entities[1]",
+        "task_context": "task_01M52CBE5GYPK9F0MCZYBMPH84@v3"
+      },
+      "direction": "higher_better",
+      "evidence_requests": [
+        {
+          "capability": "interaction_evidence_lookup",
+          "identifier_scheme": "inchikey",
+          "parameters": {
+            "target_chembl_id": "CHEMBL1868"
+          },
+          "question_kind": "pchembl_values"
+        },
+        {
+          "capability": "interaction_evidence_lookup",
+          "identifier_scheme": "inchikey",
+          "parameters": {
+            "target_chembl_id": "CHEMBL1868"
+          },
+          "question_kind": "gtopdb_affinity"
+        },
+        {
+          "capability": "literature_retrieval",
+          "identifier_scheme": null,
+          "parameters": {
+            "query_template": "({names}) AND \"VEGFR1\" AND (IC50 OR Ki OR Kd OR EC50 OR potency OR selectivity OR \"kinase selectivity\")",
+            "relevance_terms": [
+              "VEGFR1",
+              "IC50",
+              "Ki",
+              "Kd",
+              "EC50",
+              "nM",
+              "selectivity",
+              "potency",
+              "inhibition"
+            ],
+            "search_limit": 10
+          },
+          "question_kind": "search"
+        }
+      ],
+      "measurement_kind": "quantitative",
+      "name": "VEGFR1 curated potency",
+      "proposed_by": {
+        "id": "objective-criteria",
+        "kind": "system",
+        "role": "adapter_template"
+      },
+      "rationale": "VEGFR1 is a required target of the task",
+      "status": "proposed",
+      "unit": "pChEMBL",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_vegfr1-curated-potency@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "on_conflict": "unknown_blocks_recommendation",
+      "on_inapplicable": "unknown_blocks_recommendation",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "objective-criteria",
+        "kind": "system",
+        "role": "adapter_template"
+      },
+      "rule_id": "rule_vegfr1-curated-potency",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": []
+  },
+  {
+    "rule_ref": "rule_vegfr2-curated-potency@v1",
+    "attribute": {
+      "acceptable_value_sources": [
+        "curated_measurement",
+        "peer_reviewed"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_vegfr2-curated-potency",
+      "definition": "Median pChEMBL value (-log10 of the molar IC50, Ki, Kd or EC50) over point measurements against VEGFR2 (CHEMBL279), pooled across every available expert curation and every reported measurement in the peer-reviewed literature",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "field": "scope_entities[2]",
+        "task_context": "task_01M52CBE5GYPK9F0MCZYBMPH84@v3"
+      },
+      "direction": "higher_better",
+      "evidence_requests": [
+        {
+          "capability": "interaction_evidence_lookup",
+          "identifier_scheme": "inchikey",
+          "parameters": {
+            "target_chembl_id": "CHEMBL279"
+          },
+          "question_kind": "pchembl_values"
+        },
+        {
+          "capability": "interaction_evidence_lookup",
+          "identifier_scheme": "inchikey",
+          "parameters": {
+            "target_chembl_id": "CHEMBL279"
+          },
+          "question_kind": "gtopdb_affinity"
+        },
+        {
+          "capability": "literature_retrieval",
+          "identifier_scheme": null,
+          "parameters": {
+            "query_template": "({names}) AND \"VEGFR2\" AND (IC50 OR Ki OR Kd OR EC50 OR potency OR selectivity OR \"kinase selectivity\")",
+            "relevance_terms": [
+              "VEGFR2",
+              "IC50",
+              "Ki",
+              "Kd",
+              "EC50",
+              "nM",
+              "selectivity",
+              "potency",
+              "inhibition"
+            ],
+            "search_limit": 10
+          },
+          "question_kind": "search"
+        }
+      ],
+      "measurement_kind": "quantitative",
+      "name": "VEGFR2 curated potency",
+      "proposed_by": {
+        "id": "objective-criteria",
+        "kind": "system",
+        "role": "adapter_template"
+      },
+      "rationale": "VEGFR2 is a required target of the task",
+      "status": "proposed",
+      "unit": "pChEMBL",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_vegfr2-curated-potency@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "on_conflict": "unknown_blocks_recommendation",
+      "on_inapplicable": "unknown_blocks_recommendation",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "objective-criteria",
+        "kind": "system",
+        "role": "adapter_template"
+      },
+      "rule_id": "rule_vegfr2-curated-potency",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": []
+  },
+  {
+    "rule_ref": "rule_vegfr3-curated-potency@v1",
+    "attribute": {
+      "acceptable_value_sources": [
+        "curated_measurement",
+        "peer_reviewed"
+      ],
+      "aggregation": "median",
+      "attribute_id": "attr_vegfr3-curated-potency",
+      "definition": "Median pChEMBL value (-log10 of the molar IC50, Ki, Kd or EC50) over point measurements against VEGFR3 (CHEMBL1955), pooled across every available expert curation and every reported measurement in the peer-reviewed literature",
+      "derivation_configuration": "reference_disclosed",
+      "derived_from": {
+        "field": "scope_entities[3]",
+        "task_context": "task_01M52CBE5GYPK9F0MCZYBMPH84@v3"
+      },
+      "direction": "higher_better",
+      "evidence_requests": [
+        {
+          "capability": "interaction_evidence_lookup",
+          "identifier_scheme": "inchikey",
+          "parameters": {
+            "target_chembl_id": "CHEMBL1955"
+          },
+          "question_kind": "pchembl_values"
+        },
+        {
+          "capability": "interaction_evidence_lookup",
+          "identifier_scheme": "inchikey",
+          "parameters": {
+            "target_chembl_id": "CHEMBL1955"
+          },
+          "question_kind": "gtopdb_affinity"
+        },
+        {
+          "capability": "literature_retrieval",
+          "identifier_scheme": null,
+          "parameters": {
+            "query_template": "({names}) AND \"VEGFR3\" AND (IC50 OR Ki OR Kd OR EC50 OR potency OR selectivity OR \"kinase selectivity\")",
+            "relevance_terms": [
+              "VEGFR3",
+              "IC50",
+              "Ki",
+              "Kd",
+              "EC50",
+              "nM",
+              "selectivity",
+              "potency",
+              "inhibition"
+            ],
+            "search_limit": 10
+          },
+          "question_kind": "search"
+        }
+      ],
+      "measurement_kind": "quantitative",
+      "name": "VEGFR3 curated potency",
+      "proposed_by": {
+        "id": "objective-criteria",
+        "kind": "system",
+        "role": "adapter_template"
+      },
+      "rationale": "VEGFR3 is a required target of the task",
+      "status": "proposed",
+      "unit": "pChEMBL",
+      "version": 1
+    },
+    "rule": {
+      "applies_to_result_kind": "all_pass_set",
+      "attribute_ref": "attr_vegfr3-curated-potency@v1",
+      "cutoff": null,
+      "cutoff_basis": "none_evidence_insufficient",
+      "on_conflict": "unknown_blocks_recommendation",
+      "on_inapplicable": "unknown_blocks_recommendation",
+      "on_missing": "unknown_no_penalty",
+      "predicate_form": "ordering",
+      "proposed_by": {
+        "id": "objective-criteria",
+        "kind": "system",
+        "role": "adapter_template"
+      },
+      "rule_id": "rule_vegfr3-curated-potency",
+      "rule_kind": "preference",
+      "status": "proposed",
+      "version": 1
+    },
+    "supporting_sources": []
+  }
+]

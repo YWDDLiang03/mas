@@ -4,6 +4,8 @@
 
 The public repository contains the implementation, general design, user guides, explicitly synthetic examples and the authorized saved system case. Documentation describes reusable mechanisms and links them to the code.
 
+The authorized case also includes its research tables, source observations, recorded settings and analyses of saved values. The [case source-data guide](../../examples/oral-multitarget/latest/source-data/README.md) identifies these files and their calculation scopes. They can support supplementary data without publishing manuscript prose or draft figures.
+
 Private manuscripts, unpublished clinical text or results, draft paper figures, private comparison baselines, reviewer discussions, credentials and local workspaces stay outside Git and release assets. A public explanation can describe the method without reproducing the private material used during its development.
 
 ## Shared research copies

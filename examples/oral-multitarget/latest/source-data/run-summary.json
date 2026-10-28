@@ -1,0 +1,159 @@
+{
+  "title": "Recorded oral multi-target study",
+  "task_id": "task_01M52CBE5GYPK9F0MCZYBMPH84",
+  "workflow_id": "wf_cb4caec3dec348908fb3d34eae5b11d1",
+  "run_id": "run_01M52Q4VRB00T5Z3QJW08SSV96",
+  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2",
+  "rule_set": "rules@v2",
+  "objective": "Identify a single orally administered agent that concurrently engages the tumour-microenvironment targets CSF1R, VEGFR1, VEGFR2, VEGFR3 and FGFR1, with a pharmacological profile suitable for clinical development. Use the saved evidence to develop and refine meaningful research criteria, then screen and rank the recorded compound library.",
+  "required_targets": [
+    {
+      "conditions": {},
+      "direction": null,
+      "entity_kind": "target",
+      "identifier": "CHEMBL1844",
+      "identifier_scheme": "chembl_target",
+      "label": "CSF1R",
+      "property_id": null,
+      "provenance": "user_task_normalized",
+      "role": "required",
+      "unit": null
+    },
+    {
+      "conditions": {},
+      "direction": null,
+      "entity_kind": "target",
+      "identifier": "CHEMBL1868",
+      "identifier_scheme": "chembl_target",
+      "label": "VEGFR1",
+      "property_id": null,
+      "provenance": "user_task_normalized",
+      "role": "required",
+      "unit": null
+    },
+    {
+      "conditions": {},
+      "direction": null,
+      "entity_kind": "target",
+      "identifier": "CHEMBL279",
+      "identifier_scheme": "chembl_target",
+      "label": "VEGFR2",
+      "property_id": null,
+      "provenance": "user_task_normalized",
+      "role": "required",
+      "unit": null
+    },
+    {
+      "conditions": {},
+      "direction": null,
+      "entity_kind": "target",
+      "identifier": "CHEMBL1955",
+      "identifier_scheme": "chembl_target",
+      "label": "VEGFR3",
+      "property_id": null,
+      "provenance": "user_task_normalized",
+      "role": "required",
+      "unit": null
+    },
+    {
+      "conditions": {},
+      "direction": null,
+      "entity_kind": "target",
+      "identifier": "CHEMBL3650",
+      "identifier_scheme": "chembl_target",
+      "label": "FGFR1",
+      "property_id": null,
+      "provenance": "user_task_normalized",
+      "role": "required",
+      "unit": null
+    }
+  ],
+  "task_constraints": [
+    {
+      "comparator": null,
+      "conditions": {},
+      "direction": null,
+      "hardness": "hard",
+      "kind": "route",
+      "property_id": null,
+      "provenance": "user_task_normalized",
+      "text": "Oral administration is required.",
+      "unit": null,
+      "value": null
+    }
+  ],
+  "started_at_utc": "2026-10-16T12:52:44.094Z",
+  "finished_at_utc": "2026-10-16T16:25:26.376Z",
+  "started_at_utc_plus_8": "2026-10-16T20:52:44.094000+08:00",
+  "finished_at_utc_plus_8": "2026-10-17T00:25:26.376000+08:00",
+  "elapsed_seconds": 12762.282,
+  "evidence_mode": "existing_only",
+  "evaluation_mode": "staged",
+  "workload": "mid",
+  "configured_worker_limit": 4,
+  "budget_limit_usd": 5.5,
+  "model_accounting": {
+    "requests": 325,
+    "known_cost_usd": 4.2101472,
+    "cost_status": "estimated",
+    "unknown_or_partial_cost_requests": 0,
+    "usage": {
+      "input_tokens": 5997812,
+      "output_tokens": 2009003
+    },
+    "usage_status": "complete"
+  },
+  "accounting_scope": "This workflow's task/runs and started_at..finished_at only; previous stopped workflows excluded.",
+  "source_collection": {
+    "sources": 164,
+    "records": 3157,
+    "generation_records": 3021,
+    "omitted_from_generation": 136,
+    "cutoff": "2026-10-15"
+  },
+  "criterion_counts": {
+    "initial": 0,
+    "task_requirements": 6,
+    "peak_working_items": 1917,
+    "refinement_round_ends": [
+      147,
+      68,
+      53
+    ],
+    "retained": 53,
+    "eligibility": 6,
+    "scoring": 17,
+    "shared": 5,
+    "unique_evaluation": 18,
+    "contextual": 13,
+    "outside_evaluation": 22,
+    "assessed": 31
+  },
+  "selection_counts": {
+    "Eligible": 10,
+    "Evidence incomplete": 1305,
+    "Excluded": 1862
+  },
+  "candidate_count": 3177,
+  "assessment_count": 98487,
+  "surufatinib": {
+    "rank": 1,
+    "ranked_cohort": 10,
+    "score": 0.7592592592592593,
+    "scored_values": 15,
+    "direct_coverage_numerator": 10,
+    "direct_coverage_denominator": 17
+  },
+  "score_weights": "Equal weight 1 for each applicable scoring criterion",
+  "direct_coverage_floor": 0.5,
+  "refinement_end": "Three configured rounds completed; all three changed the working set.",
+  "source_record_references": [
+    "../results/task.json",
+    "../results/workflow.json",
+    "../results/model-accounting.json",
+    "../results/snapshot.json",
+    "../results/run-bindings.json"
+  ],
+  "data_release_date": "2026-10-28",
+  "new_research_run_in_data_release": false
+}

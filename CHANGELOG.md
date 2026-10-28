@@ -1,5 +1,11 @@
 # Changelog
 
+## Case source data, 2026-10-28
+
+- Publish ten case tables, including 98,487 assessments, all eligible-candidate scoring contributions, 1,348 target observations and recorded model use.
+- Add run settings, field definitions, source records and the completed fixed-cohort score comparisons.
+- Provide an offline verifier and a standalone source-data download, linked from both READMEs.
+
 ## Current interface and presentation refresh, 2026-10-28
 
 - Replace obsolete browser captures with 21 current Windows screenshots in the bilingual README, tutorials and presentation.

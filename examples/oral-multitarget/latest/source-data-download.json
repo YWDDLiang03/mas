@@ -1,0 +1,39 @@
+{
+  "file": "TRIAGE-oral-multitarget-source-data-20261028.zip",
+  "release_date": "2026-10-28",
+  "url": "https://github.com/YWDDLiang03/mas/releases/download/v1.1.0/TRIAGE-oral-multitarget-source-data-20261028.zip",
+  "bytes": 11658795,
+  "sha256": "97d603256af408e48175589ec100cd4329cf03ace1f8cb6af41df3a9fda17937",
+  "archive_files": 53,
+  "manifest_path": "source-data/manifest.json",
+  "contents": "Recorded case tables and public source records, including complete final assessments and fixed-cohort comparisons",
+  "standalone_verification": {
+    "status": "pass",
+    "row_counts": {
+      "1": 53,
+      "2": 3177,
+      "3": 98487,
+      "4": 170,
+      "5": 25,
+      "6": 17,
+      "7": 1348,
+      "8": 10,
+      "9": 10,
+      "10": 18
+    },
+    "candidate_groups": {
+      "Eligible": 10,
+      "Excluded": 1862,
+      "Evidence incomplete": 1305
+    },
+    "assessment_links_checked": 98487,
+    "eligible_scores_recomputed": 10,
+    "target_medians_recomputed": 238,
+    "without_predictions_surufatinib_rank": 1,
+    "ic50_fixed_cohort_surufatinib_rank": 1,
+    "ic50_coverage_rankable_candidates": 7,
+    "duplicate_record_groups_checked": 3,
+    "model_requests": 325,
+    "estimated_model_cost_usd": 4.2101472
+  }
+}

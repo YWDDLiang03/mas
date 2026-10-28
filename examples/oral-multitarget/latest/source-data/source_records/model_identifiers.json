@@ -1,0 +1,69 @@
+{
+  "record_kind": "Recorded model configuration and response identifiers",
+  "model_configuration": [
+    {
+      "adapter_id": "deepseek_reasoning",
+      "decoding_parameters": {
+        "thinking": true
+      },
+      "model_id": "deepseek-v4-flash",
+      "model_version": "deepseek-v4-flash",
+      "provider_family": "deepseek",
+      "role": "adjudicator"
+    },
+    {
+      "adapter_id": "deepseek_exact",
+      "decoding_parameters": {
+        "temperature": 0.0,
+        "thinking": false
+      },
+      "model_id": "deepseek-v4-flash",
+      "model_version": "deepseek-v4-flash",
+      "provider_family": "deepseek",
+      "role": "critic"
+    },
+    {
+      "adapter_id": "deepseek_exact",
+      "decoding_parameters": {
+        "temperature": 0.0,
+        "thinking": false
+      },
+      "model_id": "deepseek-v4-flash",
+      "model_version": "deepseek-v4-flash",
+      "provider_family": "deepseek",
+      "role": "proposer"
+    }
+  ],
+  "returned_identifiers": [
+    {
+      "role": "adjudicator",
+      "returned_model": "deepseek-flash",
+      "calls": 31
+    },
+    {
+      "role": "critic",
+      "returned_model": "deepseek-flash",
+      "calls": 47
+    },
+    {
+      "role": "proposer",
+      "returned_model": "deepseek-flash",
+      "calls": 247
+    }
+  ],
+  "model_completion_range_utc": [
+    "2026-10-16T12:52:53.602Z",
+    "2026-10-16T15:13:29.400Z"
+  ],
+  "recorded_provider_mapping": {
+    "notice_date": "2026-09-10",
+    "source": "https://api-docs.deepseek.com/news/news260910/",
+    "legacy_request_name": "deepseek-v4-flash",
+    "service_name": "deepseek-flash",
+    "serving_family": "DeepSeek-V4.1-Flash"
+  },
+  "prediction_package": {
+    "package": "admet-ai",
+    "version": "2.0.1"
+  }
+}

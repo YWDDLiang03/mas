@@ -12,6 +12,7 @@
 | [Agent quick start](agent-run.md) | Replay, plan, run, resume and export from one command entry |
 | [CSV formats](csv-input.md) | Candidate identities, measurements, units, conditions and source types |
 | [Recorded case tutorial](tutorial.md) | A complete public example from task to exported ranking |
+| [Case source data](../examples/oral-multitarget/latest/source-data/README.md) | Run details, ten research tables, source observations, comparison analyses and an offline verifier |
 | [Component walkthrough](component-walkthrough.md) | Inputs, practical modifications and inspections for all component groups |
 | [Component reference](components/README.md) | Design rationale and concrete implementation |
 | [Configuration](configuration.md) | Settings precedence, model roles, budgets and tools |

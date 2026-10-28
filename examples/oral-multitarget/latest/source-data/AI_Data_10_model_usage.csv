@@ -1,0 +1,19 @@
+Phase,Stage,Round,Agent role,Model requests,Input tokens,Output tokens,Estimated cost USD,Cost status,Requests with unknown or partial cost
+propose,propose:metabolic_stability,0,proposer,16,479712,294361,0.4971468,estimated,0
+propose,propose:oral_bioavailability,0,proposer,16,427722,141658,0.2983062,estimated,0
+propose,propose:target_coverage,0,proposer,21,501355,171136,0.3557697,estimated,0
+propose,propose:toxicological_safety,0,proposer,18,697311,332904,0.6086781,estimated,0
+refine,distill,1,proposer,7,179208,23936,0.0824856,estimated,0
+refine,distill,2,proposer,3,86556,5771,0.032892,estimated,0
+refine,distill,3,proposer,2,52512,2652,0.018936,estimated,0
+refine,filter,1,critic,42,649138,502910,0.7982334,estimated,0
+refine,filter,2,critic,3,94636,31931,0.066708,estimated,0
+refine,filter,3,critic,1,44685,13669,0.0298083,estimated,0
+refine,merge,1,adjudicator,13,233905,144964,0.2441283,estimated,0
+refine,merge,2,adjudicator,2,33408,36399,0.0537012,estimated,0
+refine,promote,0,critic,1,38340,11430,0.025218,estimated,0
+refine,refine,1,proposer,152,2232699,214710,0.9274617,estimated,0
+refine,refine,2,proposer,7,121957,26564,0.0684639,estimated,0
+refine,refine,3,proposer,4,87907,18209,0.0482229,estimated,0
+review,,,adjudicator,16,35306,35395,0.0530658,estimated,0
+task,,,proposer,1,1455,404,0.0009213,estimated,0

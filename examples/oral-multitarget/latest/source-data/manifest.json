@@ -1,0 +1,141 @@
+{
+  "format": "triage-case-source-data-v1",
+  "release_date": "2026-10-28",
+  "task_id": "task_01M52CBE5GYPK9F0MCZYBMPH84",
+  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2",
+  "verification": {
+    "status": "pass",
+    "row_counts": {
+      "1": 53,
+      "2": 3177,
+      "3": 98487,
+      "4": 170,
+      "5": 25,
+      "6": 17,
+      "7": 1348,
+      "8": 10,
+      "9": 10,
+      "10": 18
+    },
+    "candidate_groups": {
+      "Eligible": 10,
+      "Excluded": 1862,
+      "Evidence incomplete": 1305
+    },
+    "assessment_links_checked": 98487,
+    "eligible_scores_recomputed": 10,
+    "target_medians_recomputed": 238,
+    "without_predictions_surufatinib_rank": 1,
+    "ic50_fixed_cohort_surufatinib_rank": 1,
+    "ic50_coverage_rankable_candidates": 7,
+    "duplicate_record_groups_checked": 3,
+    "model_requests": 325,
+    "estimated_model_cost_usd": 4.2101472
+  },
+  "files": {
+    "AI_Data_10_model_usage.csv": {
+      "bytes": 1328,
+      "sha256": "12b6cb47a8bb647d09d1f397df0d51ef0ba6860e10a5e90fb73c8fb8a52185ca"
+    },
+    "AI_Data_1_final_criteria.csv": {
+      "bytes": 30787,
+      "sha256": "3c50712c7bfcc341c1991b5166fee32bac7d2bba0e8d025a8952e8a8489e98c3"
+    },
+    "AI_Data_2_candidate_results.csv": {
+      "bytes": 688571,
+      "sha256": "efd5f1309308a2544a4964c53eb7974229c009d3889f2ab25e7ea80cb3d635f7"
+    },
+    "AI_Data_3_candidate_assessments.csv.gz": {
+      "bytes": 3018665,
+      "sha256": "147f5896f189c4f820cc4e613677832751bd4b6ea641c2e114c7a6461762ffdf"
+    },
+    "AI_Data_4_eligible_candidate_scores.csv": {
+      "bytes": 59576,
+      "sha256": "bf3183aa40e76d1bdd5b870bb4893cfdfb90a6a26e23a87e5a9b6af8cc1bdfcd"
+    },
+    "AI_Data_5_criterion_stages.csv": {
+      "bytes": 1753,
+      "sha256": "6b5e51323a7e54b506d128cf665b31762c91923f9b3f870e26a6700383a2e08a"
+    },
+    "AI_Data_6_criterion_basis.csv": {
+      "bytes": 12859,
+      "sha256": "4a3ba9b584367a2022a35e1a4eaf5233ed961d53edba06f75112b7f0510a28c3"
+    },
+    "AI_Data_7_target_observations.csv": {
+      "bytes": 317600,
+      "sha256": "643fd27c9b3d1d905fe50957f6dbb7d0e26df9c592e5b7fdbd490cd085e55e0f"
+    },
+    "AI_Data_8_without_predictions.csv": {
+      "bytes": 703,
+      "sha256": "d7368ef533ab8b61b01c1ce56be430733ffabfb7fa42ab3363c168c0a9863a92"
+    },
+    "AI_Data_9_IC50_comparison.csv": {
+      "bytes": 1027,
+      "sha256": "5cd118dc17be51af7bbbad29e0e734facfe4adc892d93803ccb5e16aab81f32c"
+    },
+    "analysis-notes.md": {
+      "bytes": 4035,
+      "sha256": "ec2f066a7fb2deaf6563c3ebb1cfd133aac75743cbd60db79cc11dbaf0deb084"
+    },
+    "data-dictionary.md": {
+      "bytes": 6375,
+      "sha256": "0de5309ed39c4bd245d0254e9ee8127725a050b4656e49efc89cbecd85c97be8"
+    },
+    "eligible-leaderboard.csv": {
+      "bytes": 1267,
+      "sha256": "a2ca1b677fd2eab37e02ea0642653f9b573f8e18b44f70a290a4e9c19aba04ec"
+    },
+    "README.md": {
+      "bytes": 6355,
+      "sha256": "657d3a1248a8beb8021b6b05416e84b5966ad86116b20f99bb0f07f52d61f3ca"
+    },
+    "README.zh-CN.md": {
+      "bytes": 5001,
+      "sha256": "f571a5722c8387461581dd485defe8cb7967bb76ff5e0c30f0f8011115276bf5"
+    },
+    "run-summary.json": {
+      "bytes": 4870,
+      "sha256": "317e053c3a50f4b055511518322c8cf8aee322519a74024ccfcca6bba879effb"
+    },
+    "source-index.json": {
+      "bytes": 3929,
+      "sha256": "0aa7375e47b32ada5b22d1e0d2f10336fd4b2673e1a8c5f07a495f88762cec17"
+    },
+    "source_records/criterion_basis_records.json": {
+      "bytes": 76046,
+      "sha256": "ab7bedee86c7861023e7610c13a662fe471bca89306298d03753ef8596b8fae4"
+    },
+    "source_records/criterion_generation_evidence.json": {
+      "bytes": 539925,
+      "sha256": "15ce6af95bca5af354da5bc584d94e6c498392c1323e6e070b21940aa3260b2b"
+    },
+    "source_records/evidence_collection.json": {
+      "bytes": 569739,
+      "sha256": "d82db316ac15095b492f28e0d6c85e29aa6d89952eef041ac199b95fdc896383"
+    },
+    "source_records/final_criterion_definitions.json": {
+      "bytes": 105445,
+      "sha256": "5202d75a5ff82e946bdeeebe3f1c5961bfeb146c5ea8e2b8055c3c1fd56c8a9c"
+    },
+    "source_records/model_identifiers.json": {
+      "bytes": 1802,
+      "sha256": "d1040e38f4acaa2d01a46644ed33d0d458f9cb0a5095180da2c885afa0a88c90"
+    },
+    "source_records/review_summary.json": {
+      "bytes": 213800,
+      "sha256": "8576c932382c8f73ef1bc3a93058d802038a333559ce9d488a5b5c9b1fe87baa"
+    },
+    "source_records/study_settings_basis.json": {
+      "bytes": 7308,
+      "sha256": "961d06d15cc1ae48684652ba2f9b79af30e51f9eaac7ecd5ea928192b094b9f0"
+    },
+    "source_records/target_observation_records.json": {
+      "bytes": 2829356,
+      "sha256": "93629fc77ec000b44b969f1058ea5d061e59d4a653182cb23e0a107acf7a9ca1"
+    },
+    "workflow-phases.csv": {
+      "bytes": 748,
+      "sha256": "c74e509c85b8de426f2becd9bb8688949d619886f9f26e4b764284e4cb4857c3"
+    }
+  }
+}

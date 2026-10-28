@@ -12,6 +12,7 @@
 | [智能体一键运行](agent-run.md) | 复现、计划、运行、继续和导出 |
 | [CSV 格式](csv-input.md) | 候选身份、测量值、单位、条件和依据类型 |
 | [案例教程](tutorial.md) | 从任务设置到完整榜单与导出的公开案例 |
+| [案例运行与补充数据](../../examples/oral-multitarget/latest/source-data/README.zh-CN.md) | 运行细节、十张数据表、来源观测、对照分析与离线核对 |
 | [组件实操](component-walkthrough.md) | 全部组件组的输入、修改示例与检查 |
 | [组件参考](../components/README.md) | 设计理由与具体实现，英文 |
 | [配置](../configuration.md) | 优先级、模型角色、预算和工具，英文 |

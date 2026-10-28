@@ -2,6 +2,8 @@
 
 [Step-by-step tutorial](../../docs/tutorial.md) · [中文教程](../../docs/zh/tutorial.md) · [Criterion comparison guide](../../docs/reference/cqa-comparison.md)
 
+For research reporting and supplementary data, use the [case source-data collection](latest/source-data/README.md) ([中文](latest/source-data/README.zh-CN.md)). It provides ten tables, recorded settings and costs, raw target observations, score comparisons, a downloadable archive and an offline verifier.
+
 This directory contains the frozen export from the latest completed study. The latest study begins with an oral multi-target objective, develops and refines criteria from saved evidence, checks the recorded compound library, and links the final ranking to its rules and source observations.
 
 | Study | Surufatinib rank | Score | Qualified | Full candidate export |
@@ -11,10 +13,10 @@ This directory contains the frozen export from the latest completed study. The l
 
 ## Start with the latest saved result
 
-1. Read [task.json](latest/results/task.json) for the exact objective, five required targets, oral constraint, disclosed reference candidate and bound inputs.
+1. Read [task.json](latest/results/task.json) for the exact objective, five required targets, oral constraint and bound inputs.
 2. Read [report.md](latest/results/report.md), [workflow.json](latest/results/workflow.json) and [overview.json](latest/results/overview.json) for the run, estimated cost and saved snapshot history.
 3. Inspect [cqa.json](latest/results/cqa.json), [stages.json](latest/results/stages.json) and [source-cqa-history.json](latest/results/source-cqa-history.json) for criterion definitions, revisions, merges and reasons.
-4. Open [candidates.csv](latest/results/candidates.csv) or [candidates.json](latest/results/candidates.json) for all 3,177 candidates, including pending evidence.
+4. Open the [current candidate table](latest/source-data/AI_Data_2_candidate_results.csv) for all 3,177 candidates and current classifications. The original [CSV](latest/results/candidates.csv) and [JSON](latest/results/candidates.json) preserve the earlier qualification fields.
 5. Open [surufatinib.json](latest/results/surufatinib.json) for its qualification, assessed values and evidence links. Keep [snapshot.json](latest/results/snapshot.json), [manifest.json](latest/results/manifest.json) and [validation.json](latest/results/validation.json) with any copied results.
 
 The [tutorial's inspection commands](../../docs/tutorial.md#0-inspect-the-published-result-without-starting-a-workflow) read the published files with Python's standard library, without starting a server or calling a model.

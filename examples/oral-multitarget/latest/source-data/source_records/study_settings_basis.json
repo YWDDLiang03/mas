@@ -1,0 +1,164 @@
+{
+  "settings": [
+    {
+      "doc": "filter/distill/refine/merge passes within one round",
+      "key": "criteria.inner_iterations",
+      "layer": "default",
+      "unit": "iterations",
+      "value": 3
+    },
+    {
+      "doc": "unchanged iterations that end a round early",
+      "key": "criteria.stall_rounds",
+      "layer": "default",
+      "unit": "iterations",
+      "value": 2
+    },
+    {
+      "doc": "minimum share of scoring inputs a candidate needs to be ranked",
+      "key": "rank.coverage_floor",
+      "layer": "override",
+      "unit": "fraction",
+      "value": 0.5
+    }
+  ],
+  "ordering_records": [
+    {
+      "time_utc": "2026-10-16T15:13:38.762Z",
+      "rule_set": "rules@v1",
+      "ordering": {
+        "kind": "weighted_preference",
+        "tie_break": "candidate_id",
+        "weight_vector": {}
+      },
+      "artifact_id": "art_17862cc66ae5"
+    },
+    {
+      "time_utc": "2026-10-16T16:01:11.150Z",
+      "rule_set": "rules@v2",
+      "ordering": {
+        "kind": "weighted_preference",
+        "tie_break": "candidate_id",
+        "weight_vector": {}
+      },
+      "artifact_id": "art_51e368e8d839"
+    }
+  ],
+  "measurement_profile_scoring_policy": {
+    "config_hash": "060763a6cc322cc6aa5e831c5732310fb94d2ae0199c904ef901347c01a39ac0",
+    "eligibility_mandated_coverage_floor": 1.0,
+    "evaluation_mode": "staged",
+    "evidence_mode": "existing_only",
+    "measurement_profile_version": 1,
+    "qualification_policy": "qualification_first_v1",
+    "rank_requires_mandated_coverage": true,
+    "ranking_coverage_floor": 0.5,
+    "required_binding_check": {
+      "audit_digest": "bddec9e6d7c7193d10b0364b4642b6069fe7be07254e4070959a05a9ca6d7410",
+      "non_scope_required_anchors": [
+        {
+          "attribute_ref": "attr_documented-oral-administration@v1",
+          "deferred": [],
+          "freeze_state": "included",
+          "rule_kind": "hard_exclusion",
+          "rule_ref": "rule_documented-oral-administration@v1",
+          "source_attribute_ref": "attr_documented-oral-administration@v1",
+          "source_attribute_sha256": "5fcd6f4acad951aec65c9ad1e419b3553d8e3618eae23fc22c98daada7bba047",
+          "source_rule_ref": "rule_documented-oral-administration@v1",
+          "source_rule_sha256": "6344f57ace0f2655aa2c345367cf50a91d5a28f8a4611edf43c1db466f240709",
+          "task_field": "constraints[0]"
+        }
+      ],
+      "required_scope_count": 5,
+      "scope_bindings": [
+        {
+          "attribute_ref": "attr_csf1r-curated-potency@v1",
+          "rule_kind": "preference",
+          "rule_ref": "rule_csf1r-curated-potency@v1",
+          "scope_identifier": "CHEMBL1844",
+          "source_attribute_sha256": "acd160bfc8805054a8906b55b0d34c7cbcf2e66a9949504aeed9d64b21cc4531",
+          "source_rule_sha256": "f2cffef65f0d7f5900dc1efa2ab23c2b21a6859a0b256d410782b7279e332c78"
+        },
+        {
+          "attribute_ref": "attr_vegfr1-curated-potency@v1",
+          "rule_kind": "preference",
+          "rule_ref": "rule_vegfr1-curated-potency@v1",
+          "scope_identifier": "CHEMBL1868",
+          "source_attribute_sha256": "0811d8a360218a63556c04548d68d8665e2d13445c0dcce0dc9aa99c4edb38b5",
+          "source_rule_sha256": "f4551b31c79fe6270383d928036d3fb32e1879f57a829d11edfe2113c68def14"
+        },
+        {
+          "attribute_ref": "attr_vegfr2-curated-potency@v1",
+          "rule_kind": "preference",
+          "rule_ref": "rule_vegfr2-curated-potency@v1",
+          "scope_identifier": "CHEMBL279",
+          "source_attribute_sha256": "c32389abca1d7cb395df4a9fcd01aa01e42efa7fcda7e513c7d7dd864a472f4d",
+          "source_rule_sha256": "ae829801c5aa74791f073ce4518612e911d172b16ae1aa5137a8aa339615ea8a"
+        },
+        {
+          "attribute_ref": "attr_vegfr3-curated-potency@v1",
+          "rule_kind": "preference",
+          "rule_ref": "rule_vegfr3-curated-potency@v1",
+          "scope_identifier": "CHEMBL1955",
+          "source_attribute_sha256": "813ca17b08a3b7777cbc1aa530b8b104cbc8fce515063838e81af3bda053292d",
+          "source_rule_sha256": "1dbe4a56547ba06d182d679360c8f257c7e5fc22fd63013dc8d9197b44bbe6a1"
+        },
+        {
+          "attribute_ref": "attr_fgfr1-curated-potency@v1",
+          "rule_kind": "preference",
+          "rule_ref": "rule_fgfr1-curated-potency@v1",
+          "scope_identifier": "CHEMBL3650",
+          "source_attribute_sha256": "0675aac9b26e7ab0c0354ed5e5ede5ddc5e17b3228cdf50a9bf1e8d88182933a",
+          "source_rule_sha256": "e82f2641de9feaf167ec75d3538fe54ae94da3b158cb781c144750765ebffece"
+        }
+      ],
+      "scope_gate_count": 0,
+      "scope_preference_count": 5,
+      "selected_rule_set_ref": "rules@v2",
+      "task_pinned_seq": 8700,
+      "version": 1
+    },
+    "rule_set_digest": "c865559869f69210487efa93aece52fd00fbbf43aaca8a2d36aad5efd2dbed04",
+    "scoring_method": "weighted_preference_qualified_v1",
+    "scoring_rule_refs": [
+      "rule_csf1r-curated-potency@v1",
+      "rule_documented-oral-administration@v1",
+      "rule_fgfr1-curated-potency@v1",
+      "rule_food-effect-on-auc-fold-change@v1",
+      "rule_molecular-weight-da@v1",
+      "rule_oral-bioavailability-human-measured-f@v1",
+      "rule_predicted-aqueous-solubility-log-mol-l@v1",
+      "rule_predicted-blood-brain-barrier-penetration-probability-bbb-ma@v1",
+      "rule_predicted-brenk-alert-count@v2",
+      "rule_predicted-caco-2-permeability-admet-ai-caco2-wang-log-10-6-c@v1",
+      "rule_predicted-clinical-toxicity-probability-exploratory@v1",
+      "rule_predicted-cyp1a2-inhibition-probability@v1",
+      "rule_predicted-cyp2c19-inhibition-probability@v1",
+      "rule_predicted-cyp2c9-inhibition-probability@v1",
+      "rule_predicted-cyp2c9-substrate-probability@v1",
+      "rule_predicted-cyp3a4-inhibition-probability-exploratory@v1",
+      "rule_predicted-cyp3a4-substrate-probability-exploratory@v1",
+      "rule_predicted-drug-induced-liver-injury-dili-probability-explora@v1",
+      "rule_predicted-herg-blocking-probability-exploratory@v1",
+      "rule_predicted-human-hepatocyte-intrinsic-clearance-exploratory@v1",
+      "rule_predicted-logp-rdkit@v2",
+      "rule_predicted-microsomal-intrinsic-clearance-exploratory@v1",
+      "rule_predicted-nih-alert-count@v2",
+      "rule_predicted-pains-alert-count@v2",
+      "rule_predicted-plasma-protein-binding-rate-admet-ai-ppbr-az@v1",
+      "rule_predicted-skin-reaction-probability-exploratory@v1",
+      "rule_predicted-volume-of-distribution-at-steady-state@v1",
+      "rule_time-to-maximum-plasma-concentration-tmax-median-of-reported@v1",
+      "rule_vegfr1-curated-potency@v1",
+      "rule_vegfr2-curated-potency@v1",
+      "rule_vegfr3-curated-potency@v1"
+    ],
+    "sweep_seed": 0,
+    "withhold_unresolved_reviews": true
+  },
+  "interpretation": {
+    "weights": "All criterion weights equal 1 through the recorded weighted-average defaults; no fitted weight vector.",
+    "coverage": "50% was supplied in the study settings before criterion development and retained in assessment.",
+    "status": "These are preselected study comparison settings; no optimization or validation of their optimality is recorded."
+  }
+}

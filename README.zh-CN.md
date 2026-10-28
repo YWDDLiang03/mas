@@ -119,6 +119,14 @@ npm.cmd --prefix web/client run build
 
 [标准比较指南](docs/zh/cqa-comparison.md)使用明确标注的合成示例，说明怎样比较定义、条件和决策用途。
 
+### 案例运行与补充数据
+
+[案例数据说明](examples/oral-multitarget/latest/source-data/README.zh-CN.md)提供十张表，覆盖 53 项保留标准、3,177 个候选、98,487 条逐项评估、170 条合格候选评分明细，以及标准演化、证据、模型消耗和已完成的对照分析。配有字段说明、运行设置、来源记录及离线核对命令。[下载完整数据包](https://github.com/YWDDLiang03/mas/releases/download/v1.1.0/TRIAGE-oral-multitarget-source-data-20261028.zip)，可用于研究报告和论文补充数据。
+
+```sh
+python scripts/build_case_source_data.py
+```
+
 ## 开发与公开内容
 
 [架构状态表](docs/architecture.md)区分已实现组件与计划扩展。源码版本为 v1.1.0；[10 月 28 日文档更新](docs/releases/2026-10-28-documentation.md)记录本轮同步。

@@ -1,0 +1,9 @@
+Phase,Recorded phase name,State,Started at UTC,Finished at UTC
+task,Understand the task,completed,2026-10-16T12:52:50.971Z,2026-10-16T16:00:33.368Z
+evidence,Prepare evidence,completed,2026-10-16T12:52:54.692Z,2026-10-16T13:56:26.852Z
+propose,Discover criteria,completed,2026-10-16T12:52:55.516Z,2026-10-16T13:56:26.852Z
+refine,Review and refine,completed,2026-10-16T13:56:26.852Z,2026-10-16T15:07:31.304Z
+review,Resolve decisions,completed,2026-10-16T16:00:33.368Z,2026-10-16T16:01:02.387Z
+freeze,Save evaluation rules,completed,2026-10-16T16:01:02.387Z,2026-10-16T16:01:15.061Z
+screen,Screen candidates,completed,2026-10-16T16:01:15.061Z,2026-10-16T16:25:26.074Z
+results,Publish results,completed,2026-10-16T16:25:26.074Z,2026-10-16T16:25:26.376Z

@@ -119,6 +119,14 @@ The five target criteria require usable direct observations for eligibility and 
 
 The [criterion comparison guide](docs/reference/cqa-comparison.md) shows how to compare definitions, conditions and decision uses with explicitly synthetic examples.
 
+### Case data for research reporting
+
+The [case source-data guide](examples/oral-multitarget/latest/source-data/README.md) provides ten tables covering all 53 retained criteria, 3,177 candidate results, 98,487 assessments, 170 eligible-candidate score entries, criterion development, evidence, model use and the saved comparison analyses. It includes a field guide, run settings, source records and an offline verification command. [Download the complete data package](https://github.com/YWDDLiang03/mas/releases/download/v1.1.0/TRIAGE-oral-multitarget-source-data-20261028.zip) for research reporting or supplementary data.
+
+```sh
+python scripts/build_case_source_data.py
+```
+
 ## Development and publication
 
 The [architecture status map](docs/architecture.md) distinguishes implemented components from planned extensions. The source distribution is v1.1.0; the [28 October documentation update](docs/releases/2026-10-28-documentation.md) records this refresh.
