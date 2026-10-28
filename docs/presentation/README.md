@@ -2,12 +2,10 @@
 
 [Download the 34-slide deck](MAS-system-and-case.pptx) · [Chinese speaker notes](speaker-notes.zh.md) · [Validation record](validation.json)
 
-The presentation introduces the general system, explains its components and design choices, then follows the latest oral multi-target study from Settings through task input, criterion generation/refinement, qualification, ranking, source inspection and export.
+The presentation introduces TRIAGE as a general medical research workbench, explains the components and their design, then follows the public oral multi-target example from Settings to criteria, eligibility, ranking, source inspection and export.
 
-The screenshots and illustrated slides retain the interface captured for this presentation. Speaker notes include the 26 October terminology update: six eligibility requirements (one condition and five evidence requirements), five criteria shared with scoring, and current groups of 10 Eligible, 1,305 Evidence incomplete and 1,862 Excluded. Use the [workflow design guide](../design.md) and [classification mapping](../reference/system-alignment.md#classification-version) when reading an older screenshot. Publication figure working copies are maintained separately from public documentation.
+All 12 workbench screenshot pages were recaptured on **28 October 2026** using the current Windows interface. The saved study appears with six eligibility requirements and 17 scoring criteria sharing five target criteria, and with 10 Eligible, 1,305 Evidence incomplete and 1,862 Excluded candidates. Surufatinib remains first among the ten eligible candidates. [Current interface and results](../current-status.md) provides the full screenshots and verification data.
 
-It uses 19 illustrated pages in the approved white/light-blue style, 11 pages with original workbench screenshots, two data-chart pages and two scoring appendices. Every page contains speaker notes. Diagram pages are images; screenshot annotations, numerical charts, tables and notes remain editable.
+The deck contains 32 main pages and two scoring appendices: 18 illustrated pages, 12 pages with browser screenshots, two numerical chart pages and two tables. All 34 pages have matching speaker notes. Diagram pages are images; annotations, charts, tables and notes are editable. Screenshot pixels come from the browser; native PowerPoint cropping makes the relevant areas readable.
 
-The delivered file was opened and rendered in Windows PowerPoint. Screenshot source bytes and scoring values were checked. Its SHA-256 is recorded in `validation.json`. The scientific results are the [latest frozen example](../../examples/oral-multitarget/latest/results/); the [tutorial](../tutorial.md) explains their context.
-
-Intermediate image jobs, sample drafts, duplicated diagram PNGs and obsolete deck versions were removed from the v1.0 working tree. They are not needed to view the deck or inspect the result. Earlier commits retain the authoring history.
+The deck was rendered with Windows PowerPoint and checked for text, image placement, terminology and numbers. The validation record identifies the file hash and screenshot sources. Case results retain their saved values; screenshot and response-measurement dates are recorded separately. Publication figure working copies are maintained outside this public presentation.

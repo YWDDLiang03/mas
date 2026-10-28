@@ -1,5 +1,7 @@
 # 使用研究工作台
 
+[当前界面、结果和响应时间](current-status.md)，2026 年 10 月 28 日实拍与核对。
+
 [流程设计](design.md) · [文档导航](README.md)
 
 [English](../user-guide.md) · [安装](installation.md) · [完整案例](tutorial.md)

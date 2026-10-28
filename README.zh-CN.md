@@ -28,7 +28,9 @@ flowchart LR
 
 浏览器支持自然语言任务、候选与测量 CSV 上传、持续进度、标准历史、按来源组织的证据、得分分解和完整导出。界面默认英文，可切换中文；研究内容和来源保留原文。
 
-![研究概览、结果与标准变化](docs/assets/workbench-overview-v1.1.jpg)
+![研究概览、结果与标准变化](docs/assets/current/overview.jpg)
+
+当前 Windows 界面，2026 年 10 月 28 日实拍，展示已保存的公开案例。[最新版截图、结果与响应时间](docs/zh/current-status.md)。
 
 ## 选择起点
 

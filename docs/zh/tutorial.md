@@ -13,22 +13,22 @@
 | 已恢复案例或已有原工作区 | 查看保存结果，或使用候选库和证据集合新建研究。第 1–11 步说明实际过程与对应操作。 |
 | 刚克隆仓库，希望开展自己的研究 | 按安装说明建立空工作区、配置模型，然后按第 12 步导入自己的 CSV。 |
 
-仓库提供固定导出，可选的 [168 MB 数据包](../../examples/oral-multitarget/latest/reproduction/README.md)补齐恢复最新研究及准备新研究所需的记录、事实和缓存。核对已保存结果不需要原私有数据库或 API key。文献全文与模型原始调用记录不在公开数据包中。下文截图记录历史研究；重新调用模型时，标准和结果按新的实际运行保存。
+仓库提供固定导出，可选的 [168 MB 数据包](../../examples/oral-multitarget/latest/reproduction/README.md)补齐恢复最新研究及准备新研究所需的记录、事实和缓存。核对已保存结果不需要原私有数据库或 API key。文献全文与模型原始调用记录不在公开数据包中。下文截图于 2026 年 10 月 28 日在当前 Windows 工作台实拍，展示同一个保存案例。[当前界面与核对记录](current-status.md)列出来源版本。重新调用模型时，标准和结果按新的实际运行保存。
 
 ## 第 0 步：直接查看发布结果
 
-先打开 [报告](../../examples/oral-multitarget/latest/results/report.md)、[任务](../../examples/oral-multitarget/latest/results/task.json)、[全部候选 CSV](../../examples/oral-multitarget/latest/results/candidates.csv) 和 [Surufatinib 详情](../../examples/oral-multitarget/latest/results/surufatinib.json)。无需启动服务即可查看这些文件。
+先打开 [报告](../../examples/oral-multitarget/latest/results/report.md)、[任务](../../examples/oral-multitarget/latest/results/task.json)、[当前全部候选 CSV](../../examples/oral-multitarget/latest/selection/workbench-export.csv) 和 [Surufatinib 详情](../../examples/oral-multitarget/latest/results/surufatinib.json)。无需启动服务即可查看这些文件。
 
 在仓库根目录运行以下 PowerShell 命令，使用 Python 标准库核对已保存结果：
 
 ```powershell
-python -c "import csv,collections; from pathlib import Path; rows=list(csv.DictReader((Path('examples/oral-multitarget/latest/results')/'candidates.csv').open(encoding='utf-8-sig',newline=''))); print('Exported candidates:',len(rows)); print('Qualification:',dict(collections.Counter(r['qualification'] for r in rows)))"
+python -c "import csv,collections; from pathlib import Path; rows=list(csv.DictReader((Path('examples/oral-multitarget/latest/selection')/'workbench-export.csv').open(encoding='utf-8-sig',newline=''))); print('Exported candidates:',len(rows)); print('Selection:',dict(collections.Counter(r['selection_decision'] for r in rows)))"
 python -c "import json; from pathlib import Path; r=json.loads((Path('examples/oral-multitarget/latest/results')/'surufatinib.json').read_text(encoding='utf-8'))['matches'][0]; print('Rank:',r['rank'],'Score:',r['score'],'Direct preference coverage:',r['preference_coverage'])"
 ```
 
-保存结果为 **3,177 行**、`qualified: 10`、`pending: 3167`、排名 `1`、分数 `0.7592592592592593`、直接偏好覆盖 `0.5882352941176471`。命令只读文件，不执行筛选，也不恢复数据库。
+当前导出共 **3,177 行**：`eligible: 10`、`evidence_incomplete: 1305`、`excluded: 1862`。Surufatinib 排名 `1`，分数 `0.7592592592592593`，直接覆盖 `0.5882352941176471`。以上命令读取已发布文件。
 
-上述 `pending` 是冻结来源字段。当前筛选政策将其中 1,305 个候选归为准入证据不完整，1,862 个归为因无准入依据被排除；原始数值、评分和名次保持不变。[统一定义](decision-language.md)说明判定与字段映射。
+`selection_decision` 对应当前界面的分组，导出同时保留旧 `qualification` 字段以便追溯保存快照。[统一定义](decision-language.md)说明当前分组及具体原因。
 
 ## 第 1 步：在 Settings 中确定运行资源
 
@@ -40,7 +40,7 @@ python -c "import json; from pathlib import Path; r=json.loads((Path('examples/o
 
 该命令假定已按安装文档复制并配置模型与设置文件。打开[工作台](http://127.0.0.1:8769/workbench/)，进入 **Settings / 设置**。已有工作区应替换为其实际库和配置路径。
 
-将两个工作量控件均设为 **Medium / 适中**（`mid`），并发设为 **4**，点击 **Save settings / 保存设置**。当前标签为 **Literature workload / 文献阅读量** 和 **Textbook workload / 教材阅读量**；历史截图可能使用早期工作量名称。修改用于后续工作，已有结果保留原配置。
+将两个工作量控件均设为 **Medium / 适中**（`mid`），并发上限设为 **4**，预算设为 **10 美元**，点击 **Save settings / 保存设置**。当前标签为 **Literature workload / 文献阅读量** 和 **Textbook workload / 教材阅读量**。修改用于后续工作，已有结果保留原配置。
 
 | 设置 | 最新保存研究 | 新任务示例或默认值 |
 |---|---:|---:|
@@ -52,9 +52,9 @@ python -c "import json; from pathlib import Path; r=json.loads((Path('examples/o
 
 使用同一本地输入重复历史资源条件时可设置 5.50；新研究按自己的资源条件选择。保存研究记录的模型费用为 **估计 4.2101472 美元**，并非供应商最终账单。历史模型身份为 `deepseek-v4-flash`，为新任务配置模型不会修改这一身份。
 
-![历史运行期间的设置和进度](../assets/progress-settings.jpg)
+![当前设置与保存研究的进度](../assets/current/settings.jpg)
 
-这张截图拍于历史运行期间，不称为启动前画面。English / 中文切换界面显示，科研记录与来源原文保留其记录语言。
+画面同时显示后续研究的设置与已完成案例的进度记录。English / 中文切换界面显示，科研记录与来源原文保留其记录语言。
 
 ## 第 2 步：新建任务，准确描述决策目标
 
@@ -80,23 +80,23 @@ FGFR1
 Oral administration is required.
 ```
 
-保存的研究名称为 `Oral TME — full browser verification`。展开 **Evaluation options / 评估选项**，选择 **Use saved or uploaded evidence / 使用已有或上传的证据**、**Staged screening / 分阶段筛选**，参考候选填 `Surufatinib`。参考身份已披露，用于结果对照，不增加排名权重；该任务记录了暴露状态，不表述为盲态发现。
+为研究填写清楚的名称。展开 **Evaluation options / 评估选项**，选择 **Use saved or uploaded evidence / 使用已有或上传的证据**、**Staged screening / 分阶段筛选**。选中恢复的案例后，也可从 **研究选项 → 按此设置新建研究** 打开可编辑表单；提交后从空标准集开始。
 
 研究者提出目标与约束；任务规范化角色将其转为带靶点身份和口服条件的英文版本记录。研究者无需预先写出最终评估标准。若必要要求无法对应到性质、单位或条件，按工作流出现的针对性补问完善输入。
 
-![研究目标、五靶点与口服条件](../assets/task-setup.jpg)
+![研究目标、五靶点与口服条件](../assets/current/new-study.jpg)
 
-该图重新打开已保存配置，背景显示完成任务属正常情况；打开表单并未另起运行。
+截图展示提交前的新研究表单，背景为已保存的研究。
 
 ## 第 3 步：分别绑定候选范围和固定证据
 
-在 **Candidates & evidence / 候选与证据** 中选择 **3,177 个化合物**的记录库，历史工作区中的库 ID 为 `universe_chembl.json`。再选择包含 **3,157 条保留事实、164 个来源**的证据集合，显示截止日期为 **2026 年 10 月 15 日**。其来源任务是 `task_01M51AQ0JK0MYN47806ZD5XS1B`。
+在 **Candidates & evidence / 候选与证据** 中选择 **3,177 个化合物**的记录库，历史工作区中的库 ID 为 `universe_chembl.json`。再选择包含 **3,157 条保留事实、164 个来源**的证据集合，显示截止日期为 **2026 年 10 月 15 日**。集合选择器显示名称、来源数、记录数和截止时间；名称与简介可在显示设置中编辑。
 
-![候选库与固定证据集合](../assets/evidence-selection.jpg)
+![候选库与固定证据集合](../assets/current/evidence-selection.jpg)
 
 候选库限定比较谁，集合限定哪些保存材料用于标准生成。集合名称和简介仅为显示信息。以上数量属于固定输入清单，不是候选评估所用全部历史工具观测的数量。
 
-控制器固定已接纳事实，**不复制已有标准**。本次生成阶段排除了 **136 条明确提到参考候选的事实**，剩 **3,021 条**材料用于提议。此排除只作用于标准生成，随后候选评估按统一固定方案进行；参考身份仍然已披露。
+新研究从空标准集开始，使用 **3,021 条证据记录**形成提议。原集合包含 3,157 条记录，其中 136 条提到候选名称的记录未进入本次生成子集。候选评估采用固定后的评价框架及其绑定来源。
 
 执行 `replay` 或 `plan` 后，恢复的工作台会提供准备好的证据集合和候选库。在 **研究选项 → 按此设置新建研究** 中，新的任务绑定这份只含事实、评估标准为空的集合。原研究仍保存原来源身份。空工作区要先提供输入才会出现可选集合；自己的数据按第 12 步上传。
 
@@ -108,7 +108,9 @@ Oral administration is required.
 
 **Proposer / 提议者**提出有证据支持的标准；**Critic / 审查者**质疑相关性、定义、阈值和反证；提议者作出修订，**Adjudicator / 裁决者**按记录政策处理合并与争议。控制器管理阶段切换和结束，工具提供评估需要的记录观测。角色分工本身不代表使用了独立模型供应商。
 
-查看当前阶段、角色、批次、费用估计和暂停/停止入口。**17/18 批次**是局部阶段进度，不是整个研究完成 94%；**2/8 阶段**也不是完成了 25% 的预计耗时。若出现必要补问则回答；本次保存结果没有待答问题。
+展开 **Workflow & run details / 工作流与运行详情**，查看阶段、最近活动、耗时和费用估计。运行中的批次计数对应当前阶段。下图的保存案例已完成 **8/8 个阶段**，同时展示该次记录的耗时与费用。
+
+![已完成案例在当前界面的阶段进度](../assets/current/progress.jpg)
 
 ## 第 5 步：跟踪展开和三轮提炼
 
@@ -134,7 +136,7 @@ Oral administration is required.
 
 阅读每次变更的理由与父项。合并保留输入，移除说明退出原因。[阶段记录](../../examples/oral-multitarget/latest/results/stages.json)与[标准历史](../../examples/oral-multitarget/latest/results/source-cqa-history.json)保留真实转换。
 
-![当前标准及不同角色](../assets/criteria.jpg)
+![当前标准及不同角色](../assets/current/criteria.jpg)
 
 ## 第 6 步：打开分子量，查看形成沿革
 
@@ -163,23 +165,19 @@ Oral administration is required.
 
 **六项准入要求全部必须满足**：一项口服条件，以及五个靶点各自的直接观测要求。五项靶点标准也属于 **17 项计分标准**，因此 **6＋17−5＝18 条独立决策规则**。靶点效力值用于排序，保存的准入判断要求直接证据可用，并未设置共同效力截点。预测保留其依据类型，单列于直接证据覆盖之外。
 
-## 第 8 步：检查候选，保留首次结果与修复
+## 第 8 步：评估候选并查看准入依据
 
 进入 **Candidates / 候选**。分阶段模式先查硬条件，硬失败后记录后续跳过。本次**没有明确硬失败**，**前序失败后跳过为 0**；共有 **98,487 个记录单元 = 3,177 × 31**，其中包含未知。全库处理完成不表示每格都有证据。
 
 对 Surufatinib 打开 **Evidence / 证据**，检查资格：口服 **1/1 通过**，必需靶点 **5/5 有直接观测**，最终直接偏好覆盖 **10/17 = 58.82%**。
 
-首次保存结果只有 **6/17 = 35.29%** 直接偏好覆盖，低于保存的 **50% 排名门槛**，因此没有名次。检查发现部分已有事实未被充分复用，且四项确定性结构描述符被归为预测：**RDKit logP、BRENK、NIH、PAINS 警示数**。
-
-修正复用和依据分类后，系统另存评估，直接覆盖提高到 **10/17**。这里复用的是缓存事实，不是新做临床实验；科学阈值、权重和覆盖门槛保持原定义。合格比较集合重新确定，所以连续偏好比较分也按新的合格集合计算。
-
-首次结果为快照 `_1`（`rules@v1`），修复后为 `_2`（`rules@v2`），通过 `parent_snapshot_id` 关联。[overview.json](../../examples/oral-multitarget/latest/results/overview.json)保留两者摘要。今后修正数据或实现后，应重新评估为新结果并保留先前读数。
+当前选中快照为 `_2`（`rules@v2`），直接覆盖 **10/17**，排名门槛为保存方案中的 **50%**。[保存概览](../../examples/oral-multitarget/latest/results/overview.json)保留早期评估及其关联，供追溯研究过程。
 
 ## 第 9 步：看榜单并展开分数
 
 合格组有 **10 项**，Surufatinib **第 1**，随后为 Pazopanib、Axitinib。其余候选中，**1,305 个部分具备准入依据，1,862 个因无准入依据被排除**。已确认条件失败为 0，评估未完成为 0。原始导出保留历史 pending 字段，当前界面按[统一定义](decision-language.md)解释。
 
-![合格候选榜](../assets/leaderboard.jpg)
+![合格候选榜](../assets/current/candidates.jpg)
 
 点击 Surufatinib 的 **Score / 分数**，查看逐项数值、依据、比较分、权重和贡献：
 
@@ -199,7 +197,7 @@ d = [W + (E - 1)/2] / (N - 1)
 
 N 是有值候选数，W 是较差数值个数，E 是包含当前候选的并列个数。BRENK 的 N=10、W=2、E=8，比较分 **0.611111**，总分贡献为 `0.611111/15`。阈值偏好满足记 1、不满足记 0。展开 **Calculation & evidence / 计算与证据**核对该行方法。
 
-![评分明细与直接证据覆盖](../assets/score-details.png)
+![评分明细与直接证据覆盖](../assets/current/score-details.jpg)
 
 ## 第 10 步：从 FGFR1 分数回到原始观测
 
@@ -216,7 +214,7 @@ N 是有值候选数，W 是较差数值个数，E 是包含当前候选的并�
 
 四值排序取中位数：`(7.46852108296 + 7.82)/2 ≈ 7.64426054148`，即保存评估值。单条 34 nM 与四记录汇总处于不同解释层级。四条记录本身不代表四次独立实验；判断是否适合合并时，应继续核对底层来源及条件。
 
-![FGFR1 关联证据](../assets/evidence-fgfr1.png)
+![FGFR1 关联证据](../assets/current/evidence-fgfr1.jpg)
 
 没有本地工作台时，可从 [surufatinib.json](../../examples/oral-multitarget/latest/results/surufatinib.json)中的评估、来源 ID 和位置引用进行核对。
 
@@ -241,6 +239,8 @@ N 是有值候选数，W 是较差数值个数，E 是包含当前候选的并�
 5. 写出目标、必需观测、硬条件、偏好及单位、条件。仅在工作区实际存在时选择补充已有证据。
 6. 检查 Settings、证据/评估方式与费用上限，点击 **Start research / 开始研究**。按上述标准、资格、分数与来源路径，阅读自己的实际记录。
 
-![CSV 映射与校验](../assets/csv-import.jpg)
+![CSV 映射与校验](../assets/current/csv-import.jpg)
+
+截图使用两条明确标注的合成载体记录说明文件格式。本轮只检查预览，没有导入这些记录或启动研究。
 
 通用上传流程按输入行的精确性质和条件评估；专用药物库流程使用声明的药物工具能力与证据路径。自己的数据形成新研究，数量、费用和结论均按实际记录报告。新的语言模型运行不保证产生本教程的 1,917 个提议、53 个工作项或相同排名。

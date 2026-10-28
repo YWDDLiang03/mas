@@ -1,5 +1,12 @@
 # Changelog
 
+## Current interface and presentation refresh, 2026-10-28
+
+- Replace obsolete browser captures with 21 current Windows screenshots in the bilingual README, tutorials and presentation.
+- Update the 34-slide deck and notes to six eligibility requirements, 17 scoring criteria, five shared criteria and the current candidate groups.
+- Publish the complete current browser CSV and measured warm read-API response times, with capture dates and source versions.
+- Direct historical release pages to [current interface and results](docs/current-status.md).
+
 ## Documentation and public-data update, 2026-10-28
 
 - Refresh English/Chinese navigation, general workflow design, component explanations and task customization guides.

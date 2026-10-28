@@ -28,7 +28,9 @@ Each adopted criterion defines its measurement, accepted evidence and use. **Eli
 
 The browser includes natural-language task entry, candidate and measurement CSV imports, persistent progress, criterion histories, evidence grouped by source, score contributions and full exports. English is the default interface language; Chinese translates the interface while research content and source text keep their original wording.
 
-![Study overview with task, results and criterion evolution](docs/assets/workbench-overview-v1.1.jpg)
+![Study overview with task, results and criterion evolution](docs/assets/current/overview.jpg)
+
+Current Windows interface, captured 28 October 2026 using the saved public study. [Screenshots, current results and response measurements](docs/current-status.md).
 
 ## Choose your starting point
 

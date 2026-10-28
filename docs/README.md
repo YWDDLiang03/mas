@@ -1,5 +1,7 @@
 # TRIAGE documentation
 
+[Current screenshots, results and response measurements](current-status.md), captured and checked on 28 October 2026.
+
 [中文](zh/README.md) · [Project home](../README.md)
 
 | Read first | What it covers |

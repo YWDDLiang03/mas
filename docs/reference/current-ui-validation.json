@@ -1,0 +1,104 @@
+{
+  "checked_on": "2026-10-28",
+  "application_version": "1.1.0",
+  "source_commit": "c614ac485b280bd830862909a75c3c6348024fcd",
+  "task_id": "task_01M52CBE5GYPK9F0MCZYBMPH84",
+  "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2",
+  "check_kind": "Current-browser inspection, current read API and full browser CSV export; no new research run.",
+  "criterion_counts": {
+    "retained_entries": 53,
+    "eligibility_requirements": 6,
+    "scoring_criteria": 17,
+    "shared_target_criteria": 5,
+    "unique_evaluation_criteria": 18,
+    "contextual_observations": 13,
+    "outside_evaluation": 22,
+    "assessed_items": 31
+  },
+  "candidate_counts": {
+    "eligible": 10,
+    "evidence_incomplete": 1305,
+    "excluded": 1862,
+    "incomplete": 0,
+    "not_ready": 0,
+    "total": 3177
+  },
+  "surufatinib": {
+    "rank": 1,
+    "score": 0.7592592592592593,
+    "direct_coverage": 0.5882352941176471,
+    "scoring_numerator": 11.38888888888889,
+    "scoring_denominator": 15,
+    "coverage_numerator": 10,
+    "coverage_denominator": 17
+  },
+  "csv": {
+    "rows": 3177,
+    "selection_counts": {
+      "eligible": 10,
+      "excluded": 1862,
+      "evidence_incomplete": 1305
+    },
+    "sha256": "678cba251937d156d9ef0afc7c5bbf5350dec979e4bce8e06a11411b7e7d0a1c",
+    "file": "examples/oral-multitarget/latest/selection/workbench-export.csv"
+  },
+  "runtime": {
+    "os": "Windows",
+    "python": "3.14.2",
+    "samples_per_resource": 20,
+    "timing_scope": "Warm local HTTP GET responses after index preparation. Excludes first indexing, browser paint and research/model runtime."
+  },
+  "read_api_timings": [
+    {
+      "resource": "overview",
+      "path": "overview",
+      "samples": 20,
+      "median_ms": 43.11,
+      "p95_ms": 48.39,
+      "max_ms": 53.71
+    },
+    {
+      "resource": "criteria",
+      "path": "criteria?state=working&page_size=50",
+      "samples": 20,
+      "median_ms": 176.41,
+      "p95_ms": 198.53,
+      "max_ms": 213.39
+    },
+    {
+      "resource": "eligible_candidates",
+      "path": "candidates?selection=eligible&page_size=50",
+      "samples": 20,
+      "median_ms": 4.24,
+      "p95_ms": 4.86,
+      "max_ms": 4.86
+    },
+    {
+      "resource": "literature_sources",
+      "path": "evidence-sources?kind=literature&page_size=20",
+      "samples": 20,
+      "median_ms": 5.49,
+      "p95_ms": 6.41,
+      "max_ms": 7.85
+    },
+    {
+      "resource": "score_details",
+      "path": "scores/cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+      "samples": 20,
+      "median_ms": 5.32,
+      "p95_ms": 6.36,
+      "max_ms": 6.52
+    }
+  ],
+  "browser_checks": [
+    "English and Chinese current candidate groups",
+    "Current Settings and future-work controls",
+    "New-study form with empty-criteria explanation",
+    "Saved collection selection and display details",
+    "Criterion evolution, lineage and changes",
+    "Current candidate eligibility and score breakdown",
+    "Score-to-evidence links and source grouping",
+    "Synthetic CSV field mapping and preview",
+    "Full 3177-row CSV download"
+  ]
+}

@@ -1,5 +1,7 @@
 # Use the research workbench
 
+[Current screenshots, results and response measurements](current-status.md), captured and checked on 28 October 2026.
+
 [Workflow design](design.md) · [Documentation index](README.md)
 
 [中文](zh/user-guide.md) · [Install](installation.md) · [Complete saved example](tutorial.md)

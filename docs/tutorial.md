@@ -13,22 +13,22 @@ This walkthrough follows the latest completed oral multi-target study: what the 
 | Restored or original workspace | Inspect the saved study, or create a new study using its library and evidence collection. Steps 1–11 explain the recorded workflow and controls. |
 | Fresh clone; conduct your own research | [Install and configure MAS](installation.md), initialize an empty workspace, then follow step 12 with your own CSV data. |
 
-The checkout contains frozen exports. The optional [168 MB capsule](../examples/oral-multitarget/latest/reproduction/README.md) supplies the selected records, facts and caches needed to restore the latest study and prepare a new one. The private source database and credentials are not required for replay. Full texts and model traces remain outside the public capsule. The screenshots below document the historical study; a new model investigation records its own criteria and results.
+The checkout contains frozen exports. The optional [168 MB capsule](../examples/oral-multitarget/latest/reproduction/README.md) supplies the selected records, facts and caches needed to restore the latest study and prepare a new one. The private source database and credentials are not required for replay. Full texts and model traces remain outside the public capsule. The screenshots were captured on 28 October 2026 in the current Windows workbench, displaying this saved study. [Current screenshots and validation](current-status.md) identify their source version. A new model investigation records its own criteria and results.
 
 ## 0. Inspect the published result without starting a workflow
 
-Open [report.md](../examples/oral-multitarget/latest/results/report.md), [task.json](../examples/oral-multitarget/latest/results/task.json), [candidates.csv](../examples/oral-multitarget/latest/results/candidates.csv), and [surufatinib.json](../examples/oral-multitarget/latest/results/surufatinib.json). The report is the recorded run export; this tutorial supplies the English explanation.
+Open [report.md](../examples/oral-multitarget/latest/results/report.md), [task.json](../examples/oral-multitarget/latest/results/task.json), [current candidate CSV](../examples/oral-multitarget/latest/selection/workbench-export.csv), and [surufatinib.json](../examples/oral-multitarget/latest/results/surufatinib.json). The report is the recorded run export; this tutorial supplies the English explanation.
 
 From the repository root, these PowerShell commands use Python's standard library:
 
 ```powershell
-python -c "import csv,collections; from pathlib import Path; rows=list(csv.DictReader((Path('examples/oral-multitarget/latest/results')/'candidates.csv').open(encoding='utf-8-sig',newline=''))); print('Exported candidates:',len(rows)); print('Qualification:',dict(collections.Counter(r['qualification'] for r in rows)))"
+python -c "import csv,collections; from pathlib import Path; rows=list(csv.DictReader((Path('examples/oral-multitarget/latest/selection')/'workbench-export.csv').open(encoding='utf-8-sig',newline=''))); print('Exported candidates:',len(rows)); print('Selection:',dict(collections.Counter(r['selection_decision'] for r in rows)))"
 python -c "import json; from pathlib import Path; r=json.loads((Path('examples/oral-multitarget/latest/results')/'surufatinib.json').read_text(encoding='utf-8'))['matches'][0]; print('Rank:',r['rank'],'Score:',r['score'],'Direct preference coverage:',r['preference_coverage'])"
 ```
 
-The saved output is **3,177 rows**, `qualified: 10`, `pending: 3167`, rank `1`, score `0.7592592592592593`, and coverage `0.5882352941176471`. These commands inspect existing results; they do not screen candidates or restore the database.
+The current export contains **3,177 rows**: `eligible: 10`, `evidence_incomplete: 1305` and `excluded: 1862`. Surufatinib has rank `1`, score `0.7592592592592593` and direct coverage `0.5882352941176471`. The commands read published files.
 
-The source export retains the historical label `pending`. The current decision policy separates these records into **1,305 Evidence incomplete** and **1,862 Excluded**. Exclusion reasons identify either a confirmed required-condition failure or no usable admission support after required assessments are complete. [Decision terminology](reference/decision-language.md) explains these task-defined outcome groups and their evidence requirements.
+`selection_decision` matches the current interface. The export also preserves the older `qualification` field for tracing the saved snapshot. [Decision terminology](reference/decision-language.md) explains the current groups and their reasons.
 
 ## 1. Open Settings and record the run envelope
 
@@ -40,7 +40,7 @@ After completing [installation and provider configuration](installation.md), sta
 
 This assumes the model/settings files have been copied and configured as described in the installation guide. Open [the workbench](http://127.0.0.1:8769/workbench/) and choose **Settings**. For an existing workspace, supply its actual store/configuration paths.
 
-Set both workload controls to **Medium** (`mid`), concurrency to **4**, and choose **Save settings**. Current labels are **Literature workload** and **Textbook workload**; historical screenshots may use earlier workload wording. Settings apply to subsequent work; saved studies retain their original configuration.
+Set both workload controls to **Medium** (`mid`), the worker limit to **4** and the budget to **USD 10**, then choose **Save settings**. Current labels are **Literature workload** and **Textbook workload**. Settings apply to subsequent work; saved studies retain their original configuration.
 
 | Setting | Latest saved study | New-task example/default |
 |---|---:|---:|
@@ -52,9 +52,9 @@ Set both workload controls to **Medium** (`mid`), concurrency to **4**, and choo
 
 Use 5.50 to repeat the historical envelope with the same local inputs, or choose the budget appropriate to your new investigation. The saved workflow records **USD 4.2101472 estimated model cost**, not a final supplier invoice. Its historical model identity is `deepseek-v4-flash`; configuring a provider for new work does not change that identity.
 
-![Settings and progress during the historical run](assets/progress-settings.jpg)
+![Current Settings and saved-study progress](assets/current/settings.jpg)
 
-This screenshot was captured during the historical run, not before launch. English / 中文 changes interface display; research records and source text retain their recorded language.
+The screenshot shows future-work settings alongside the completed study's recorded progress. English / 中文 changes interface display; research records and source text retain their recorded language.
 
 ## 2. Create the task and state the decision precisely
 
@@ -80,23 +80,23 @@ Under **Constraints**, enter:
 Oral administration is required.
 ```
 
-The saved title is `Oral TME — full browser verification`. Under **Evaluation options**, choose **Use saved or uploaded evidence**, **Staged screening**, and reference candidate `Surufatinib`. The reference is disclosed for outcome comparison and adds no ranking weight. The task records exposure; this study is not described as blind discovery.
+Give the study a readable name. Under **Evaluation options**, choose **Use saved or uploaded evidence** and **Staged screening**. With the restored case selected, **Research options → New study with this setup** opens these inputs for editing and starts a fresh criterion set when submitted.
 
 The researcher defines the objective and requirements. The task-normalization role converts them into a versioned English task with explicit target identities and a route constraint. It does not require the researcher to supply the final evaluation criteria. If an essential requirement cannot be bound to a property, unit or conditions, answer the focused clarification presented by the workflow.
 
-![Research objective, targets and oral constraint](assets/task-setup.jpg)
+![Research objective, targets and oral constraint](assets/current/new-study.jpg)
 
-This screenshot reopens the saved configuration. The completed-study background is expected; opening it did not launch another run.
+The screenshot shows the new-study form before submission, with the saved study in the background.
 
 ## 3. Bind candidates and evidence separately
 
-In **Candidates & evidence**, select the recorded library of **3,177 compounds** (`universe_chembl.json` in the historical workspace). Select the collection of **3,157 retained facts from 164 sources**, with displayed evidence cutoff **15 October 2026**. Its source task is `task_01M51AQ0JK0MYN47806ZD5XS1B`.
+In **Candidates & evidence**, select the recorded library of **3,177 compounds** (`universe_chembl.json` in the historical workspace). Select the collection of **3,157 retained facts from 164 sources**, with displayed evidence cutoff **15 October 2026**. The selector shows its name, source count, record count and cutoff; its name and description can be edited for display.
 
-![Candidate library and fixed evidence collection](assets/evidence-selection.jpg)
+![Candidate library and fixed evidence collection](assets/current/evidence-selection.jpg)
 
 The library fixes who can be evaluated; the collection fixes which saved material informs criterion development. Collection names/descriptions are display metadata. The counts above refer to the fixed input manifest, not all historical tool observations used during candidate assessment.
 
-The controller pins admitted facts and copies **no existing criteria**. In this run, generation excluded **136 facts explicitly naming the reference candidate**, leaving **3,021** proposal inputs. That exclusion applies to generation; candidate assessment later follows the common frozen policy. The reference identity remained disclosed.
+The new study starts with an empty criterion set and uses **3,021 evidence records** for proposal generation. The source collection contains 3,157 records; 136 candidate-naming records were omitted from this generation subset. Candidate assessment uses the frozen evaluation framework and its bound sources.
 
 After `replay` or `plan`, the restored workbench offers the prepared evidence collection and the recorded candidate library. Choose **Research options → New study with this setup** to start a new task; the prepared collection contains facts and an empty criterion set. The original source task remains in the saved research record, while the new setup points to the portable collection. An empty workspace has no collection until you supply one. For your own inputs, follow step 12.
 
@@ -108,7 +108,9 @@ The controller coordinates task understanding, evidence preparation, discovery, 
 
 The **proposer** writes evidence-backed candidates. The **critic** challenges relevance, definitions, thresholds and counter-evidence. The proposer responds with revisions, and the **adjudicator** handles merges/disputed decisions under the recorded policy. The controller manages transitions and termination; tools supply recorded observations for assessment. Role separation does not by itself mean independent model providers.
 
-Read the active phase, actor, batch progress, spend estimate and pause/stop controls. **17/18 batches** is local stage progress, not 94% of the research; **2/8 phases** is not 25% of elapsed time. Answer focused questions if they arise. The saved case has no outstanding question.
+Open **Workflow & run details** to see the stages, latest activity, elapsed time and estimated cost. During a running study, batch counts describe the current stage. The saved example below has completed **8/8 stages**; its recorded duration and cost remain visible.
+
+![Current workflow progress for the completed example](assets/current/progress.jpg)
 
 ## 5. Follow expansion and three refinement rounds
 
@@ -134,7 +136,7 @@ The six starting requirements are the five target potencies and documented oral 
 
 Read each change's reason and parent records. A merge preserves its inputs; removal records why an item was withdrawn. [stages.json](../examples/oral-multitarget/latest/results/stages.json) and [source-cqa-history.json](../examples/oral-multitarget/latest/results/source-cqa-history.json) retain the actual transitions.
 
-![Current criteria and their roles](assets/criteria.jpg)
+![Current criteria and their roles](assets/current/criteria.jpg)
 
 ## 6. Open molecular weight and follow its lineage
 
@@ -163,23 +165,19 @@ Therefore **53 = 18 enabled decision rules + 13 contextual observations + 22 ite
 
 All **six eligibility requirements** are compulsory: the oral condition and direct observations for each of the five targets. The target criteria also supply five of the **17 scoring contributions**, so **6 + 17 − 5 = 18 unique decision rules**. Target potency values are compared during ranking; the saved admission test requires their direct evidence rather than a shared potency cutoff. Predictions retain their basis and remain outside direct-evidence coverage.
 
-## 8. Assess candidates and retain the first outcome
+## 8. Assess candidates and inspect eligibility
 
 Open **Candidates**. Staged mode checks hard conditions first and records downstream skips after hard failure. The saved run had **no explicit hard failure**, **0 skipped-after-rejection cells**, and **98,487 records = 3,177 × 31**, including unknown states. A complete sweep does not mean every cell has evidence.
 
 For Surufatinib, open **Evidence** and inspect qualification: oral condition **1/1 passed**, required targets **5/5 with direct observations**, and final direct preference coverage **10/17 = 58.82%**.
 
-The first saved result had **6/17 = 35.29%** direct preference coverage, below the saved **50% ranking floor**, so Surufatinib had no rank. Investigation found existing facts were not fully reused, and four deterministic structural descriptors were classified as predictions: **RDKit logP, BRENK, NIH and PAINS alert counts**.
+The selected result is snapshot `_2` (`rules@v2`), with **10/17** direct coverage and the recorded **50% ranking floor**. The [saved overview](../examples/oral-multitarget/latest/results/overview.json) retains earlier evaluations and their links for readers who need the study history.
 
-After correcting evidence reuse and basis classification, the system saved a new evaluation with **10/17** direct coverage. Cached facts were reused; this was not a new clinical experiment. Scientific thresholds, weights and coverage floors were retained. The eligible population was recomputed, so continuous preference points reflect the new qualified comparison set.
+## 9. Read the leaderboard and explain the score
 
-Snapshot `_1` (`rules@v1`) is the first outcome; `_2` (`rules@v2`) is the correction, linked by `parent_snapshot_id`. Their summaries remain in [overview.json](../examples/oral-multitarget/latest/results/overview.json). After a later data/implementation correction, re-evaluate into a new recorded result and retain the prior outcome.
+The Eligible group contains **10 candidates**. Surufatinib ranks **1**, followed by Pazopanib and Axitinib. The remaining candidates comprise **1,305 Evidence incomplete** and **1,862 Excluded**, with no admission support as the exclusion reason. There are **0 confirmed condition-requirement failures** and **0 incomplete candidate assessments**. The frozen export retains its historical `pending` label.
 
-## 9. Read the leaderboard and unpack the score
-
-The qualified group contains **10 candidates**. Surufatinib ranks **1**, followed by Pazopanib and Axitinib. The remaining candidates comprise **1,305 Evidence incomplete** and **1,862 Excluded**, with no admission support as the exclusion reason. There are **0 confirmed condition-requirement failures** and **0 incomplete candidate assessments**. The frozen export retains its historical `pending` label.
-
-![Qualified leaderboard](assets/leaderboard.jpg)
+![Current Eligible leaderboard](assets/current/candidates.jpg)
 
 Click Surufatinib's **Score**. The drawer shows each value, basis, comparison point, weight and contribution:
 
@@ -199,7 +197,7 @@ d = [W + (E - 1)/2] / (N - 1)
 
 N is the number with values, W counts worse values and E includes all ties, including this candidate. For BRENK, N=10, W=2, E=8, giving **0.611111** comparison points and `0.611111/15` total-score contribution. Threshold preferences use 1 when met and 0 when not met. Expand **Calculation & evidence** for the particular row's calculation.
 
-![Score details and direct evidence coverage](assets/score-details.png)
+![Score details and direct evidence coverage](assets/current/score-details.jpg)
 
 ## 10. Trace FGFR1 from score to source observations
 
@@ -216,7 +214,7 @@ One linked paper reports **FGFR1 IC50 = 34 nM** at `sec2.1.p1`: *Structural basi
 
 Sort the four values and take the median: `(7.46852108296 + 7.82)/2 ≈ 7.64426054148`, the saved assessment. The single 34 nM result and four-record aggregate are different explanation levels. Four records do not by themselves establish four independent experiments; inspect underlying sources and conditions when judging pooling.
 
-![FGFR1 linked evidence](assets/evidence-fgfr1.png)
+![FGFR1 linked evidence](assets/current/evidence-fgfr1.jpg)
 
 [surufatinib.json](../examples/oral-multitarget/latest/results/surufatinib.json) retains these assessment/evidence links for readers without the live workspace.
 
@@ -241,6 +239,8 @@ In an empty workspace choose **Use own data**, then the appropriate type: drugs/
 5. State the objective, required observations, hard conditions and preferences, including units and relevant conditions. Choose optional saved evidence only if it actually exists in your workspace.
 6. Check Settings, evidence/evaluation options and cap, then choose **Start research**. Follow the criterion, qualification, score and evidence checks above with your own recorded counts.
 
-![CSV mapping and validation](assets/csv-import.jpg)
+![CSV mapping and validation](assets/current/csv-import.jpg)
+
+This preview uses two explicitly synthetic carrier records to illustrate the format. The preview was checked without importing the rows or starting research.
 
 The generic upload path evaluates exact properties and conditions from your rows. The specialized recorded-drug-library path uses its declared drug capabilities and evidence routes. Your data create a new investigation: report its actual population, criteria, costs and outcomes. A fresh language-model run does not guarantee the historical 1,917 proposals, 53 working items or rank shown here.

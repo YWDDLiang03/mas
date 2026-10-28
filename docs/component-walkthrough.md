@@ -34,16 +34,16 @@ from pathlib import Path
 root = Path("examples/oral-multitarget/latest")
 task = json.loads((root / "results/task.json").read_text(encoding="utf-8"))
 bindings = json.loads((root / "results/run-bindings.json").read_text(encoding="utf-8"))
-rows = list(csv.DictReader((root / "results/candidates.csv").open(
+rows = list(csv.DictReader((root / "selection/workbench-export.csv").open(
     encoding="utf-8-sig", newline="")))
 print(task["task_context_id"], task["version"])
-print("Candidates:", len(rows), dict(Counter(row["qualification"] for row in rows)))
+print("Candidates:", len(rows), dict(Counter(row["selection_decision"] for row in rows)))
 print("Pinned tool facts:", bindings["run_01M52Q4VRB00T5Z3QJW08SSV96"]
       ["tool_replay"]["cache_entries"])
 '@ | python -
 ```
 
-Expected: task version `3`; `3177`, `{'qualified': 10, 'pending': 3167}`; `68886`. JSON object order is not scientific identity. [`canonical.py`](../src/mas/core/canonical.py), [`ArtifactStore`](../src/mas/core/artifacts.py) and [`Journal`](../src/mas/core/journal.py) establish content hashes and event lineage. File SHA-256 checks belong to the export/portable manifest; artifact IDs hash canonical artifact envelopes.
+Expected: task version `3`; `3177`, `{'eligible': 10, 'excluded': 1862, 'evidence_incomplete': 1305}`; `68886`. JSON object order is not scientific identity. [`canonical.py`](../src/mas/core/canonical.py), [`ArtifactStore`](../src/mas/core/artifacts.py) and [`Journal`](../src/mas/core/journal.py) establish content hashes and event lineage. File SHA-256 checks belong to the export/portable manifest; artifact IDs hash canonical artifact envelopes.
 
 **Check before continuing:** selected task, run and snapshot agree. Keep snapshot `_1` and its failure/correction history when interpreting `_2`. See [foundation reference](components/foundation.md).
 

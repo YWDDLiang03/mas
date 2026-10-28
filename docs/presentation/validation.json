@@ -3,8 +3,7 @@
   "main_slides": 32,
   "appendix_slides": 2,
   "notes_exact_match": 34,
-  "generated_diagram_pages": 19,
-  "recorded_worker_results": 18,
+  "generated_diagram_pages": 18,
   "accepted_sample": "slide_08",
   "original_screenshot_pages": [
     16,
@@ -13,14 +12,13 @@
     19,
     23,
     25,
+    26,
     27,
     28,
     29,
     30,
     32
   ],
-  "source_screenshot_blobs_unchanged": true,
-  "generated_image_blobs_unchanged": true,
   "native_data_charts": 2,
   "tables_only_in_appendix": [
     [
@@ -41,26 +39,290 @@
   "rank": 1,
   "qualified_count": 10,
   "powerpoint_desktop_opened_and_rendered": 34,
-  "visual_review": "Root inspected every generated diagram and every native page; revised crops and Chinese chart fonts were rechecked.",
+  "visual_review": "All 19 changed pages reviewed after Windows PowerPoint rendering; current terms, image placement and counts checked.",
   "writing_review": "Two passes: narrative/causal transitions, then exact wording/counts/conditions. Spoken text and presenter cues separated.",
-  "pptx_bytes": 23374054,
-  "pptx_sha256": "6be48840ebb9636ab00582e0ee2ee2dbf37a857f9d9a23ac70d4add65c86239e",
-  "maintenance": {
-    "date": "2026-10-26",
-    "change": "Removed one archived-study speaker-note paragraph",
-    "changed_members": [
-      "ppt/notesSlides/notesSlide31.xml"
+  "pptx_bytes": 23262900,
+  "pptx_sha256": "fc428786280756f5aca9608bdea3455753da80ed4c3ffdf94b999d86f330035c",
+  "current_ui_refresh": {
+    "date": "2026-10-28",
+    "source_code_commit": "c614ac485b280bd830862909a75c3c6348024fcd",
+    "real_screenshot_slides": [
+      16,
+      17,
+      18,
+      19,
+      23,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      32
     ],
-    "slide_xml_and_media_unchanged": true,
-    "prior_pptx_sha256": "46f2e471be8d0df4e90580c19c6ada4a109f6c360bc88a5cad749b58c377bd15"
-  },
-  "terminology_update_2026_10_26": {
-    "notes_slides": [
+    "updated_illustration_slides": [
+      1,
+      9,
+      11,
+      12,
+      15,
       24,
-      28
+      31
     ],
-    "other_package_entries_unchanged": true,
-    "notes_exact_match": 34,
-    "historical_visuals": "Preserved and identified in README and slide 28 notes."
-  }
+    "candidate_groups": {
+      "eligible": 10,
+      "evidence_incomplete": 1305,
+      "excluded": 1862
+    },
+    "eligibility_requirements": 6,
+    "scoring_criteria": 17,
+    "shared_target_criteria": 5,
+    "new_research_run_started": false,
+    "images": [
+      {
+        "slide": 1,
+        "source_file": "slide-01-current.png",
+        "source_sha256": "5d892da2fa670954c0809b5102b4b3a5a37346ebef56e99dbf25dda0d54e381c",
+        "native_crop": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 9,
+        "source_file": "slide-09-current.png",
+        "source_sha256": "3c4c72d5e332669128bd0caef60edbd5f5325779593ee195ab3563855245eba5",
+        "native_crop": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 11,
+        "source_file": "slide-11-current.png",
+        "source_sha256": "cd42228745cfa339bf6dd510ce61c41506e042b7a68a96c7babf1ee715968b52",
+        "native_crop": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 12,
+        "source_file": "slide-12-current.png",
+        "source_sha256": "8b5a01666053c2995173a33f0f612e56e94db2f16d2606e3c2f2a363dcf9efc5",
+        "native_crop": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 15,
+        "source_file": "slide-15-current.png",
+        "source_sha256": "192a287380b962b9a5aebd6ef7533a78cc5f87eae8a3bce6b6bc1f471cc1b58f",
+        "native_crop": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 24,
+        "source_file": "slide-24-current.png",
+        "source_sha256": "8dd26802e5de127939a36284dffd90d4533e6fa7354af446564d3b1088921586",
+        "native_crop": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 31,
+        "source_file": "slide-31-current.png",
+        "source_sha256": "f41fe889140e9e6331626b9bd6666c0d03ecfaf28c9d2659abb08d495dbeb46d",
+        "native_crop": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 16,
+        "source_file": "settings.jpg",
+        "source_sha256": "49778e372e635a443de35f27224bea24d90b0b7c563f0c22f5359b2ab8200d13",
+        "native_crop": [
+          0.17,
+          0.44,
+          0.015,
+          0.2
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 17,
+        "source_file": "new-study.jpg",
+        "source_sha256": "61f887361bbe89622a2ca54421ee5a700ff940cd064decad9f8ef90bf6a833e4",
+        "native_crop": [
+          0.43,
+          0.3,
+          0.015,
+          0.1
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 18,
+        "source_file": "evidence-selection.jpg",
+        "source_sha256": "88b1c6bf52393728cfaa7a12ba5315d6416f7831f5c076acf53e68c87cb08a5d",
+        "native_crop": [
+          0.43,
+          0.33,
+          0.015,
+          0.02
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 19,
+        "source_file": "progress.jpg",
+        "source_sha256": "d755a7323c714717306cc6e3d09b34ae227f20a78c43824250af0880e3f8b7f8",
+        "native_crop": [
+          0.17,
+          0.08,
+          0.015,
+          0.69
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 23,
+        "source_file": "criteria.jpg",
+        "source_sha256": "c05231219318b4e68798a32aef41a370cbe5d44fc08b4eb205d6cae90eaf081e",
+        "native_crop": [
+          0.17,
+          0.465,
+          0.015,
+          0.025
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 25,
+        "source_file": "score-details.jpg",
+        "source_sha256": "c5223f7ad4c107bdfeebf205a876cf9d5d5c455f0daf53b22770cf4f1a3cbe49",
+        "native_crop": [
+          0.44,
+          0.13,
+          0.015,
+          0.66
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 26,
+        "source_file": "score-coverage.jpg",
+        "source_sha256": "3926159342f7cc42ff70920099326a3b14a33ece0d4602813251ac0b483203b8",
+        "native_crop": [
+          0.44,
+          0.67,
+          0.015,
+          0.1
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 27,
+        "source_file": "score-details.jpg",
+        "source_sha256": "c5223f7ad4c107bdfeebf205a876cf9d5d5c455f0daf53b22770cf4f1a3cbe49",
+        "native_crop": [
+          0.44,
+          0.54,
+          0.015,
+          0.15
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 28,
+        "source_file": "candidates.jpg",
+        "source_sha256": "e16d493a69be0c00e5f1d77dfda74603126384fd1e27f285e1220bd7d7adce0f",
+        "native_crop": [
+          0.17,
+          0.24,
+          0.015,
+          0
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 29,
+        "source_file": "evidence-fgfr1.jpg",
+        "source_sha256": "d169e79bead693e785033b7a2fb7aeb32967c35af061fa4942fcc39d50420bb0",
+        "native_crop": [
+          0.44,
+          0.115,
+          0.015,
+          0.58
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 29,
+        "source_file": "evidence-fgfr1.jpg",
+        "source_sha256": "d169e79bead693e785033b7a2fb7aeb32967c35af061fa4942fcc39d50420bb0",
+        "native_crop": [
+          0.44,
+          0.425,
+          0.015,
+          0.335
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 30,
+        "source_file": "candidates.jpg",
+        "source_sha256": "e16d493a69be0c00e5f1d77dfda74603126384fd1e27f285e1220bd7d7adce0f",
+        "native_crop": [
+          0.17,
+          0.2,
+          0.015,
+          0.43
+        ],
+        "original_pixels_preserved": true
+      },
+      {
+        "slide": 32,
+        "source_file": "csv-import.jpg",
+        "source_sha256": "b17d45bc953d84dbe9cc1e47e141dac039f9cbbd8b609a21f7edf4aa41eac2e8",
+        "native_crop": [
+          0.43,
+          0.16,
+          0.015,
+          0.1
+        ],
+        "original_pixels_preserved": true
+      }
+    ]
+  },
+  "verified_on": "2026-10-28",
+  "browser_capture_pixels_preserved": true,
+  "obsolete_browser_captures_remaining": 0,
+  "scoring_appendix_values_unchanged": true
 }

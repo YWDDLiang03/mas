@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+from collections import Counter
 import hashlib
 import json
 from pathlib import Path
@@ -129,8 +130,26 @@ def main() -> int:
     validation = json.loads((presentation / 'validation.json').read_text(encoding='utf-8'))
     if digest(presentation / 'MAS-system-and-case.pptx') != validation['pptx_sha256']:
         errors.append('Presentation changed after its visual/data verification')
+
+    captures = json.loads((ROOT / 'docs/assets/current/manifest.json').read_text(encoding='utf-8'))
+    for entry in captures['images']:
+        path = ROOT / 'docs/assets/current' / entry['file']
+        if not path.is_file() or path.stat().st_size != entry['bytes'] or digest(path) != entry['sha256']:
+            errors.append('Current screenshot differs from capture manifest: ' + entry['file'])
+    current = json.loads((ROOT / 'docs/reference/current-ui-validation.json').read_text(encoding='utf-8'))
+    current_csv = ROOT / current['csv']['file']
+    if digest(current_csv) != current['csv']['sha256']:
+        errors.append('Current browser export differs from its verification record')
+    with current_csv.open(encoding='utf-8-sig', newline='') as stream:
+        rows = list(csv.DictReader(stream))
+    counts = dict(Counter(row['selection_decision'] for row in rows))
+    if len(rows) != current['csv']['rows'] or counts != current['csv']['selection_counts']:
+        errors.append('Current browser export selection counts differ')
+    if counts != validation['current_ui_refresh']['candidate_groups']:
+        errors.append('Presentation and current browser export groups differ')
     print(json.dumps({'version': package, 'documents': len(documents), 'local_links_checked': links,
                       'frozen_result_files_checked': verified_files, 'synthetic_comparison_rows': len(comparison['rows']),
+                      'current_screenshots_checked': len(captures['images']), 'current_candidate_rows_checked': len(rows),
                       'errors': errors}, ensure_ascii=False, indent=2))
     return 1 if errors else 0
 

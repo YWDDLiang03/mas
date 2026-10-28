@@ -1,5 +1,7 @@
 # TRIAGE 文档导航
 
+[当前界面、结果和响应时间](current-status.md)，2026 年 10 月 28 日实拍与核对。
+
 [English](../README.md) · [项目主页](../../README.zh-CN.md)
 
 | 从哪里开始 | 内容 |

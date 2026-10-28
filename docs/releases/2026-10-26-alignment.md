@@ -1,5 +1,7 @@
 # Workbench terminology and selection update, 26 October 2026
 
+> Historical release record. For the current interface, result groups and measured response times, see [Current interface and results](../current-status.md).
+
 [System and study alignment](../reference/system-alignment.md) · [Decision definitions](../reference/decision-language.md) · [English tutorial](../tutorial.md) · [中文教程](../zh/tutorial.md)
 
 The workbench uses TRIAGE as its product name and aligns the main workflow with criterion generation, eligibility screening and weighted prioritization. Research objectives, candidate types, requirements and evidence policies remain task-configurable.
@@ -35,12 +37,10 @@ The current selection policy refines the historical 3,167 pending records into 1
 | Browser | Group names, red Excluded indicator, criterion-use reasons and Surufatinib score details verified. The page shows 11.388889 / 15 = 0.759259 and direct coverage 10/17. |
 | Frozen result integrity | All 14 currently published result files checked against the latest-study manifest. |
 | Public design explanation | See the current [workflow-design guide](../design.md) for the general process and the candidate-decision definitions. |
-| Presentation notes | Slides 24 and 28 use the current requirements and classification. Historical screenshots are identified; slide and media bytes are unchanged. |
+| Presentation notes | At this release, only notes on slides 24 and 28 were updated. The [28 October presentation](../presentation/README.md) also replaces the old screenshots and illustrated labels. |
 
 This update uses the retained study for numerical checks and synthetic tasks for general decision behavior. It performs no new literature retrieval or paid model investigation.
 
-![Recorded Surufatinib score details](2026-10-26-workbench.png)
+
 
 [Workflow design](../design.md) · [Public-content policy](../reference/public-content.md)
-
-![Six task-defined admission requirements and their shared scoring use](../reference/admission-roles-candidate-ui.png)

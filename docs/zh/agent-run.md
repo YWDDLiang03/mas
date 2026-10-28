@@ -85,6 +85,6 @@ python scripts/agent_run.py replay --workspace var/offline-replay --bundle /path
 python scripts/agent_run.py plan --workspace var/offline-live --bundle /path/to/capsule-directory --task config/examples/task.original.json
 ```
 
-目录应含 `manifest.json` 及其声明的数据文件。导入接口校验全部哈希，复用相同数据包的已完成导入，也能依据 `.mas-import` 标记继续自己的中断导入。无关的非空工作区和发生冲突的文件保持原样并明确拒绝。下载默认缓存在目标目录之外的 `<repo>/var/downloads/reproduction/<sha256>/`，可用 `--download-cache /outside/cache` 修改。中断下载不会发布为可导入文件，损坏缓存不会进入研究库。公开文件为 [v1.1.0 复现包](https://github.com/YWDDLiang03/mas/releases/download/v1.1.0/oral-multitarget-latest-v1.jsonl.gz)，校验依据是[仓库 manifest](../../examples/oral-multitarget/latest/reproduction/manifest.json)。恢复工作区约需 3 GB，首次浏览器索引需要几分钟。
+目录应含 `manifest.json` 及其声明的数据文件。导入接口校验全部哈希，复用相同数据包的已完成导入，也能依据 `.mas-import` 标记继续自己的中断导入。无关的非空工作区和发生冲突的文件保持原样并明确拒绝。下载默认缓存在目标目录之外的 `<repo>/var/downloads/reproduction/<sha256>/`，可用 `--download-cache /outside/cache` 修改。中断下载不会发布为可导入文件，损坏缓存不会进入研究库。公开文件为 [v1.1.0 复现包](https://github.com/YWDDLiang03/mas/releases/download/v1.1.0/oral-multitarget-latest-public-20261028.jsonl.gz)，校验依据是[仓库 manifest](../../examples/oral-multitarget/latest/reproduction/manifest.json)。恢复工作区约需 3 GB，首次浏览器索引需要几分钟。
 
 [English instructions](../agent-run.md)
