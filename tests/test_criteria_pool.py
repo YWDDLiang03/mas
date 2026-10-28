@@ -735,7 +735,7 @@ def family_pool(core, script, members=TOXICITY_FAMILY, *, task_id="task_family",
 
 
 def consolidate_script(*, members=None, shared_property=SHARED_PROPERTY, family_aggregation="worst_member",
-                       attribute=None, claims=None):
+                       attribute=None, claims=None, member_names=None):
     """An adjudicator that consolidates each group into one toxicity-burden criterion."""
     def script(request):
         question = request.metadata.get("question", "")
@@ -743,7 +743,9 @@ def consolidate_script(*, members=None, shared_property=SHARED_PROPERTY, family_
         groups = json.loads(request.messages[0]["content"].split("Groups:\n", 1)[1].split("\n\nCited claims:")[0])
         decisions = []
         for group in groups:
-            folded = [m for m in group["members"] if members is None or m["index"] in members]
+            folded = [m for m in group["members"]
+                      if (members is None or m["index"] in members)
+                      and (member_names is None or m["attribute"]["name"] in member_names)]
             cited = claims if claims is not None else sorted({c for m in folded for c in m["supporting_claim_ids"]})
             item = dict(proposal(child_attribute(attribute or burden_attribute()), "unused"),
                         supporting_claim_ids=cited)
@@ -767,7 +769,7 @@ def test_a_family_of_distinct_endpoints_sharing_a_screen_relevant_property_conso
     assert declared["family_aggregation"] in derivation_stages.FAMILY_AGGREGATIONS
     # the whole point of the field: a reviewer reads which specific endpoints this abstraction replaced,
     # by lineage id and by name, and can say that one of them did not belong in it
-    assert [s["name"] for s in declared["subsumes"]] == [name for name, _ in TOXICITY_FAMILY]
+    assert sorted(s["name"] for s in declared["subsumes"]) == sorted(name for name, _ in TOXICITY_FAMILY)
     assert {s["criterion_id"] for s in declared["subsumes"]} == \
            {ref.split("@v")[0] for ref in child["parents"]}
     criteria.check_attribute(child["item"]["attribute"])        # and the consolidated criterion is registrable
@@ -1188,12 +1190,16 @@ def test_a_reduction_whose_members_disagree_on_what_evidence_answers_them_is_ref
     assert "do not agree on acceptable_value_sources" in refusal["reason"]
     assert "'preprint'" in refusal["reason"], "the refusal names the answers, or a reader cannot act on it"
 
-    ctx = pool_of(core, consolidate_script(members=[0, 1]), items, task_id="task_subset", run_id="run_subset")
+    # Prompt indices follow generated criterion IDs, so bind this subset by endpoint identity.
+    agreed_names = {item["name"] for _, item in items[:2]}
+    ctx = pool_of(core, consolidate_script(member_names=agreed_names), items,
+                  task_id="task_subset", run_id="run_subset")
     stats = derivation_stages.merge_stage(ctx, 1)
     assert stats["consolidated"] == 1 and stats["refused"] == 0, stats["not_reduced"]
     folded = pool.fold(core, "task_subset")
     child = next(e for e in folded.values() if e["parents"])
     assert len(child["item"]["consolidation"]["subsumes"]) == 2
+    assert {s["name"] for s in child["item"]["consolidation"]["subsumes"]} == agreed_names
     assert child["item"]["attribute"]["acceptable_value_sources"] == ["peer_reviewed"]
     assert sorted(e["state"] for e in folded.values()) == ["candidate", "candidate", "merged_away", "merged_away"]
 
@@ -1816,7 +1822,8 @@ def test_a_revised_consolidation_still_names_the_endpoints_it_subsumed_and_keeps
     assert entry["item"]["attribute"]["rationale"].startswith("a screen stops")
     # the record of what this abstraction replaced is the same record, through the fold that persists it
     assert entry["item"]["consolidation"] == before["item"]["consolidation"]
-    assert [s["name"] for s in entry["item"]["consolidation"]["subsumes"]] == [n for n, _ in TOXICITY_FAMILY]
+    assert sorted(s["name"] for s in entry["item"]["consolidation"]["subsumes"]) == \
+        sorted(n for n, _ in TOXICITY_FAMILY)
     # and the aggregation the consolidation chose still matches the family reduction it recorded
     assert entry["item"]["attribute"]["aggregation"] == \
         entry["item"]["consolidation"]["executes_as_aggregation"] == "max"
