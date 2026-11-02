@@ -99,11 +99,14 @@ def test_exchange_adapter_round_trip(tmp_path, monkeypatch):
     original_read = Path.read_text
 
     def briefly_locked(path, *args, **kwargs):
+        # Read first so publication between an existence probe and the read
+        # cannot skip the intended sharing fault.
+        contents = original_read(path, *args, **kwargs)
         group = path.parent.name
-        if path.stem == request.request_id and sharing_faults.get(group) and path.exists():
+        if path.stem == request.request_id and sharing_faults.get(group):
             sharing_faults[group] -= 1
             raise PermissionError("synthetic Windows sharing violation")
-        return original_read(path, *args, **kwargs)
+        return contents
 
     monkeypatch.setattr(Path, "read_text", briefly_locked)
 
