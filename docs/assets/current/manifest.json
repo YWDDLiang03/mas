@@ -48,16 +48,16 @@
     },
     {
       "file": "evidence-selection.png",
-      "sha256": "67fcdc41929083a39efb07670474f201d26c9721978437b0c25f78990af41352",
-      "bytes": 125499,
+      "sha256": "915e55cadd2cd5396004aac00b6298bfb682db4306efee2abc77d1d120576e31",
+      "bytes": 113676,
       "width": 1560,
       "height": 900,
-      "captured_at": "2026-11-02T13:46:12.485Z",
+      "captured_at": "2026-11-02T13:56:55.405Z",
       "view": "evidence-selection",
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=overview&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=settings&task=task_01M52CBE5GYPK9F0MCZYBMPH84&snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2"
     },
     {
       "file": "settings.png",
