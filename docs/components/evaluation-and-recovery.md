@@ -55,7 +55,7 @@ Evaluator-only content uses application/process separation and access logs. Arti
 
 ## Planned C19/C20 capabilities
 
-The release has no general matched-budget P0/P1/P2 harness, policy-promotion conjunction, held-out strategy pool service, or strategy rollback authority. C20 strategy lineage/expiry/archive operations are planned. A fixed `strat@v1` binding and registered policy-arm labels are identifiers, not evidence that these services exist. Optional symbolic-expression selection is a separate implemented scoring experiment described in [ranking](ranking-and-explanations.md).
+Matched-budget policy comparisons and C20 strategy lineage, expiry, promotion and rollback remain planned work. Current runs record their strategy binding. The implemented symbolic-expression selection experiment is described in [ranking](ranking-and-explanations.md).
 
 ## Worked example: a near-equivalent match
 

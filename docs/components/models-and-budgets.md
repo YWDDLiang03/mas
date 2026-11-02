@@ -71,6 +71,10 @@ with TemporaryDirectory() as root, Core.open(root) as core:
     assert budget.used["llm_turns"] == 1
 ```
 
+## CDES and model-call accounting
+
+CDES is a prediction module alongside the language-model roles. Its current stage reuses supplied interaction scores and records the collection, covered targets and linked-pair count. The result is stored with the workflow. Reading the supplied values adds no language-model inference; the supplied prediction process retains its own provenance.
+
 ## Existing verification
 
 [`test_models_and_reading.py`](../../tests/test_models_and_reading.py) covers role validation, schema repair, trace records and exchange round trips. [`test_config_and_providers.py`](../../tests/test_config_and_providers.py) covers key sources, thinking options, truncation recovery, spend thresholds and redaction. [`test_model_accounting.py`](../../tests/test_model_accounting.py) checks paid-attempt accounting. These are contract tests; use a separately recorded live run when validating a specific provider installation.

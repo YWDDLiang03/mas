@@ -297,3 +297,9 @@ print(settings.get("assess.workers"))
 预期输出 `2.0 override`，然后 `2`。完整配置文件使用[配置指南](../configuration.md)中的 `config validate`、`config show --explain` 和 `models show` 检查；供应商连通性与实际行为由另行记录的小规模真实调用验证。
 
 **执行后验证：**新角色/供应商身份、生效设置层、要求从零时的初始 CQA 数量、各阶段新增/合并/删除/理由、终止状态、未解决项、完整候选导出、费用状态和合格总体排序。与固定结果比较时记录实际差异。新模型运行可能改善、变差、延后标准或因预算停止；保留这些结果，再据此选择下一次改动。
+
+## 靶点驱动任务与 CDES
+
+新任务可以直接提供靶点、需求与药物库，再选择已有证据或新检索。命令行的 `library` 模式使用自有药物库 JSON，`custom` 模式使用上传观测。具体命令见[智能体运行指南](agent-run.md)。
+
+CDES 在 Settings 和任务设置中按需选择。其结果固定来源集合，并关联当前任务的靶点与评估。运行后可查看可选阶段、候选作用谱、原始行和完整导出。操作见[靶点流程](target-workflow.md)，实现见[CDES 组件](../components/structure-predictions.md)。

@@ -1,5 +1,15 @@
 # Changelog
 
+## Target-driven workflow and optional CDES, 2026-11-02
+
+- Start drug studies from targets, requirements and a selected database; show the task summary before launch.
+- Add a per-study CDES switch, task-specific result binding and a target-profile stage after screening.
+- Link measured activity, interaction scores and source rows in candidate details and complete exports.
+- Add an independent drug-library mode to the agent runner.
+- Refresh bilingual guides, architecture, component documentation, terminology and current browser captures.
+
+See [the workflow update](docs/releases/2026-11-02-target-workflow.md).
+
 ## Case source data, 2026-10-28
 
 - Publish ten case tables, including 98,487 assessments, all eligible-candidate scoring contributions, 1,348 target observations and recorded model use.

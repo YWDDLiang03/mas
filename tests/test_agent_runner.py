@@ -77,6 +77,26 @@ def test_custom_missing_measurements_fails_before_creating_workspace(tmp_path):
     assert not args.workspace.exists()
 
 
+def test_named_drug_library_starts_from_its_own_targets_and_options(tmp_path, monkeypatch):
+    library = {'source': 'Synthetic library for input validation', 'retrieved_at': '2026-11-02',
+               'universe': [{'name': 'Example compound', 'inchikey': 'SYNTHETIC-IDENTITY', 'chembl_id': 'EXAMPLE-ID'}]}
+    runner.write_json(tmp_path/'library.json', library)
+    runner.write_json(tmp_path/'task.json', {'input_mode': 'library', 'library_json': 'library.json',
+        'targets': ['Example receptor'], 'constraints': 'Intravenous administration is required.',
+        'cdes_enabled': True, 'cdes_source_id': 'selected-collection'})
+    args = arguments(tmp_path, tmp_path/'task.json')
+    monkeypatch.setattr(runner, 'ensure_recorded', lambda args: pytest.fail('Own-library mode must use the supplied population'))
+    prepared = runner.prepare_input(args, runner.load_task(args))
+    value = prepared['input']
+    assert value['evidence_mode'] == 'retrieve' and value['source_task_id'] is None
+    assert value['reference_candidate'] == '' and value['targets'] == ['Example receptor']
+    assert value['objective_source'] == 'targets_and_requirements'
+    assert value['cdes_enabled'] is True and value['cdes_source_id'] == 'selected-collection'
+    assert prepared['facts']['initial_cqa_count'] == 0
+    assert runner.read_json(args.workspace/value['library_id']) == library
+    assert runner.prepare_input(args, runner.load_task(args)) == prepared
+
+
 def test_exact_headers_require_explicit_mapping(tmp_path):
     path = task_file(tmp_path)
     (tmp_path / 'candidates.csv').write_text('sample_id,name\nC1,Carrier one\nC2,Carrier two\n', encoding='utf-8')

@@ -2,15 +2,16 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-TRIAGE helps researchers build evaluation criteria from a research question and available evidence, then use those criteria to screen and compare candidates. The workflow is reusable: the objective, candidate data, required observations and evidence sources belong to each study. Drug research is the supplied end-to-end example; uploaded data and domain tools support other candidate types. MAS is the repository and Python package name.
+TRIAGE turns a target profile and research requirements into an evidence-based drug-selection study. Researchers choose the candidate library and evidence strategy; three agents develop, review and refine evaluation criteria, then the system screens candidates and ranks the eligible set. **CDES is an optional module** that adds structure-based target profiles. Targets, administration requirements and candidate data are configured for each study. Uploaded observations also support carrier and other candidate comparisons. MAS is the repository and Python package name.
 
-[Quick start](docs/agent-run.md) · [Windows installation](docs/installation.md) · [User guide](docs/user-guide.md) · [Workflow design](docs/design.md) · [Component tutorials](docs/component-walkthrough.md) · [Documentation index](docs/README.md)
+[Target-driven workflow](docs/target-workflow.md) · [Quick start](docs/agent-run.md) · [Windows installation](docs/installation.md) · [User guide](docs/user-guide.md) · [Workflow design](docs/design.md) · [Component tutorials](docs/component-walkthrough.md) · [Documentation index](docs/README.md)
 
-## From a research question to a ranked result
+## From targets and requirements to a ranked result
 
 ```mermaid
 flowchart LR
-    A[Objective, candidates and evidence] --> B[Start a new criterion set]
+    A[Targets, requirements and candidate library] --> B[Start a new criterion set]
+    L[Saved evidence or new retrieval] --> P
     B --> P[Proposer: explore relevant properties]
     P --> C[Critic: check evidence and applicability]
     C -->|Specific findings| P
@@ -20,17 +21,19 @@ flowchart LR
     E --> F[Assess eligibility]
     F --> G[Compare eligible candidates]
     G --> H[Inspect evidence and export]
+    G -. CDES enabled .-> S[Structure-based target profiles]
+    S --> H
 ```
 
 A new study starts with an empty criterion set. Task requirements are incorporated first. Proposals then explore relevant properties and measurement choices; review clarifies definitions, withdraws unsupported proposals and combines compatible descriptions. Distinct experimental conditions and decision uses remain visible. The [design guide](docs/design.md) explains why criteria expand before refinement and how the three roles exchange feedback.
 
 Each adopted criterion defines its measurement, accepted evidence and use. **Eligibility requirements** decide which candidates can enter comparison; **prioritization criteria** contribute to scores; **contextual observations** help interpretation. These uses can overlap. The workbench displays **Eligible**, **Evidence incomplete** and **Excluded**, with the responsible requirements and sources. [Decision definitions](docs/reference/decision-language.md) explain the classification and ranking rules.
 
-The browser includes natural-language task entry, candidate and measurement CSV imports, persistent progress, criterion histories, evidence grouped by source, score contributions and full exports. English is the default interface language; Chinese translates the interface while research content and source text keep their original wording.
+The browser starts with target and requirement fields, with optional research context. It includes candidate and measurement CSV imports, persistent progress, criterion histories, evidence grouped by source, score contributions and full exports. CDES can be selected per study, with a default switch in Settings. English is the default interface language; Chinese translates the interface while research content and source text keep their original wording.
 
-![Study overview with task, results and criterion evolution](docs/assets/current/overview.jpg)
+![Study overview with task, results and criterion evolution](docs/assets/current/overview.png)
 
-Current Windows interface, captured 28 October 2026 using the saved public study. [Screenshots, current results and response measurements](docs/current-status.md).
+Windows interface captured 2 November 2026 using the saved public study. [Screenshots, current results and response measurements](docs/current-status.md).
 
 ## Choose your starting point
 
@@ -38,8 +41,10 @@ Current Windows interface, captured 28 October 2026 using the saved public study
 |---|---|
 | Inspect and recalculate the saved public example | [One-command replay](docs/agent-run.md) |
 | Build fresh criteria using the example's saved evidence | [Plan and run a new investigation](docs/agent-run.md) |
+| Start a target-led study with your own drug database | [Drug-library task](docs/agent-run.md#your-own-drug-library) |
 | Supply another objective, candidate library or measurements | [Custom task](docs/agent-run.md#your-own-objective-candidates-and-observations) and [CSV formats](docs/csv-input.md) |
 | Understand each component and change its inputs | [Hands-on component walkthrough](docs/component-walkthrough.md) |
+| Attach supplied structure predictions to a saved evaluation | [Target profiles and the deployment interface](docs/components/structure-predictions.md) |
 | Connect a new provider or domain tool | [Models](docs/components/models-and-budgets.md), [tools](docs/components/tools-and-providers.md) and [domain adapters](docs/components/domain-adapters.md) |
 
 ## Reproduce the public example
@@ -70,11 +75,11 @@ npm.cmd --prefix web/client run build
 
 Open [the local workbench](http://127.0.0.1:8769/workbench/). Follow [model configuration](docs/installation.md#3-configure-deepseek-for-new-research), then:
 
-1. Set workload, concurrency and budget in **Settings**.
-2. Choose **New research** or **Use own data** and describe the objective and requirements.
-3. Choose or upload candidates, select evidence, and check units, conditions and evidence types in the preview.
-4. Start research and follow the current stage, recent activity and criterion changes.
-5. Open a candidate's **Score** and **Evidence** views, then export the complete results.
+1. Set workload, concurrency, budget and the CDES default in **Settings**.
+2. Open **New research**, enter targets and requirements, and add research context if useful.
+3. Select the candidate library and choose saved evidence or new retrieval. New retrieval can begin with a new study.
+4. Choose whether to include **CDES target profiles** and inspect the planned workflow.
+5. Start research, follow criterion development and assessment, then inspect scores, sources and exports.
 
 The [installation guide](docs/installation.md) covers alternative ports, existing workspaces and other operating systems. [Configuration](docs/configuration.md) covers providers, budgets and the optional prediction environment. API keys stay in an environment variable or external key file.
 
@@ -96,6 +101,7 @@ Every linked component page describes its purpose, design rationale, inputs/outp
 | [Execution and reuse](docs/components/execution-and-reuse.md) | How does work continue and reuse valid observations? | [Controller](src/mas/core/controller.py), [workflows](src/mas/ui/workflows.py), [existing evidence](src/mas/core/existing_research.py) |
 | [Evaluation and criterion comparison](docs/components/evaluation-and-recovery.md) | How are evaluation policies and criterion sets compared? | [Freeze](src/mas/core/freeze.py), [recovery](src/mas/core/recovery.py) |
 | [Domain adapters](docs/components/domain-adapters.md) | What changes with the research object or source? | [Drug](src/mas/adapters/drug/), [literature](src/mas/adapters/literature/), [prediction](src/mas/adapters/predict/) |
+| [Optional CDES analysis](docs/components/structure-predictions.md) | How do structure predictions connect to the requested targets and saved evaluation? | [Pair interface](src/mas/adapters/predict/cdes.py), [collections](src/mas/adapters/predict/cdes_results.py), [workflow](src/mas/adapters/predict/cdes_workflow.py) |
 | [Workbench and CLI](docs/components/workbench-and-cli.md) | How do users operate and inspect the same records? | [Browser](web/client/src/), [read model](src/mas/ui/read_model.py), [CLI](src/mas/cli/main.py) |
 
 
@@ -129,7 +135,7 @@ python scripts/build_case_source_data.py
 
 ## Development and publication
 
-The [architecture status map](docs/architecture.md) distinguishes implemented components from planned extensions. The source distribution is v1.1.0; the [28 October documentation update](docs/releases/2026-10-28-documentation.md) records this refresh.
+The [architecture status map](docs/architecture.md) distinguishes implemented components from planned extensions. The source distribution is v1.1.0. The [2 November update](docs/releases/2026-11-02-target-workflow.md) describes target-led tasks, the optional CDES module and the refreshed guides.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q

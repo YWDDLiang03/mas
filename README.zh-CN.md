@@ -2,15 +2,16 @@
 
 [English](README.md) | **简体中文**
 
-TRIAGE 根据研究目标和现有证据形成评价标准，再使用这些标准筛选、比较候选。通用流程与具体研究分开：目标、候选数据、必需观测和证据来源由每项任务定义。仓库提供药物研究的完整示例；其他候选类型可以接入上传数据和适用的领域工具。MAS 保留为仓库及 Python 包名。
+TRIAGE 将靶点与研究需求组织成一项有证据依据的药物筛选研究。研究者选择候选库和证据获取方式，三个智能体提出、审查和提炼评价标准，系统随后筛选候选并比较合格药物。**CDES 是可选模块**，按需补充结构侧靶点作用谱。靶点、给药要求和候选数据均由任务定义；上传观测也支持载体等其他对象。MAS 保留为仓库及 Python 包名。
 
-[智能体一键运行](docs/zh/agent-run.md) · [Windows 安装](docs/zh/installation.md) · [使用指南](docs/zh/user-guide.md) · [流程设计](docs/zh/design.md) · [组件实操](docs/zh/component-walkthrough.md) · [文档导航](docs/zh/README.md)
+[靶点驱动流程](docs/zh/target-workflow.md) · [智能体一键运行](docs/zh/agent-run.md) · [Windows 安装](docs/zh/installation.md) · [使用指南](docs/zh/user-guide.md) · [流程设计](docs/zh/design.md) · [组件实操](docs/zh/component-walkthrough.md) · [文档导航](docs/zh/README.md)
 
-## 从研究问题到候选结果
+## 从靶点和需求到候选结果
 
 ```mermaid
 flowchart LR
-    A[目标、候选与证据] --> B[从空标准集开始]
+    A[靶点、需求与候选库] --> B[从空标准集开始]
+    L[已有证据或新证据检索] --> P
     B --> P[提议者：展开相关性质]
     P --> C[审查者：核对证据与适用性]
     C -->|具体意见| P
@@ -20,17 +21,19 @@ flowchart LR
     E --> F[判断候选资格]
     F --> G[比较合格候选]
     G --> H[查看证据并导出]
+    G -. 开启 CDES .-> S[结构侧靶点作用谱]
+    S --> H
 ```
 
 新研究从空标准集开始，先纳入任务明确提出的要求，再充分提出相关性质和测量方式。审查澄清定义、撤回支持不足的提议，并合并兼容描述；不同实验条件和决策用途继续区分。[流程设计](docs/zh/design.md)说明为什么先展开后提炼，以及三个角色如何反馈和修订。
 
 每项标准明确测量内容、接受哪些证据以及如何使用结果。**准入要求**决定哪些候选进入比较，**评分标准**产生排序贡献，**解释性观察**帮助理解结果；这些用途可以重叠。工作台使用 **Eligible、Evidence incomplete、Excluded** 三组，并展示对应要求和来源。[判定说明](docs/zh/decision-language.md)给出完整含义。
 
-浏览器支持自然语言任务、候选与测量 CSV 上传、持续进度、标准历史、按来源组织的证据、得分分解和完整导出。界面默认英文，可切换中文；研究内容和来源保留原文。
+浏览器从靶点和需求开始，也可补充研究背景；支持候选与测量 CSV 上传、持续进度、标准历史、按来源组织的证据、得分分解和完整导出。Settings 提供 CDES 默认设置，每项任务可以单独选择。界面默认英文，可切换中文；研究内容和来源保留原文。
 
-![研究概览、结果与标准变化](docs/assets/current/overview.jpg)
+![研究概览、结果与标准变化](docs/assets/current/overview.png)
 
-当前 Windows 界面，2026 年 10 月 28 日实拍，展示已保存的公开案例。[最新版截图、结果与响应时间](docs/zh/current-status.md)。
+当前 Windows 界面，2026 年 11 月 2 日实拍，展示已保存的公开案例。[最新版截图、结果与响应时间](docs/zh/current-status.md)。
 
 ## 选择起点
 
@@ -38,6 +41,7 @@ flowchart LR
 |---|---|
 | 查看并重新计算公开案例 | [一键复现](docs/zh/agent-run.md) |
 | 使用保存的证据重新生成标准 | [新任务的 plan / run](docs/zh/agent-run.md) |
+| 用自己的药物库开展靶点研究 | [药物库任务](docs/zh/agent-run.md#使用自己的药物库) |
 | 更换问题、候选库或测量 | [自定义任务](docs/zh/agent-run.md)与[CSV 格式](docs/zh/csv-input.md) |
 | 理解各组件并修改输入 | [组件实操教程](docs/zh/component-walkthrough.md) |
 | 接入其他模型或领域工具 | [模型](docs/components/models-and-budgets.md)、[工具](docs/components/tools-and-providers.md)、[领域适配器](docs/components/domain-adapters.md) |
@@ -70,11 +74,11 @@ npm.cmd --prefix web/client run build
 
 打开[本地工作台](http://127.0.0.1:8769/workbench/)，按[安装指南](docs/zh/installation.md)配置模型，然后：
 
-1. 在 **Settings** 设置工作强度、并发和预算。
-2. 选择 **New research** 或 **Use own data**，填写研究目标与要求。
-3. 选择或上传候选，准备证据，在预览中核对单位、条件与依据类型。
-4. 启动研究，查看当前阶段、最近活动与标准变化。
-5. 打开候选的 **Score**、**Evidence** 查看分项依据，并导出完整结果。
+1. 在 **Settings** 设置工作强度、并发、预算和 CDES 默认选项。
+2. 打开 **New research**，填写靶点和需求，按需补充研究背景。
+3. 选择候选库和证据获取方式。新证据检索可以从新的任务开始。
+4. 选择是否增加 **CDES 靶点分析**，查看本次流程预览。
+5. 启动研究，查看标准形成、候选评估、分项得分、来源与完整导出。
 
 [配置说明](docs/configuration.md)介绍提供者、预算及可选预测环境。API key 使用环境变量或仓库外的密钥文件。
 
@@ -96,6 +100,7 @@ npm.cmd --prefix web/client run build
 | [运行与复用](docs/components/execution-and-reuse.md) | 中断后继续并复用有效观测 | [Controller](src/mas/core/controller.py)、[Workflows](src/mas/ui/workflows.py) |
 | [科研评价与标准对比](docs/components/evaluation-and-recovery.md) | 固定比较策略并核对标准之间的关系 | [Freeze](src/mas/core/freeze.py)、[Recovery](src/mas/core/recovery.py) |
 | [领域适配器](docs/components/domain-adapters.md) | 更换对象或来源需要改什么 | [Drug](src/mas/adapters/drug/)、[Literature](src/mas/adapters/literature/)、[Prediction](src/mas/adapters/predict/) |
+| [可选 CDES 分析](docs/components/structure-predictions.md) | 将结构预测关联到任务靶点与评估快照 | [成对接口](src/mas/adapters/predict/cdes.py)、[集合](src/mas/adapters/predict/cdes_results.py)、[流程](src/mas/adapters/predict/cdes_workflow.py) |
 | [工作台与 CLI](docs/components/workbench-and-cli.md) | 操作和查看同一套记录 | [前端](web/client/src/)、[Read model](src/mas/ui/read_model.py)、[CLI](src/mas/cli/main.py) |
 
 
@@ -138,3 +143,7 @@ npm.cmd --prefix web/client run build
 ```
 
 [贡献指南](CONTRIBUTING.md)介绍相关检查；[公开内容规范](docs/reference/public-content.md)约定源码和 Release 附件的范围。私有稿件、论文图稿、临床材料与本地凭证留在公开仓库之外。
+
+
+
+[2026 年 11 月 2 日更新](docs/releases/2026-11-02-target-workflow.md)介绍新的任务入口、可选 CDES 模块与文档整理。

@@ -22,7 +22,7 @@ Content hashes need a stable byte representation. Platform line endings and dict
 | Registered vocabulary domain and value | Accepted value or `VocabularyViolation` |
 | Identifier prefix or versioned reference | Typed identifier / `@vN` reference |
 
-There are run, task, group, case and evaluation streams. Sequence numbers are meaningful within one stream. They are not a global chronological counter across all tasks.
+There are run, task, group, case and evaluation streams. Sequence numbers order records within their own stream; timestamps and references connect records across streams.
 
 ## Implementation
 
@@ -32,7 +32,7 @@ There are run, task, group, case and evaluation streams. Sequence numbers are me
 
 [`ArtifactStore.put()`](../../src/mas/core/artifacts.py) wraps the payload in `kind`, `schema_version` and `vocabulary_version`, hashes the envelope, and uses the first 12 digest characters for the artifact ID. Identical envelopes reuse an ID; a truncated-ID collision with a different full digest is refused. `get()` returns the envelope and `payload()` returns its contents.
 
-Payload semantics belong to the component that writes them. The generic artifact store does not implement a universal JSON-schema registry. For example, task validation lives in `task.validate`, attribute/rule invariants live in `criteria`, and tool outputs are checked in the broker and evidence path. This division keeps storage generic while allowing each scientific contract to express its own constraints.
+Payload semantics are validated by the component that writes them. For example, task validation lives in `task.validate`, attribute/rule invariants live in `criteria`, and tool outputs are checked in the broker and evidence path. This division keeps storage generic while allowing each scientific contract to express its own constraints.
 
 [`vocab.py`](../../src/mas/core/vocab.py) owns closed values and display labels for execution, candidate and verdict states, evidence kinds, tool outcomes and other shared domains. [`ids.py`](../../src/mas/core/ids.py) supplies ULID-based IDs, registered prefixes and version parsing. [`constants.py`](../../src/mas/core/constants.py) registers values that affect verdicts, giving downstream records an explicit numerical basis.
 

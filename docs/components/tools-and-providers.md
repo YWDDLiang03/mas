@@ -12,7 +12,7 @@ The broker is the boundary between a scientific question and an installed tool. 
 
 Tools are resolved by either the adapter capability label or the domain-neutral `capability_kind`, plus `question_kind`. [`broker.py`](../../src/mas/core/broker.py) recognizes entity resolution, relationship evidence/estimation, attribute estimation, source retrieval, document reading, dataset context and rule evaluation. An installed provider must still implement the requested question kind; a matching name is insufficient.
 
-This boundary lets the core stay reusable. A drug adapter can label an operation `interaction_evidence_lookup`, while its core kind is `relationship_evidence_lookup`. The selected provider still supplies exact tool, contract and implementation versions. A successful transport call is an observation, not a verdict on the candidate.
+This boundary lets the core stay reusable. A drug adapter can label an operation `interaction_evidence_lookup`, while its core kind is `relationship_evidence_lookup`. The selected provider still supplies exact tool, contract and implementation versions. A tool supplies observations. Assessment applies the relevant criterion to those observations.
 
 ## Provider contract
 
@@ -31,7 +31,7 @@ A provider exposes `contract` and `invoke(question_kind, inputs) -> ProviderResp
 | `empty` | An attempted completed lookup produced no values/records |
 | `not_attempted` | No eligible provider or a declared precondition prevented the operation |
 | `failed` | Attempted operation failed; typed error retained |
-| `unknown_outcome` | Registered vocabulary for an unknown result; its presence does not imply automatic synthetic closure of every interrupted tool request |
+| `unknown_outcome` | Recorded outcome when the result remains unknown |
 
 Examples of absence are `not_configured`, `identity_unresolved`, `requires_other_environment`, `budget_exceeded` and `existing_evidence_unavailable`. An absent tool and a completed empty query have different implications for missingness and reproducibility.
 
@@ -75,6 +75,10 @@ class ExampleSizeProvider:
 ```
 
 Registering this provider enables a broker call; a real integration also needs identity, an attribute route, evidence-source policy and the applicable scientific rule. The synthetic value is not real evidence.
+
+## Optional interaction-analysis interface
+
+CDES uses a pair-scoring interface in the prediction adapter. A request identifies the compound, SMILES, target UniProt and protein sequence. The saved-result implementation checks those inputs and returns values with source positions or per-pair errors. The workflow connects the output to the current evaluation; the workbench reads the same stored collection. See [CDES analysis](structure-predictions.md) for the interface and deployment extension.
 
 ## Existing verification
 

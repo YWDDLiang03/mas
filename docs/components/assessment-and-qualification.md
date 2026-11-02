@@ -67,6 +67,10 @@ Skipped cells name `skipped_after_rejection` and the causal assessment/rule/reas
 
 With identical fixed facts, full and staged evaluation should yield the same qualified population and qualified-candidate scores. Full mode can supply additional diagnostic cells for the rejected population; staged mode deliberately does less work.
 
+## Optional CDES analysis
+
+The CDES stage follows the main assessment. Admission and primary prioritization use the fixed evaluation framework; the additional target profile presents structure-based scores separately. New study bindings use their own candidate decisions, measurements and units. The module reports its missing prediction coverage.
+
 ## Existing verification
 
 [`test_qualification_first.py`](../../tests/test_qualification_first.py) checks qualified-population equivalence, prediction limits, context methods, staged causes, direct coverage and continuation of previously skipped cells. [`test_distance_band_readiness.py`](../../tests/test_distance_band_readiness.py), [`test_raw_range_readiness.py`](../../tests/test_raw_range_readiness.py) and [`test_preference_execution_guard.py`](../../tests/test_preference_execution_guard.py) check executable measurements. [`test_calibration_guard.py`](../../tests/test_calibration_guard.py) covers the distinct legacy policy.

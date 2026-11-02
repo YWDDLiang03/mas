@@ -38,7 +38,7 @@ This split lets a browser display work without writing raw SQL to scientific tab
 
 ## API map
 
-These routes describe the local application, not a versioned public remote-service SDK. Exact payloads are implemented in `WorkbenchAPI`, `ReadAPI` and the client [`api/types.ts`](../../web/client/src/api/types.ts).
+These are the local workbench routes. Exact payloads are implemented in `WorkbenchAPI`, `ReadAPI` and the client [`api/types.ts`](../../web/client/src/api/types.ts).
 
 | Method / path | Responsibility |
 |---|---|
@@ -69,7 +69,7 @@ The compatibility read surface and `/api/operations` also remain in the server. 
 
 The React client defaults to English. [`i18n.tsx`](../../web/client/src/i18n.tsx) saves EN/中文 preference in `mas.language` and carries `lang` in navigation. Interface text and dates adapt to that display preference; research tasks, criteria, evidence, model prompts and stored run content remain English, retaining original user/source text. The compatibility UI has a separate cookie-backed language handler in [`ui/i18n.py`](../../src/mas/ui/i18n.py).
 
-The host binds loopback. Mutation requests require `X-MAS-Operation-Token` and the expected origin. `--allow-operations` enables local controls; default read serving does not grant a multi-user role system. Unknown resources return not-found responses; invalid input returns validation errors; an unavailable projection returns preparing/unavailable status. A missing client build returns an explicit missing-build response. Provider and subprocess failures remain their actual failures in the operation/run records.
+The host binds loopback. Mutation requests require `X-MAS-Operation-Token` and the expected origin. The local controls are enabled with `--allow-operations`. Workspace access follows the host account’s file permissions. Unknown resources return not-found responses; invalid input returns validation errors; an unavailable projection returns preparing/unavailable status. A missing client build returns an explicit missing-build response. Provider and subprocess failures remain their actual failures in the operation/run records.
 
 CSV export includes qualification, evaluation mode, position, score, hard-condition counts, evidence/preference coverage, missing/skipped reasons and snapshot ID. Pagination limits display size; exporting the selected snapshot retains the full candidate population.
 
@@ -86,6 +86,12 @@ GET /api/workbench/tasks/task_example/export.csv?snapshot=lb_example
 ```
 
 Keeping `snapshot` in every link makes the candidate verdict, its evidence links and the export refer to the same saved evaluation even after a new run publishes another board. These GETs inspect records; they do not start fresh research or model calls.
+
+## Target-first setup and CDES controls
+
+The task form brings targets, requirements and evidence strategy into the main setup. Settings supplies a default CDES switch; task setup provides its own choice and prediction collection. The planned-flow preview and progress stages reflect that choice. The sidebar labels CDES as optional, and the completed study’s analysis view can be switched off and restored.
+
+The local API exposes collections through bootstrap/settings and profiles through the task’s `structure` resource. `POST /api/workbench/tasks/{task}/structure-module` saves the analysis-view switch. The [CDES reference](structure-predictions.md) lists source/export resources. The agent runner accepts named drug libraries through `input_mode=library` and uploaded observations through `input_mode=custom`.
 
 ## Existing verification
 

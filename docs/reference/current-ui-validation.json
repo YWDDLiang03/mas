@@ -1,10 +1,10 @@
 {
-  "checked_on": "2026-10-28",
+  "checked_on": "2026-11-02",
   "application_version": "1.1.0",
-  "source_commit": "c614ac485b280bd830862909a75c3c6348024fcd",
+  "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468",
   "task_id": "task_01M52CBE5GYPK9F0MCZYBMPH84",
   "snapshot_id": "lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2",
-  "check_kind": "Current-browser inspection, current read API and full browser CSV export; no new research run.",
+  "check_kind": "Windows Microsoft Edge inspection of current controls and saved research, current read API and full CSV export.",
   "criterion_counts": {
     "retained_entries": 53,
     "eligibility_requirements": 6,
@@ -53,52 +53,78 @@
       "resource": "overview",
       "path": "overview",
       "samples": 20,
-      "median_ms": 43.11,
-      "p95_ms": 48.39,
-      "max_ms": 53.71
+      "median_ms": 56.41,
+      "p95_ms": 69.99,
+      "max_ms": 70.2
     },
     {
       "resource": "criteria",
       "path": "criteria?state=working&page_size=50",
       "samples": 20,
-      "median_ms": 176.41,
-      "p95_ms": 198.53,
-      "max_ms": 213.39
+      "median_ms": 189.98,
+      "p95_ms": 233.79,
+      "max_ms": 284.7
     },
     {
       "resource": "eligible_candidates",
       "path": "candidates?selection=eligible&page_size=50",
       "samples": 20,
-      "median_ms": 4.24,
-      "p95_ms": 4.86,
-      "max_ms": 4.86
+      "median_ms": 22.21,
+      "p95_ms": 32.79,
+      "max_ms": 35.31
     },
     {
       "resource": "literature_sources",
       "path": "evidence-sources?kind=literature&page_size=20",
       "samples": 20,
-      "median_ms": 5.49,
-      "p95_ms": 6.41,
-      "max_ms": 7.85
+      "median_ms": 7.1,
+      "p95_ms": 21.59,
+      "max_ms": 32.13
     },
     {
       "resource": "score_details",
       "path": "scores/cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
       "samples": 20,
-      "median_ms": 5.32,
-      "p95_ms": 6.36,
-      "max_ms": 6.52
+      "median_ms": 27.77,
+      "p95_ms": 39.5,
+      "max_ms": 41.7
     }
   ],
   "browser_checks": [
-    "English and Chinese current candidate groups",
-    "Current Settings and future-work controls",
-    "New-study form with empty-criteria explanation",
-    "Saved collection selection and display details",
-    "Criterion evolution, lineage and changes",
-    "Current candidate eligibility and score breakdown",
-    "Score-to-evidence links and source grouping",
-    "Synthetic CSV field mapping and preview",
-    "Full 3177-row CSV download"
+    "Settings: Medium, four workers, USD 10 and CDES default off",
+    "New task: targets and requirements, optional context and saved/new evidence strategies",
+    "Completed eight-stage research progress",
+    "English and Chinese candidate categories",
+    "Criterion detail, lineage and review changes",
+    "Score calculation, coverage and candidate evidence",
+    "Literature grouping and linked FGFR1 source",
+    "Synthetic CSV preview before saving"
+  ],
+  "comparison_to_2026_10_28": [
+    {
+      "resource": "overview",
+      "previous_p95_ms": 48.39,
+      "current_p95_ms": 69.99
+    },
+    {
+      "resource": "criteria",
+      "previous_p95_ms": 198.53,
+      "current_p95_ms": 233.79
+    },
+    {
+      "resource": "eligible_candidates",
+      "previous_p95_ms": 4.86,
+      "current_p95_ms": 32.79
+    },
+    {
+      "resource": "literature_sources",
+      "previous_p95_ms": 6.41,
+      "current_p95_ms": 21.59
+    },
+    {
+      "resource": "score_details",
+      "previous_p95_ms": 6.36,
+      "current_p95_ms": 39.5
+    }
   ]
 }

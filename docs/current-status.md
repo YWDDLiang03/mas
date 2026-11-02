@@ -2,7 +2,7 @@
 
 [中文](zh/current-status.md) · [Tutorial](tutorial.md) · [Presentation](presentation/README.md) · [Screenshot manifest](assets/current/manifest.json) · [Verification data](reference/current-ui-validation.json)
 
-The screenshots on this page were captured on **28 October 2026** in the Windows browser workbench using application version 1.1.0, source commit `c614ac4`. They show the retained public study through the current interface. The documentation refresh inspected the saved results and exported all candidates; it started no new research run.
+The screenshots were captured on **2 November 2026** in Microsoft Edge on Windows, using the updated 1.1.0 workbench at source commit `d81dd77`. They show the saved public study and current task controls. This check inspected the existing results, previewed task/data inputs and exported all candidates.
 
 ## Current study results
 
@@ -25,37 +25,39 @@ Surufatinib ranks first among the ten eligible candidates. Its score is 0.759259
 
 In this case, the 1,305 Evidence incomplete candidates have partial support for the required evidence. The 1,862 Excluded candidates have no usable admission support after the required assessments are complete. [Decision definitions](reference/decision-language.md) explain the task-defined rules, including exclusion after a confirmed condition failure.
 
-![Current candidate groups and leaderboard](assets/current/candidates.jpg)
+![Current candidate groups and leaderboard](assets/current/candidates.png)
 
 The [full browser export](../examples/oral-multitarget/latest/selection/workbench-export.csv) contains all 3,177 candidates. Its `selection_decision` field matches these groups. Earlier raw fields remain in the export for tracing the recorded snapshot; use the current selection field for reporting.
 
 ## Task, progress and evidence
 
-The overview shows the selected question, completed work and result. **Research options → New study with this setup** opens an editable task with the saved library and evidence collection. The new study starts from an empty criterion set.
+The overview connects the selected question, criterion development and candidate results. **New research** foregrounds targets and requirements, with optional context, library and evidence choices. **Research options → New study with this setup** reuses the selected inputs and begins a fresh criterion set.
 
-![Current overview](assets/current/overview.jpg)
+![Current overview](assets/current/overview.png)
 
-![New-study form before submission](assets/current/new-study.jpg)
+![New-study form before submission](assets/current/new-study.png)
 
 Expand **Workflow & run details** to see the saved stage record. The displayed study has completed 8/8 stages. Its recorded elapsed time is about 3 hours 32 minutes and estimated model cost is USD 4.2101472 against a USD 5.50 cap. These are saved study measurements. The current Settings screenshot configures subsequent work at Medium, four workers and a USD 10 cap.
 
-![Completed workflow stages](assets/current/progress.jpg)
+![Completed workflow stages](assets/current/progress.png)
 
-![Settings for subsequent work](assets/current/settings.jpg)
+![Settings for subsequent work](assets/current/settings.png)
+
+**CDES target profiles** is optional. Settings provides the default for new drug studies; task setup selects its collection and adds an analysis stage after screening. The current adapter reads supplied results, links the study’s own activity and ranking, and provides prediction-source exports. See [the target-driven workflow](target-workflow.md) and [CDES component](components/structure-predictions.md).
 
 The Criteria page shows expansion and refinement alongside the final roles. A criterion opens its definition, changes, lineage and sources.
 
-![Criteria, shared roles and evolution](assets/current/criteria.jpg)
+![Criteria, shared roles and evolution](assets/current/criteria.png)
 
 The score panel separates eligibility, scoring contributions and evidence coverage. Evidence details connect findings to the candidate and criterion that use them. The library groups findings by source; preserved excerpts and conditions accompany the source links.
 
-![Current score breakdown](assets/current/score-details.jpg)
+![Current score breakdown](assets/current/score-details.png)
 
-![Finding linked to the candidate, criterion and source](assets/current/evidence-fgfr1.jpg)
+![Finding linked to the candidate, criterion and source](assets/current/evidence-fgfr1.png)
 
-![Literature grouped by source](assets/current/evidence-library.jpg)
+![Literature grouped by source](assets/current/evidence-library.png)
 
-Further views: [Evidence selection](assets/current/evidence-selection.jpg), [expanded findings](assets/current/evidence-findings.jpg), [criterion lineage](assets/current/criterion-lineage.jpg), [criterion changes](assets/current/criterion-changes.jpg), [candidate evidence](assets/current/candidate-details.jpg), [coverage calculation](assets/current/score-coverage.jpg), [Evidence incomplete](assets/current/candidates-incomplete.jpg), [Excluded](assets/current/candidates-excluded.jpg), [Chinese interface](assets/current/candidates-zh.jpg) and [CSV preview](assets/current/csv-import.jpg). The CSV preview uses two explicitly synthetic carrier records and was checked before import.
+Further views: [Evidence selection](assets/current/evidence-selection.png), [expanded findings](assets/current/evidence-findings.png), [criterion lineage](assets/current/criterion-lineage.png), [criterion changes](assets/current/criterion-changes.png), [candidate evidence](assets/current/candidate-details.png), [coverage calculation](assets/current/score-coverage.png), [Evidence incomplete](assets/current/candidates-incomplete.png), [Excluded](assets/current/candidates-excluded.png), [Chinese interface](assets/current/candidates-zh.png) and [CSV preview](assets/current/csv-import.png). The CSV preview uses two explicitly synthetic carrier records and was checked before import.
 
 ## Current response measurements
 
@@ -63,10 +65,10 @@ Measured on Windows with Python 3.14.2, using the restored public study after th
 
 | Read request | Median | P95 |
 |---|---:|---:|
-| Overview | 43.11 ms | 48.39 ms |
-| Criteria, page size 50 | 176.41 ms | 198.53 ms |
-| Eligible candidates, page size 50 | 4.24 ms | 4.86 ms |
-| Literature sources, page size 20 | 5.49 ms | 6.41 ms |
-| Candidate score details | 5.32 ms | 6.36 ms |
+| Overview | 56.41 ms | 69.99 ms |
+| Criteria, page size 50 | 189.98 ms | 233.79 ms |
+| Eligible candidates, page size 50 | 22.21 ms | 32.79 ms |
+| Literature sources, page size 20 | 7.10 ms | 21.59 ms |
+| Candidate score details | 27.77 ms | 39.50 ms |
 
 The [verification record](reference/current-ui-validation.json) contains the routes, sample counts, candidate totals and CSV hash. The [screenshot manifest](assets/current/manifest.json) records each image's source URL, capture time, dimensions and checksum. Dated release notes retain their original validation history and link here for the current display.

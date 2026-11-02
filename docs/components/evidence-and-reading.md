@@ -52,6 +52,10 @@ Fetch failures, absent source configuration, unlicensed ingestion, metadata-only
 
 **Illustrative** source passage: “Compound A inhibited Target X with IC50 20 nM; Compound B required 200 nM.” A model proposes `Compound B / Target X / 20 nM` and quotes the full sentence. Span matching succeeds and the number exists in the quote, but the attribution check can identify the number as belonging to Compound A. That extraction is kept with its refusal reason and supplies no measured value for B. A correctly attributed B claim at 200 nM can be admitted and then converted by an attribute whose unit policy accepts that transformation.
 
+## Sources in the optional CDES view
+
+CDES collections preserve original score strings, source file and row, compound structure and protein input. The candidate profile links recorded activities to their criterion evidence and prediction values to their supplied rows. These collections are stored by the prediction adapter with the task’s evaluation reference. [The module guide](structure-predictions.md) describes import and export.
+
 ## Existing verification
 
 [`test_models_and_reading.py`](../../tests/test_models_and_reading.py) checks source deduplication, real quoted spans, cited summaries and case-source matching. [`test_evidence.py`](../../tests/test_evidence.py), [`test_uploaded_evidence.py`](../../tests/test_uploaded_evidence.py) and [`test_supplements.py`](../../tests/test_supplements.py) cover the concrete gathering/intake/reuse paths. [`test_evidence_groups.py`](../../tests/test_evidence_groups.py) and [`test_workbench_evidence.py`](../../tests/test_workbench_evidence.py) cover evidence relationships exposed in the workbench.

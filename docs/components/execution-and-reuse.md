@@ -47,11 +47,15 @@ The `existing_only` broker wrapper permits exact replay, saved provider projecti
 
 Policy drift rejects assessment reuse instead of treating changed work as already done. Workflow composition can start a recomputation path when compatibility fails. Invalid/active tool-replay sources are refused. Pause/stop preserves committed boundaries and spent budget; cancellation does not retract a paid provider call. Terminal failure and missing facts remain visible in source histories.
 
-C16 is a collection of these explicit mechanisms, not a universal dependency-graph staleness engine. C8's proposed durable open-question/gain register and C14's memory store/recall/procedure trials are not implemented. `memory_mode` and broader `policy_arm` names are saved metadata; current screening uses the fixed algorithm. There is no implemented adaptive P2 continuation policy or strategy self-improvement service.
+Current reuse follows the recorded task, rule, evidence and tool compatibility checks. Broader dependency tracking, adaptive question selection and strategy learning remain planned extensions in the architecture map.
 
 ## Worked example: change one rule after a terminal run
 
 **Illustrative:** a saved run has three completed criteria and two cells skipped after a hard rejection. A new run uses the same task/evidence policy but revises one criterion. Compatible completed cells whose attribute/rule refs and routes still match can retain their original assessment/reason refs. The changed criterion is evaluated again. Previous skipped cells cannot be reused as measurements and are evaluated if the new hard outcome permits it. If retrieval settings or the pinned fact bank changed, the reuse compatibility check rejects the source and the workflow recomputes the affected run.
+
+## Conditional CDES stage
+
+New workflows include `cdes` between screening and result delivery when the task enables it. The collection is pinned at submission, and a checkpoint records the resulting integration. Target matching uses the requested identity and sequence conditions. Candidate values and ranks come from the new snapshot. Missing coverage is recorded as an optional-stage outcome while the main result remains available.
 
 ## Existing verification
 

@@ -1,11 +1,12 @@
 # TRIAGE documentation
 
-[Current screenshots, results and response measurements](current-status.md), captured and checked on 28 October 2026.
+[Current screenshots, results and response measurements](current-status.md), captured and checked on 2 November 2026.
 
 [中文](zh/README.md) · [Project home](../README.md)
 
 | Read first | What it covers |
 |---|---|
+| [Target-driven workflow](target-workflow.md) | Targets, requirements, candidate libraries and the optional CDES step |
 | [Workflow design](design.md) | General tasks, three-role feedback, expansion and refinement, eligibility and ranking |
 | [Install](installation.md) | Windows setup, providers, empty workspaces and alternative platforms |
 | [User guide](user-guide.md) | Settings, task entry, progress, criteria, evidence and results |
@@ -15,16 +16,19 @@
 | [Case source data](../examples/oral-multitarget/latest/source-data/README.md) | Run details, ten research tables, source observations, comparison analyses and an offline verifier |
 | [Component walkthrough](component-walkthrough.md) | Inputs, practical modifications and inspections for all component groups |
 | [Component reference](components/README.md) | Design rationale and concrete implementation |
+| [CDES module](components/structure-predictions.md) | Settings, supplied results, task-specific binding and the deployment interface |
 | [Configuration](configuration.md) | Settings precedence, model roles, budgets and tools |
 | [Architecture status](architecture.md) | Implemented, partial and planned capabilities |
 
 ## Definitions and publication
 
 - [Terminology](reference/terminology.md)
+- [Workbench inputs and APIs](reference/workbench-api.md)
 - [Eligibility, scoring and candidate groups](reference/decision-language.md)
 - [System and public-example correspondence](reference/system-alignment.md)
 - [Comparing criterion sets](reference/cqa-comparison.md)
 - [Public-content policy](reference/public-content.md)
+- [Target-driven workflow update, 2 November 2026](releases/2026-11-02-target-workflow.md)
 - [Documentation update, 28 October 2026](releases/2026-10-28-documentation.md)
 
 English is the documentation and interface default. Chinese guides cover the same workflow. Research objectives, evidence and saved scientific records retain their original language.

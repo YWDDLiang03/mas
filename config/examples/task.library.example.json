@@ -1,0 +1,12 @@
+{
+  "input_mode": "library",
+  "title": "Target-led drug selection",
+  "library_json": "your-drug-library.json",
+  "targets": ["EGFR", "MET"],
+  "constraints": "Documented oral administration is required.",
+  "evidence_mode": "retrieve",
+  "evaluation_mode": "staged",
+  "cdes_enabled": false,
+  "workers": 4,
+  "budget_usd": 10
+}

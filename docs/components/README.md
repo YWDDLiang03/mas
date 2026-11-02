@@ -6,7 +6,7 @@
 
 [Project home](../../README.md) · [Architecture and C1–C20 status](../architecture.md)
 
-This reference describes the shipped implementation. Every page explains the problem a component solves, why its boundary exists, the concrete Python entry points, its records and failure semantics, and a worked example. Examples marked **illustrative** explain behavior using synthetic data; they are not reported research measurements. Test links identify existing verification of the contract and do not imply a fresh test run or live provider validation.
+Each page explains a component’s purpose, design choices, inputs and outputs, implementation, and a worked example. Examples marked **illustrative** use synthetic data. Test links point to the corresponding checks; the [current verification record](../current-status.md) reports the latest results.
 
 | Component | Read this to understand |
 |---|---|
@@ -21,6 +21,7 @@ This reference describes the shipped implementation. Every page explains the pro
 | [Execution and reuse](execution-and-reuse.md) | C15/C16, fixed workflows, checkpoints, continuation and existing-evidence runs; C8/C14 limits |
 | [Evaluation and recovery](evaluation-and-recovery.md) | C19, prospective measurement, CQA recovery, exposure accounting and C20 limits |
 | [Domain adapters](domain-adapters.md) | Drug providers, literature sources, ADMET, uploaded carrier/general data and extension points |
+| [Optional CDES analysis](structure-predictions.md) | Study switches, supplied collections, target matching, source inspection and the deployment interface |
 | [Workbench and CLI](workbench-and-cli.md) | C17, application routes, workflows, read projections, UI language and file exchange |
 
 For a first technical reading, follow tasks → evidence → criteria → assessment → ranking. For integration work, start with tools/providers and models/budgets. For result interpretation, read assessment, ranking, and evaluation together.

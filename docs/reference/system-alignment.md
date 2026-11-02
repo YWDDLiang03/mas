@@ -15,6 +15,7 @@ TRIAGE is an evidence-driven medical research workbench. Each task supplies its 
 | Contextual observation | Assessed for interpretation, outside admission and scoring weights. |
 | Enabled rules | Unique criteria used in admission or scoring; their uses may overlap. |
 | Not enabled | Displayed as Not used in this evaluation, accompanied by the specific definition, review or evidence-route issue. |
+| Optional CDES analysis | A configured target-profile step, bound to the task’s requested identities and its own evaluation snapshot. |
 | Surufatinib example | An eligible candidate with oral-administration support and observations for all five required targets. |
 
 ## Recorded quantities
@@ -68,3 +69,7 @@ python scripts/audit_selection.py --results examples/oral-multitarget/latest/res
 ```
 
 [Release checks](../releases/2026-10-26-alignment.md) record implementation, browser/API and publication validation.
+
+## New-study inputs
+
+The [target-driven workflow](../target-workflow.md) accepts targets, requirements and a selected library. New retrieval studies use their own evidence, while saved-evidence studies name the collection to reuse. Administration requirements determine the relevant research dimensions. CDES is selected per study and presents its covered target profiles alongside the main result.

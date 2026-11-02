@@ -29,11 +29,11 @@ Task-mandated criteria keep task-field provenance. They are reported separately 
 
 `Config.sources` identifies the winning layer for every value. `layer_record()` produces the stored explanation; `hash()` includes resolved values, provider tables and role bindings. `registered_constants()` names numerical settings that can affect a published verdict, and `register_constants()` records them in the bound stream.
 
-Examples of independent controls are literature breadth/depth, read limits, pool stage order, model/tool/spend caps, assessment mode and qualification policy, coverage floors, and optional symbolic scoring. A larger literature volume raises permitted effort; saturation can still stop reading early. An effort ceiling is not a promise that the system will read that many sources.
+Examples of independent controls are literature breadth/depth, read limits, pool stage order, model/tool/spend caps, assessment mode and qualification policy, coverage floors, and optional symbolic scoring. A larger literature volume raises permitted effort; saturation can still stop reading early. The recorded work reflects the evidence found and the stopping rule reached.
 
-## Fixed planning in v1.0
+## Configured study workflow
 
-[`RunController.execute()`](../../src/mas/core/controller.py) writes a plan containing identity, assessment and snapshot stages, rule-pass steps, and the budget envelope. Derivation has its own recorded stage sequence and continuation. The `planner` role name is available in model configuration, but the screening plan is fixed code. There is no general planner that creates arbitrary dependency graphs, delegates agents or replans after every failure.
+[`RunController.execute()`](../../src/mas/core/controller.py) writes a plan containing identity, assessment and snapshot stages, rule-pass steps, and the budget envelope. Derivation has its own recorded stage sequence and continuation. The current coordinator follows the configured study stages. General plan synthesis and adaptive delegation are extension points listed in the architecture map.
 
 `RunController.start()` binds task and rule-set references, adapter/version, model roles, provider availability, seed, evidence cutoff, effective settings, qualification/evaluation/evidence modes and optional measurement profile. These are the inputs to saved interpretation and reuse. Editing current settings affects a new operation; it does not update the binding of a completed run.
 
@@ -68,6 +68,12 @@ with TemporaryDirectory() as root, Core.open(root) as core:
 ```
 
 The candidate still needs identity, executable criteria and evidence before evaluation. The example demonstrates task/configuration records rather than a scientific result.
+
+## Target-led inputs and optional analysis
+
+The task form accepts targets and requirements, with additional objective text when useful. Target-only input receives a visible generated objective and records its origin. New retrieval studies can start without a prior collection. Named drug-library JSON and uploaded-observation studies have their own input paths.
+
+`cdes.enabled` supplies the default for new drug studies. Task fields `cdes_enabled` and `cdes_source_id` select the optional analysis and collection. The workflow pins that collection before starting and adds its phase after candidate assessment. The [target-workflow guide](../target-workflow.md) connects these settings to the interface.
 
 ## Existing verification
 

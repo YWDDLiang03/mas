@@ -1,4 +1,4 @@
-# Install and start MAS
+# Install and start TRIAGE
 
 [Workflow design](design.md) · [Documentation index](README.md)
 
@@ -62,9 +62,9 @@ The example also shows an external `api_key_file` alternative. See [configuratio
 
 ## 4. Import data and start research
 
-Open **Settings** to choose workload, worker count and the cost envelope. Use **Use own data** to import a candidate CSV, review the column mapping, then import its measurement CSV. The [header templates](../config/examples/) contain no sample observations; fill them with your own data before upload. The [CSV input guide](csv-input.md) describes accepted columns, illustrative examples and preview corrections.
+Open **Settings** to choose workload, worker count, the cost envelope and the default CDES choice. For a drug database, prepare a [drug-library task](agent-run.md#your-own-drug-library) and select its library in **New research**. For candidate and measurement tables, use **Use own data** to import a candidate CSV, review the column mapping, then import its measurement CSV. The [header templates](../config/examples/) contain no sample observations; fill them with your own data before upload. The [CSV input guide](csv-input.md) describes accepted columns, illustrative examples and preview corrections.
 
-Choose the entity type appropriate to your candidates, including carriers or general candidates. Preserve IDs, measurement units, conditions, sources and whether each observation is measured or predicted. Describe the objective, required observations, hard conditions and preferences. A source checkout has no inherited evidence collection: supply evidence for **Use own data**, or explicitly select retrieval for a new literature-based investigation. An existing-only task needs a saved evidence collection or uploaded measurements.
+Choose the entity type appropriate to your candidates, including carriers or general candidates. Preserve IDs, measurement units, conditions, sources and whether each observation is measured or predicted. Enter the targets, required observations, hard conditions and preferences, with optional objective text. [The target-driven guide](target-workflow.md) explains task setup and optional CDES analysis. A source checkout has no inherited evidence collection: supply evidence for **Use own data**, or explicitly select retrieval for a new literature-based investigation. An existing-only task needs a saved evidence collection or uploaded measurements.
 
 Starting research can make paid model requests; retrieval can also contact evidence services. **AllowOperations** permits local Settings edits, uploads, task creation and workflow control. A submission starts normalization, evidence preparation, CQA derivation/review and evaluation under its recorded settings. Expert decisions recorded as human decisions still require terminal confirmation.
 

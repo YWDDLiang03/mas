@@ -13,7 +13,7 @@ This walkthrough follows the latest completed oral multi-target study: what the 
 | Restored or original workspace | Inspect the saved study, or create a new study using its library and evidence collection. Steps 1–11 explain the recorded workflow and controls. |
 | Fresh clone; conduct your own research | [Install and configure MAS](installation.md), initialize an empty workspace, then follow step 12 with your own CSV data. |
 
-The checkout contains frozen exports. The optional [168 MB capsule](../examples/oral-multitarget/latest/reproduction/README.md) supplies the selected records, facts and caches needed to restore the latest study and prepare a new one. The private source database and credentials are not required for replay. Full texts and model traces remain outside the public capsule. The screenshots were captured on 28 October 2026 in the current Windows workbench, displaying this saved study. [Current screenshots and validation](current-status.md) identify their source version. A new model investigation records its own criteria and results.
+The checkout contains frozen exports. The optional [168 MB capsule](../examples/oral-multitarget/latest/reproduction/README.md) supplies the selected records, facts and caches needed to restore the latest study and prepare a new one. Replay runs locally from these published records. The screenshots were captured on 2 November 2026 in Microsoft Edge on Windows, displaying this saved study. [Current screenshots and validation](current-status.md) identify their source version. A new model investigation records its own criteria and results.
 
 ## 0. Inspect the published result without starting a workflow
 
@@ -40,6 +40,8 @@ After completing [installation and provider configuration](installation.md), sta
 
 This assumes the model/settings files have been copied and configured as described in the installation guide. Open [the workbench](http://127.0.0.1:8769/workbench/) and choose **Settings**. For an existing workspace, supply its actual store/configuration paths.
 
+The optional **CDES target profiles** switch defaults to off for new drug studies. Enable it when a prediction collection should accompany the evaluation; see [target-driven studies](target-workflow.md).
+
 Set both workload controls to **Medium** (`mid`), the worker limit to **4** and the budget to **USD 10**, then choose **Save settings**. Current labels are **Literature workload** and **Textbook workload**. Settings apply to subsequent work; saved studies retain their original configuration.
 
 | Setting | Latest saved study | New-task example/default |
@@ -50,9 +52,9 @@ Set both workload controls to **Medium** (`mid`), the worker limit to **4** and 
 | Evidence mode | Saved evidence only | Select actual saved/uploaded inputs or explicit retrieval |
 | Evaluation | Staged screening | Staged screening |
 
-Use 5.50 to repeat the historical envelope with the same local inputs, or choose the budget appropriate to your new investigation. The saved workflow records **USD 4.2101472 estimated model cost**, not a final supplier invoice. Its historical model identity is `deepseek-v4-flash`; configuring a provider for new work does not change that identity.
+Use 5.50 to repeat the historical envelope with the same local inputs, or choose the budget appropriate to your new investigation. The saved workflow records **USD 4.2101472 estimated model cost** and the requested model identifier `deepseek-v4-flash`. New studies record their own provider settings and costs.
 
-![Current Settings and saved-study progress](assets/current/settings.jpg)
+![Current Settings and saved-study progress](assets/current/settings.png)
 
 The screenshot shows future-work settings alongside the completed study's recorded progress. English / 中文 changes interface display; research records and source text retain their recorded language.
 
@@ -64,7 +66,7 @@ Choose **New research**, select **Drugs & small molecules**, and use this exact 
 Identify a single orally administered agent that concurrently engages the tumour-microenvironment targets CSF1R, VEGFR1, VEGFR2, VEGFR3 and FGFR1, with a pharmacological profile suitable for clinical development. Use the saved evidence to develop and refine meaningful research criteria, then screen and rank the recorded compound library.
 ```
 
-Enter these under **Targets or desired properties**, one per line:
+Enter these under **Target profile**, one per line:
 
 ```text
 CSF1R
@@ -74,27 +76,27 @@ VEGFR3
 FGFR1
 ```
 
-Under **Constraints**, enter:
+Under **Requirements and preferences**, enter:
 
 ```text
 Oral administration is required.
 ```
 
-Give the study a readable name. Under **Evaluation options**, choose **Use saved or uploaded evidence** and **Staged screening**. With the restored case selected, **Research options → New study with this setup** opens these inputs for editing and starts a fresh criterion set when submitted.
+Give the study a readable name. Under **Evidence strategy**, choose **Use saved or uploaded evidence**. **Staged screening** is under **Evaluation options**. With the restored case selected, **Research options → New study with this setup** opens these inputs for editing and starts a fresh criterion set when submitted.
 
-The researcher defines the objective and requirements. The task-normalization role converts them into a versioned English task with explicit target identities and a route constraint. It does not require the researcher to supply the final evaluation criteria. If an essential requirement cannot be bound to a property, unit or conditions, answer the focused clarification presented by the workflow.
+The researcher supplies the targets and requirements. Additional objective text gives therapeutic context; when it is omitted, the form displays a task summary generated from those inputs. The agents develop the evaluation criteria from the selected evidence. If an essential requirement cannot be bound to a property, unit or conditions, answer the focused clarification presented by the workflow.
 
-![Research objective, targets and oral constraint](assets/current/new-study.jpg)
+![Research objective, targets and oral constraint](assets/current/new-study.png)
 
 The screenshot shows the new-study form before submission, with the saved study in the background.
 
 ## 3. Bind candidates and evidence separately
 
-In **Candidates & evidence**, select the recorded library of **3,177 compounds** (`universe_chembl.json` in the historical workspace). Select the collection of **3,157 retained facts from 164 sources**, with displayed evidence cutoff **15 October 2026**. The selector shows its name, source count, record count and cutoff; its name and description can be edited for display.
+In **Candidate library and evidence**, select the recorded library of **3,177 compounds** (`universe_chembl.json` in the historical workspace). Select the collection of **3,157 retained facts from 164 sources**, with displayed evidence cutoff **15 October 2026**. The selector shows its name, source count, record count and cutoff; its name and description can be edited for display.
 
-![Candidate library and fixed evidence collection](assets/current/evidence-selection.jpg)
+![Candidate library and fixed evidence collection](assets/current/evidence-selection.png)
 
-The library fixes who can be evaluated; the collection fixes which saved material informs criterion development. Collection names/descriptions are display metadata. The counts above refer to the fixed input manifest, not all historical tool observations used during candidate assessment.
+The library fixes who can be evaluated; the collection fixes which saved material informs criterion development. The collection name and description help identify the saved material. The counts above describe the inputs selected for criterion development.
 
 The new study starts with an empty criterion set and uses **3,021 evidence records** for proposal generation. The source collection contains 3,157 records; 136 candidate-naming records were omitted from this generation subset. Candidate assessment uses the frozen evaluation framework and its bound sources.
 
@@ -104,13 +106,13 @@ After `replay` or `plan`, the restored workbench offers the prepared evidence co
 
 Check the population, evidence mode and cap, then choose **Start research**. This starts the configured workflow and can make paid provider requests. **Save draft** only saves the form.
 
-The controller coordinates task understanding, evidence preparation, discovery, refinement, decision resolution, freezing, screening and publication. Existing-only evidence preparation reuses bound facts; it does not imply another literature search or full-text pass.
+The controller coordinates task understanding, evidence preparation, discovery, refinement, decision resolution, freezing, screening and publication. Saved-evidence preparation reuses the selected facts. An enabled CDES module adds target-profile analysis after screening and before result delivery.
 
-The **proposer** writes evidence-backed candidates. The **critic** challenges relevance, definitions, thresholds and counter-evidence. The proposer responds with revisions, and the **adjudicator** handles merges/disputed decisions under the recorded policy. The controller manages transitions and termination; tools supply recorded observations for assessment. Role separation does not by itself mean independent model providers.
+The **proposer** writes evidence-backed candidates. The **critic** challenges relevance, definitions, thresholds and counter-evidence. The proposer responds with revisions, and the **adjudicator** handles merges/disputed decisions under the recorded policy. The controller manages transitions and termination; tools supply recorded observations for assessment. Model bindings identify the provider used by each role.
 
 Open **Workflow & run details** to see the stages, latest activity, elapsed time and estimated cost. During a running study, batch counts describe the current stage. The saved example below has completed **8/8 stages**; its recorded duration and cost remain visible.
 
-![Current workflow progress for the completed example](assets/current/progress.jpg)
+![Current workflow progress for the completed example](assets/current/progress.png)
 
 ## 5. Follow expansion and three refinement rounds
 
@@ -121,7 +123,7 @@ Open **Criteria** and its stage/history views. The working-item trajectory was:
   → 147 after round 1 → 68 after round 2 → 53 after round 3
 ```
 
-The six starting requirements are the five target potencies and documented oral administration. Four proposal dimensions then expand target coverage, oral properties, metabolic stability and safety. These counts include registered items plus unregistered working proposals; they are not final scoring-rule counts.
+The six starting requirements are the five target potencies and documented oral administration. Four proposal dimensions then expand target coverage, oral properties, metabolic stability and safety. These working-set counts include registered criteria and developing proposals. The final evaluation uses the reviewed subset described below.
 
 | Stage | What agents do | Count after stage |
 |---|---|---:|
@@ -136,7 +138,7 @@ The six starting requirements are the five target potencies and documented oral 
 
 Read each change's reason and parent records. A merge preserves its inputs; removal records why an item was withdrawn. [stages.json](../examples/oral-multitarget/latest/results/stages.json) and [source-cqa-history.json](../examples/oral-multitarget/latest/results/source-cqa-history.json) retain the actual transitions.
 
-![Current criteria and their roles](assets/current/criteria.jpg)
+![Current criteria and their roles](assets/current/criteria.png)
 
 ## 6. Open molecular weight and follow its lineage
 
@@ -177,7 +179,7 @@ The selected result is snapshot `_2` (`rules@v2`), with **10/17** direct coverag
 
 The Eligible group contains **10 candidates**. Surufatinib ranks **1**, followed by Pazopanib and Axitinib. The remaining candidates comprise **1,305 Evidence incomplete** and **1,862 Excluded**, with no admission support as the exclusion reason. There are **0 confirmed condition-requirement failures** and **0 incomplete candidate assessments**. The frozen export retains its historical `pending` label.
 
-![Current Eligible leaderboard](assets/current/candidates.jpg)
+![Current Eligible leaderboard](assets/current/candidates.png)
 
 Click Surufatinib's **Score**. The drawer shows each value, basis, comparison point, weight and contribution:
 
@@ -197,7 +199,7 @@ d = [W + (E - 1)/2] / (N - 1)
 
 N is the number with values, W counts worse values and E includes all ties, including this candidate. For BRENK, N=10, W=2, E=8, giving **0.611111** comparison points and `0.611111/15` total-score contribution. Threshold preferences use 1 when met and 0 when not met. Expand **Calculation & evidence** for the particular row's calculation.
 
-![Score details and direct evidence coverage](assets/current/score-details.jpg)
+![Score details and direct evidence coverage](assets/current/score-details.png)
 
 ## 10. Trace FGFR1 from score to source observations
 
@@ -212,15 +214,15 @@ One linked paper reports **FGFR1 IC50 = 34 nM** at `sec2.1.p1`: *Structural basi
 | ChEMBL activity 26132415 | 7.82 |
 | ChEMBL activity 26187720 | 7.82 |
 
-Sort the four values and take the median: `(7.46852108296 + 7.82)/2 ≈ 7.64426054148`, the saved assessment. The single 34 nM result and four-record aggregate are different explanation levels. Four records do not by themselves establish four independent experiments; inspect underlying sources and conditions when judging pooling.
+Sort the four values and take the median: `(7.46852108296 + 7.82)/2 ≈ 7.64426054148`, the saved assessment. The single 34 nM result and four-record aggregate are different explanation levels. The linked source records identify the experiments and conditions used in this aggregation.
 
-![FGFR1 linked evidence](assets/current/evidence-fgfr1.jpg)
+![FGFR1 linked evidence](assets/current/evidence-fgfr1.png)
 
 [surufatinib.json](../examples/oral-multitarget/latest/results/surufatinib.json) retains these assessment/evidence links for readers without the live workspace.
 
 ## 11. Export all candidates and retain the study identity
 
-Choose **Export all candidates**. It covers the full population, not just the visible page or qualified ten. Confirm **3,177 CSV rows** and retain the snapshot reference. Step 0 checks the release's included export.
+Choose **Export all candidates**. It covers the full candidate population. Confirm **3,177 CSV rows** and retain the snapshot reference. Step 0 checks the release's included export.
 
 Keep [manifest.json](../examples/oral-multitarget/latest/results/manifest.json), [validation.json](../examples/oral-multitarget/latest/results/validation.json), [workflow.json](../examples/oral-multitarget/latest/results/workflow.json), [cqa.json](../examples/oral-multitarget/latest/results/cqa.json), and [source-cqa-history.json](../examples/oral-multitarget/latest/results/source-cqa-history.json). Preserve missing/conflicted cells and earlier outcomes when comparing later changes.
 
@@ -235,12 +237,20 @@ In an empty workspace choose **Use own data**, then the appropriate type: drugs/
 1. Import/paste the **candidate CSV**, map columns and validate. `candidate_id` must be unique. Choose **Use this candidate library**.
 2. With that library selected, import the **measurement CSV**. Each row needs `candidate_id`, `property`, `value` and `basis`; numeric observations also need a unit. IDs match exactly, including leading zeros.
 3. Declare `basis` as `measured`, `curated`, `predicted`, `simulated` or `derived` according to the observation. Include conditions and source identifiers. Distinct conditions stay distinct. Omit missing observations; observed zero and `false` are valid values.
-4. Resolve mapping/validation issues and choose **Use these measurements**. Saving data does not launch research. Modified datasets receive new immutable identities.
+4. Resolve mapping/validation issues and choose **Use these measurements**. Saving keeps the dataset ready for task setup. Modified datasets receive new immutable identities.
 5. State the objective, required observations, hard conditions and preferences, including units and relevant conditions. Choose optional saved evidence only if it actually exists in your workspace.
 6. Check Settings, evidence/evaluation options and cap, then choose **Start research**. Follow the criterion, qualification, score and evidence checks above with your own recorded counts.
 
-![CSV mapping and validation](assets/current/csv-import.jpg)
+![CSV mapping and validation](assets/current/csv-import.png)
 
 This preview uses two explicitly synthetic carrier records to illustrate the format. The preview was checked without importing the rows or starting research.
 
-The generic upload path evaluates exact properties and conditions from your rows. The specialized recorded-drug-library path uses its declared drug capabilities and evidence routes. Your data create a new investigation: report its actual population, criteria, costs and outcomes. A fresh language-model run does not guarantee the historical 1,917 proposals, 53 working items or rank shown here.
+The generic upload path evaluates exact properties and conditions from your rows. The specialized recorded-drug-library path uses its declared drug capabilities and evidence routes. Your data create a new investigation: report its actual population, criteria, costs and outcomes. Its recorded criteria and ranking describe the new study.
+
+## 13. Add an optional CDES target profile
+
+Import a supplied collection using the [CDES module guide](components/structure-predictions.md). In a new drug task, turn on **CDES target profiles**, choose the collection and inspect its target coverage. The workflow then links that collection to the task's own evaluation.
+
+For an existing study with attached results, open **CDES analysis**. Compare the measured values and interaction scores under their displayed units. Selecting a score opens the original prediction row and protein input; **View observations** leads to the corresponding activity sources. The library comparison reports confirmed and unresolved correspondences. **Download complete data** includes those relationships and the source files.
+
+The public saved case supplies the original criterion and ranking records. A CDES collection is an additional study input. Its target profile complements the saved composite evaluation. New targets and libraries can be configured with [the drug-library task template](../config/examples/task.library.example.json) and [agent-run instructions](agent-run.md#your-own-drug-library).

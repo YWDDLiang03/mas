@@ -15,7 +15,7 @@ This tutorial follows one saved research task through the actual components, the
 | Generate again on pinned evidence | Create a new task with an empty criterion pool/registry, reuse the 3,157 pinned claims from 164 sources and the 68,886 historical tool facts | A new model experiment: new criteria, review, assessment and ranking. Compare its result with the saved run. |
 | Research on changed inputs | Create a new task/workspace with your objective, data, sources, tools and model configuration | A different experiment whose inputs, costs and conclusions need their own record. |
 
-Use [the agent-run guide](agent-run.md) for the executable restore, replay and new-run commands. Their shared implementation is [`reproduction.py`](../src/mas/core/reproduction.py): `import_bundle()` restores selected records, `verify_replay()` calls the real production engine, and `prepare_live()` prepares an evidence-only source for independent generation. The capsule is a selection of public records with declared exclusions, not a full database backup. Its [manifest](../examples/oral-multitarget/latest/reproduction/manifest.json) records hashes, dependencies, omitted documents/traces and unavailable historical references. Follow its distribution instructions when the large capsule is not already present.
+Use [the agent-run guide](agent-run.md) for the executable restore, replay and new-run commands. Their shared implementation is [`reproduction.py`](../src/mas/core/reproduction.py): `import_bundle()` restores selected records, `verify_replay()` calls the real production engine, and `prepare_live()` prepares an evidence-only source for independent generation. The capsule packages the public records and dependencies listed in its manifest. Its [manifest](../examples/oral-multitarget/latest/reproduction/manifest.json) records hashes, dependencies, omitted documents/traces and unavailable historical references. Follow its distribution instructions when the large capsule is not already present.
 
 The replay target is task `task_01M52CBE5GYPK9F0MCZYBMPH84`, run `run_01M52Q4VRB00T5Z3QJW08SSV96`, snapshot `lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2`, `rules@v2`. The study has 3,177 candidates, 18 unique enabled decision rules and 13 contextual observations. Six eligibility requirements comprise one oral condition and five required target observations; those five target criteria also belong to the 17 scoring criteria, so `6 + 17 − 5 = 18`. Current selection reports **10 Eligible, 1,305 Evidence incomplete and 1,862 Excluded**. Surufatinib is rank 1, score `0.7592592592592593`, direct preference coverage `10/17`. The frozen source retains `qualified: 10`, `pending: 3167`, `rejected: 0`; [the classification mapping](reference/system-alignment.md#classification-version) explains the current display. A new model investigation records its own outcomes.
 
@@ -134,7 +134,7 @@ Expected: `34 nM`, `7.468521082957745 pChEMBL`, and retained original value `34`
 
 [`assessor.preference_scores()`](../src/mas/core/assessor.py) scores the qualified population; [`leaderboard.build_snapshot()`](../src/mas/core/leaderboard.py) preserves positions, qualification, coverage and reporting counts. Read [score-details.csv](../examples/oral-multitarget/latest/score-details.csv) and [score-details.json](../examples/oral-multitarget/latest/score-details.json) alongside the candidate detail. Follow each contributing criterion back through its assessment and claim refs.
 
-The saved rank of 1 is among ten eligible candidates, with direct preference coverage `10/17`. The remaining candidates are **1,305 Evidence incomplete** and **1,862 Excluded for no admission support**. Their frozen qualification field remains `pending`; the current selection fields record the more specific decision and reason. Full sweep completion describes recorded evaluation work, not universal evidence completeness. Optional narrative/symbolic components have their own source and validation records; their explanations cannot replace the underlying assessments.
+The saved rank of 1 is among ten eligible candidates, with direct preference coverage `10/17`. The remaining candidates are **1,305 Evidence incomplete** and **1,862 Excluded for no admission support**. Their frozen qualification field remains `pending`; the current selection fields record the more specific decision and reason. The assessment rows retain their evidence completeness and execution status. Optional narrative and symbolic components retain their own source and validation records.
 
 **Check:** use the same frozen rule set, eligible population, normalization, coverage floor and tie policy when comparing scores. A candidate-library change can change normalized ranks even for unchanged observations. See [reference](components/ranking-and-explanations.md).
 
@@ -189,7 +189,7 @@ Evidence: uploaded synthetic demonstration data only.
 
 These values teach input structure; they are not recommended scientific thresholds. State actual context and evidence for a real study. A changed target set needs its own evidence sufficiency review: pinned oral multi-target facts do not imply coverage of a new target.
 
-**Verify:** normalized `objective_text`, original input, entity type, identifiers, property/unit/conditions and hard/preference roles. Resolve a required clarification before dependent execution. Expected outcome: a new task/version/binding, not a particular rank.
+**Verify:** normalized `objective_text`, original input, entity type, identifiers, property/unit/conditions and hard/preference roles. Resolve a required clarification before dependent execution. The operation creates a new task/version/binding and records its resulting evaluation.
 
 <a id="change-hard-soft"></a>
 ### Change a hard condition, preference, or cutoff
@@ -212,7 +212,7 @@ For a **synthetic, already valid size criterion**, the editable rule fragment is
 }
 ```
 
-That fragment alone is not a full rule or API request. It illustrates replacing the decision role while retaining the criterion's quantity/direction/route. Supply a substantive scientific reason and use the criterion editor/new-task workflow. Editing JSON in an export performs no versioning or review.
+The fragment illustrates a decision-role change while retaining the criterion’s quantity, direction and evidence route. Supply a substantive scientific reason and use the criterion editor/new-task workflow. Editing JSON in an export performs no versioning or review.
 
 **Verify:** the new role, direction, bound support, review disposition, enabled/deferred state, required anchors and new frozen refs. Re-evaluate affected cells and inspect qualification counts. High rejection can prompt diagnosis; changing a hard condition solely to obtain a desired candidate rank changes the study question.
 
@@ -278,7 +278,7 @@ mode = "staged"
 mode = "existing_only"
 ```
 
-The browser/agent workflow also receives submitted workload/budget controls; inspect the effective configuration and new binding rather than assuming every standalone CLI setting controls every workflow. Provider prices/usage can leave cost unknown, and the final permitted call can cross a known spend cap. A USD envelope is not evidence of a free run or a guaranteed exact charge.
+The browser/agent workflow also receives submitted workload/budget controls; inspect the effective configuration and new binding rather than assuming every standalone CLI setting controls every workflow. Provider prices/usage can leave cost unknown, and the final permitted call can cross a known spend cap. The run’s cost status states which amounts are recorded, estimated or unknown.
 
 This pure configuration check uses no store or provider:
 
@@ -297,3 +297,9 @@ print(settings.get("assess.workers"))
 Expected: `2.0 override`, then `2`. For complete editable files, use `config validate`, `config show --explain` and `models show` from the [configuration guide](configuration.md). They are configuration checks; a separately recorded small live run tests provider connectivity/behavior.
 
 **Verify after execution:** new role/provider identities, actual settings layers, initial zero-CQA counts where requested, stage additions/merges/removals/reasons, terminal state, unresolved work, complete candidate export, cost status and qualified-population ranking. Compare with the pinned result as a scientific observation. A new model run may improve, worsen, defer criteria or stop on budget; preserve that outcome and use it to decide the next change.
+
+## Target-driven studies and CDES
+
+Start with [the target workflow](target-workflow.md) when changing the study’s target set or requirements. Browser retrieval studies can begin with a new question and named candidate library. The agent runner’s `library` mode accepts your own drug-library JSON; `custom` handles uploaded observations.
+
+CDES is selected in Settings or task setup. Its saved-result adapter binds requested target identities and a fixed collection to the new evaluation. Inspect the optional progress stage, candidate target profile, source rows and export. [The component guide](components/structure-predictions.md) provides the implementation entry points.

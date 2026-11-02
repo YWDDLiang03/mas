@@ -14,7 +14,10 @@ TRIAGE is a multi-agent workbench for evidence-driven candidate evaluation and p
 | Candidates | Eligibility and prioritization | 资格评估与优先排序 |
 | Evidence | Evidence and sources | 证据与来源 |
 | Settings | Research settings | 研究设置 |
-| New study | Define a research study | 定义研究任务 |
+| New study | Define targets and requirements | 定义靶点与研究需求 |
+| Task form | Define the drug-selection task | 定义药物筛选任务 |
+| Optional module | CDES analysis | CDES 分析 |
+| Target profile | Candidate target profiles | 候选靶点作用谱 |
 
 ## Vocabulary catalog
 
@@ -36,9 +39,9 @@ English is the display default. Chinese translates interface labels; research ob
 | 参考候选 | Disclosed reference candidate | 已披露参考候选 | 已知身份和既有结果的程度需交代 |
 | 来源 | Source | 来源 | 文献、数据库、上传数据等来源实体 |
 | 文献 | Literature / source document | 文献／来源文档 | 数据库记录不能统称文献；摘要与全文应区别 |
-| 证据记录 | Evidence record / source-linked claim | 证据记录／关联来源的证据条目 | 可追溯的提取或记录；admitted 不等于科学真值已获验证 |
+| 证据记录 | Evidence record / source-linked claim | 证据记录／关联来源的证据条目 | 可追溯的提取或记录，附带来源、位置与检查状态 |
 | 已纳入证据 | Admitted evidence | 已纳入证据 | 通过当前纳入与来源检查，可供后续判断 |
-| 证据集合 | Evidence collection | 证据集合 | 固定来源与版本，避免暗示全面系统综述 |
+| 证据集合 | Evidence collection | 证据集合 | 按固定来源与版本组织的研究材料 |
 | 证据快照 | Evidence snapshot | 证据快照 | 不可变的本次证据绑定 |
 | 直接证据 | Direct evidence | 直接证据 | 按本次政策接受的观测、整理测量或允许的确定性计算；界面提供定义 |
 | 整理测量 | Curated measurement | 数据库整理的测量值 | 保留实验条件及原始来源的整理数据 |
@@ -58,7 +61,7 @@ English is the display default. Chinese translates interface labels; research ob
 | 证据要求 | Evidence requirement | 证据要求 | 准入时必须具备的可用直接观测；同一标准可同时用于评分。 |
 | 加权排序标准 | Weighted prioritization criterion | 加权排序标准 | 合格候选之间的比较项 |
 | 上下文观察 | Contextual observation | 参考观察项 | 辅助理解，不加准入或排序权重 |
-| 未启用项 | Not used in this evaluation | 未纳入本次评估 | 必须给具体未启用理由；不等于已证伪 |
+| 未启用项 | Not used in this evaluation | 未纳入本次评估 | 本次评价之外的条目，附带具体原因 |
 | 规则集 | Frozen evaluation framework | 已固定评估框架 | 固定采用的标准、权重及证据版本 |
 | 提出角色 | Proposer | 标准提出智能体 | 提出并修订评价标准 |
 | 批评角色 | Critic | 标准审查智能体 | 检查来源支持、相关性与适用条件 |
@@ -73,18 +76,18 @@ English is the display default. Chinese translates interface labels; research ob
 | 直接覆盖 | Direct-evidence coverage | 直接证据覆盖率 | 已由直接证据支持的适用排序权重之和／全部适用排序权重之和 |
 | 必需证据覆盖 | Required-observation coverage | 必需观测覆盖率 | 准入所需观测分母；与 17 项排序分母分开 |
 | 覆盖门槛 | Minimum direct-evidence coverage for ranking | 排名所需最低直接证据覆盖率 | 满足资格后，是否可赋予名次的单独条件 |
-| 结果快照 | Result snapshot / ranking snapshot | 结果快照／排序快照 | 固定某次结果；不笼统称治疗建议 |
+| 结果快照 | Result snapshot / ranking snapshot | 结果快照／排序快照 | 固定某次候选评估与比较结果 |
 | 原始推荐状态 | Recommended (historical workflow state) | 已进入结果（历史状态） | 详情保留原始字段；主表优先展示资格与名次，不译成“临床推荐” |
 | 原始暂定状态 | Provisional / review authority | 暂定／审查权限状态 | 与证据资格、分数、名次分别展示；不是尚未完成的临床评估 |
 | 评分解释 | Score breakdown | 得分分解 | 解释计算过程 |
 | 机制解释 | Literature-supported mechanistic interpretation | 文献支持的机制解读 | 来源支持的说明，与因果机制证实分开 |
-| 提名结果 | Prioritized candidate / candidate for further evaluation | 优先候选／供进一步验证的候选 | 不译成最佳治疗或临床推荐 |
+| 提名结果 | Prioritized candidate / candidate for further evaluation | 优先候选／供进一步验证的候选 | 按本次研究框架优先考虑的候选 |
 | 无名次 | Not ranked | 未排名 | 可能有分数但覆盖不足；原因必须可见 |
 | 无可用推荐 | No rankable candidate / no recommendation | 无可排名候选／未形成推荐 | 保留失败原因 |
 | 平台品牌 | TRIAGE | TRIAGE | MAS保留为代码库与包名；界面展示医学研究工作台。 |
-| 候选准入 | Eligible | 具备资格 | 适用条件要求满足，必需直接观测齐全。 |
+| 候选准入 | Eligible | 符合准入要求 | 适用条件要求满足，必需直接观测齐全。 |
 | 中间态 | Evidence incomplete | 准入证据不完整 | 部分任务要求有可用依据，其余尚有缺口，且没有条件要求失败。 |
-| 部分支持 | Evidence incomplete | 准入证据不完整 | 一部分准入依据已建立，其余未建立；不称部分合格。 |
+| 部分支持 | Evidence incomplete | 准入证据不完整 | 部分准入依据已建立，其余需求仍需证据。 |
 | 零项支持 | No admission support | 无准入依据 | 必需评估完成后，所有准入要求均无可用支持；候选被排除。 |
 | 候选排除 | Excluded | 已排除 | 条件要求失败，或必需评估完成后无准入依据。 |
 | 执行状态 | Assessment incomplete | 评估未完成 | 必需评估未完成、工具失败或记录不可用；不作为性质失败。 |
@@ -93,12 +96,16 @@ English is the display default. Chinese translates interface labels; research ob
 
 ## Terms that require an explicit scope
 
-- **CQA** is a legacy project label, not the general name for every evaluation criterion. In ICH Q8(R2), Critical Quality Attributes concern properties controlled to ensure pharmaceutical product quality. We use **evaluation criteria** for the general workflow. This is an editorial choice to avoid a domain collision, not a claim that the abbreviation is prohibited. [ICH Q8(R2), section 2.2](https://database.ich.org/sites/default/files/Q8_R2_Guideline.pdf)
+- **CQA** remains a legacy project label. The general interface uses **evaluation criteria**. ICH Q8(R2) uses Critical Quality Attributes for properties controlled to ensure pharmaceutical product quality. [ICH Q8(R2), section 2.2](https://database.ich.org/sites/default/files/Q8_R2_Guideline.pdf)
 - **Direct-evidence coverage** counts the applicable scoring weight supported by the task's accepted measurements, curated observations and deterministic calculations. Display the measured/curated/calculated/predicted breakdown alongside it.
-- **Available target observation** concerns evidence availability. **Target engagement**, **effective inhibition** and **clinical response** require their own evidence and must not be inferred from an eligibility label.
-- **Frozen** means a fixed evaluation version. **Agent reviewed** and **human reviewed** describe different sources of judgment. Neither freezing nor a machine decision implies clinical validation.
-- **Prioritized candidate** means a research ranking result under the saved framework. The historical internal value `recommended` is not a clinical recommendation.
-- **Candidate**, **criterion proposal**, **source**, **evidence record**, **assessment** and **result snapshot** are different objects; their counts are not interchangeable.
+- **Available target observation** describes an evidence record. **Target engagement**, **effective inhibition** and **clinical response** each identify a distinct research outcome with their corresponding evidence.
+- **Frozen** identifies a fixed evaluation version. **Agent reviewed** and **human reviewed** identify the source of judgment.
+- **Prioritized candidate** identifies a research ranking result under the saved framework. The historical internal value `recommended` maps to that research-result meaning.
+- **Candidate**, **criterion proposal**, **source**, **evidence record**, **assessment** and **result snapshot** are different objects; each has its own count and scope.
+
+## Optional prediction terms
+
+**Target profile** describes the requested set of biological targets or the candidate-level observations associated with them. **CDES analysis** is an optional structure-based module. **Interaction score** is the supplied classifier output for a compound–target pair. **Prediction collection** identifies its source files, inputs and version.
 
 ## Stable counting names
 

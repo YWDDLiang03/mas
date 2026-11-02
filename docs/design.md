@@ -4,9 +4,9 @@
 
 ## A reusable workflow, task-specific decisions
 
-A study supplies a question, a candidate population and source evidence. It can also specify required conditions and observations. Those inputs determine what is examined. The workflow manages proposal, review, assessment and explanation; domain adapters supply the identities, quantities and tools appropriate to the research object.
+A drug study supplies a target profile, requirements and a candidate population. Evidence can come from a saved collection or a new retrieval. It can also specify required conditions and observations. Those inputs determine what is examined. The workflow manages proposal, review, assessment and explanation; domain adapters supply the identities, quantities and tools appropriate to the research object.
 
-For a new study, the criterion set starts empty. Requirements explicitly supplied by the task remain attached to it. Additional criteria are developed from the selected evidence. Saved facts can be reused without importing an earlier task's criteria or scores.
+For a new study, the criterion set starts empty. Requirements explicitly supplied by the task remain attached to it. Additional criteria are developed from the selected evidence. Saved facts can support a new criterion set. New retrieval studies start with their own task and evidence. Administration-related research dimensions follow the stated route requirements.
 
 ## Explore before narrowing
 
@@ -34,6 +34,14 @@ Eligible candidates are scored using the selected comparison rules and weights. 
 
 Implementation: [assessment](components/assessment-and-qualification.md), [selection policy](../src/mas/core/selection.py), [ranking](components/ranking-and-explanations.md).
 
+## Add target profiles when they help the study
+
+CDES is a separate, optional prediction module. Enabling it adds a target-analysis stage after the main evaluation. The module reads a selected prediction collection, matches the study's requested targets and candidate identities, and links the scores to that study's own result snapshot.
+
+This division gives the agents and predictor different responsibilities. The agents develop the evaluation framework from evidence; CDES supplies structure-based interaction profiles. Researchers can inspect these profiles beside the recorded activities and overall ranking. The current module uses saved results; the pair-scoring interface is ready for a deployed implementation.
+
+Settings provides the default for new drug studies, and task setup records each study's choice. [The workflow guide](target-workflow.md) and [module reference](components/structure-predictions.md) describe the controls and data flow.
+
 ## Keep the meaning of each observation
 
 Measurements, curated records, calculated descriptors and model predictions are distinct evidence bases. A criterion declares accepted units, conditions and aggregation. A pooled quantity should be interpreted with its endpoint types and assay metadata; two database records can describe the same underlying experiment.
@@ -42,6 +50,6 @@ Evidence pages group findings by source and link them to the criteria and candid
 
 ## Apply the workflow to another study
 
-Change the objective and requirements, provide the candidate library and observations, and select the appropriate tools. A synthetic carrier example can require a measured size range and viability while comparing delivery efficiency. The same eligibility function then uses those configured requirements; drug target names and case counts have no role in the generic decision function.
+Change the objective and requirements, provide the candidate library and observations, and select the appropriate tools. A synthetic carrier example can require a measured size range and viability while comparing delivery efficiency. The same eligibility function applies the configured requirements. Drug target names, route conditions and example counts remain study inputs and results.
 
 Follow [the agent guide](agent-run.md) for reproducible commands and [the component walkthrough](component-walkthrough.md) for inputs, rationale and implementation details. The [architecture map](architecture.md) identifies the shipped domain tools and planned extensions.

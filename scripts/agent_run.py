@@ -178,13 +178,14 @@ def load_task(args):
         raise ValueError('Task JSON must be an object.')
     known = {'input_mode', 'candidates_csv', 'measurements_csv', 'candidates_mapping', 'measurements_mapping',
              'objective', 'targets', 'constraints', 'entity_type', 'title', 'reference_candidate',
-             'additional_information', 'workers', 'budget_usd', 'evaluation_mode'}
+             'additional_information', 'workers', 'budget_usd', 'evaluation_mode', 'evidence_mode',
+             'library_json', 'source_task_id', 'cdes_enabled', 'cdes_source_id'}
     unknown = set(spec) - known
     if unknown:
         raise ValueError('Unknown task JSON field(s): ' + ', '.join(sorted(unknown)))
     mode = spec.get('input_mode', 'custom')
-    if mode not in ('original', 'custom'):
-        raise ValueError('input_mode must be original or custom.')
+    if mode not in ('original', 'custom', 'library'):
+        raise ValueError('input_mode must be original, library or custom.')
     spec['input_mode'] = mode
     for key in ('objective', 'targets', 'constraints', 'entity_type', 'title', 'reference_candidate',
                 'workers', 'budget_usd', 'evaluation_mode'):
@@ -194,6 +195,11 @@ def load_task(args):
     spec.setdefault('workers', 4)
     spec.setdefault('budget_usd', 10.0)
     spec.setdefault('evaluation_mode', 'staged')
+    spec.setdefault('evidence_mode', 'retrieve' if mode == 'library' else 'existing_only')
+    if spec['evidence_mode'] not in ('retrieve', 'existing_only'):
+        raise ValueError('evidence_mode must be retrieve or existing_only.')
+    if 'cdes_enabled' in spec and type(spec['cdes_enabled']) is not bool:
+        raise ValueError('cdes_enabled must be a Boolean.')
     if type(spec['workers']) is not int or not 1 <= spec['workers'] <= 32:
         raise ValueError('workers must be an integer from 1 to 32.')
     if isinstance(spec['budget_usd'], bool) or not isinstance(spec['budget_usd'], (int, float)) or not math.isfinite(spec['budget_usd']) or spec['budget_usd'] <= 0:
@@ -206,9 +212,32 @@ def load_task(args):
         raise ValueError('constraints must be text.')
     if 'entity_type' in spec and spec['entity_type'] not in ('drug', 'carrier', 'general'):
         raise ValueError('entity_type must be drug, carrier or general.')
-    if 'objective' in spec and (not isinstance(spec['objective'], str) or not spec['objective'].strip()):
+    if 'objective' in spec and (not isinstance(spec['objective'], str) or
+            (not spec['objective'].strip() and not (mode == 'library' and spec.get('targets')))):
         raise ValueError('objective must be nonempty text.')
+    if mode == 'library':
+        spec.setdefault('entity_type', 'drug')
+        if spec['entity_type'] != 'drug':
+            raise ValueError('Named drug libraries use entity_type=drug; use custom for uploaded properties.')
+        if not spec.get('objective') and not spec.get('targets'):
+            raise ValueError('Supply targets or an objective for the drug-library study.')
+        if not isinstance(spec.get('library_json'), str) or not spec['library_json']:
+            raise ValueError('Library mode requires library_json.')
+        base = args.task.resolve().parent if args.task else Path.cwd()
+        path = (base / spec['library_json']).resolve()
+        if not path.is_file():
+            raise ValueError(f'Missing drug library: {path}')
+        library = read_json(path)
+        rows = library.get('universe') if isinstance(library, dict) else None
+        if not isinstance(rows, list) or not rows or any(not isinstance(row, dict) or
+                any(not isinstance(row.get(key), str) or not row[key].strip() for key in ('name', 'inchikey', 'chembl_id')) for row in rows):
+            raise ValueError('Drug library requires a nonempty universe with name, inchikey and chembl_id per compound.')
+        if len({row['inchikey'] for row in rows}) != len(rows):
+            raise ValueError('Drug library InChIKeys must be unique.')
+        spec['library_json'] = str(path)
     if mode == 'custom':
+        if spec['evidence_mode'] != 'existing_only':
+            raise ValueError('Uploaded observation studies use evidence_mode=existing_only.')
         for field in ('objective', 'targets', 'constraints', 'entity_type', 'candidates_csv', 'measurements_csv'):
             if field not in spec or (field not in ('targets', 'constraints') and not spec[field]):
                 raise ValueError(f'Custom task requires {field}; recorded inputs are never used as a fallback.')
@@ -263,6 +292,20 @@ def prepare_input(args, spec):
         prepared = prepare_live(args.workspace)
         value = dict(prepared['input'])
         facts = {k: v for k, v in prepared.items() if k not in ('input', 'created_at')}
+    elif spec['input_mode'] == 'library':
+        initialize_custom(args.workspace)
+        library = read_json(spec['library_json'])
+        content = (json.dumps(library, ensure_ascii=False, sort_keys=True, indent=2) + '\n').encode('utf-8')
+        fingerprint = hashlib.sha256(content).hexdigest()
+        path = args.workspace / ('universe_' + fingerprint[:16] + '.json')
+        if path.exists() and path.read_bytes() != content:
+            raise ValueError('The saved drug-library contents changed.')
+        if not path.exists():
+            path.write_bytes(content)
+        value = {'library_id': path.name, 'source_task_id': None, 'entity_type': 'drug', 'reference_candidate': '',
+                 'objective': '', 'targets': [], 'constraints': ''}
+        facts = {'candidates_count': len(library['universe']), 'initial_cqa_count': 0,
+                 'library_sha256': fingerprint, 'data_origin': 'user_supplied_drug_library'}
     else:
         initialize_custom(args.workspace)
         from mas.ui.uploads import UploadStore
@@ -287,10 +330,15 @@ def prepare_input(args, spec):
             counts[kind + '_count'] = committed['row_count']
         facts = dict(counts, initial_cqa_count=0, new_observations_created=0)
     for key in ('objective', 'targets', 'constraints', 'entity_type', 'title', 'reference_candidate',
-                'additional_information', 'workers', 'budget_usd', 'evaluation_mode'):
+                'additional_information', 'workers', 'budget_usd', 'evaluation_mode', 'evidence_mode',
+                'source_task_id', 'cdes_enabled', 'cdes_source_id'):
         if key in spec:
             value[key] = spec[key]
-    value['evidence_mode'] = 'existing_only'
+    value.setdefault('evidence_mode', 'existing_only')
+    if not value.get('objective') and value.get('targets'):
+        value.update(original_objective='', objective_source='targets_and_requirements',
+            objective='Identify candidate drugs in the selected library for the following target profile: '
+                      + ', '.join(value['targets']) + '. Assess the supplied requirements using available evidence.')
     return {'input': value, 'input_mode': spec['input_mode'], 'facts': facts,
             'workspace': str(args.workspace), 'model_calls': 0, 'retrieval_calls': 0}
 

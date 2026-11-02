@@ -13,7 +13,7 @@
 | 已恢复案例或已有原工作区 | 查看保存结果，或使用候选库和证据集合新建研究。第 1–11 步说明实际过程与对应操作。 |
 | 刚克隆仓库，希望开展自己的研究 | 按安装说明建立空工作区、配置模型，然后按第 12 步导入自己的 CSV。 |
 
-仓库提供固定导出，可选的 [168 MB 数据包](../../examples/oral-multitarget/latest/reproduction/README.md)补齐恢复最新研究及准备新研究所需的记录、事实和缓存。核对已保存结果不需要原私有数据库或 API key。文献全文与模型原始调用记录不在公开数据包中。下文截图于 2026 年 10 月 28 日在当前 Windows 工作台实拍，展示同一个保存案例。[当前界面与核对记录](current-status.md)列出来源版本。重新调用模型时，标准和结果按新的实际运行保存。
+仓库提供固定导出，可选的 [168 MB 数据包](../../examples/oral-multitarget/latest/reproduction/README.md)补齐恢复最新研究及准备新研究所需的记录、事实和缓存。核对在本地使用这些公开记录。下文截图于 2026 年 11 月 2 日在 Windows 的 Microsoft Edge 中实拍，展示同一个保存案例。[当前界面与核对记录](current-status.md)列出来源版本。重新调用模型时，标准和结果按新的实际运行保存。
 
 ## 第 0 步：直接查看发布结果
 
@@ -40,6 +40,8 @@ python -c "import json; from pathlib import Path; r=json.loads((Path('examples/o
 
 该命令假定已按安装文档复制并配置模型与设置文件。打开[工作台](http://127.0.0.1:8769/workbench/)，进入 **Settings / 设置**。已有工作区应替换为其实际库和配置路径。
 
+新药物研究的 **CDES target profiles / CDES 靶点作用谱** 默认关闭。需要配套预测分析时启用并选择结果集合，详见[靶点驱动流程](target-workflow.md)。
+
 将两个工作量控件均设为 **Medium / 适中**（`mid`），并发上限设为 **4**，预算设为 **10 美元**，点击 **Save settings / 保存设置**。当前标签为 **Literature workload / 文献阅读量** 和 **Textbook workload / 教材阅读量**。修改用于后续工作，已有结果保留原配置。
 
 | 设置 | 最新保存研究 | 新任务示例或默认值 |
@@ -50,9 +52,9 @@ python -c "import json; from pathlib import Path; r=json.loads((Path('examples/o
 | 证据方式 | 仅使用保存证据 | 按实际输入选择已有、上传或明确检索 |
 | 评估方式 | 分阶段筛选 | 分阶段筛选 |
 
-使用同一本地输入重复历史资源条件时可设置 5.50；新研究按自己的资源条件选择。保存研究记录的模型费用为 **估计 4.2101472 美元**，并非供应商最终账单。历史模型身份为 `deepseek-v4-flash`，为新任务配置模型不会修改这一身份。
+使用同一本地输入重复历史资源条件时可设置 5.50；新研究按自己的资源条件选择。保存研究的模型费用为 **估计 4.2101472 美元**，请求模型标识为 `deepseek-v4-flash`。新研究保存其自己的模型设置与费用。
 
-![当前设置与保存研究的进度](../assets/current/settings.jpg)
+![当前设置与保存研究的进度](../assets/current/settings.png)
 
 画面同时显示后续研究的设置与已完成案例的进度记录。English / 中文切换界面显示，科研记录与来源原文保留其记录语言。
 
@@ -64,7 +66,7 @@ python -c "import json; from pathlib import Path; r=json.loads((Path('examples/o
 Identify a single orally administered agent that concurrently engages the tumour-microenvironment targets CSF1R, VEGFR1, VEGFR2, VEGFR3 and FGFR1, with a pharmacological profile suitable for clinical development. Use the saved evidence to develop and refine meaningful research criteria, then screen and rank the recorded compound library.
 ```
 
-在 **Targets or desired properties / 靶点或目标性质** 中每行填写一个：
+在 **Target profile / 靶点作用谱** 中每行填写一个：
 
 ```text
 CSF1R
@@ -74,27 +76,27 @@ VEGFR3
 FGFR1
 ```
 
-在 **Constraints / 研究约束** 中填写：
+在 **Requirements and preferences / 要求与偏好** 中填写：
 
 ```text
 Oral administration is required.
 ```
 
-为研究填写清楚的名称。展开 **Evaluation options / 评估选项**，选择 **Use saved or uploaded evidence / 使用已有或上传的证据**、**Staged screening / 分阶段筛选**。选中恢复的案例后，也可从 **研究选项 → 按此设置新建研究** 打开可编辑表单；提交后从空标准集开始。
+为研究填写清楚的名称。在 **Evidence strategy / 证据策略** 选择 **Use saved or uploaded evidence / 使用已有或上传的证据**，在 **Evaluation options / 评估选项** 选择 **Staged screening / 分阶段筛选**。选中恢复的案例后，也可从 **研究选项 → 按此设置新建研究** 打开可编辑表单；提交后从空标准集开始。
 
-研究者提出目标与约束；任务规范化角色将其转为带靶点身份和口服条件的英文版本记录。研究者无需预先写出最终评估标准。若必要要求无法对应到性质、单位或条件，按工作流出现的针对性补问完善输入。
+研究者提供靶点与要求，补充研究背景。省略背景时，表单先显示根据输入整理的任务摘要。智能体结合所选证据形成评估标准。若必要要求无法对应到性质、单位或条件，按工作流出现的针对性补问完善输入。
 
-![研究目标、五靶点与口服条件](../assets/current/new-study.jpg)
+![研究目标、五靶点与口服条件](../assets/current/new-study.png)
 
 截图展示提交前的新研究表单，背景为已保存的研究。
 
 ## 第 3 步：分别绑定候选范围和固定证据
 
-在 **Candidates & evidence / 候选与证据** 中选择 **3,177 个化合物**的记录库，历史工作区中的库 ID 为 `universe_chembl.json`。再选择包含 **3,157 条保留事实、164 个来源**的证据集合，显示截止日期为 **2026 年 10 月 15 日**。集合选择器显示名称、来源数、记录数和截止时间；名称与简介可在显示设置中编辑。
+在 **Candidate library and evidence / 候选库与证据** 中选择 **3,177 个化合物**的记录库，历史工作区中的库 ID 为 `universe_chembl.json`。再选择包含 **3,157 条保留事实、164 个来源**的证据集合，显示截止日期为 **2026 年 10 月 15 日**。集合选择器显示名称、来源数、记录数和截止时间；名称与简介可在显示设置中编辑。
 
-![候选库与固定证据集合](../assets/current/evidence-selection.jpg)
+![候选库与固定证据集合](../assets/current/evidence-selection.png)
 
-候选库限定比较谁，集合限定哪些保存材料用于标准生成。集合名称和简介仅为显示信息。以上数量属于固定输入清单，不是候选评估所用全部历史工具观测的数量。
+候选库限定比较谁，集合限定哪些保存材料用于标准生成。集合名称和简介帮助识别材料。以上数量属于标准形成阶段选定的输入。
 
 新研究从空标准集开始，使用 **3,021 条证据记录**形成提议。原集合包含 3,157 条记录，其中 136 条提到候选名称的记录未进入本次生成子集。候选评估采用固定后的评价框架及其绑定来源。
 
@@ -104,13 +106,13 @@ Oral administration is required.
 
 核对范围、证据方式与上限后点击 **Start research / 开始研究**，系统执行配置的工作流并可能产生付费模型请求。**Save draft / 保存草稿**只保存输入。
 
-控制器依次协调理解任务、准备证据、提出标准、审查提炼、处理决策、固定方案、候选评估和发布。已有证据模式复用绑定事实，不代表又做了一轮文献检索或全文阅读。
+控制器依次协调理解任务、准备证据、提出标准、审查提炼、处理决策、固定方案、候选评估和发布。已有证据模式复用所选事实。启用 CDES 后，候选筛选与结果交付之间增加靶点作用谱分析。
 
-**Proposer / 提议者**提出有证据支持的标准；**Critic / 审查者**质疑相关性、定义、阈值和反证；提议者作出修订，**Adjudicator / 裁决者**按记录政策处理合并与争议。控制器管理阶段切换和结束，工具提供评估需要的记录观测。角色分工本身不代表使用了独立模型供应商。
+**Proposer / 提议者**提出有证据支持的标准；**Critic / 审查者**质疑相关性、定义、阈值和反证；提议者作出修订，**Adjudicator / 裁决者**按记录政策处理合并与争议。控制器管理阶段切换和结束，工具提供评估需要的记录观测。各角色采用的模型保存在运行配置中。
 
 展开 **Workflow & run details / 工作流与运行详情**，查看阶段、最近活动、耗时和费用估计。运行中的批次计数对应当前阶段。下图的保存案例已完成 **8/8 个阶段**，同时展示该次记录的耗时与费用。
 
-![已完成案例在当前界面的阶段进度](../assets/current/progress.jpg)
+![已完成案例在当前界面的阶段进度](../assets/current/progress.png)
 
 ## 第 5 步：跟踪展开和三轮提炼
 
@@ -121,7 +123,7 @@ Oral administration is required.
   → 第一轮后 147 → 第二轮后 68 → 第三轮后 53
 ```
 
-六项要求是五靶点效力和已记录口服给药。随后按靶点覆盖、口服性质、代谢稳定性、安全性四个维度展开。计数包含已注册标准与未注册工作提案，不直接表示最终评分规则数。
+六项要求是五靶点效力和已记录口服给药。随后按靶点覆盖、口服性质、代谢稳定性、安全性四个维度展开。工作项包含已注册标准与形成中的提议；最终评价使用下文说明的审查后子集。
 
 | 阶段 | 角色做什么 | 阶段结束数量 |
 |---|---|---:|
@@ -136,7 +138,7 @@ Oral administration is required.
 
 阅读每次变更的理由与父项。合并保留输入，移除说明退出原因。[阶段记录](../../examples/oral-multitarget/latest/results/stages.json)与[标准历史](../../examples/oral-multitarget/latest/results/source-cqa-history.json)保留真实转换。
 
-![当前标准及不同角色](../assets/current/criteria.jpg)
+![当前标准及不同角色](../assets/current/criteria.png)
 
 ## 第 6 步：打开分子量，查看形成沿革
 
@@ -177,7 +179,7 @@ Oral administration is required.
 
 合格组有 **10 项**，Surufatinib **第 1**，随后为 Pazopanib、Axitinib。其余候选中，**1,305 个部分具备准入依据，1,862 个因无准入依据被排除**。已确认条件失败为 0，评估未完成为 0。原始导出保留历史 pending 字段，当前界面按[统一定义](decision-language.md)解释。
 
-![合格候选榜](../assets/current/candidates.jpg)
+![合格候选榜](../assets/current/candidates.png)
 
 点击 Surufatinib 的 **Score / 分数**，查看逐项数值、依据、比较分、权重和贡献：
 
@@ -197,7 +199,7 @@ d = [W + (E - 1)/2] / (N - 1)
 
 N 是有值候选数，W 是较差数值个数，E 是包含当前候选的并列个数。BRENK 的 N=10、W=2、E=8，比较分 **0.611111**，总分贡献为 `0.611111/15`。阈值偏好满足记 1、不满足记 0。展开 **Calculation & evidence / 计算与证据**核对该行方法。
 
-![评分明细与直接证据覆盖](../assets/current/score-details.jpg)
+![评分明细与直接证据覆盖](../assets/current/score-details.png)
 
 ## 第 10 步：从 FGFR1 分数回到原始观测
 
@@ -212,15 +214,15 @@ N 是有值候选数，W 是较差数值个数，E 是包含当前候选的并�
 | ChEMBL activity 26132415 | 7.82 |
 | ChEMBL activity 26187720 | 7.82 |
 
-四值排序取中位数：`(7.46852108296 + 7.82)/2 ≈ 7.64426054148`，即保存评估值。单条 34 nM 与四记录汇总处于不同解释层级。四条记录本身不代表四次独立实验；判断是否适合合并时，应继续核对底层来源及条件。
+四值排序取中位数：`(7.46852108296 + 7.82)/2 ≈ 7.64426054148`，即保存评估值。单条 34 nM 与四记录汇总处于不同解释层级。关联的来源记录说明该汇总涉及的实验及条件。
 
-![FGFR1 关联证据](../assets/current/evidence-fgfr1.jpg)
+![FGFR1 关联证据](../assets/current/evidence-fgfr1.png)
 
 没有本地工作台时，可从 [surufatinib.json](../../examples/oral-multitarget/latest/results/surufatinib.json)中的评估、来源 ID 和位置引用进行核对。
 
 ## 第 11 步：导出全部候选，保留研究身份
 
-点击 **Export all candidates / 导出全部候选**。导出范围是完整候选库，不只是当前页或合格十项。核对 **3,177 行 CSV**，使用表格时保留快照引用。第 0 步可检查发布包内的实际导出。
+点击 **Export all candidates / 导出全部候选**。导出覆盖完整候选库。核对 **3,177 行 CSV**，使用表格时保留快照引用。第 0 步可检查发布包内的实际导出。
 
 将[文件清单](../../examples/oral-multitarget/latest/results/manifest.json)、[验证结果](../../examples/oral-multitarget/latest/results/validation.json)、[工作流](../../examples/oral-multitarget/latest/results/workflow.json)、[标准](../../examples/oral-multitarget/latest/results/cqa.json)和[标准历史](../../examples/oral-multitarget/latest/results/source-cqa-history.json)一并保留。比较后续修改时继续保存缺证、冲突与早期结果。
 
@@ -235,12 +237,20 @@ N 是有值候选数，W 是较差数值个数，E 是包含当前候选的并�
 1. 导入或粘贴**候选 CSV**，映射并校验列。`candidate_id` 必须唯一，点击 **Use this candidate library / 使用此候选库**保存。
 2. 保持该库选中，再导入**测量 CSV**。每行需要 `candidate_id`、`property`、`value`、`basis`；数字观测还须单位。ID 精确匹配，前导零有意义。
 3. 根据真实观测声明 `measured`、`curated`、`predicted`、`simulated` 或 `derived`，补充实验条件与来源。不同条件保持不同观测。缺失观测省略；实测零和 `false` 是有效值。
-4. 修复映射或校验问题，点击 **Use these measurements / 使用这些测量**。保存数据不会启动研究；修改数据产生新的不可变数据集身份。
+4. 修复映射或校验问题，点击 **Use these measurements / 使用这些测量**。保存数据供后续任务选用；修改数据产生新的数据集版本。
 5. 写出目标、必需观测、硬条件、偏好及单位、条件。仅在工作区实际存在时选择补充已有证据。
 6. 检查 Settings、证据/评估方式与费用上限，点击 **Start research / 开始研究**。按上述标准、资格、分数与来源路径，阅读自己的实际记录。
 
-![CSV 映射与校验](../assets/current/csv-import.jpg)
+![CSV 映射与校验](../assets/current/csv-import.png)
 
 截图使用两条明确标注的合成载体记录说明文件格式。本轮只检查预览，没有导入这些记录或启动研究。
 
-通用上传流程按输入行的精确性质和条件评估；专用药物库流程使用声明的药物工具能力与证据路径。自己的数据形成新研究，数量、费用和结论均按实际记录报告。新的语言模型运行不保证产生本教程的 1,917 个提议、53 个工作项或相同排名。
+通用上传流程按输入行的精确性质和条件评估；专用药物库流程使用声明的药物工具能力与证据路径。自己的数据形成新研究，数量、费用和结论均按实际记录报告。新的标准与排名按该次实际结果记录。
+
+## 第 13 步：添加可选 CDES 靶点分析
+
+按 [CDES 模块说明](../components/structure-predictions.md)导入已有结果集合。新药物任务中打开 **CDES target profiles**，选择集合并查看靶点覆盖范围；工作流会将它关联到该任务自己的评价结果。
+
+已有研究附带结果时，打开 **CDES analysis / CDES 分析**，按标注的单位查看实测值与相互作用分数。点击预测值可见原文件行与蛋白输入，**View observations / 查看观测**连接相应活性来源。候选库对照展示已确认及待确认的对应，**Download complete data / 下载完整数据**包含关联关系和来源文件。
+
+公开案例提供原标准及综合排序记录；CDES 集合作为额外输入提供靶点作用谱。更换靶点和数据库可使用[药物库任务模板](../../config/examples/task.library.example.json)及[智能体运行说明](agent-run.md#使用自己的药物库)。

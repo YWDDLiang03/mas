@@ -53,6 +53,10 @@ No usable preference contribution yields no score. Insufficient direct coverage 
 
 **Illustrative:** two equally weighted threshold preferences apply to two qualified candidates. A passes one and fails one: score 0.5 with full direct coverage. B passes one and has no observation for the other: its observed score is 1.0 with direct coverage 0.5. If the configured ranking floor is 0.75, B remains visible but has no position. Lowering the floor for a new registered run would change that ranking policy, while the old snapshot remains intact.
 
+## Target-profile comparison
+
+The optional CDES page places recorded activity and interaction scores beside the saved overall evaluation. Each prediction’s target rank uses its supplied prediction-library population. The overall rank uses the study’s eligible candidates and fixed criterion definitions. Both retain their source, comparison scope and evaluation identity.
+
 ## Existing verification
 
 [`test_symbolic.py`](../../tests/test_symbolic.py) covers grammar, fit refusal, priors, split exclusion, blind prompts, held-out adoption and member-set comparability. [`test_score_details.py`](../../tests/test_score_details.py) checks score inspection. [`test_mechanism.py`](../../tests/test_mechanism.py) checks citations, idempotence and separation from scores/snapshots; [`test_qualification_first.py`](../../tests/test_qualification_first.py) checks qualified-only ranking and direct coverage.

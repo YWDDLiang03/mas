@@ -44,7 +44,7 @@ The drug templates bind explicit scope entities and constraints already in the t
 
 With `predict=None`, the drug registration includes prediction tools when an environment is found; `True` requests explicit failure when it is missing; `False` leaves them out. An absent installation yields an unavailable route, not an observed absence of the property. Under current qualification, predictions remain auxiliary: they cannot directly fail a hard condition or increase direct evidence coverage. Legacy predictor-boundary review routes remain identifiable in old run policies.
 
-Boltz-2, CDES, general docking and molecular simulation providers are not implemented by this adapter. The `interaction_estimate` capability label is an extension contract, not evidence of an installed interaction predictor.
+The [structure-prediction supplement](structure-predictions.md) reads supplied CDES results and links them to a saved evaluation. New studies can select this analysis as an optional step. The pair-scoring interface supports a later deployed model; other interaction predictors can be added through their own adapter contracts.
 
 ## Uploaded candidate and observation adapter
 
@@ -66,4 +66,4 @@ Missing fields, ambiguous identity, absent environment, unconfigured local sourc
 
 ## Existing verification
 
-[`test_drug_adapter.py`](../../tests/test_drug_adapter.py) checks drug contracts; [`test_predict_admet.py`](../../tests/test_predict_admet.py) and [`test_admet_existing_panel.py`](../../tests/test_admet_existing_panel.py) check optional predictions and saved projections. [`test_sources.py`](../../tests/test_sources.py) checks literature setup/access behavior. [`test_uploaded_evidence.py`](../../tests/test_uploaded_evidence.py), [`test_workbench_uploads.py`](../../tests/test_workbench_uploads.py) and [`test_clinical_routes.py`](../../tests/test_clinical_routes.py) cover local data contracts. `test_live_*` files are separate provider-dependent checks, not a requirement to contact external services when reading this reference.
+[`test_drug_adapter.py`](../../tests/test_drug_adapter.py) checks drug contracts; [`test_predict_admet.py`](../../tests/test_predict_admet.py) and [`test_admet_existing_panel.py`](../../tests/test_admet_existing_panel.py) check optional predictions and saved projections. [`test_sources.py`](../../tests/test_sources.py) checks literature setup/access behavior. [`test_uploaded_evidence.py`](../../tests/test_uploaded_evidence.py), [`test_workbench_uploads.py`](../../tests/test_workbench_uploads.py) and [`test_clinical_routes.py`](../../tests/test_clinical_routes.py) cover local data contracts. `test_live_*` checks exercise the configured external providers separately.
