@@ -2,7 +2,7 @@
 
 [中文](zh/csv-input.md) · [Install and start MAS](installation.md)
 
-Open **Use own data** from the overview or **New research**, choose **Drug**, **Carrier** or **General**, and import a candidate list followed by its observations. The interface accepts a UTF-8 CSV file or pasted CSV text and offers downloadable templates. Start the workbench with local operations enabled as described in the installation guide.
+Open **New research**, choose **Drugs & small molecules**, **Carriers & formulations** or **Other candidates**, then use **Import CSV** for the candidate list and **Add measurements CSV** for its observations. The interface accepts a UTF-8 CSV file or pasted CSV text and offers downloadable templates. Start the workbench with local operations enabled as described in the installation guide.
 
 The two CSV examples below contain **synthetic, illustrative data only**. Their names, values and conditions are invented to explain the format; replace them with your own candidates and recorded observations. The [repository templates](../config/examples/) contain headers only and need at least one data row before import.
 
@@ -29,7 +29,7 @@ DEMO-A,Example carrier A,Synthetic format example
 DEMO-B,Example carrier B,Synthetic format example
 ```
 
-Save this candidate list before importing its measurements. For an existing recorded drug library, observation IDs must match the library's exact identifiers, which may be InChIKeys. The importer does not match compound names to external identities automatically. Optional structure identifiers are preserved as supplied; CSV import does not verify chemical identity.
+Save this candidate list before importing its measurements. For an existing recorded drug library, observation IDs must match the library's exact identifiers, which may be InChIKeys. Candidate IDs provide the exact association. Optional structure identifiers are stored as supplied metadata; `candidate_id` establishes the association in this upload path.
 
 ## Measurement table
 
@@ -40,7 +40,7 @@ Use one row per observation. A candidate can have several properties, repeats or
 | `candidate_id` | Yes | Exact ID from the candidate library selected for this upload. |
 | `property` | Yes | Recorded property or endpoint, such as `particle_size`. |
 | `value` | Yes | A finite number, `true`/`false`, or a recorded category. |
-| `basis` | Yes | One of `measured`, `curated`, `predicted`, `simulated`, `derived`. The importer does not guess the basis. |
+| `basis` | Yes | One of `measured`, `curated`, `predicted`, `simulated`, `derived`. Declare the basis for each observation. |
 | `unit` | For numeric values | Recorded unit; use `1` for a dimensionless quantity. Boolean and category values can have an empty unit. |
 | `conditions` | No | Experimental context as plain text or a JSON object. |
 | `source` | No | DOI, URL, notebook, dataset or other source reference. |
@@ -54,7 +54,7 @@ DEMO-A,particle_size,120,nm,measured,DLS; aqueous dispersion; 25 C,Synthetic for
 DEMO-B,particle_size,170,nm,measured,DLS; aqueous dispersion; 25 C,Synthetic format example,Illustrative observation only
 ```
 
-Record the actual assay, population, dose, duration, medium, temperature and other relevant conditions. Different condition sets remain distinct in research evaluation. A JSON condition must be a valid object; quote and escape it according to CSV rules if it contains commas or quotation marks. Plain text is sufficient when you do not need structured fields.
+Record the actual assay, population, dose, duration, medium, temperature and other relevant conditions. Different condition sets remain distinct in research evaluation. A JSON condition must be a valid object; quote and escape it according to CSV rules if it contains commas or quotation marks. Plain text can record conditions directly.
 
 `conditions` and `source` are optional for import, but provide them whenever known so the observation has a traceable scope. Missing conditions produce a warning and remain unspecified. When `source` is empty, the saved observation uses the upload filename as its declared source and retains the absence of an explicit source in provenance. The submitted text, its UTF-8 content hash, filename and CSV row are preserved. The hash describes text submitted after browser decoding and any text normalization.
 

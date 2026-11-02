@@ -45,11 +45,11 @@ api_key_env = "DEEPSEEK_API_KEY"
 thinking = false
 ```
 
-The named environment variable wins when nonempty; otherwise MAS reads `api_key_file`. A key-file path supports `~` expansion. It does **not** substitute `${ENV_VAR}`, `%ENV_VAR%` or `$env:...` text inside TOML. Use a literal absolute path or the actual `api_key_env` field. Relative key-file paths resolve from the running process's directory, so an external absolute path is easier to move and inspect. Never commit key files or inline keys. The installation guide shows an interactive session credential prompt that avoids putting the key in command history.
+The named environment variable wins when nonempty; otherwise MAS reads `api_key_file`. A key-file path supports `~` expansion. Use a literal absolute path in TOML or name the environment variable through `api_key_env`. Relative key-file paths resolve from the running process's directory, so an external absolute path is easier to move and inspect. Never commit key files or inline keys. The installation guide shows an interactive session credential prompt that avoids putting the key in command history.
 
 The `models show` command displays the configured role bindings. `thinking = false` selects the example’s structured extraction/judging configuration. This example uses one provider/model across the roles. Recovery evaluation uses its separately configured `evaluator_judge`.
 
-Optional `price_input_per_mtok` and `price_output_per_mtok` values are USD per million tokens. Set them from the applicable current tariff to enable a token-based cost estimate. Without prices or provider-reported cost, spend can remain unknown; a USD envelope cannot ensure a monetary ceiling for unknown-cost requests. Read the recorded budget/cost status and provider billing before scaling a run. Provider tariffs, cache discounts and billing can differ from a configured estimate.
+Optional `price_input_per_mtok` and `price_output_per_mtok` values are USD per million tokens. Set them from the applicable current tariff to enable a token-based cost estimate. Requests with unavailable prices or provider costs retain an unknown-cost status. Budget enforcement uses the amounts recorded by the system; the provider invoice gives final charges.
 
 Supported provider kinds are `openai_compatible`, `anthropic` and `exchange`; the actual parser is in [models.py](../src/mas/core/models.py). An exchange provider writes requests to a directory for an external agent and waits for answers; it is the generic example created by `mas init`. Choose an API adapter for a self-contained API-backed deployment.
 
@@ -65,7 +65,7 @@ Source configuration uses `search.sources`, `sources.cache_dir`, `sources.upload
 
 `sources check` reports the locally synced books and upload manifest. `sources sync bookshelf --book NBK...` downloads reference material from the upstream service. `sources template` writes a literature-upload manifest under the configured document directory. A document entry declares its source, license and whether LLM ingestion is permitted; PDF text extraction additionally needs `pdftotext`. No PDF reader is required for CSV-only first use.
 
-For drug libraries, `universe*.json` files are discovered beside the store. The [library task mode](agent-run.md#your-own-drug-library) validates a supplied library and saves a fingerprinted copy there. New drug tasks default to retrieval; saved-evidence mode requires a selected collection. For carriers and general domains, use **Use own data**, select the entity type, import a real candidate CSV and its measurements, then describe the objective and conditions. [Header-only CSV files](../config/examples/) are provided as starting points. The [CSV input guide](csv-input.md) includes illustrative examples and preview corrections; the [upload implementation](../src/mas/ui/uploads.py) defines the accepted mapping and validation:
+For drug libraries, `universe*.json` files are discovered beside the store. The [library task mode](agent-run.md#your-own-drug-library) validates a supplied library and saves a fingerprinted copy there. New drug tasks default to retrieval; saved-evidence mode requires a selected collection. For carriers and general domains, use **New research → Import CSV**, select the entity type, import a real candidate CSV and its measurements, then describe the objective and conditions. [Header-only CSV files](../config/examples/) are provided as starting points. The [CSV input guide](csv-input.md) includes illustrative examples and preview corrections; the [upload implementation](../src/mas/ui/uploads.py) defines the accepted mapping and validation:
 
 | CSV | Fields | Meaning |
 | --- | --- | --- |
@@ -97,7 +97,7 @@ System prompts are versioned with the Python source. Their main locations are [t
 
 ## Optional ADMET prediction
 
-The ADMET worker runs in a separate interpreter selected by `predict.python`, falling back to `MAS_ADMET_PYTHON` when no interpreter is configured. The core never needs to import its chemistry/ML dependency tree. Example:
+The ADMET worker runs in a separate interpreter selected by `predict.python`, falling back to `MAS_ADMET_PYTHON` when no interpreter is configured. Chemistry and model dependencies are installed in that prediction environment. Example:
 
 ```toml
 [predict]

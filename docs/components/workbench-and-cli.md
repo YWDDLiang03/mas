@@ -4,7 +4,7 @@
 
 [Components](README.md) · [Execution](execution-and-reuse.md) · [Models](models-and-budgets.md)
 
-MAS offers two operator surfaces over the same research records: a local React workbench for investigations and inspection, and the `mas` command line for explicit operations and scripting. The workbench keeps an indexed projection so large candidate/evidence tables do not require replaying every unrelated run on each request. This is C17 plus the local host and composition infrastructure.
+MAS offers two operator surfaces over the same research records: a local React workbench for investigations and inspection, and the `mas` command line for explicit operations and scripting. The workbench serves large candidate and evidence tables from an incrementally updated index. This is C17 plus the local host and composition infrastructure.
 
 ## Inputs and outputs
 
@@ -20,7 +20,7 @@ MAS offers two operator surfaces over the same research records: a local React w
 
 [`ui/server.py`](../../src/mas/ui/server.py) supplies a threaded local HTTP server, request routing, SSE progress and loopback validation. [`WorkbenchAPI`](../../src/mas/ui/workbench_api.py) serves `/workbench/` assets and `/api/workbench/` application resources. The built client is loaded from `web/client/dist`, with `MAS_WORKBENCH_ASSET_DIR` as an explicit alternate asset directory.
 
-[`WorkflowManager`](../../src/mas/ui/workflows.py) persists drafts, idempotent workflow starts, phase checkpoints, budget usage and pause/resume/stop/reevaluate commands. [`core/investigation.execute()`](../../src/mas/core/investigation.py) performs normalization, evidence selection, derivation, machine review, freeze and screening through the scientific components. A finished workflow can contain separate derivation and screening run IDs; its convenience status does not replace those scientific records.
+[`WorkflowManager`](../../src/mas/ui/workflows.py) persists drafts, idempotent workflow starts, phase checkpoints, budget usage and pause/resume/stop/reevaluate commands. [`core/investigation.execute()`](../../src/mas/core/investigation.py) performs normalization, evidence selection, derivation, machine review, freeze and screening through the scientific components. A finished workflow links its status to the separate derivation and screening runs.
 
 [`OperationManager`](../../src/mas/ui/operations.py) validates/saves settings and supports an allowlist of CLI-backed local jobs, recording their actual process output and failures. Modern investigation workflows additionally use the workflow worker thread and core composition. A user revision appends a criterion version; `apply_revision()` preserves old frozen refs and starts a new review/evaluation workflow when needed.
 
@@ -30,7 +30,7 @@ This split lets a browser display work without writing raw SQL to scientific tab
 
 [`projection.progress()`](../../src/mas/core/projection.py) folds a run's events into execution/progress state, scoped denominators, stage/step/exchange records and budget/accounting. Percentages are meaningful only when the denominator is fixed; budget is a separate quantity.
 
-[`ReadModel`](../../src/mas/ui/read_model.py) opens the scientific store read-only and incrementally updates a separate SQLite cache from public event prefixes. Its background sync is owned by the host. Requests use independent read connections and load large claim/assessment artifacts on demand. The cache can be rebuilt; it is not the authoritative journal. `MAS_WORKBENCH_READ_CACHE` can name an alternate cache file.
+[`ReadModel`](../../src/mas/ui/read_model.py) opens the scientific store read-only and incrementally updates a separate SQLite cache from public event prefixes. Its background sync is owned by the host. Requests use independent read connections and load large claim/assessment artifacts on demand. The cache can be rebuilt from the authoritative journal. `MAS_WORKBENCH_READ_CACHE` can name an alternate cache file.
 
 [`ReadAPI`](../../src/mas/ui/read_api.py) translates query parameters into paginated resource reads. Candidate/evidence/score links carry the selected snapshot, so inspecting a historical board uses its historical assessment relationships. [`evidence_read.py`](../../src/mas/ui/evidence_read.py), [`evidence_groups.py`](../../src/mas/ui/evidence_groups.py) and [`evidence_collections.py`](../../src/mas/ui/evidence_collections.py) expose source/claim/criterion/candidate relationships and selectable saved collections. [`score_details.py`](../../src/mas/ui/score_details.py) explains the actual recorded scoring inputs.
 
@@ -63,7 +63,7 @@ The compatibility read surface and `/api/operations` also remain in the server. 
 
 [`cli/main.py`](../../src/mas/cli/main.py) registers the actual command tree. `task` creates/shows/lists/inherits/shortlists tasks; `criteria` derives, reduces, audits bindings and exports; `rules` freezes/reads sets; `review` lists/adjudicates/reopens and retains interactive human decisions; `measurement` registers profiles; `run` starts/shows/resumes; `board`, `candidate` and `score` inspect saved results. `config`, `models`, `sources` and `predict` diagnose the installation, while `recovery` runs the evaluator-only intake/report path.
 
-`mas bridge` delegates to [`cli/bridge.py`](../../src/mas/cli/bridge.py). `next` atomically claims an unanswered model request, `answer` publishes schema data/text with model and answering identity, and `status` reports pending work. File exchange does not launch an external worker or grant that worker scientific approval authority.
+`mas bridge` delegates to [`cli/bridge.py`](../../src/mas/cli/bridge.py). `next` atomically claims an unanswered model request, `answer` publishes schema data/text with model and answering identity, and `status` reports pending work. The operator starts the external worker and assigns its answering identity; scientific decisions follow the configured review path.
 
 ## Language, host and failure behavior
 
@@ -85,7 +85,7 @@ GET /api/workbench/tasks/task_example/evidence?candidate_ref=cand_example&snapsh
 GET /api/workbench/tasks/task_example/export.csv?snapshot=lb_example
 ```
 
-Keeping `snapshot` in every link makes the candidate verdict, its evidence links and the export refer to the same saved evaluation even after a new run publishes another board. These GETs inspect records; they do not start fresh research or model calls.
+Keeping `snapshot` in every link makes the candidate verdict, its evidence links and the export refer to the same saved evaluation even after a new run publishes another board. These GETs read the selected saved evaluation.
 
 ## Target-first setup and CDES controls
 

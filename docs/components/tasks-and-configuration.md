@@ -35,13 +35,13 @@ Examples of independent controls are literature breadth/depth, read limits, pool
 
 [`RunController.execute()`](../../src/mas/core/controller.py) writes a plan containing identity, assessment and snapshot stages, rule-pass steps, and the budget envelope. Derivation has its own recorded stage sequence and continuation. The current coordinator follows the configured study stages. General plan synthesis and adaptive delegation are extension points listed in the architecture map.
 
-`RunController.start()` binds task and rule-set references, adapter/version, model roles, provider availability, seed, evidence cutoff, effective settings, qualification/evaluation/evidence modes and optional measurement profile. These are the inputs to saved interpretation and reuse. Editing current settings affects a new operation; it does not update the binding of a completed run.
+`RunController.start()` binds task and rule-set references, adapter/version, model roles, provider availability, seed, evidence cutoff, effective settings, qualification/evaluation/evidence modes and optional measurement profile. These are the inputs to saved interpretation and reuse. Current settings apply to new operations; completed runs retain their recorded bindings.
 
 ## Failure semantics
 
 Unknown configuration keys, wrong types, disallowed values, out-of-range values and cross-field inconsistencies raise `ConfigError`. Role bindings to missing providers are refused. A task missing mandatory context raises `TaskContextInvalid`. A task with blocking unknowns is refused at run start with `rejected_not_permitted_in_state`.
 
-For uploaded workflows, the missing requirement is retained as a structured request and can be answered in the same draft. Candidate/library uploads and measurement uploads have separate validation. The selected evidence source is explicit; `existing_only` does not acquire new literature when a fact is absent.
+For uploaded workflows, the missing requirement is retained as a structured request and can be answered in the same draft. Candidate/library uploads and measurement uploads have separate validation. The selected evidence source is explicit. `existing_only` records gaps in the saved collection; retrieval mode obtains new material.
 
 ## Worked example: one task and one configuration change
 
@@ -67,7 +67,7 @@ with TemporaryDirectory() as root, Core.open(root) as core:
     assert settings.sources["evaluation.mode"] == "override"
 ```
 
-The candidate still needs identity, executable criteria and evidence before evaluation. The example demonstrates task/configuration records rather than a scientific result.
+The candidate still needs identity, executable criteria and evidence before evaluation. The example demonstrates how task and configuration records are created.
 
 ## Target-led inputs and optional analysis
 

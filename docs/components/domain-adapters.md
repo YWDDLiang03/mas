@@ -4,11 +4,11 @@
 
 [Components](README.md) · [Tool contract](tools-and-providers.md) · [Evidence](evidence-and-reading.md)
 
-An adapter supplies domain vocabulary, identity policy, evidence providers and criterion templates while the core keeps record, execution and decision semantics. The release supplies a drug-prioritization adapter, reusable literature sources and an uploaded-data path for drug, carrier and general entities. The uploaded path does not assume receptors or administration routes.
+An adapter supplies domain vocabulary, identity policy, evidence providers and criterion templates while the core keeps record, execution and decision semantics. The release supplies a drug-prioritization adapter, reusable literature sources and an uploaded-data path for drug, carrier and general entities. Uploaded studies use their supplied properties and task requirements.
 
 ## Composition contract
 
-[`adapters/drug/registration.py`](../../src/mas/adapters/drug/registration.py) exposes `ADAPTER`, `CAPABILITY_BINDINGS`, `register()` and `objective_templates()`, plus its tool/catalog metadata. The composition root registers providers and passes adapter ID/version/primary identity scheme to the controller. Core modules do not import the drug registration module.
+[`adapters/drug/registration.py`](../../src/mas/adapters/drug/registration.py) exposes `ADAPTER`, `CAPABILITY_BINDINGS`, `register()` and `objective_templates()`, plus its tool/catalog metadata. The composition root registers providers and passes adapter ID/version/primary identity scheme to the controller. Core modules receive these capabilities through the composition root.
 
 `register()` accepts an optional universe file, cache/upload locations, literature switch and optional prediction environment. With a universe file, local identity/record fields are registered first, followed by public identity, descriptors and curated interaction sources. Prediction registration is conditional on the selected environment policy. The bound tool manifest records what this installation actually had.
 
@@ -28,21 +28,21 @@ An adapter supplies domain vocabulary, identity policy, evidence providers and c
 
 [`identity.resolve_universe()`](../../src/mas/core/identity.py) asks registered entity-resolution providers and creates domain-neutral candidate IDs from the declared primary scheme. It retains exact/crosswalk/single-name/ambiguous/unresolved link bases. Ambiguous candidates get a review record; unresolved members retain a row instead of being dropped from the population.
 
-The drug templates bind explicit scope entities and constraints already in the task. They do not constitute independent literature discovery. Quantities from different curations can be combined in one attribute only through the declared unit, aggregation, basis and subject policy.
+The drug templates bind explicit scope entities and constraints already in the task. Literature discovery uses the selected source providers. Quantities from different curations can be combined in one attribute only through the declared unit, aggregation, basis and subject policy.
 
 ## Literature providers
 
 [`adapters/literature/tools.py`](../../src/mas/adapters/literature/tools.py) registers Europe PMC search/reader, PubMed search, Bookshelf search/reader, MediaWiki search/readers for Wikibooks and Wikipedia, and local-upload search/readers. Search uses `source_retrieval`/`search`; reading uses `document_reading`/`read`. PubMed-discovered documents are read through the Europe PMC reader.
 
-[`registry.py`](../../src/mas/adapters/literature/registry.py) keeps source IDs, evidence kinds, access route and LLM-ingestion status. Bookshelf requires synchronized permitted books; upload documents require a readable manifest. MediaWiki passages retain revision identity. Source kinds remain distinct, including peer-reviewed, preprint, reference text, tertiary reference and user-supplied document. The reader does not promote a tertiary or supplied source to peer-reviewed evidence.
+[`registry.py`](../../src/mas/adapters/literature/registry.py) keeps source IDs, evidence kinds, access route and LLM-ingestion status. Bookshelf requires synchronized permitted books; upload documents require a readable manifest. MediaWiki passages retain revision identity. Source kinds remain distinct, including peer-reviewed, preprint, reference text, tertiary reference and user-supplied document. The reader retains each source's declared type.
 
-[`jats.py`](../../src/mas/adapters/literature/jats.py) and [`textparse.py`](../../src/mas/adapters/literature/textparse.py) construct located passages from source documents. HTTP/source modules retain fetch/parse failures rather than returning fabricated empty papers.
+[`jats.py`](../../src/mas/adapters/literature/jats.py) and [`textparse.py`](../../src/mas/adapters/literature/textparse.py) construct located passages from source documents. HTTP/source modules retain fetch and parse failures with their causes.
 
 ## Optional ADMET environment
 
 [`admet.py`](../../src/mas/adapters/predict/admet.py) locates the configured interpreter or candidate local environment, builds a structure index, invokes the worker in [`_admet_worker.py`](../../src/mas/adapters/predict/_admet_worker.py), caches panels and exposes endpoint metadata. `ExistingPanelProjection` permits local reuse of saved panel results with pinned dates and derivation information. The model panel and deterministic descriptors have different contracts and basis labels.
 
-With `predict=None`, the drug registration includes prediction tools when an environment is found; `True` requests explicit failure when it is missing; `False` leaves them out. An absent installation yields an unavailable route, not an observed absence of the property. Under current qualification, predictions remain auxiliary: they cannot directly fail a hard condition or increase direct evidence coverage. Legacy predictor-boundary review routes remain identifiable in old run policies.
+With `predict=None`, the drug registration includes prediction tools when an environment is found; `True` requests explicit failure when it is missing; `False` leaves them out. An absent installation yields an unavailable route. Predictions support permitted scoring and interpretation; hard-condition decisions and direct coverage use accepted direct evidence. Legacy predictor-boundary review routes remain identifiable in old run policies.
 
 The [structure-prediction supplement](structure-predictions.md) reads supplied CDES results and links them to a saved evaluation. New studies can select this analysis as an optional step. The pair-scoring interface supports a later deployed model; other interaction predictors can be added through their own adapter contracts.
 
@@ -50,9 +50,9 @@ The [structure-prediction supplement](structure-predictions.md) reads supplied C
 
 [`UploadedEvidence`](../../src/mas/core/uploaded_evidence.py) declares adapter `uploaded_candidates`, primary scheme `uploaded_id`, and a local `uploaded_measurement_lookup` provider. It pins exact properties, units, conditions, candidate IDs and basis declarations with dataset/row hashes. `property_catalog()` exposes metadata for criterion generation without distributing candidate measurements as a cutoff suggestion. Local hooks supply identity and observation claims.
 
-The workbench CSV templates in [`ui/uploads.py`](../../src/mas/ui/uploads.py) accept entity kinds drug/carrier/general. A carrier workflow can evaluate particle size or cell viability under explicitly supplied conditions; it does not inherit the drug adapter's target/route assumptions. Requirements that name an absent property or unresolved measurement method remain clarification findings.
+The workbench CSV templates in [`ui/uploads.py`](../../src/mas/ui/uploads.py) accept entity kinds drug/carrier/general. A carrier workflow evaluates properties such as particle size or cell viability under its supplied conditions. Requirements that name an absent property or unresolved measurement method remain clarification findings.
 
-[`drug/clinical_routes.py`](../../src/mas/adapters/drug/clinical_routes.py) is another specialized local projection: a pinned admitted clinical-claim cache can produce a typed documented-administration-route assertion. It preserves the numeric source claim and adds a separate traceable Boolean projection; it does not perform new retrieval or treat a database's missing flag as proof of a route's absence.
+[`drug/clinical_routes.py`](../../src/mas/adapters/drug/clinical_routes.py) is another specialized local projection: a pinned admitted clinical-claim cache can produce a typed documented-administration-route assertion. It derives a traceable Boolean assertion from the pinned clinical claims and retains the source observation. Missing route support is recorded as a gap.
 
 ## Extension and failure semantics
 
@@ -62,7 +62,7 @@ Missing fields, ambiguous identity, absent environment, unconfigured local sourc
 
 ## Worked example: a carrier dataset
 
-**Illustrative:** candidate `EXAMPLE-A` has a particle-size observation 120 nm from DLS at 25 °C and a viability observation 92% at 24 h/10 µg mL⁻¹ in a declared assay. The upload hashes those exact observations. A size criterion bound to those DLS conditions can use the first row. A viability criterion requiring another dose/model cannot silently use the second row as a direct match. The system needs the appropriate observation or an explicit supported interpretation.
+**Illustrative:** candidate `EXAMPLE-A` has a particle-size observation 120 nm from DLS at 25 °C and a viability observation 92% at 24 h/10 µg mL⁻¹ in a declared assay. The upload hashes those exact observations. A size criterion bound to those DLS conditions can use the first row. A viability criterion requiring another dose or model needs a matching observation or a supported interpretation of the difference.
 
 ## Existing verification
 

@@ -29,7 +29,7 @@ The immutable `qualification_first_v1` records retain four evidence-qualificatio
 | `pending` | Recorded evidence qualification is incomplete; partial support yields Evidence incomplete, and completed zero-support assessments yield Excluded |
 | `qualified` | All applicable condition requirements pass and all required direct evidence is present |
 
-Candidate display states such as provisional/recommended are a separate authority/result dimension. A qualified candidate can remain provisional because its rules have machine authority rather than human scientific confirmation. Insufficient ranking coverage keeps an eligible candidate unranked; it does not move the candidate into Evidence incomplete.
+Candidate display states such as provisional/recommended are a separate authority/result dimension. A qualified candidate can remain provisional because its rules have machine authority rather than human scientific confirmation. An eligible candidate below the ranking coverage threshold stays Eligible with a recorded unranked reason.
 
 ## Measurement mechanism
 
@@ -37,13 +37,13 @@ Candidate display states such as provisional/recommended are a separate authorit
 
 Explicit basis precedence lets a measurement be used when present and a prediction fill a declared gap when permitted, without mixing the two bases in a median. The cell reports which basis it actually used. Quantitative reductions use the declared aggregation. Family aggregations are mapped by `family_aggregation_execution()` to executable reductions; conflicting scientific contexts can require a declared interpretation rather than unqualified pooling.
 
-Threshold predicates compare the supported value with the registered bound. Ordering preferences expose an available value for later percentile scoring. Exploratory considerations remain visible but do not order candidates. Supported transforms retain their parameter provenance; unresolved interpretation produces `unknown_unresolvable`.
+Threshold predicates compare the supported value with the registered bound. Ordering preferences expose an available value for later percentile scoring. Exploratory considerations support interpretation. Supported transforms retain their parameter provenance; unresolved interpretation produces `unknown_unresolvable`.
 
 ## Direct evidence and prediction behavior
 
-`direct_evidence()` requires a value-bearing verdict (`pass`, `fail` or `available`), real source claim refs, no tool error, an accepted direct determination basis and a value kind outside predicted/simulated/missing. Under `qualification_first_v1`, predictions do not fail hard conditions or increase direct evidence coverage. The ranking path also avoids scoring a predicted and a direct representation of the same quantity twice for one candidate.
+`direct_evidence()` requires a value-bearing verdict (`pass`, `fail` or `available`), real source claim refs, no tool error, an accepted direct determination basis and a value kind outside predicted/simulated/missing. Under `qualification_first_v1`, hard-condition decisions and direct coverage use the accepted direct evidence bases; predictions support permitted scoring and interpretation. The ranking path also avoids scoring a predicted and a direct representation of the same quantity twice for one candidate.
 
-This policy is versioned because historical runs used legacy qualification and calibration semantics. The older `calibration_guard()` can demote overly broad exclusions for a run. Current qualification uses the diagnostic path and keeps hard-condition semantics intact. Read the run binding and snapshot policy rather than applying current defaults to historical boards.
+This policy is versioned because historical runs used legacy qualification and calibration semantics. The older `calibration_guard()` can demote overly broad exclusions for a run. Current qualification uses the diagnostic path and keeps hard-condition semantics intact. The run binding and snapshot identify the policy used by each saved evaluation.
 
 ## Scheduling and failure semantics
 

@@ -71,4 +71,4 @@ The envelope's canonical content explains the reused artifact ID. This low-level
 
 ## Existing verification
 
-[`test_foundation.py`](../../tests/test_foundation.py) covers canonical equality, Unicode, non-finite refusal, raw-file hashes, ID parsing, vocabulary refusal, exclusive writers, contiguous sequences and append-only artifacts/events. Read-only behavior is also exercised in [`test_ui.py`](../../tests/test_ui.py). These checks concern local storage mechanics; they do not validate the truth of a claim stored in an otherwise valid artifact.
+[`test_foundation.py`](../../tests/test_foundation.py) covers canonical equality, Unicode, non-finite refusal, raw-file hashes, ID parsing, vocabulary refusal, exclusive writers, contiguous sequences and append-only artifacts/events. Read-only behavior is also exercised in [`test_ui.py`](../../tests/test_ui.py). These checks verify local storage. The evidence and assessment components check the scientific use of each claim.

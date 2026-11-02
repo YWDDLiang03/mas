@@ -2,7 +2,7 @@
 
 [English](../csv-input.md) · [安装与首次启动](installation.md)
 
-从总览或 **New research** 进入 **Use own data**，选择 **Drug**、**Carrier** 或 **General**，先导入候选列表，再导入对应观测。界面支持上传 UTF-8 CSV 文件或粘贴 CSV 文本，并提供可下载模板。启动方式需要开启本地操作，见安装说明。
+打开 **New research / 新建研究**，选择药物与小分子、载体与制剂或其他候选，再用 **Import CSV / 导入 CSV** 导入候选，用 **Add measurements CSV / 添加测量 CSV** 导入观测。界面支持上传 UTF-8 CSV 文件或粘贴 CSV 文本，并提供可下载模板。启动方式需要开启本地操作，见安装说明。
 
 下方两个 CSV 示例均为**明确标注的合成格式示例**。候选名称、数值和条件只用于说明导入格式；实际研究请填写自己的候选和真实记录。[仓库模板](../../config/examples/) 只有表头，导入前至少需要填写一行数据。
 

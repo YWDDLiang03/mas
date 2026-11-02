@@ -2,7 +2,7 @@
 
 [中文](../zh/cqa-comparison.md) · [Component implementation](../components/evaluation-and-recovery.md) · [Synthetic fixture](../../config/examples/criterion-comparison.synthetic.json)
 
-Compare the scientific meaning of criteria before counting matches. A name alone does not describe the measured quantity, population, experimental conditions, evidence type or decision use.
+Compare criteria by their measured quantity, population, experimental conditions, evidence type and decision use before counting matches.
 
 ## Comparison procedure
 

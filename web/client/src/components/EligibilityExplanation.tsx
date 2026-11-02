@@ -25,7 +25,7 @@ export function eligibilityReason(reading: EligibilityReading | undefined, t: Tr
     mandatory_unresolved: t('Required observations are available; a required condition still needs evidence.', '必需观测已具备，仍需证据确认条件要求。'),
     required_observations_unresolved: t('Required conditions are met; required direct evidence is incomplete.', '条件要求已满足，必需直接证据仍有缺口。'),
     criteria_not_ready: t('Define and verify the task’s eligibility requirements before assessment.', '先定义并核验任务的准入要求，再进行评估。'),
-    historical_policy: t('This historical result does not establish eligibility under the current policy.', '此历史结果未按当前政策确定资格。'),
+    historical_policy: t('Review eligibility for this historical result using the current requirements.', '请按当前要求复核此历史结果的准入资格。'),
     not_assessed: t('Eligibility has not been assessed.', '尚未评估资格。'),
     reason_not_recorded: t('A detailed eligibility reason was not recorded.', '未记录具体资格原因。'),
   };

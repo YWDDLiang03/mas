@@ -19,21 +19,21 @@ MAS uses models to propose structured scientific interpretations and uses code t
 | `ModelRoster` | Validated role → configured adapter mapping; persisted role bindings |
 | `Budget` | Caps, used counters, soft classes, remaining amount, threshold notices |
 
-Model output is data delivered to a trusted controller. It does not gain permission to edit the journal or claim a human decision. The caller supplies a response schema and the receiving component performs scientific checks after parsing. Schema-valid JSON alone does not establish correct attribution, a supported threshold or an admissible rule.
+The controller receives structured model output and checks attribution, threshold support and rule admissibility before recording a decision. Journal writes and human decisions follow their respective authorization paths.
 
 ## Provider implementations
 
-`AnthropicAdapter` uses the configured Anthropic endpoint. `OpenAICompatibleAdapter` supports a configured compatible endpoint, model, key environment variable/file, JSON response mode, reasoning/thinking options, prices and timeout. These are configurable transports; a compatible URL does not establish equivalence of model capabilities or behavior. `adapter_from_config()` constructs the configured kind.
+`AnthropicAdapter` uses the configured Anthropic endpoint. `OpenAICompatibleAdapter` supports a configured compatible endpoint, model, key environment variable/file, JSON response mode, reasoning/thinking options, prices and timeout. Each configured provider records its model identity and capabilities. `adapter_from_config()` constructs the configured kind.
 
-`ExchangeAdapter` publishes `<exchange_dir>/requests/<request_id>.json` atomically and waits for a matching response file. [`cli/bridge.py`](../../src/mas/cli/bridge.py) supports `next`, `answer` and `status`, with atomic claims for multiple external workers. A response contains `data` or `text` plus the recorded answering identity. The bridge does not automatically launch external agents. `ScriptedAdapter` supplies deterministic responses for tests.
+`ExchangeAdapter` publishes `<exchange_dir>/requests/<request_id>.json` atomically and waits for a matching response file. [`cli/bridge.py`](../../src/mas/cli/bridge.py) supports `next`, `answer` and `status`, with atomic claims for multiple external workers. A response contains `data` or `text` plus the recorded answering identity. The operator starts the external worker separately. `ScriptedAdapter` supplies deterministic responses for tests.
 
-`ModelRoster.adapter()` refuses an unbound role. The registered role vocabulary includes planner, proposer, critic, adjudicator, retriever, reader, summarizer, reflector and evaluator judge. This list describes assignable identities; [architecture status](../architecture.md) identifies the workflows actually implemented. In particular, naming a reflector or planner role does not create a general reflection or planning service.
+`ModelRoster.adapter()` refuses an unbound role. The registered role vocabulary includes planner, proposer, critic, adjudicator, retriever, reader, summarizer, reflector and evaluator judge. [Architecture status](../architecture.md) maps these assignable roles to implemented workflows and planned extensions.
 
 ## Call lifecycle and accounting
 
 `call_role()` resolves the adapter, records `agent.started`, submits the request and validates parsed output. `extract_json()` tolerates common fences/prose; `validate()` implements the supported schema subset. A failed response is returned to the model with schema problems for bounded repair, by default up to two repairs. Trace artifacts preserve requests, responses, schema problems and provider attempt accounting. Default event summaries stay separate from raw prompt/response traces.
 
-Provider retries and schema repairs can cost real money. The OpenAI-compatible controlled-call path invokes callbacks before/after actual provider attempts; `call_role()` charges those attempts and avoids counting the same subtotal again when the logical call finishes. Known spend uses the provider usage and configured prices. Missing usage/prices retain `usage_status` or `cost_status` describing that uncertainty. A missing cost is not recorded as a proven zero.
+Provider retries and schema repairs can cost real money. The OpenAI-compatible controlled-call path invokes callbacks before/after actual provider attempts; `call_role()` charges those attempts and avoids counting the same subtotal again when the logical call finishes. Known spend uses the provider usage and configured prices. Missing usage/prices retain `usage_status` or `cost_status` describing that uncertainty. Unavailable costs retain an unknown status.
 
 [`Budget.try_charge()`](../../src/mas/core/budget.py) reserves capped classes such as `llm_turns` before work. `record()` charges amounts learned afterwards, particularly provider spend, and emits each warning/cap threshold once. A soft USD class reports the crossing and permits more work; a hard class refuses further starts after exhaustion. Since cost is known after a paid call, a spend cap can be crossed by the last permitted call. `from_config()` composes settings and explicit caps. Shared workflow budgets can span derivation and screening; rule-pass reservations prevent one part of a legacy full sweep from consuming all planned effort.
 
@@ -43,9 +43,9 @@ Provider retries and schema repairs can cost real money. The OpenAI-compatible c
 - Missing/rejected credentials, provider errors and timeouts retain typed errors and sanitized diagnostics.
 - Interrupted repair retains the paid response and accounting already obtained.
 - A hard budget refusal is explicit; derivation/screening translates it into its recorded unresolved or not-assessed behavior.
-- An exchange timeout remains a timeout. The external worker's absence does not become an empty scientific result.
+- An exchange timeout records the unanswered request and its timeout status.
 
-Provider identity is recorded for independence analysis. Distinct role labels using one adapter are shared-model roles, and cross-family criticism is a configuration property. The release does not assume every critic is independent.
+Provider identity is recorded for independence analysis. Roles using one adapter share its model. Cross-family criticism uses separately configured model families.
 
 ## Worked example: no-cost local role call
 

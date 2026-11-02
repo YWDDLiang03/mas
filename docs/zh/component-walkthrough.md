@@ -4,7 +4,7 @@
 
 [English](../component-walkthrough.md) · [Agent 一键运行](../agent-run.md) · [组件参考](../components/README.md) · [浏览器教程](tutorial.md)
 
-这份教程沿着一条已保存研究，说明各组件怎样接收输入、产生输出和留下来源记录，再介绍下一次实验的修改位置。建议先运行只读示例：它们使用 Python 标准库读取已发布文件，不请求模型、网络，也不打开研究数据库。组件参考解释完整契约，本页展示这些契约在实际研究中怎样衔接。
+这份教程沿着一条已保存研究，说明各组件怎样接收输入、产生输出和留下来源记录，再介绍下一次实验的修改位置。建议先运行本地文件读取示例，它们使用 Python 标准库读取已发布记录。组件参考解释完整契约，本页展示这些契约在实际研究中怎样衔接。
 
 ## 先选择你要完成的操作
 
@@ -50,7 +50,7 @@ print("Pinned tool facts:", bindings["run_01M52Q4VRB00T5Z3QJW08SSV96"]
 <a id="task-and-config"></a>
 ## 2. 任务与配置：把问题绑定成一次实验
 
-保存的英文目标要求找到一个能同时作用于 CSF1R、VEGFR1/2/3 和 FGFR1 的口服药物。`original_user_input` 保留原始表单字段；`scope_entities` 绑定五个靶点标识符；`constraints[0]` 将口服给药记录为硬条件，来源为 `user_task_normalized`。`seed_candidates` 披露用户提供的参考候选，其名称本身不提供证据。
+保存的英文目标要求找到一个能同时作用于 CSF1R、VEGFR1/2/3 和 FGFR1 的口服药物。`original_user_input` 保留原始表单字段；`scope_entities` 绑定五个靶点标识符；`constraints[0]` 将口服给药记录为硬条件，来源为 `user_task_normalized`。`seed_candidates` 保存已披露的结果对照对象；标准生成使用选定证据。
 
 [`investigation.py`](../../src/mas/core/investigation.py)规范化工作台输入，[`task.record_version()`](../../src/mas/core/task.py)验证并记录版本。[`config.resolve()`](../../src/mas/core/config.py)解析设置及其生效层。筛选运行绑定任务/规则版本、设置、适配器、工具和实现身份。理解旧结果时应读取 `run-bindings.json` 中该次评估的绑定。
 
@@ -86,7 +86,7 @@ print("Pinned tool facts:", bindings["run_01M52Q4VRB00T5Z3QJW08SSV96"]
 | 口服给药 | `claim_01M52QZFZHBESVFSHMK8TX8AGV`，来源 DOI `10.1080/07853890.2026.2698360`，位置 `sec2.3.p1` | 保存的原文段落、布尔路线投影、临床上下文及 `rule_documented-oral-administration@v1` 关联。 |
 | FGFR1 活性 | `claim_supp_0fc07290141d48a811fe3d11`，来源 DOI `10.1038/s42004-023-01084-0`，位置 `sec2.1.p1` | 保存的 `34 nM`、实测依据、靶点/实验上下文、文档/claim 产物引用及 `span_checked_against_source`。 |
 
-这里解释已有证据记录，未重新获取或认证出版物。FGFR1 记录明确保留了 ATP 浓度、靶点对应蛋白浓度及孵育时间未知。原文定位检查和 `verification_status` 回答不同问题，两者都需保留。
+这里沿保存的证据记录解释来源。FGFR1 记录明确保留了 ATP 浓度、靶点对应蛋白浓度及孵育时间未知。原文定位检查和 `verification_status` 回答不同问题，两者都需保留。
 
 [`reading.py`](../../src/mas/core/reading.py)提取带位置的 claim，[`evidence.py`](../../src/mas/core/evidence.py)处理准入，[`existing_research.py`](../../src/mas/core/existing_research.py)固定事实及来源序号。**核对：**候选/靶点身份、依据、单位、条件、原文/位置和来源版本在投影中仍可追踪。见[修改证据](#change-evidence)和[证据参考](../components/evidence-and-reading.md)。
 
@@ -95,7 +95,7 @@ print("Pinned tool facts:", bindings["run_01M52Q4VRB00T5Z3QJW08SSV96"]
 
 打开 [stages.json](../../examples/oral-multitarget/latest/results/stages.json)、[cqa.json](../../examples/oral-multitarget/latest/results/cqa.json) 与 [source-cqa-history.json](../../examples/oral-multitarget/latest/results/source-cqa-history.json)。初始标准池和注册表均为零，先记录六条任务要求标准；四个提议维度把活动数量依次展开至 `293 → 504 → 1192 → 1917`。随后三轮 filter/distill/refine/merge 在每轮 merge 结束时收敛至 `147 → 68 → 53`。
 
-最终集合各有不同含义：53 个活动条目、45 个注册条目、18 条独立启用决策规则和 13 条参考观察项。18 条规则承担 6 项准入要求和 17 项计分用途，其中 5 项靶点标准共有。待审条目与注册标准有重叠，不能把这些数字相加成互斥总体，也不能把全部历史条目当作当前规则。
+最终集合各有不同含义：53 个活动条目、45 个注册条目、18 条独立启用决策规则和 13 条参考观察项。18 条规则承担 6 项准入要求和 17 项计分用途，其中 5 项靶点标准共有。审查状态与注册状态有重叠，本次采用的标准由已固定框架列明。
 
 [`derivation.py`](../../src/mas/core/derivation.py)组织生成，[`derivation_stages.py`](../../src/mas/core/derivation_stages.py)实现各阶段，[`pool.py`](../../src/mas/core/pool.py)保存变化和父项，[`criteria.py`](../../src/mas/core/criteria.py)与 [`adjudication.py`](../../src/mas/core/adjudication.py)检查可执行含义和批准依据。分子量示例保留合并父项，以及有来源支持的 `500 Da` 偏好界限；该次准备中的 HIA 预测仍处于 deferred 状态。
 
@@ -187,7 +187,7 @@ Preference: higher cell_viability at 24 h, 10 ug/mL, in assay DEMO-CELL.
 Evidence: uploaded synthetic demonstration data only.
 ```
 
-这些数值用于说明输入结构，不是科学阈值建议。真实研究需填写实际上下文和依据。更换靶点后重新判断证据覆盖，固定的口服多靶点证据并不自动覆盖新靶点。
+这个合成示例说明输入结构。研究中填写实际阈值、条件和依据，并检查所选靶点的证据覆盖。
 
 **验证：**规范化后的 `objective_text`、原始输入、实体类型、标识符、性质/单位/条件及硬条件/偏好角色准确；必需补问先得到答案，再执行相关工作。预期产物是新任务/版本/绑定，排名以实际结果为准。
 
@@ -219,7 +219,7 @@ Evidence: uploaded synthetic demonstration data only.
 <a id="change-data"></a>
 ### 更换候选 CSV 与测量 CSV
 
-选择 **Use own data / 使用自有数据** 和实体类型，先导入候选，再导入观测。以下均为**未经科学评估的合成格式示例**：
+选择 **New research → Import CSV / 新建研究 → 导入 CSV** 和实体类型，先导入候选，再导入观测。以下均为**未经科学评估的合成格式示例**：
 
 ```csv
 candidate_id,name,description
@@ -244,7 +244,7 @@ EXAMPLE-B,cell_viability,85,%,measured,24 h; 10 ug/mL; DEMO-CELL,Synthetic tutor
 
 固定证据实验显式选择集合，并保留 `evidence_mode = existing_only`。[`EvidenceCollections`](../../src/mas/ui/evidence_collections.py)中的名称、简介和主题是展示元数据，改名不会改变 claim 或覆盖范围。`manifest_ref`、来源任务、claim/来源数量和截止时间才标识所选科学输入。
 
-新增观测时导入新测量版本，或在新任务中启用已获许可的文献/上传来源与检索。文档上传另有来源清单，记录身份、访问/许可和 LLM 阅读许可，见[配置](../configuration.md)和[证据参考](../components/evidence-and-reading.md)。新增来源属于新的证据实验。可移植包排除全文，保留文档引用并不表示全文字节已恢复。
+新增观测时导入新测量版本，或在新任务中启用已获许可的文献/上传来源与检索。文档上传另有来源清单，记录身份、访问/许可和 LLM 阅读许可，见[配置](../configuration.md)和[证据参考](../components/evidence-and-reading.md)。新增来源属于新的证据实验。来源清单标明阅读器实际可用的文档内容。
 
 **验证：**计数依据是 `pinned_fact_manifest` 还是任务已准入证据，来源 ID/版本、截止日期、原文位置/上下文及准入状态正确。`existing_only` 未命中时记录缺口，或提供新的有依据数据；保留先前 pending 结果供比较。
 
@@ -255,12 +255,12 @@ EXAMPLE-B,cell_viability,85,%,measured,24 h; 10 ug/mL; DEMO-CELL,Synthetic tutor
 
 例如接入本地粒径服务，需声明精确候选 ID 和条件输入，返回实际测量及来源/行身份；预测输出保留 predicted。行为改变时递增 `implementation_version`，输出 schema 改变时同步处理契约版本。保留数据版本、获取时间、许可、上游引用及明确的 empty/不可用/错误状态。能力声明和可执行标准路线需要一起更新。
 
-**验证：**一条代表性已知观测、一条缺失观测，以及接入实际引入的故障模式。检查身份映射、单位/依据、来源和 broker 清单，确认旧缓存键不会冒充新实现。复用[药物适配器测试](../../tests/test_drug_adapter.py)或[工具回放测试](../../tests/test_broker_replay.py)，只有新增行为需要时补定向回归。通过后再用小规模真实输入运行。
+**验证：**一条代表性已知观测、一条缺失观测，以及接入实际引入的故障模式。检查身份映射、单位/依据、来源和 broker 清单，将缓存键绑定到对应的实现版本。复用[药物适配器测试](../../tests/test_drug_adapter.py)或[工具回放测试](../../tests/test_broker_replay.py)，只有新增行为需要时补定向回归。通过后再用小规模真实输入运行。
 
 <a id="change-model-budget"></a>
 ### 修改模型角色、预算、工作量或并发
 
-将 [models.deepseek.toml](../../config/examples/models.deepseek.toml) 和 [mas.toml](../../config/examples/mas.toml)复制到新工作区。填写实际模型、base URL 和密钥环境变量/文件路径，然后在 `[roles]` 绑定角色。例如 `critic = "your_critic_provider"` 将批评角色交给该已定义供应商；角色名称不同本身不建立模型独立性。付费运行前查阅供应商当前型号和价格文档。
+将 [models.deepseek.toml](../../config/examples/models.deepseek.toml) 和 [mas.toml](../../config/examples/mas.toml)复制到新工作区。填写实际模型、base URL 和密钥环境变量/文件路径，然后在 `[roles]` 绑定角色。例如 `critic = "your_critic_provider"` 将批评角色交给该已定义供应商；供应商和模型标识说明各角色是否共用模型。付费运行前查阅供应商当前型号和价格文档。
 
 以下 TOML 示例申请一个较小的**新实验**：
 
@@ -278,7 +278,7 @@ mode = "staged"
 mode = "existing_only"
 ```
 
-浏览器/Agent 工作流也接收提交的工作量和预算控制，应检查生效配置和新绑定。价格/usage 缺失时费用可能未知，最后一次获准调用可能越过已知预算上限。预算值本身不代表免费，也不保证精确账单。
+浏览器/Agent 工作流也接收提交的工作量和预算控制，应检查生效配置和新绑定。价格/usage 缺失时费用可能未知，最后一次获准调用可能越过已知预算上限。费用记录标明实际、估计或未知金额，供应商账单提供最终计费。
 
 下面的纯配置检查不打开 store，不调用供应商：
 

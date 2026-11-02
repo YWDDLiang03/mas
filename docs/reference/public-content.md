@@ -22,4 +22,4 @@ The portable capsule excludes full-text documents, model traces, private/evaluat
 4. Run `python scripts/check_publication.py` for links, example integrity and public-content constraints.
 5. Inspect new archive contents as well as repository files. Privacy changes to a published archive require a new checksum and a declared projection.
 
-Removing content from the current tree does not erase older Git commits, tags or downloaded copies. Any history rewrite is a separate repository-maintenance operation.
+Older commits, tags and downloaded copies retain their published contents. Git-history cleanup is a separate repository-maintenance operation.

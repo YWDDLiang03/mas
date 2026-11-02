@@ -96,7 +96,7 @@ Add those optional mappings to the task object, using canonical field names on t
 
 ## Resume, inspect, export, and serve
 
-Repeat the **same `run` command** after a stop or restart. A durable request identity is written before submission, and the workflow database enforces that identity. A paused investigation resumes saved checkpoints and accumulated budget. A completed, failed, cancelled, or unresolved investigation is returned as the existing outcome; repeats do not silently start another paid investigation. A changed task or semantic model/settings selection is rejected unless you explicitly add `--new-run`. Keep using the same task JSON and overrides. The runner remembers the last model TOML path if `--models` is omitted on a retry.
+Repeat the **same `run` command** after a stop or restart. A durable request identity is written before submission, and the workflow database enforces that identity. A paused investigation resumes saved checkpoints and accumulated budget. A completed, failed, cancelled, or unresolved investigation returns its saved outcome. Use `--new-run` to start another investigation with changed task or model settings. Keep the same task JSON and overrides when resuming. The runner remembers the last model TOML path if `--models` is omitted on a retry.
 
 ```sh
 python scripts/agent_run.py inspect --workspace var/agent-live
@@ -104,7 +104,7 @@ python scripts/agent_run.py run --workspace var/agent-live --task config/example
 python scripts/agent_run.py serve --workspace var/agent-live --models /path/models.toml --port 8782 --open
 ```
 
-`inspect`/`status` read workflow state without taking over the workspace. Other runner commands hold an OS workspace lock, so two runner processes cannot launch the same study concurrently. Use one owner process for a workspace; opening another independently launched workbench against the same store can interfere with checkpoint ownership. Ctrl+C requests a saved boundary and waits for the active work to reach it. A model request already in flight can take until its provider timeout. If essential task details are missing, the receipt contains the actual `questions`; use the workbench to answer them and resume there, or correct the task and explicitly start another investigation.
+`inspect`/`status` read workflow state. Execution commands hold an OS workspace lock, with one owner process per workspace. Ctrl+C requests a saved boundary and waits for active work to reach it; an in-flight model request follows its provider timeout. If essential task details are missing, the receipt lists `questions`. Answer them in the workbench and resume, or revise the task and start another investigation with `--new-run`.
 
 A completed workflow automatically exports the complete actual snapshot to `<workspace>/exports/<workflow_id>/`: every candidate row in JSON/CSV, CQA history and lineage, stages, task, frozen run bindings, model accounting, validation and report. `--output /new/export/directory` chooses another location. A repeated run reuses a matching export. Unfinished workflows write their state to `agent-run-incomplete.json`. The final report presents the research outcome together with its rules and supporting evidence. The receipt reports the declared reference's actual qualification/top-five outcome separately when it can be uniquely matched.
 

@@ -26,7 +26,7 @@ A correct quote can support the wrong compound or endpoint. MAS therefore keeps 
 
 ## Literature workflow
 
-`plan_queries()` uses the configured retriever role. `search()` dispatches through permitted sources, applies cutoff/case-source exclusions, deduplicates hits and records coverage. `read()` records source access and document reading depth. Full text unavailable at a permitted endpoint can leave abstract-depth evidence; it does not become full-text evidence by inference.
+`plan_queries()` uses the configured retriever role. `search()` dispatches through permitted sources, applies cutoff/case-source exclusions, deduplicates hits and records coverage. `read()` records source access and document reading depth. The reading-depth label identifies the material obtained: metadata, abstract or full text.
 
 The source registry in [`adapters/literature/registry.py`](../../src/mas/adapters/literature/registry.py) owns access/ingestion declarations. Europe PMC and PubMed supply literature discovery; Bookshelf uses synchronized permitted open-access books; Wikipedia/Wikibooks keep revision information; uploaded documents need a manifest declaration. OpenStax is present as a refused source entry and has no registered search/reading path. The registry is executable source-access policy; source-specific terms and provenance stay attached to records.
 
@@ -40,13 +40,13 @@ Database claims preserve `tool_result_ref`, record-field locator, identity-link 
 
 ## Uploaded evidence and verified supplements
 
-CSV intake is previewed and mapped in [`ui/uploads.py`](../../src/mas/ui/uploads.py). [`UploadedEvidence`](../../src/mas/core/uploaded_evidence.py) pins library identity, dataset hash, unique candidates, unique observations, exact property IDs, units, conditions and declared bases. Its local provider and hooks expose only those recorded observations. An upload records the submitter's declared observation; it does not create peer review, a threshold or candidate suitability.
+CSV intake is previewed and mapped in [`ui/uploads.py`](../../src/mas/ui/uploads.py). [`UploadedEvidence`](../../src/mas/core/uploaded_evidence.py) pins library identity, dataset hash, unique candidates, unique observations, exact property IDs, units, conditions and declared bases. Its local provider and hooks expose only those recorded observations. The upload preserves the declared observation and its source type. Criterion review establishes its decision use.
 
 [`supplements.py`](../../src/mas/core/supplements.py) can create and attach a verified supplemental observation from an existing read document and checked claim. `lookup()` matches the bound supplement; `record_reuse()` retains provenance when reused. This supports targeted source-backed completion while keeping the original measurement and the later supplement distinguishable.
 
 ## Failure semantics
 
-Fetch failures, absent source configuration, unlicensed ingestion, metadata-only/abstract-only access, invalid spans, ambiguous attribution and missing values remain explicit. Unsupported extracted claims are quarantined or rejected from use, retaining reasons. Missing direct evidence remains unknown in assessment. `existing_only` uses pinned facts and returns `existing_evidence_unavailable` on a miss; it does not perform a hidden fresh fetch.
+Fetch failures, absent source configuration, unlicensed ingestion, metadata-only/abstract-only access, invalid spans, ambiguous attribution and missing values remain explicit. Unsupported extracted claims are quarantined or rejected from use, retaining reasons. Missing direct evidence remains unknown in assessment. `existing_only` uses pinned facts and reports a missing saved fact as `existing_evidence_unavailable`. New retrieval is selected explicitly for a study.
 
 ## Worked example: same quote, different admission
 

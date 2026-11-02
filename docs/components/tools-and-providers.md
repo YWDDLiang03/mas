@@ -20,7 +20,7 @@ This boundary lets the core stay reusable. A drug adapter can label an operation
 
 A provider exposes `contract` and `invoke(question_kind, inputs) -> ProviderResponse`. The response separates `values` from other `records` and may supply outcome, data version, upstream references, warnings, source retrieval time and a local derivation record. Use `ToolAbsent` for an unavailable precondition and `ToolError` for a runtime failure after an attempt.
 
-`register()` adds a provider; `contracts()` exposes the registry; `manifest()` supplies the versioned availability snapshot bound into a run. Resolution preserves registration order unless `tool_ids` explicitly orders the allowed providers. The broker returns the first provider result whose outcome is not `not_attempted`; it does not automatically aggregate all sources. Criteria with multiple evidence routes ask for those sources explicitly.
+`register()` adds a provider; `contracts()` exposes the registry; `manifest()` supplies the versioned availability snapshot bound into a run. Resolution preserves registration order unless `tool_ids` explicitly orders the allowed providers. The broker returns the first provider result whose outcome is not `not_attempted`; criteria with multiple evidence routes request their sources explicitly.
 
 ## Outcomes and their meaning
 
@@ -37,9 +37,9 @@ Examples of absence are `not_configured`, `identity_unresolved`, `requires_other
 
 ## Dispatch, retries and provenance
 
-Before invoking, the broker checks cache/replay, required identity/input fields, declared platform support and tool-call budget. Required-value filtering excludes a contract whose strength ceiling cannot answer the requested kind. A returned value above its contract ceiling raises a contract violation; predictions cannot be relabeled as measurements by the provider.
+Before invoking, the broker checks cache/replay, required identity/input fields, declared platform support and tool-call budget. Required-value filtering excludes a contract whose strength ceiling cannot answer the requested kind. A returned value above its contract ceiling raises a contract violation; the declared determination basis remains part of the validated response.
 
-`ToolError` classes for rate limits, transient networking, upstream server errors and timeouts are retryable by default. `_call_one()` uses bounded exponential backoff with jitter and journals scheduled retries. Other typed failures are retained without those retries. Unexpected provider exceptions are recorded as `internal_error`. Transport-specific enforcement such as an HTTP timeout is performed by the provider; the broker contract records the timeout rather than sandboxing arbitrary Python execution.
+`ToolError` classes for rate limits, transient networking, upstream server errors and timeouts are retryable by default. `_call_one()` uses bounded exponential backoff with jitter and journals scheduled retries. Other typed failures are retained without those retries. Unexpected provider exceptions are recorded as `internal_error`. Transport-specific enforcement such as an HTTP timeout is performed by the provider; the broker contract records that timeout outcome.
 
 `_record()` stores the normalized input hash, tool/contract/implementation version, retrieval date, platform, data version, upstream references, license, attempts and outcome. `tool.requested` and terminal events connect the invocation to its result artifact. The evidence layer uses that provenance when creating located claims.
 
@@ -47,7 +47,7 @@ Before invoking, the broker checks cache/replay, required identity/input fields,
 
 The cache key includes tool ID, contract version, implementation version, question kind and normalized input. Ordinary in-process caching accepts successful/partial/empty results. Historical replay is stricter: `seed_cache_from_runs()` indexes only recorded `ok`/`empty` results from explicitly selected completed runs, or explicitly permitted terminated/pinned sources. Partial and failed attempts stay excluded. Original artifacts and retrieval dates are retained, along with a replay manifest.
 
-Replay must be configured before dispatch. It does not establish that an observation is current under external database changes. [Execution and reuse](execution-and-reuse.md) explains the additional compatibility checks for assessment reuse.
+Configure replay before dispatch. Replayed observations retain their original source date and version. [Execution and reuse](execution-and-reuse.md) explains the additional compatibility checks for assessment reuse.
 
 ## Worked example: a local provider
 

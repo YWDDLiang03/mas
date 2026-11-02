@@ -21,7 +21,7 @@ The Proposer develops criteria, the Critic examines their relevance and evidence
 ## Starting a study
 
 1. Open **New research** and enter the targets and requirements. Additional objective text is optional when targets are supplied. The form shows the resulting task summary before launch.
-2. Select a candidate database or library. For a new drug study, **New evidence retrieval** can start without an old case collection. Choose **Saved evidence** to reuse a selected collection. Uploaded-data studies use their supplied observations.
+2. Select a candidate database or library. Choose **Search and read new evidence** for a new retrieval study, or **Use saved or uploaded evidence** to use the selected collection. Uploaded-data studies use their supplied observations.
 3. Choose whether to include **CDES target profiles**, then inspect the planned workflow.
 4. Start the study. Criteria are developed, reviewed and fixed before candidate assessment. CDES appears as an additional progress stage only when enabled.
 

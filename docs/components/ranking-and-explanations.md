@@ -25,11 +25,11 @@ Weights combine available contributions into a weighted mean. Missing contributi
 
 The snapshot records each candidate's qualification, score, preference/direct coverage, mandated coverage, hard failures/unknowns, measurement versus prediction counts, determination bases, missing evidence and assessment refs. Current qualification assigns scores only to qualified candidates. Stable tie breaks use score, state, coverage and candidate ID. `result_kind` states whether the snapshot reports an all-pass set, ranking, both or no recommendation, and abstention reasons explain an empty usable result.
 
-`_changes()` compares parent/current candidate state and position and attaches assessment causes. Snapshots are immutable; selecting a current snapshot or editing its display title does not alter previous ranks. Machine authority remains visible through the rule review summary and provisional states.
+`_changes()` compares parent/current candidate state and position and attaches assessment causes. Each snapshot preserves its ranks; display titles are stored separately. Machine authority remains visible through the rule review summary and provisional states.
 
 ## Optional symbolic scoring
 
-[`symbolic.py`](../../src/mas/core/symbolic.py) implements a restricted term grammar, expression evaluation, ridge fitting toward declared priors, sign checks, conditioning checks, deterministic candidate splits and scoring metrics. It does not execute model-generated Python.
+[`symbolic.py`](../../src/mas/core/symbolic.py) implements a restricted term grammar, expression evaluation, ridge fitting toward declared priors, sign checks, conditioning checks, deterministic candidate splits and scoring metrics. It evaluates expressions through the defined term grammar.
 
 [`sr_stage.py`](../../src/mas/core/sr_stage.py) builds features from already assessed cells, proposes/criticizes expression structures and runs the experiment. The proposer sees feature definitions, units, directions, coverage and training quartiles; candidate identities, target values and the disclosed reference outcome are withheld. Target-derived features and reserved score/rank fields are refused. Terms need allowed forms; hinge constants must come from shown quartiles or cited claim values. Too few fitting rows can use declared priors, recorded as that route.
 
@@ -41,9 +41,9 @@ The current controller refuses symbolic ordering combined with `qualification_fi
 
 Symbolic `term_contributions()` and score-detail functions explain the arithmetic that generated a score. [`ui/score_details.py`](../../src/mas/ui/score_details.py) exposes values, directions, weights and contributions for inspection.
 
-[`mechanism.py`](../../src/mas/core/mechanism.py) instead builds a narrative from admitted claims with checked spans. `eligible_claims()`, `gate()` and `check_separate()` enforce citation/candidate support and reject scoring claims in the narrative. Unsupported sentences are dropped. No eligible/surviving sentence yields `unexplained`. `explain()` and `explain_shortlist()` persist the separate narrative; `narrative_of()` retrieves it. Scoring, comparability and snapshot modules do not read this narrative.
+[`mechanism.py`](../../src/mas/core/mechanism.py) instead builds a narrative from admitted claims with checked spans. `eligible_claims()`, `gate()` and `check_separate()` enforce citation/candidate support and reject scoring claims in the narrative. Unsupported sentences are dropped. No eligible/surviving sentence yields `unexplained`. `explain()` and `explain_shortlist()` persist the separate narrative; `narrative_of()` retrieves it. The narrative is stored alongside the completed scoring and snapshot records.
 
-Workbench research briefs are another presentation aid. They use a separate annotation store and bounded spend, and cannot replace scientific criterion or assessment records.
+Workbench research briefs are another presentation aid. They use a separate annotation store and bounded spend, linked to the criterion and assessment records they explain.
 
 ## Failure semantics
 

@@ -304,7 +304,7 @@ class EvidenceRead:
             names = [item.get("name") or item["detail_ref"] for item in usages["criteria"]["items"][:3]]
             text = ("Linked to " + str(usages["criteria"]["total"]) + " recorded criterion versions: " + "; ".join(names) + ".") if names else "No recorded use by a criterion was found in this task."
             unit = "unique candidates in this snapshot" if usages["scope"]["snapshot_id"] else "candidate/run records across task history"
-            text += f" Linked {unit}: {usages['candidates']['total']}. Criterion-basis links explain the rule's rationale; they are not candidate-specific observations."
+            text += f" Linked {unit}: {usages['candidates']['total']}. Criterion-basis links explain the rule's rationale. Assessment-value links identify candidate observations."
             result["research_relevance"] = {"text":text,"method":"recorded_usage_projection","derived":True,
                                             "claim_refs":[claim["claim_id"]],"scope_note":(claim.get("context") or {}).get("population")}
         return result

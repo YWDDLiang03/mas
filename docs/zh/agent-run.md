@@ -66,7 +66,7 @@ python scripts/agent_run.py plan --bootstrap --workspace var/target-study --task
 python scripts/agent_run.py run --workspace var/target-study --task /path/task.json --models /path/models.toml
 ```
 
-`library` 模式使用提供的人群范围、靶点与需求，从本研究的证据开始。`original` 模式用于沿公开案例的事实输入重新生成标准。
+`library` 模式使用提供的候选范围、靶点与需求，从本研究的证据开始。`original` 模式用于沿公开案例的事实输入重新生成标准。
 
 ### 选择 CDES
 

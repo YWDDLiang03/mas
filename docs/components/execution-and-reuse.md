@@ -22,9 +22,9 @@ Current qualification supports `staged` and `full` evaluation. Both evaluate har
 
 ## Resume versus continuation
 
-`resume()` continues the same nonterminal run from its recorded work and starts a new attempt; a previously interrupted attempt is finalized by the controller. `_restore()` reconstructs identities and assessed cells. Restoring does not ask a model to guess the previous state.
+`resume()` continues the same nonterminal run from its recorded work and starts a new attempt; a previously interrupted attempt is finalized by the controller. `_restore()` reconstructs identities and assessed cells. Restoration uses the persisted records.
 
-A finished run is never re-entered. Continuation starts a new run with `continues_run_id`, `continuation_kind` and chain identity. This lets later evidence/rule versions be compared while preserving the earlier outcome. Workbench `WorkflowManager` also saves phase checkpoints, budget usage and cooperative pause/stop commands in its workflow store. Review and pool stages have their own resumable boundaries so an unresolved model response is not repeatedly purchased on restart.
+After a finished run, continuation starts a new run with `continues_run_id`, `continuation_kind` and chain identity. This lets later evidence/rule versions be compared while preserving the earlier outcome. Workbench `WorkflowManager` also saves phase checkpoints, budget usage and cooperative pause/stop commands in its workflow store. Review and pool stages have their own resumable boundaries so an unresolved model response is not repeatedly purchased on restart.
 
 ## Four concrete reuse paths
 
@@ -37,21 +37,21 @@ A finished run is never re-entered. Continuation starts a new run with `continue
 
 Assessment reuse requires a terminal screening source, fixed task version/cutoff/tool manifest/evidence policy and matching retrieval settings. Hook-based reuse requires a fixed evidence manifest. The rule and attribute refs, scoring/deferred routes and assessor version must match. `not_assessed` cells and cells carrying tool errors are not reused as completed decisions. A previously skipped cell is therefore reassessed when later circumstances allow it.
 
-[`existing_research.py`](../../src/mas/core/existing_research.py) pins source streams/sequences and claim hashes. Only selected evidence crosses into fresh generation; old rules, critiques, adjudications, assessments and ranks do not seed the new pool. Evaluation ancestry can contribute completed `ok`/`empty` tool facts from explicitly pinned public terminal runs, even where the overall sweep failed or was cancelled. Failed/partial calls remain failures/partials rather than empty facts.
+[`existing_research.py`](../../src/mas/core/existing_research.py) pins source streams/sequences and claim hashes. Fresh generation begins with an empty criterion pool and the selected evidence. Evaluation ancestry can contribute completed `ok`/`empty` tool facts from explicitly pinned public terminal runs, even where the overall sweep failed or was cancelled. Failed and partial calls retain their recorded outcomes.
 
-The `existing_only` broker wrapper permits exact replay, saved provider projections and explicitly allowed in-process facts. A miss returns `existing_evidence_unavailable`; it never invokes an unrecorded remote or prediction provider. Saved PubChem descriptor rows, recorded ADMET panels and typed clinical-route projections preserve their own source/derivation manifests.
+The `existing_only` broker wrapper permits exact replay, saved provider projections and explicitly allowed in-process facts. A miss returns `existing_evidence_unavailable`. Remote retrieval and prediction are selected through the study's evidence mode and registered routes. Saved PubChem descriptor rows, recorded ADMET panels and typed clinical-route projections preserve their own source/derivation manifests.
 
 [`staging.py`](../../src/mas/core/staging.py) provides a different operation: explicit task/criterion inheritance and shortlist tasks with lineage. This can intentionally carry criteria across tasks and is distinct from starting an empty pool over a fact bank. Supplements are another explicit reuse source, described in [evidence](evidence-and-reading.md).
 
 ## Failure semantics and scope
 
-Policy drift rejects assessment reuse instead of treating changed work as already done. Workflow composition can start a recomputation path when compatibility fails. Invalid/active tool-replay sources are refused. Pause/stop preserves committed boundaries and spent budget; cancellation does not retract a paid provider call. Terminal failure and missing facts remain visible in source histories.
+Policy drift rejects assessment reuse instead of treating changed work as already done. Workflow composition can start a recomputation path when compatibility fails. Invalid/active tool-replay sources are refused. Pause and stop preserve committed work and accumulated costs, including completed provider calls. Terminal failure and missing facts remain visible in source histories.
 
 Current reuse follows the recorded task, rule, evidence and tool compatibility checks. Broader dependency tracking, adaptive question selection and strategy learning remain planned extensions in the architecture map.
 
 ## Worked example: change one rule after a terminal run
 
-**Illustrative:** a saved run has three completed criteria and two cells skipped after a hard rejection. A new run uses the same task/evidence policy but revises one criterion. Compatible completed cells whose attribute/rule refs and routes still match can retain their original assessment/reason refs. The changed criterion is evaluated again. Previous skipped cells cannot be reused as measurements and are evaluated if the new hard outcome permits it. If retrieval settings or the pinned fact bank changed, the reuse compatibility check rejects the source and the workflow recomputes the affected run.
+**Illustrative:** a saved run has three completed criteria and two cells skipped after a hard rejection. A new run uses the same task/evidence policy but revises one criterion. Compatible completed cells whose attribute/rule refs and routes still match can retain their original assessment/reason refs. The changed criterion is evaluated again. Previously skipped cells are evaluated when the new hard-condition outcome permits it. If retrieval settings or the pinned fact bank changed, the reuse compatibility check rejects the source and the workflow recomputes the affected run.
 
 ## Conditional CDES stage
 

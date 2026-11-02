@@ -78,7 +78,7 @@ English is the display default. Chinese translates interface labels; research ob
 | 覆盖门槛 | Minimum direct-evidence coverage for ranking | 排名所需最低直接证据覆盖率 | 满足资格后，是否可赋予名次的单独条件 |
 | 结果快照 | Result snapshot / ranking snapshot | 结果快照／排序快照 | 固定某次候选评估与比较结果 |
 | 原始推荐状态 | Recommended (historical workflow state) | 已进入结果（历史状态） | 详情保留原始字段；主表优先展示资格与名次，不译成“临床推荐” |
-| 原始暂定状态 | Provisional / review authority | 暂定／审查权限状态 | 与证据资格、分数、名次分别展示；不是尚未完成的临床评估 |
+| 原始暂定状态 | Provisional / review authority | 暂定／审查权限状态 | 记录决定的审查权限，与候选资格、分数和名次分别展示 |
 | 评分解释 | Score breakdown | 得分分解 | 解释计算过程 |
 | 机制解释 | Literature-supported mechanistic interpretation | 文献支持的机制解读 | 来源支持的说明，与因果机制证实分开 |
 | 提名结果 | Prioritized candidate / candidate for further evaluation | 优先候选／供进一步验证的候选 | 按本次研究框架优先考虑的候选 |

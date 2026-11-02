@@ -146,7 +146,7 @@ Search **Molecular weight (Da)** in **Criteria**. Open **Lineage**, version hist
 
 The round-3 critic challenged the counter-evidence support. The proposer added the Lipinski/small-molecule kinase-inhibitor discussion and recorded the interpretation of the **500 Da heuristic**. The working lineage is `cri_01M52KSFQBB9B84Y16HNPGBCM2@v1 → @v2 → @v3`, promoted to `attr_molecular-weight-da@v1` and `rule_molecular-weight-da@v1`.
 
-The final rule is a **threshold preference, molecular weight ≤ 500 Da**. Meeting it gives its comparison point; exceeding it affects this preference but does not independently hard-reject a compound. Two compounds both below 500 Da do not receive different points from this threshold. Surufatinib's recorded value is **480.6 Da**, with a declared derived basis.
+The final rule is a **threshold preference, molecular weight ≤ 500 Da**. It gives one comparison point when met and zero when exceeded. Eligibility follows the six task requirements. Surufatinib's recorded value is **480.6 Da**, with a declared derived basis.
 
 This connects six proposals, a merge, a criticism, a revision and an executable rule. The final criterion name alone would conceal the reasoning.
 
@@ -165,11 +165,11 @@ Before screening, **Save evaluation rules** fixes versions, accepted routes, evi
 
 Therefore **53 = 18 enabled decision rules + 13 contextual observations + 22 items not used in this evaluation**, while **31 = 18 + 13** enter assessment. The five unresolved reviews are a subset of deferred items, not five additional criteria. An unresolved logP range proposal is distinct from the enabled continuous RDKit logP preference.
 
-All **six eligibility requirements** are compulsory: the oral condition and direct observations for each of the five targets. The target criteria also supply five of the **17 scoring contributions**, so **6 + 17 − 5 = 18 unique decision rules**. Target potency values are compared during ranking; the saved admission test requires their direct evidence rather than a shared potency cutoff. Predictions retain their basis and remain outside direct-evidence coverage.
+All **six eligibility requirements** are compulsory: the oral condition and direct observations for each of the five targets. The target criteria also supply five of the **17 scoring contributions**, so **6 + 17 − 5 = 18 unique decision rules**. Admission requires the direct observations; ranking compares their potency values. Predictions retain their own evidence basis.
 
 ## 8. Assess candidates and inspect eligibility
 
-Open **Candidates**. Staged mode checks hard conditions first and records downstream skips after hard failure. The saved run had **no explicit hard failure**, **0 skipped-after-rejection cells**, and **98,487 records = 3,177 × 31**, including unknown states. A complete sweep does not mean every cell has evidence.
+Open **Candidates**. Staged mode checks hard conditions first and records downstream skips after hard failure. The saved run records **0 confirmed condition failures**, **0 skipped-after-rejection cells**, and **98,487 assessments = 3,177 × 31**. Each assessment records its evidence availability and result.
 
 For Surufatinib, open **Evidence** and inspect qualification: oral condition **1/1 passed**, required targets **5/5 with direct observations**, and final direct preference coverage **10/17 = 58.82%**.
 
@@ -232,7 +232,7 @@ The [criterion-comparison guide](reference/cqa-comparison.md) explains how to co
 
 ## 12. Start your own study with CSV inputs
 
-In an empty workspace choose **Use own data**, then the appropriate type: drugs/small molecules, carriers/formulations, or other candidates. Fill the [candidate template](../config/examples/candidates.csv) and [measurement template](../config/examples/measurements.csv) with actual data; the supplied files contain headers only.
+In an empty workspace choose **New research → Import CSV**, then the appropriate type: drugs/small molecules, carriers/formulations, or other candidates. Fill the [candidate template](../config/examples/candidates.csv) and [measurement template](../config/examples/measurements.csv) with actual data; the supplied files contain headers only.
 
 1. Import/paste the **candidate CSV**, map columns and validate. `candidate_id` must be unique. Choose **Use this candidate library**.
 2. With that library selected, import the **measurement CSV**. Each row needs `candidate_id`, `property`, `value` and `basis`; numeric observations also need a unit. IDs match exactly, including leading zeros.
