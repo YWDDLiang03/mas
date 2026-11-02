@@ -24,3 +24,7 @@ The bilingual READMEs, installation and task guides, case tutorial, component ex
 The system source update `d81dd77` passed 731 tests locally and its GitHub Actions checks. Focused checks covered task-defined routes, retrieval without an earlier collection, optional CDES binding, snapshot isolation, prediction source identity and export. The subsequent library-runner addition passed its 20 affected tests. Frontend type checking and the production build passed.
 
 This publication update checks documentation links, example commands, screenshot identities, frozen case tables and current read APIs. Browser inspection uses Microsoft Edge on Windows. The retained example has 3,177 candidates, 10 Eligible, 1,305 Evidence incomplete and 1,862 Excluded; Surufatinib ranks first among the ten eligible compounds. These checks inspect the saved study and the updated workflow controls.
+
+## Delivery and language review
+
+The follow-up review aligned task and CSV instructions with the visible controls and revised explanatory text across the component guides and interface. Guidance states each component's role, evidence basis and next action directly. Eight affected browser captures were refreshed, with the captured source version recorded per image. Type checking, the production build and 11 existing evidence-view tests passed; publication checks cover 64 documents, 1,162 local links, 21 captures and the saved research data.

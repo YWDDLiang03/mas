@@ -2,7 +2,7 @@
 
 [English](../current-status.md) · [实操教程](tutorial.md) · [演示稿](../presentation/README.md) · [截图清单](../assets/current/manifest.json) · [核对数据](../reference/current-ui-validation.json)
 
-本页截图于 **2026 年 11 月 2 日**在 Windows 的 Microsoft Edge 中实拍，使用更新后的 1.1.0 工作台、代码版本 `d81dd77`，展示已保存的公开案例和当前任务控件。本轮检查既有结果、预览任务与数据输入，并导出全部候选。
+本页截图于 **2026 年 11 月 2 日**在 Windows 的 Microsoft Edge 中实拍，使用更新后的 1.1.0 工作台，展示已保存的公开案例和当前任务控件。`12acd15` 完成文字复核后更新了八个视图；截图清单标明每张图的代码版本。下方结果及响应时间检查对应 `d81dd77`。
 
 ## 当前研究结果
 

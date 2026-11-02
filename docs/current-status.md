@@ -2,7 +2,7 @@
 
 [中文](zh/current-status.md) · [Tutorial](tutorial.md) · [Presentation](presentation/README.md) · [Screenshot manifest](assets/current/manifest.json) · [Verification data](reference/current-ui-validation.json)
 
-The screenshots were captured on **2 November 2026** in Microsoft Edge on Windows, using the updated 1.1.0 workbench at source commit `d81dd77`. They show the saved public study and current task controls. This check inspected the existing results, previewed task/data inputs and exported all candidates.
+The screenshots were captured on **2 November 2026** in Microsoft Edge on Windows, using the updated 1.1.0 workbench. They show the saved public study and current task controls. Eight views were refreshed after the wording review in `12acd15`; the manifest identifies each image's source version. The result and response checks below were measured at `d81dd77`.
 
 ## Current study results
 

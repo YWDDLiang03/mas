@@ -18,7 +18,8 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=overview&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=overview&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "progress.png",
@@ -31,33 +32,36 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=overview&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=overview&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "new-study.png",
-      "sha256": "67fcdc41929083a39efb07670474f201d26c9721978437b0c25f78990af41352",
-      "bytes": 125499,
+      "sha256": "678ca14635a65da48f3cbf2d3e74c8fb434c3454729c1c97b14efd51e726be07",
+      "bytes": 141253,
       "width": 1560,
       "height": 900,
-      "captured_at": "2026-11-02T13:46:12.387Z",
+      "captured_at": "2026-11-02T14:23:19.639Z",
       "view": "new-study",
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=overview&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=settings&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "12acd15e112c53335ed84b30dc046e5fb6d4831c"
     },
     {
       "file": "evidence-selection.png",
-      "sha256": "915e55cadd2cd5396004aac00b6298bfb682db4306efee2abc77d1d120576e31",
-      "bytes": 113676,
+      "sha256": "0fabb2b7cc56adfa015b9ac9308f68a00f3a204b5c00b70dbdbe262259866230",
+      "bytes": 113451,
       "width": 1560,
       "height": 900,
-      "captured_at": "2026-11-02T13:56:55.405Z",
+      "captured_at": "2026-11-02T14:23:19.757Z",
       "view": "evidence-selection",
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=settings&task=task_01M52CBE5GYPK9F0MCZYBMPH84&snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=settings&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "12acd15e112c53335ed84b30dc046e5fb6d4831c"
     },
     {
       "file": "settings.png",
@@ -70,7 +74,8 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=settings&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=settings&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "candidates.png",
@@ -83,7 +88,8 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "candidates-full.png",
@@ -96,7 +102,8 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "candidates-incomplete.png",
@@ -109,7 +116,8 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "candidates-excluded.png",
@@ -122,33 +130,36 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "score-details.png",
-      "sha256": "08022809b00a42ff814647dde62d1050e3a4742e2d4bf89e8a0abfa2ebd1b4f4",
-      "bytes": 122958,
+      "sha256": "ec7a06b084c3253b4e7ff8d7a3a4a39793fd39bd8331f3010b3557e9d2e63e63",
+      "bytes": 127565,
       "width": 1560,
       "height": 900,
-      "captured_at": "2026-11-02T13:47:57.600Z",
+      "captured_at": "2026-11-02T14:23:20.038Z",
       "view": "score-details",
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+      "source_commit": "12acd15e112c53335ed84b30dc046e5fb6d4831c"
     },
     {
       "file": "score-coverage.png",
-      "sha256": "73d42c1f7b893d476f6dbd94eb253e98b58a635deac75ab08274faeadf494a25",
-      "bytes": 133360,
+      "sha256": "39860006905e60820724ebbef4d171c44545e3dc43d2f9593510554da093c103",
+      "bytes": 133130,
       "width": 1560,
       "height": 900,
-      "captured_at": "2026-11-02T13:47:57.720Z",
+      "captured_at": "2026-11-02T14:23:20.218Z",
       "view": "score-coverage",
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+      "source_commit": "12acd15e112c53335ed84b30dc046e5fb6d4831c"
     },
     {
       "file": "candidate-details.png",
@@ -161,7 +172,8 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=cand_inchikey-TTZSNFLLYPYKIL-UHFFFAOYSA-N",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "candidates-zh.png",
@@ -174,7 +186,8 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=zh&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=zh&view=candidates&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "criteria.png",
@@ -187,20 +200,22 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=criteria&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=criteria&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "criterion-detail.png",
-      "sha256": "ca13aa6a971498f4f411b02d8a12576ba8909de3869df8a25c4829aff32bde08",
-      "bytes": 174112,
+      "sha256": "c2560298e6c5b8b14636f9a8419bec7be261e5ae224b49fb04e8e7cbe5ec86f6",
+      "bytes": 174053,
       "width": 1560,
       "height": 900,
-      "captured_at": "2026-11-02T13:50:37.463Z",
+      "captured_at": "2026-11-02T14:24:06.841Z",
       "view": "criterion-detail",
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=criteria&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=rule_molecular-weight-da%40v1"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=criteria&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=rule_molecular-weight-da%40v1",
+      "source_commit": "12acd15e112c53335ed84b30dc046e5fb6d4831c"
     },
     {
       "file": "criterion-lineage.png",
@@ -208,25 +223,27 @@
       "bytes": 171565,
       "width": 1560,
       "height": 900,
-      "captured_at": "2026-11-02T13:50:37.559Z",
+      "captured_at": "2026-11-02T14:24:06.923Z",
       "view": "criterion-lineage",
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=criteria&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=rule_molecular-weight-da%40v1"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=criteria&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=rule_molecular-weight-da%40v1",
+      "source_commit": "12acd15e112c53335ed84b30dc046e5fb6d4831c"
     },
     {
       "file": "criterion-changes.png",
-      "sha256": "df62089e5bd7dbc85175a677d95a59d6a2a2d99ceb4a39c989c542dbf8f89a77",
-      "bytes": 165501,
+      "sha256": "def32d1fa7bf8cada72fd7ed0f6e5041e3ae4273d21b738c363f0c430da30629",
+      "bytes": 165485,
       "width": 1560,
       "height": 900,
-      "captured_at": "2026-11-02T13:50:37.657Z",
+      "captured_at": "2026-11-02T14:24:06.999Z",
       "view": "criterion-changes",
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=criteria&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=rule_molecular-weight-da%40v1"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=criteria&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=rule_molecular-weight-da%40v1",
+      "source_commit": "12acd15e112c53335ed84b30dc046e5fb6d4831c"
     },
     {
       "file": "evidence-library.png",
@@ -239,7 +256,8 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=evidence&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=evidence&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "evidence-findings.png",
@@ -252,20 +270,22 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=evidence&task=task_01M52CBE5GYPK9F0MCZYBMPH84"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=evidence&task=task_01M52CBE5GYPK9F0MCZYBMPH84",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     },
     {
       "file": "evidence-fgfr1.png",
-      "sha256": "b0538f11d07ab80e8f34093da13709968554dd911f9fb795b2e4c3a8d56be608",
-      "bytes": 134731,
+      "sha256": "57cc49aecd453a5844dcb99ce377743b6a13931ae99f9f683c76511c71ef83f4",
+      "bytes": 132001,
       "width": 1560,
       "height": 900,
-      "captured_at": "2026-11-02T13:52:14.058Z",
+      "captured_at": "2026-11-02T14:28:27.746Z",
       "view": "evidence-fgfr1",
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": false,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=evidence&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=claim_supp_0fc07290141d48a811fe3d11&snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2&source=src_doi_10.1038%2Fs42004-023-01084-0"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=evidence&task=task_01M52CBE5GYPK9F0MCZYBMPH84&item=claim_supp_0fc07290141d48a811fe3d11&snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2&source=src_doi_10.1038%2Fs42004-023-01084-0",
+      "source_commit": "12acd15e112c53335ed84b30dc046e5fb6d4831c"
     },
     {
       "file": "csv-import.png",
@@ -278,7 +298,10 @@
       "source": "Microsoft Edge on Windows via Playwright",
       "synthetic_data": true,
       "study": "task_01M52CBE5GYPK9F0MCZYBMPH84",
-      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=evidence&task=task_01M52CBE5GYPK9F0MCZYBMPH84&snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2&source=src_doi_10.1038%2Fs42004-023-01084-0"
+      "source_url": "http://127.0.0.1:8770/workbench/?lang=en&view=evidence&task=task_01M52CBE5GYPK9F0MCZYBMPH84&snapshot=lb_task_01M52CBE5GYPK9F0MCZYBMPH84_2&source=src_doi_10.1038%2Fs42004-023-01084-0",
+      "source_commit": "d81dd7744a6b9afa6b440c2a7bea2c48be518468"
     }
-  ]
+  ],
+  "reviewed_against_commit": "12acd15e112c53335ed84b30dc046e5fb6d4831c",
+  "wording_review_date": "2026-11-02"
 }
