@@ -54,7 +54,7 @@ export function stateText(state: string | undefined, t: Translate): string {
     peer_reviewed: ['Peer-reviewed source', '同行评审来源'], full_text: ['Full text', '全文'], abstract: ['Abstract', '摘要'],
     unverified: ['Not verified', '未经核验'], verified: ['Verified', '已核验'],
     pass: ['Met', '满足'], fail: ['Not met', '未满足'], provisional: ['Provisional', '暂定'], confirmed: ['Confirmed', '已确认'],
-    ready: ['Ready', '已就绪'], syncing: ['Updating records', '更新记录中'], not_started: ['Not started', '尚未开始'],
+    skipped: ['Unavailable', '未获取'], ready: ['Ready', '已就绪'], syncing: ['Updating records', '更新记录中'], not_started: ['Not started', '尚未开始'],
   };
   const pair = labels[state || ''];
   return pair ? t(...pair) : state || '—';
@@ -72,7 +72,7 @@ export function phaseText(phase: string | undefined, t: Translate): string {
   const labels: Record<string, [string, string]> = {
     task: ['Define the research', '明确研究目标'], evidence: ['Prepare evidence', '准备证据'], propose: ['Generate criteria', '生成标准'],
     refine: ['Refine criteria', '整理标准'], review: ['Review criteria', '复核标准'], freeze: ['Prepare evaluation', '准备评估'],
-    screen: ['Assess candidates', '评估候选'], results: ['Save results', '保存结果'],
+    cdes: ['CDES target profiles', 'CDES 靶点分析'], administration_suitability: ['Administration suitability', '给药适用性'], screen: ['Assess candidates', '评估候选'], results: ['Save results', '保存结果'],
     filter: ['Filter', '筛查'], distill: ['Distill', '提炼'], merge: ['Merge', '合并'], promote: ['Register', '注册'], reenter: ['Bring forward', '接入'],
     mandated: ['Task requirements', '任务要求'], task_requirements: ['Task requirements', '任务要求'],
   };

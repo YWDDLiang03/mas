@@ -250,6 +250,15 @@ class Workbench:
                 try:
                     query = parse_qs(split.query)
                     if method in ('GET', 'HEAD'):
+                        if '/structure-export.' in path:
+                            parts = path.split('/')
+                            if len(parts) != 6 or parts[3] != 'tasks':
+                                raise KeyError('Unknown structure export')
+                            extension = parts[5].removeprefix('structure-export.')
+                            mime, content = self.modern.read.structure.export(parts[4], extension,
+                                kind=_maybe(query, 'kind') or 'predictions', snapshot=_maybe(query, 'snapshot'))
+                            return Response(200, mime, content,
+                                headers={'Content-Disposition': f'attachment; filename="triage-structure-results.{extension}"'})
                         if path.startswith('/api/workbench/uploads/templates/') and path.endswith('.csv'):
                             from .uploads import template
                             kind = path.rsplit('/', 1)[-1].removesuffix('.csv')

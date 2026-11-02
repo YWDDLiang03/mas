@@ -3,13 +3,14 @@ import { api } from '../api/client';
 import type { EvidenceSource, Library, Overview, Stage, TaskInput } from '../api/types';
 import { operationText, phaseText, useI18n } from '../i18n';
 import { useResource } from '../hooks/useResource';
+import { StructureEntry } from '../components/StructureResults';
 import { CriteriaEvolution, enabledCriteriaCount, stageCountScope } from '../components/CriteriaEvolution';
 import { ResearchLink, type ResearchNavigate } from '../components/ResearchLinks';
 import { Audit, Badge, dateText, Empty, ErrorNotice, Icon, Loading, Panel, valueText } from '../components/UI';
 
 export function copyResearchSetup(input: TaskInput): TaskInput {
   return {
-    title: input.title, objective: input.objective,
+    title: input.title, objective: input.objective, cdes_enabled: input.cdes_enabled, cdes_source_id: input.cdes_source_id,
     targets: input.targets ? [...input.targets] : undefined, constraints: input.constraints,
     library_id: input.library_id, source_task_id: input.source_task_id,
     entity_type: input.entity_type, evidence_upload_id: input.evidence_upload_id,
@@ -76,6 +77,7 @@ export function OverviewPage({ task, revision, enabled, onCriteria, onEdit, onOw
       <ResearchLink className="stat-card" to={{ task, view: 'criteria' }} onNavigate={onNavigate}><span>{t('Unresolved review issues', '未解决的审查问题')}</span><strong>{data.summary.pending_review_count ?? data.summary.pending_count ?? '—'}</strong><small>{t('Issues retained for resolution', '保留待解决的问题')}</small><Icon name="arrow" size={15} /></ResearchLink>
       <a className="stat-card" href="#saved-evaluations"><span>{t('Saved evaluations', '已保存评估')}</span><strong>{snapshots.length}</strong><small>{latest ? dateText(latest.published_at, language) : t('No results saved yet', '尚未保存结果')}</small><Icon name="arrow" size={15} /></a>
     </div>
+    <StructureEntry task={task} snapshot={latest?.snapshot_id} onNavigate={onNavigate} journey />
     <Panel title={t('How the criteria took shape', '标准如何逐步形成')} caption={t('From the starting set to the latest recorded stage.', '从初始集合到最近记录的阶段。')} action={<ResearchLink className="button" to={{ task, view: 'criteria' }} onNavigate={onNavigate}>{t('Explore criteria', '查看标准')}<Icon name="arrow" size={14} /></ResearchLink>}>
       <CriteriaEvolution stages={data.stages} enabledCount={evaluationCount} summary={data.summary} />
       <div className="criteria-inventory"><span>{valueText(data.summary.active_registered_count)} {t('registered', '已注册')}</span><span>{valueText(data.summary.additional_unregistered_active_count)} {t('unfinalized proposals', '未定稿提议')}</span><span>{valueText(data.summary.deferred_count)} {t('registered criteria withheld', '已定义但本次未采用的标准')}</span>{data.summary.task_required_count != null && <span>{data.summary.task_required_count} {t('declared task requirements', '项已声明任务要求')}</span>}</div>

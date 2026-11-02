@@ -20,7 +20,7 @@ from mas.core.clock import utc_now
 PHASES = [('task', 'Understand the task'), ('evidence', 'Prepare evidence'),
           ('propose', 'Discover criteria'), ('refine', 'Review and refine'),
           ('review', 'Resolve decisions'), ('freeze', 'Save evaluation rules'),
-          ('screen', 'Screen candidates'), ('results', 'Publish results')]
+          ('screen', 'Screen candidates'), ('cdes', 'CDES target profiles'), ('results', 'Publish results')]
 TERMINAL = {'completed', 'unresolved', 'failed', 'cancelled'}
 
 
@@ -137,9 +137,36 @@ class WorkflowManager:
             old = db.execute('SELECT id FROM workflows WHERE idem=?', (idem,)).fetchone()
             if old:
                 return self.get(old[0])
-            value = request.get('input')
+            value = copy.deepcopy(request.get('input'))
+            if isinstance(value, dict) and not str(value.get('objective') or '').strip():
+                targets = value.get('targets') or []
+                if isinstance(targets, list) and targets and all(isinstance(item, str) and item.strip() for item in targets):
+                    prefix = ('Identify candidate drugs in the selected library for the following target profile'
+                              if value.get('entity_type', 'drug') == 'drug'
+                              else 'Compare candidates in the selected library for the following properties')
+                    value.update(original_objective=value.get('objective') or '', objective_source='targets_and_requirements',
+                        objective=prefix + ': ' + ', '.join(item.strip() for item in targets)
+                                  + '. Assess the supplied requirements using available evidence.')
             if not isinstance(value, dict) or not str(value.get('objective') or '').strip():
                 raise ValueError('Describe the research objective before starting.')
+            defaults = getattr(getattr(self.operations, 'settings', None), 'values', {})
+            enabled = value.get('cdes_enabled', defaults.get('cdes.enabled', False)
+                                if value.get('entity_type', 'drug') == 'drug' else False)
+            if type(enabled) is not bool:
+                raise ValueError('CDES must be on or off.')
+            value['cdes_enabled'] = enabled
+            if enabled:
+                if value.get('entity_type', 'drug') != 'drug':
+                    raise ValueError('CDES is available for compound–target studies.')
+                from mas.ui.structure_results import StructureResults
+                service = StructureResults(self.root)
+                available = service.collections()
+                source_id = value.get('cdes_source_id') or (available[0]['id'] if len(available) == 1 else None)
+                if not source_id:
+                    raise ValueError('Choose a saved CDES collection, or switch CDES off.')
+                value['cdes_source_id'] = source_id
+                value['_cdes_source'] = value.get('_cdes_source') or service.pin(source_id)
+                service.load_pinned(value['_cdes_source'])
             if value.get('evidence_mode', 'existing_only') not in ('existing_only', 'retrieve'):
                 raise ValueError('Choose an evidence mode.')
             if value.get('evaluation_mode', 'staged') not in ('staged', 'full'):
@@ -151,7 +178,8 @@ class WorkflowManager:
                     'updated_at': utc_now(), 'finished_at': None, 'command': None,
                     'progress': {'completed': 0, 'planned': None, 'denominator_kind': 'unknown'},
                     'budget': {'used_usd': 0, 'limit_usd': float(value.get('budget_usd') or 10), 'cost_status': 'not_started'},
-                    'phases': [{'id': i, 'label': label, 'state': 'queued'} for i, label in PHASES],
+                    'phases': [{'id': i, 'label': label, 'state': 'queued'} for i, label in PHASES
+                               if i != 'cdes' or enabled],
                     'questions': [], 'run_id': None, 'snapshot_id': None,
                     'config': self.operations.saved_overrides,
                     '_checkpoints': ({'normalized': {'task_id': continued}, **({} if value.get('_resume_pool_run_id') else
@@ -200,7 +228,7 @@ class WorkflowManager:
                 value['reuse_from_run_id'] = previous_run
             phases = copy.deepcopy(data['phases'])
             for phase in phases:
-                if phase['id'] in ('review', 'freeze', 'screen', 'results'):
+                if phase['id'] in ('review', 'freeze', 'screen', 'cdes', 'results'):
                     phase['state'] = 'queued'
                     phase.pop('finished_at', None)
                     phase.pop('started_at', None)

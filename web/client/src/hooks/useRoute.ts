@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export type View = 'overview' | 'criteria' | 'candidates' | 'evidence' | 'settings';
+export type View = 'overview' | 'criteria' | 'candidates' | 'structure' | 'evidence' | 'settings';
 export interface Route { view: View; task: string; item: string; snapshot: string; criterion: string; candidate: string; source: string }
-const views = new Set(['overview', 'criteria', 'candidates', 'evidence', 'settings']);
+const views = new Set(['overview', 'criteria', 'candidates', 'structure', 'evidence', 'settings']);
 function readRoute(): Route {
   const params = new URLSearchParams(location.search);
   return { view: views.has(params.get('view') || '') ? params.get('view') as View : 'overview', task: params.get('task') || '', item: params.get('item') || '', snapshot: params.get('snapshot') || '', criterion: params.get('criterion') || '', candidate: params.get('candidate') || '', source: params.get('source') || '' };

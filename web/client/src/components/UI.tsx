@@ -8,6 +8,7 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
     criteria: <><path d="M8 4h12v17H4V4h4M8 2h8v5H8zM8 12h8M8 16h6" /></>,
     candidates: <><path d="M4 20v-7h4v7m4 0V4h4v16m4 0v-10h3v10M2 20h22" /></>,
     evidence: <><path d="M12 5C8 2 4 3 2 4v15c4-2 7-1 10 1 3-2 6-3 10-1V4c-4-2-7-1-10 1Zm0 0v15" /></>,
+    structure: <><circle cx="6" cy="6" r="3" /><circle cx="18" cy="8" r="3" /><circle cx="11" cy="19" r="3" /><path d="m9 6 6 1M7 9l3 7m3 0 4-5" /></>,
     settings: <><path d="M3 7h18M3 17h18M8 3v8M16 13v8" /></>,
     arrow: <path d="M5 12h14m-6-6 6 6-6 6" />, close: <path d="m6 6 12 12M6 18 18 6" />,
     search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></>,

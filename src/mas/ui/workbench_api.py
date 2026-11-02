@@ -23,7 +23,8 @@ from mas.ui.evidence_collections import EvidenceCollections
 
 INPUT_FIELDS = {'title', 'objective', 'targets', 'constraints', 'library_id', 'source_task_id',
                 'evidence_mode', 'evaluation_mode', 'workers', 'budget_usd', 'reference_candidate',
-                'additional_information', 'revision_of_task_id', 'entity_type', 'evidence_upload_id'}
+                'additional_information', 'revision_of_task_id', 'entity_type', 'evidence_upload_id',
+                'cdes_enabled', 'cdes_source_id', 'objective_source', 'original_objective'}
 
 
 def public_input(value):
@@ -83,11 +84,14 @@ class WorkbenchAPI:
                 'evidence_sources': sources, 'current_task_id': selected,
                 'workflows': self.visible_workflows(), 'operation_token': self.operations.token,
                 'defaults': {'objective': '', 'targets': [], 'constraints': '',
+                             'cdes_enabled': self.operations.settings['cdes.enabled'], 'cdes_source_id': None,
                              'entity_type': 'drug', 'evidence_upload_id': None,
                              'library_id': available[0]['id'] if available else None,
                              'source_task_id': (next_input or {}).get('source_task_id') or selected, 'evidence_mode': 'existing_only',
                              'evaluation_mode': 'staged', 'workers': self.operations.settings['assess.workers'],
                              'budget_usd': self.operations.settings['budget.usd_max']},
+                'prediction_modules': {'cdes': {'deployment': 'saved_results',
+                    'collections': self.read.structure.collections()}},
                 'projection': status}
 
     def visible_workflows(self):
@@ -99,6 +103,8 @@ class WorkbenchAPI:
             return self.bootstrap()
         if parts == ['settings']:
             settings = self.operations.configuration()
+            settings['prediction_modules'] = {'cdes': {'deployment': 'saved_results',
+                'collections': self.read.structure.collections()}}
             settings['fields'] = [field for field in settings['fields']
                                   if field['key'] not in ('interaction.mode', 'rank.mandated_coverage_floor', 'budget.on_exhaust')]
             return settings
@@ -138,6 +144,10 @@ class WorkbenchAPI:
         if parts == ['settings']:
             self.operations.save_settings(request.get('settings') or {})
             return self.get('/api/workbench/settings', {})
+        if len(parts) == 3 and parts[0] == 'tasks' and parts[2] == 'structure-module':
+            self.model.task_input(parts[1])
+            self.read.structure.set_enabled(parts[1], request.get('enabled'))
+            return self.read.get(parts[1], 'structure', {})
         if len(parts) == 3 and parts[0] == 'evidence-collections' and parts[2] == 'display':
             return dict(self.collections.update(parts[1], request), display_editable=bool(self.operations.token))
         if parts == ['uploads', 'preview']:

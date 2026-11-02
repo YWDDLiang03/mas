@@ -31,6 +31,7 @@ class OperationError(ValueError):
 
 
 EDITABLE_SETTINGS = {
+    "cdes.enabled": "CDES for new drug studies",
     "search.volume": "Literature workload", "textbook.volume": "Textbook workload", "assess.workers": "Concurrent candidates",
     "search.breadth": "Search breadth", "search.depth": "Search rounds", "read.max_papers_full_read": "Full texts per dimension",
     "budget.usd_max": "Cost cap (USD)", "budget.on_exhaust": "When budget is exhausted",

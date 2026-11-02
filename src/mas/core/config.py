@@ -56,6 +56,7 @@ def _s(default, doc, **kw) -> Setting:
 # Every setting here is read by the code; a setting nothing reads would mislead whoever changes it.
 
 SETTINGS: dict[str, Setting] = {
+    "cdes.enabled": _s(False, "include optional CDES target-profile analysis in new drug studies"),
     # literature breadth and depth
     "search.sources": _s(["europepmc", "pubmed", "bookshelf", "wikibooks", "wikipedia", "uploads"],
                          "evidence sources to query (see `mas sources list`); sources not set up are skipped and recorded",

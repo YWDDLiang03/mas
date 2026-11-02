@@ -232,6 +232,34 @@ DIMENSIONS = [
 ]
 
 
+def _positive_oral_requirement(constraint: dict) -> bool:
+    import re
+    text = str(constraint.get('text') or '')
+    route = str(constraint.get('value') or text)
+    return bool(re.search(r'\boral\b|口服', route, re.I)) and not re.search(
+        r'\b(?:non[- ]oral|not\s+oral|no\s+oral|avoid\s+oral|or)\b|非口服|不.{0,3}口服|或', text, re.I)
+
+
+def research_dimensions(context: dict) -> list[dict]:
+    """Develop the requested target and administration profile for this study."""
+    import copy
+    dimensions = copy.deepcopy(DIMENSIONS)
+    route_constraints = [row for row in context.get('constraints', [])
+                         if row.get('kind') in ('route', 'administration_route', 'route_of_administration')]
+    routes = [str(row.get('text') or row.get('value') or '') for row in route_constraints]
+    route_text = ' '.join(routes)
+    oral = any(_positive_oral_requirement(row) for row in route_constraints)
+    if not oral:
+        dimensions[1] = {'dimension': 'administration_suitability',
+            'focus': ('exposure and formulation suitability for the stated administration requirements: ' + route_text)
+                     if routes else 'exposure and formulation properties relevant to the objective; derive route preferences only from evidence'}
+    dimensions[-1]['focus'] = 'toxicity and safety liabilities relevant to the stated use, exposure and population'
+    target_names = [str(row.get('label') or row.get('identifier')) for row in context.get('scope_entities', [])
+                    if row.get('entity_kind', 'target') == 'target']
+    dimensions[0]['focus'] = ('activity, selectivity and combined target coverage for ' + ', '.join(target_names)) if target_names else 'biological activity relevant to the research objective'
+    return dimensions
+
+
 def objective_templates(task_context: dict) -> list[dict]:
     """Criteria the task mandates: potency at each required target; an approved route for a route constraint.
 
@@ -309,7 +337,24 @@ def objective_templates(task_context: dict) -> list[dict]:
                      "cutoff_basis": "none_evidence_insufficient", "on_missing": "unknown_no_penalty"}})
     for index, constraint in enumerate(task_context.get("constraints", [])):
         text = (constraint.get("text") or "").lower()
-        if constraint.get("hardness") == "hard" and constraint.get("kind") == "route" and "oral" in text:
+        if constraint.get('hardness') == 'hard' and constraint.get('kind') == 'route' and not _positive_oral_requirement(constraint):
+            requirement = constraint.get('text') or str(constraint.get('value') or '')
+            items.append({'source_field': f'constraints[{index}]', 'attribute': {
+                'name': 'Documented administration meeting the task requirement',
+                'measurement_kind': 'categorical', 'unit': None, 'direction': 'non_directional',
+                'definition': 'Whether a human administration report explicitly satisfies this route requirement: ' + requirement,
+                'acceptable_value_sources': ['peer_reviewed'], 'acceptable_determination_bases': ['asserted', 'measured', 'curated'],
+                'aggregation': 'consensus',
+                'evidence_request': {'capability': 'literature_retrieval', 'question_kind': 'search',
+                    'identifier_scheme': None, 'parameters': {
+                        'query_template': '({names}) AND (administration OR dosing OR infusion OR formulation)',
+                        'relevance_terms': ['administration', 'dosing', 'infusion', 'formulation'], 'search_limit': 10}},
+                'rationale': 'Administration route specified by the task: ' + requirement},
+                'rule': {'rule_kind': 'hard_exclusion', 'predicate_form': 'categorical_membership',
+                    'cutoff': {'comparator': '==', 'value': True, 'unit': None}, 'cutoff_basis': 'task_constraint',
+                    'on_missing': 'unknown_blocks_recommendation'}})
+            continue
+        if constraint.get("hardness") == "hard" and constraint.get("kind") == "route" and _positive_oral_requirement(constraint):
             if task_context.get("qualification_policy") == "qualification_first_v1":
                 from .clinical_routes import EXISTENCE_SEMANTICS
                 items.append({"source_field": f"constraints[{index}]", "attribute": {

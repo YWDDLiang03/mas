@@ -76,7 +76,7 @@ def libraries(operations):
         try:
             record = json.loads(path.read_text(encoding='utf-8'))
             if isinstance(record.get('universe'), list):
-                out.append({'id': path.name, 'label': 'Recorded compound library · ' + str(len(record['universe'])) + ' compounds',
+                out.append({'id': path.name, 'label': 'Recorded compound library',
                             'count': len(record['universe']), 'path': str(path.resolve()),
                             'source': record.get('source'), 'as_of': record.get('retrieved_at')})
         except (ValueError, OSError):
@@ -97,6 +97,7 @@ def workflow_settings(manager, value, replay):
         'textbook.volume': operations.settings['textbook.volume'], 'assess.workers': int(value.get('workers') or 4),
         'budget.usd_max': float(value.get('budget_usd') or 10), 'budget.on_exhaust': 'finalize_partial',
         'interaction.mode': 'autonomous', 'interaction.checkpoints': [],
+        'cdes.enabled': value.get('cdes_enabled', False),
         'sources.replay_run_ids': replay, 'sources.pubchem_record_projection': True,
         'rank.coverage_floor': operations.settings['rank.coverage_floor'],
         'rank.mandated_coverage_floor': 1.0, 'run.seed': operations.settings['run.seed']})
@@ -460,7 +461,7 @@ def execute(manager, workflow_id):
         EVIDENCE_CATALOG, objective_templates = uploaded.catalog(), uploaded.objective_templates
     elif value.get('entity_type', 'drug') != 'drug':
         raise ValueError('Choose an uploaded candidate library for a carrier or general study.')
-    if not uploaded and not value.get('source_task_id'):
+    if not uploaded and not value.get('source_task_id') and value.get('evidence_mode', 'existing_only') == 'existing_only':
         manager.update(workflow_id, state='waiting_input', questions=[{'id': 'source_task_id', 'prompt': 'Select the saved evidence collection to use.'}])
         return
     roster = investigation_roster(manager.operations)
@@ -601,7 +602,7 @@ def execute(manager, workflow_id):
         with Core.open(manager.operations.store_root) as core:
             source_context = task.get(core, value['source_task_id']) if value.get('source_task_id') else {}
             tool_fact_sources = None
-            if not uploaded:
+            if not uploaded and value.get('source_task_id'):
                 tool_fact_sources = data.get('_checkpoints', {}).get('tool_fact_sources')
                 if tool_fact_sources is None:
                     tool_fact_sources = existing_research.evaluation_fact_sources(core, value['source_task_id'])
@@ -617,11 +618,19 @@ def execute(manager, workflow_id):
             usage()
             if not tid:
                 return
+            if not uploaded:
+                from mas.adapters.drug.registration import research_dimensions
+                DIMENSIONS = research_dimensions(task.get(core, tid))
             if uploaded:
                 fact_ref, fact_manifest, fact_claims = uploaded_fact_bank(core, tid, uploaded, library, value.get('source_task_id'))
-            else:
+            elif value.get('source_task_id'):
                 fact_ref, fact_manifest, fact_claims, fact_sources = existing_fact_bank(
                     core, manager, workflow_id, tid, value['source_task_id'], library)
+            else:
+                # New retrieval studies begin without an inherited evidence collection.
+                fact_ref, fact_claims, fact_sources = None, [], {}
+                fact_manifest = {'candidate_library_sha256': hashlib.sha256(Path(library['path']).read_bytes()).hexdigest(),
+                                 'claims': [], 'created_at': utc_now()}
             manager.operations.current_task = tid
             manager.operations._save_state()
             data = manager._read(workflow_id)
@@ -685,11 +694,16 @@ def execute(manager, workflow_id):
                 return
             checkpoint()
             manager.phase(workflow_id, 'freeze', 'Saving the criteria and evaluation settings')
+            if not uploaded and not value.get('source_task_id'):
+                fact_ref, fact_manifest, fact_claims, fact_sources = existing_fact_bank(
+                    core, manager, workflow_id, tid, tid, library)
             data = manager._read(workflow_id)
             if not data['_checkpoints'].get('freeze'):
                 result = measurement.prepare(core, tid, by=actor('agent', 'workbench', 'operator'),
                     primary_board='Evidence-based qualified candidates',
-                    rationale='Fresh criterion development over a pinned existing evidence collection, with qualification before ranking.',
+                    rationale=('Criteria developed from retrieved evidence for the task, with qualification before ranking.'
+                               if value.get('evidence_mode') == 'retrieve' else
+                               'Fresh criterion development over a pinned existing evidence collection, with qualification before ranking.'),
                     expected_effect='Apply supported direct-evidence hard conditions; preserve unresolved evidence; rank qualified candidates only.',
                     coverage_floor=1.0, defer_capabilities=(), settings=settings, implementation=implementation,
                     ranking_coverage_floor=settings['rank.coverage_floor'], eligibility_mandated_coverage_floor=1.0,
@@ -732,9 +746,9 @@ def execute(manager, workflow_id):
                     json.loads(Path(library['path']).read_text(encoding='utf-8'))['universe'],
                     source_provenance={row['claim_id']: row for row in fact_manifest['claims']},
                     cutoff_date=fact_manifest['created_at'][:10])
-                evidence_manifest = {'version': 1, 'source_task_id': value['source_task_id'],
+                evidence_manifest = {'version': 1, 'source_task_id': value.get('source_task_id'),
                     'replay_runs': [{'run_id': row['run_id'], 'pinned_seq': row['pinned_seq']}
-                                    for row in tool_fact_sources['source_runs']],
+                                    for row in (tool_fact_sources or {}).get('source_runs', [])],
                     'tool_fact_source_manifest': tool_fact_sources,
                     'cached_tool_projections': cached_projections,
                     'library_sha256': hashlib.sha256(Path(library['path']).read_bytes()).hexdigest(),
@@ -786,13 +800,31 @@ def execute(manager, workflow_id):
                     manager.update(workflow_id, state='unresolved', message='Candidate screening has unresolved work', finished_at=utc_now())
                     return
                 manager.record_checkpoint(workflow_id, 'screen', {'run_id': run_id})
-            manager.phase(workflow_id, 'results', 'Preparing the candidate results')
             from .leaderboard import snapshots
             boards = snapshots(core, tid)
             snapshot = boards[-1] if boards else None
+            if value.get('cdes_enabled') and snapshot:
+                manager.phase(workflow_id, 'cdes', 'Reading saved target-interaction predictions')
+                module_result = manager._read(workflow_id)['_checkpoints'].get('cdes')
+                if not module_result:
+                    from mas.adapters.predict.cdes_workflow import run_saved_analysis
+                    try:
+                        module_result = run_saved_analysis(core, manager.operations.store_root.parent,
+                            task.get(core, tid), snapshot, value['_cdes_source'], checkpoint=checkpoint)
+                    except (ValueError, KeyError, OSError) as error:
+                        module_result = {'status': 'unavailable', 'message': str(error), 'source': value.get('_cdes_source')}
+                    manager.record_checkpoint(workflow_id, 'cdes', module_result)
+                phases = manager._read(workflow_id)['phases']
+                for phase in phases:
+                    if phase['id'] == 'cdes':
+                        phase.update(state='completed' if module_result['status'] in ('completed', 'partial') else 'skipped',
+                                     finished_at=utc_now(), counts={'linked_pairs': module_result.get('predicted_pairs', 0)})
+                manager.update(workflow_id, phases=phases, modules={'cdes': module_result})
+            manager.phase(workflow_id, 'results', 'Preparing the candidate results')
             phases = manager._read(workflow_id)['phases']
             for phase in phases:
-                phase.update(state='completed', finished_at=phase.get('finished_at') or utc_now())
+                if phase['state'] != 'skipped':
+                    phase.update(state='completed', finished_at=phase.get('finished_at') or utc_now())
             manager.update(workflow_id, state='completed', phases=phases, finished_at=utc_now(),
                 questions=[],
                 snapshot_id=snapshot['snapshot_id'] if snapshot else None, message='Results are ready',

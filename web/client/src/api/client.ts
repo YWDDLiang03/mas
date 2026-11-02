@@ -1,5 +1,6 @@
 import type { Bootstrap, CandidateDetail, CandidatesPage, Criterion, CriterionDetail, Draft, EntityType, Evidence, EvidenceDetail, EvidenceQuery, InterpretationPreparation, Overview, Page, RevisionResult, Settings, Snapshot, Stage, TaskInput, UploadKind, UploadPreview, UploadResult, Workflow } from './types';
 import type { EvidenceCollection, EvidenceSourcePage, SourceKind } from './types';
+import type { StructureResponse } from './structure';
 
 const ROOT = '/api/workbench';
 let operationToken = '';
@@ -26,6 +27,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 const post = <T>(path: string, body: unknown = {}) => request<T>(path, { method: 'POST', body: JSON.stringify(body) });
 const taskPath = (id: string) => `/tasks/${encodeURIComponent(id)}`;
 export const api = {
+  setCdesEnabled: (task: string, enabled: boolean) => post<StructureResponse>(taskPath(task) + '/structure-module', { enabled }),
+  structure: (task: string, options: { snapshot?: string; cohort?: string; q?: string; page?: number }, signal?: AbortSignal) => request<StructureResponse>(taskPath(task) + '/structure' + query({ ...options, page_size: 50 }), { signal }),
+  structureCandidate: (task: string, id: string, snapshot?: string, signal?: AbortSignal) => request<StructureResponse>(taskPath(task) + '/structure/' + encodeURIComponent(id) + query({ snapshot }), { signal }),
+  structureExportUrl: (task: string, format: 'csv' | 'json' | 'zip', snapshot: string, kind = 'predictions') => ROOT + taskPath(task) + '/structure-export.' + format + query({ snapshot, kind }),
   bootstrap: () => request<Bootstrap>('/bootstrap'),
   overview: (task: string, signal?: AbortSignal) => request<Overview>(taskPath(task) + '/overview', { signal }),
   saveDraft: (input: TaskInput, draft_id?: string) => post<Draft>('/drafts', { input, draft_id }),

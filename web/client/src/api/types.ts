@@ -8,10 +8,12 @@ export type Primitive = string | number | boolean | null;
 export interface Page<T> { items: T[]; total: number; page: number; page_size: number; has_more: boolean; as_of?: string }
 export interface Task { task_id: string; title: string; objective: string; state?: string; candidate_count?: number; criteria_count?: number; latest_snapshot_id?: string | null; workflow_id?: string | null }
 export type EntityType = 'drug' | 'carrier' | 'general';
-export interface TaskInput { title?: string; objective: string; targets?: string[]; constraints?: string; library_id?: string | null; source_task_id?: string | null; entity_type?: EntityType; evidence_upload_id?: string | null; revision_of_task_id?: string; reference_candidate?: string; evidence_mode: 'existing_only' | 'retrieve'; evaluation_mode: 'staged' | 'full'; workers?: number; budget_usd?: number }
+export interface CdesCollection { id: string; label: string; targets: string[]; candidate_count: number; source_mode: string }
+export interface PredictionModules { cdes: { deployment: string; collections: CdesCollection[] } }
+export interface TaskInput { cdes_enabled?: boolean; cdes_source_id?: string | null; objective_source?: string; original_objective?: string; title?: string; objective: string; targets?: string[]; constraints?: string; library_id?: string | null; source_task_id?: string | null; entity_type?: EntityType; evidence_upload_id?: string | null; revision_of_task_id?: string; reference_candidate?: string; evidence_mode: 'existing_only' | 'retrieve'; evaluation_mode: 'staged' | 'full'; workers?: number; budget_usd?: number }
 export interface Draft { draft_id: string; input: TaskInput; updated_at: string }
 export interface WorkflowPhase { id: string; label: string; state: string; started_at?: string | null; finished_at?: string | null; counts?: Record<string, number | null> }
-export interface Workflow {
+export interface Workflow { modules?: { cdes?: { status: string; message?: string; predicted_pairs?: number; missing_targets?: string[] } };
   workflow_id: string; task_id: string | null; draft_id?: string | null; title: string; state: WorkflowState;
   phase: string; phase_label?: string; message: string; started_at: string; updated_at: string; last_activity_at?: string | null; finished_at?: string | null;
   progress: { completed: number | null; planned: number | null; denominator_kind: string | null; scope?: string };
@@ -23,7 +25,7 @@ export interface Workflow {
   run_id?: string | null; snapshot_id?: string | null; error?: string | { code?: string; message?: string } | null;
   can_pause: boolean; can_resume: boolean; can_stop: boolean; can_reevaluate?: boolean;
 }
-export interface Library { id: string; label: string; count?: number; entity_type?: EntityType }
+export interface Library { source?: string; as_of?: string; id: string; label: string; count?: number; entity_type?: EntityType }
 export type UploadKind = 'candidates' | 'measurements';
 export interface UploadField { key: string; label?: string; required: boolean; type?: string; description?: string; choices?: string[] }
 export interface UploadIssue { row?: number | null; row_number?: number | null; field?: string | null; message: string }
@@ -34,7 +36,7 @@ export interface EvidenceCollection extends EvidenceSource { source_counts?: Rec
 export type SourceKind = 'literature' | 'database' | 'model' | 'other' | 'all';
 export interface EvidenceSourceGroup { source_id: string; title?: string | null; url?: string | null; kind: SourceKind; source_status?: string; claim_count: number; populations: string[]; subjects: string[]; assays: string[]; conditions: string[]; context_basis: string; context_sampled: boolean; context_sample_size: number; criteria: LinkedCriterion[]; criteria_count: number; criteria_scope?: 'saved_evaluation' | 'prepared_evaluation' | 'task_history'; evaluation_rule_set_ref?: string | null; scope: EvidenceLinkScope }
 export interface EvidenceSourcePage extends Page<EvidenceSourceGroup> { kind: SourceKind; scope: EvidenceLinkScope; snapshot_id: string | null }
-export interface Bootstrap { tasks: Task[]; drafts: Draft[]; libraries: Library[]; evidence_sources: EvidenceSource[]; current_task_id?: string | null; workflows: Workflow[]; operation_token?: string; defaults: TaskInput; projection: { state: string; ready?: boolean; syncing?: boolean; updated_at?: string }; operations_enabled?: boolean }
+export interface Bootstrap { prediction_modules?: PredictionModules; tasks: Task[]; drafts: Draft[]; libraries: Library[]; evidence_sources: EvidenceSource[]; current_task_id?: string | null; workflows: Workflow[]; operation_token?: string; defaults: TaskInput; projection: { state: string; ready?: boolean; syncing?: boolean; updated_at?: string }; operations_enabled?: boolean }
 export interface Stage { stage_id: string; run_id: string; stage: string; iteration: number | null; state: string; started_at?: string | null; finished_at?: string | null; before_count: number | null; after_count: number | null; added?: number | null; modified?: number | null; merged?: number | null; removed?: number | null; pending?: number | null; counts_known: boolean; count_basis?: string; counts_basis?: string }
 export interface Snapshot { snapshot_id: string; published_at: string; run_id: string; label?: string; evaluation_mode?: string; candidate_count?: number; reporting_tuple?: { ranking_coverage_floor?: number | null; mandated_coverage_floor?: number | null } }
 export interface Change { id?: string; stage?: string; iteration?: number | null; operation?: string; before?: unknown; after?: unknown; reason?: string; actor?: unknown; at?: string; sources?: unknown[] }
@@ -73,6 +75,6 @@ export interface CandidatesPage extends Page<Candidate> { eligibility_requiremen
 export interface CandidateDetail extends Candidate { assessments: Assessment[]; evidence: Evidence[]; snapshot_id?: string; legacy_rank_only?: boolean; raw?: { qualification?: { required_total?: number; required_direct_answered?: number; missing_direct_required_rule_refs?: string[] }; [key: string]: unknown }; mechanism?: string | { sentences?: { text: string }[] } | null }
 export interface SettingChoice { value: string; label?: string }
 export interface SettingField { key: string; label: string; value: Primitive; kind: string; choices?: (string | SettingChoice)[]; minimum?: number; maximum?: number; doc?: string; secret?: boolean; configured?: boolean; editable?: boolean }
-export interface Settings { preset: string; fields: SettingField[]; config_hash?: string; message?: string; providers?: unknown; model_roles?: { role: string; model_id: string }[] }
+export interface Settings { prediction_modules?: PredictionModules; preset: string; fields: SettingField[]; config_hash?: string; message?: string; providers?: unknown; model_roles?: { role: string; model_id: string }[] }
 export interface RevisionResult { task_id: string; version?: number; workflow?: Workflow; message: string }
 export interface StreamEvent { kind: 'workflow' | 'projection' | 'heartbeat'; workflow?: Workflow; task_id?: string; cursor: number }

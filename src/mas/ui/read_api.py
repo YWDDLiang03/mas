@@ -28,10 +28,15 @@ class ReadAPI:
         self.model = model
         from mas.ui.score_details import ScoreDetails
         self.score_details = ScoreDetails(model)
+        from mas.ui.structure_results import StructureResults
+        self.structure = StructureResults(model.source_path.parent.parent)
 
     def get(self, task_id: str, resource: str, query: Mapping[str, Any] | None = None,
             wanted: str | None = None) -> dict[str, Any]:
         query = query or {}
+        if resource == "structure":
+            return self.structure.get(task_id, wanted=wanted, snapshot=_value(query, "snapshot", None),
+                cohort=str(_value(query, "cohort", "eligible")), **page_parameters(query))
         if resource == "overview":
             return self.model.overview(task_id)
         if resource == "stages":
