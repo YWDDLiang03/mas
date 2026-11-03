@@ -189,7 +189,7 @@ Click Surufatinib's **Score**. The drawer shows each value, basis, comparison po
 = 0.7592592592592593
 ```
 
-Five target preferences, five structural calculations and five predictions supply the 15 values. Human measured oral F% and Tmax remain missing. Missing preferences are excluded from the score average but remain in the applicable coverage denominator: **15 for the score, 17 for coverage**. Predictions may contribute to score while contributing zero to the direct-coverage numerator.
+Surufatinib’s score uses five measured target potencies, five calculated molecular properties and five ADMET predictions covering blood–brain barrier penetration and CYP metabolism. The ten measured or calculated values count towards direct evidence coverage. Human oral bioavailability and time to peak concentration lack usable measurements, giving **15 values for the score and 10/17 direct coverage**. [Candidate-level score breakdown](../examples/oral-multitarget/latest/source-data/AI_Data_4_eligible_candidate_scores.csv)
 
 Continuous preferences compare available values among eligible candidates, with better values receiving higher points and ties sharing the average position:
 
@@ -253,4 +253,6 @@ Import a supplied collection using the [CDES module guide](components/structure-
 
 For an existing study with attached results, open **CDES analysis**. Compare the measured values and interaction scores under their displayed units. Selecting a score opens the original prediction row and protein input; **View observations** leads to the corresponding activity sources. The library comparison reports confirmed and unresolved correspondences. **Download complete data** includes those relationships and the source files.
 
-The public saved case supplies the original criterion and ranking records. A CDES collection is an additional study input. Its target profile complements the saved composite evaluation. New targets and libraries can be configured with [the drug-library task template](../config/examples/task.library.example.json) and [agent-run instructions](agent-run.md#your-own-drug-library).
+After attaching a matching collection to the public example, select **Eligible candidates** in **CDES analysis**. All ten drugs have measurements for all five targets, so you can compare each predicted interaction with its corresponding measured activity. The CDES rank is specific to one target in the supplied prediction library. Open **Candidates** for the composite rank among the ten eligible drugs.
+
+For a different target set or library, start a new study. [Drug-library task template](../config/examples/task.library.example.json) · [Agent-run instructions](agent-run.md#your-own-drug-library)

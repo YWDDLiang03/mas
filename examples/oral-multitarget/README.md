@@ -6,7 +6,7 @@ For research reporting and supplementary data, use the [case source-data collect
 
 This directory contains the frozen export from the latest completed study. The latest study begins with an oral multi-target objective, develops and refines criteria from saved evidence, checks the recorded compound library, and links the final ranking to its rules and source observations.
 
-| Study | Surufatinib rank | Score | Qualified | Full candidate export |
+| Study | Surufatinib rank | Score | Eligible | Full candidate export |
 |---|---:|---:|---:|---:|
 | [Latest](latest/results/) | 1 | 0.7592592592592593 | 10 | 3,177 |
 
@@ -29,9 +29,13 @@ Criteria started empty. Six task requirements expanded to **1,917 working items*
 
 Surufatinib passes the oral hard condition **1/1** and has direct observations for all required targets **5/5**. The first saved result had no rank because direct preference coverage was **6/17**, below the 50% ranking floor. Correcting existing-fact reuse and four deterministic descriptor basis classifications produced a new saved snapshot with **10/17** direct coverage. Scientific thresholds, weights and coverage floors were retained; the first outcome remains in the snapshot history.
 
-Of 17 preferences, 15 have values and equal weight: **11.38888888888889 comparison points ÷ 15 = 0.7592592592592593**. Human oral F% and Tmax remain missing. The score denominator is 15; direct coverage uses all 17 applicable preferences. Predictions can contribute to the allowed preference score but do not increase direct coverage.
+Of 17 scoring criteria, 15 have values and equal weight. **11.38888888888889 comparison points ÷ 15 = 0.7592592592592593**. The five measured target potencies and five calculated molecular properties count towards direct coverage. The other five score contributions come from ADMET predictions. Human oral bioavailability and time to peak concentration lack usable measurements. [Scores and evidence for each candidate](latest/source-data/AI_Data_4_eligible_candidate_scores.csv)
 
-The current display reports **10 Eligible, 1,305 Evidence incomplete and 1,862 Excluded**. The immutable evidence-qualification fields retain the earlier 10 qualified / 3,167 pending summary; [the mapping](../../docs/reference/system-alignment.md#classification-version) explains the relationship. Surufatinib ranks first within the qualified ten. Its FGFR1 record shows how to audit aggregation: literature IC50 **34 nM** becomes **7.468521 pChEMBL**, which joins **7.280000, 7.82 and 7.82**; the four-record median is **7.64426054148**. The records preserve source/assay context; four records do not imply four independent experiments.
+The current display reports **10 Eligible, 1,305 Evidence incomplete and 1,862 Excluded**. The frozen export retains the earlier 10 qualified / 3,167 pending summary. [Classification history](../../docs/reference/system-alignment.md#classification-version)
+
+Surufatinib ranks first among the ten eligible drugs. Its FGFR1 record illustrates how measured potency enters the ranking. A reported IC50 of **34 nM** converts to **7.468521 pChEMBL**. The other three entries are **7.280000, 7.82 and 7.82**, giving a four-record median of **7.64426054148**. This median counts source entries, which can include multiple reports of one experiment. [Target observations](latest/source-data/AI_Data_7_target_observations.csv)
+
+Each eligible drug contributed a measured value for each required target, covering all 50 drug–target pairs. To compare these measurements with structure-based interaction predictions, import a matching CDES collection separately. The public replay supplies the composite ranking and its evidence. [CDES guide](../../docs/components/structure-predictions.md)
 
 ## Restore, replay or generate again
 

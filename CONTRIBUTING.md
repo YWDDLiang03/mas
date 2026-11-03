@@ -24,7 +24,7 @@ Tests marked `live` require external services or a configured prediction environ
 - Historical reference criteria belong to evaluation, not derivation prompts. A published descriptive comparison does not become a recovery claim.
 - Leave credentials, manuscripts without redistribution permission, local databases and temporary builds outside Git.
 
-The two directories under `examples/oral-multitarget/*/results/` are frozen exports. Their original manifests record file hashes. Add a new case/version for new results, and document its input scope and comparison basis.
+The retained study has a frozen export under `examples/oral-multitarget/latest/results/`. Its manifest records the file hashes. Add a new case or version for new results and document its inputs and comparison population.
 
 ## Documentation
 

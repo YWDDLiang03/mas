@@ -121,7 +121,9 @@ The [complete tutorial](docs/tutorial.md) follows the saved case from Settings t
 | Surufatinib | Rank 1 of 10; score 0.7592592593 |
 | Scoring evidence | 10/17 direct-evidence coverage; 15 available equally weighted contributions |
 
-The five target criteria require usable direct observations for eligibility and compare their potency values during scoring. The other eligibility requirement concerns oral administration. Details and source observations are in the [case guide](examples/oral-multitarget/README.md), [selection table](examples/oral-multitarget/latest/selection/candidate-selection.csv) and [score explanation](examples/oral-multitarget/latest/score-details.json).
+All ten eligible drugs had a documented oral route and measured activity against all five targets. The study compared potency using the experimental observations summarized for each of the 50 drug–target pairs. Surufatinib led on measured CSF1R and FGFR1 potency and ranked first overall when the study also considered molecular properties and ADMET predictions. [Case guide](examples/oral-multitarget/README.md) · [Selection table](examples/oral-multitarget/latest/selection/candidate-selection.csv) · [Scores for all ten drugs](examples/oral-multitarget/latest/source-data/AI_Data_4_eligible_candidate_scores.csv)
+
+Would the predicted interactions across the five targets also favor the same drug? Import a separate CDES collection to inspect predictions from molecular structure and protein sequence alongside each drug’s measured activity. CDES reports a drug’s rank for each target across the supplied prediction library. A comparison based on all five predictions together would require a separate analysis within the ten eligible drugs. [CDES guide](docs/components/structure-predictions.md)
 
 The [criterion comparison guide](docs/reference/cqa-comparison.md) shows how to compare definitions, conditions and decision uses with explicitly synthetic examples.
 

@@ -44,6 +44,7 @@ flowchart LR
 | 用自己的药物库开展靶点研究 | [药物库任务](docs/zh/agent-run.md#使用自己的药物库) |
 | 更换问题、候选库或测量 | [自定义任务](docs/zh/agent-run.md)与[CSV 格式](docs/zh/csv-input.md) |
 | 理解各组件并修改输入 | [组件实操教程](docs/zh/component-walkthrough.md) |
+| 将已有结构预测与实测活性对照 | [靶点作用谱与数据导入](docs/components/structure-predictions.md) |
 | 接入其他模型或领域工具 | [模型](docs/components/models-and-budgets.md)、[工具](docs/components/tools-and-providers.md)、[领域适配器](docs/components/domain-adapters.md) |
 
 ## 复现公开案例
@@ -120,7 +121,9 @@ npm.cmd --prefix web/client run build
 | Surufatinib | 第 1／10；得分 0.7592592593 |
 | 评分证据 | 直接证据覆盖 10/17；15 项可用得分等权汇总 |
 
-五项靶点标准在准入时要求可用的直接观测，在评分时比较效力数值；另一项准入要求为口服给药。完整定义及观测见[案例说明](examples/oral-multitarget/README.md)、[候选分类表](examples/oral-multitarget/latest/selection/candidate-selection.csv)和[评分明细](examples/oral-multitarget/latest/score-details.json)。
+十个合格药物均有口服依据及五个靶点的实测活性。这 50 个药物–靶点组合的测量值也用于比较效力。索凡替尼在 CSF1R 和 FGFR1 上的实测效力均居首。综合考虑五靶点活性、分子性质和 ADMET 预测后，索凡替尼排名第一。[案例说明](examples/oral-multitarget/README.md) · [候选分类表](examples/oral-multitarget/latest/selection/candidate-selection.csv) · [十个药物的评分明细](examples/oral-multitarget/latest/source-data/AI_Data_4_eligible_candidate_scores.csv)
+
+只看五个靶点的相互作用预测，同一个药物还会居首吗？单独导入 CDES 集合后，可以把根据分子结构和蛋白序列得到的预测与每个药物的实测活性逐项对照。CDES 给出每个药物在所导入预测库中的单靶点名次。要得到五靶点预测合起来的名次，还需在这十个合格药物中另作比较。[CDES 使用说明](docs/components/structure-predictions.md)
 
 [标准比较指南](docs/zh/cqa-comparison.md)使用明确标注的合成示例，说明怎样比较定义、条件和决策用途。
 
@@ -134,7 +137,7 @@ python scripts/build_case_source_data.py
 
 ## 开发与公开内容
 
-[架构状态表](docs/architecture.md)区分已实现组件与计划扩展。源码版本为 v1.1.0；[10 月 28 日文档更新](docs/releases/2026-10-28-documentation.md)记录本轮同步。
+源码版本为 v1.1.0。11 月 2 日的系统更新加入了以靶点为起点的任务入口和可选 CDES 模块。[更新说明](docs/releases/2026-11-02-target-workflow.md) · [架构状态表](docs/architecture.md)
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
@@ -143,7 +146,3 @@ npm.cmd --prefix web/client run build
 ```
 
 [贡献指南](CONTRIBUTING.md)介绍相关检查；[公开内容规范](docs/reference/public-content.md)约定源码和 Release 附件的范围。私有稿件、论文图稿、临床材料与本地凭证留在公开仓库之外。
-
-
-
-[2026 年 11 月 2 日更新](docs/releases/2026-11-02-target-workflow.md)介绍新的任务入口、可选 CDES 模块与文档整理。

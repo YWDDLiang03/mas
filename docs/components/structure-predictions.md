@@ -24,6 +24,8 @@ The collection retains original files, raw score strings, source rows, protein s
 
 The page offers eligible candidates, matched study candidates, the full prediction library, unresolved correspondences and the supplied ADMET analysis. Search is applied before pagination. Candidate details link to the relevant experimental observations and to the original prediction rows.
 
+Select the eligible group to compare predicted interactions with measured activity for the candidates that met the study requirements. Each CDES rank refers to one target across the supplied prediction library, even when the page shows only eligible drugs. The overall rank comes from the study’s fixed criteria. A ranking based on structure alone across multiple targets would require a separate rule for combining those target scores.
+
 | Resource | Contents |
 |---|---|
 | `GET /api/workbench/tasks/{task}/structure` | Collection summary and paginated comparison; accepts `snapshot`, `cohort`, `q`, `page`, `page_size` |
